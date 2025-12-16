@@ -1,0 +1,91 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    color: var(--text-main);
+    position: relative;
+    overflow-x: hidden;
+
+    /* Fondo blanco limpio */
+    background-color: #FFFFFF;
+}
+
+/* Patrón de hexágonos en esquina superior derecha */
+body::before {
+    content: '';
+    position: fixed;
+    top: -50px;
+    right: -50px;
+    width: 600px;
+    height: 600px;
+    background-image:
+        /* Hexágonos grandes */
+        radial-gradient(circle at 50% 50%, transparent 30%, rgba(81, 194, 244, 0.08) 30%, rgba(81, 194, 244, 0.08) 32%, transparent 32%),
+        radial-gradient(circle at 0% 50%, transparent 30%, rgba(81, 194, 244, 0.08) 30%, rgba(81, 194, 244, 0.08) 32%, transparent 32%),
+        radial-gradient(circle at 100% 50%, transparent 30%, rgba(81, 194, 244, 0.08) 30%, rgba(81, 194, 244, 0.08) 32%, transparent 32%);
+    background-size: 100px 87px;
+    background-position: 0 0, 50px 43.5px, 50px 43.5px;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+/* Ondas sutiles en esquina inferior izquierda */
+body::after {
+    content: '';
+    position: fixed;
+    bottom: -80px;
+    left: -80px;
+    width: 500px;
+    height: 500px;
+    background-image:
+        /* Ondas circulares concéntricas */
+        radial-gradient(circle, transparent 60px, rgba(81, 194, 244, 0.06) 60px, rgba(81, 194, 244, 0.06) 62px, transparent 62px),
+        radial-gradient(circle, transparent 100px, rgba(81, 194, 244, 0.08) 100px, rgba(81, 194, 244, 0.08) 102px, transparent 102px),
+        radial-gradient(circle, transparent 140px, rgba(81, 194, 244, 0.10) 140px, rgba(81, 194, 244, 0.10) 143px, transparent 143px),
+        radial-gradient(circle, transparent 180px, rgba(81, 194, 244, 0.06) 180px, rgba(81, 194, 244, 0.06) 183px, transparent 183px);
+    background-size: 100% 100%;
+    background-position: center;
+    z-index: 0;
+    pointer-events: none;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    body::before {
+        width: 400px;
+        height: 400px;
+        background-size: 70px 61px;
+    }
+
+    body::after {
+        width: 350px;
+        height: 350px;
+    }
+}
+
+@media (max-width: 480px) {
+    body::before {
+        width: 300px;
+        height: 300px;
+        background-size: 50px 43.5px;
+    }
+
+    body::after {
+        width: 250px;
+        height: 250px;
+    }
+}
