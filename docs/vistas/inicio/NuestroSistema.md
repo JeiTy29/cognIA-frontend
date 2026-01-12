@@ -10,7 +10,9 @@ La vista **Nuestro Sistema** es una sección informativa del sitio web de cognIA
 
 ## Justificación
 
-Se optó por un diseño moderno con efectos de **glassmorphism** (transparencias con blur) para integración visual con el fondo técnico de la página. Las tarjetas semi-transparentes crean una experiencia visual sofisticada y moderna.
+## Justificación
+
+Se optó por un diseño moderno con efectos de **glassmorphism** (transparencias con blur) para integración visual con el fondo técnico de la página. Las tarjetas semi-transparentes crean una experiencia visual sofisticada y moderna. Los títulos principales siguen rigurosamente el estándar global de la aplicación (Clase `.section-title`: Azul Oscuro, 2.2rem) para mantener una identidad visual unificada frente a la sección "Sobre Nosotros". 
 
 Las preguntas de la demostración interactiva  se diseñaron para ser:
 

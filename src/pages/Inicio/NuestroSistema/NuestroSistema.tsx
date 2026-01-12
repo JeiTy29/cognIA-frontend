@@ -61,7 +61,7 @@ export default function NuestroSistema() {
 
   return (
     <main className="sistema">
-      <h1>¿Cómo funciona nuestro sistema?</h1>
+      <h1 className="section-title">¿Cómo funciona nuestro sistema?</h1>
       <p className="intro">
         El proceso de evaluación se desarrolla en cuatro etapas claramente definidas.
       </p>
@@ -121,10 +121,10 @@ export default function NuestroSistema() {
       </section>
 
       <section className="rf-demo">
-        <h2>¿Cómo funciona el Random Forest?</h2>
+        <h2 className="section-title">¿Cómo funciona el Random Forest?</h2>
 
         <div className="rf-container">
-          <div className="rf-description">
+          <div className="rf-description info-card">
             <h3>Algoritmo Random Forest</h3>
             <p>
               Random Forest es un método de aprendizaje automático que utiliza múltiples
@@ -144,7 +144,7 @@ export default function NuestroSistema() {
             </div>
           </div>
 
-          <div className="rf-interactive">
+          <div className="rf-interactive info-card">
             <h3>Simulación Interactiva</h3>
             <div className="rf-disclaimer">
               <strong>Nota:</strong> Esta es una demostración simplificada.
