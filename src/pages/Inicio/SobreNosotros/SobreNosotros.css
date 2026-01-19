@@ -1,0 +1,194 @@
+.sobre-nosotros-container {
+    padding: 80px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* .section-title removed - using global definition */
+
+.team-section {
+    text-align: center;
+    margin-bottom: 6rem;
+}
+
+.team-description {
+    margin: 0 auto 4rem;
+    color: #555;
+    line-height: 1.8;
+    max-width: 800px;
+    font-size: 1.1rem;
+}
+
+/* Grids Layout */
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.contact-section {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* Ensure side-by-side */
+    gap: 3rem;
+    align-items: start;
+}
+
+/* Shared Card Styles - Extending global .info-card */
+.team-card,
+.contact-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.team-card h3,
+.contact-card h3 {
+    /* Using global .card-title styles */
+    margin-bottom: 1.5rem;
+    font-size: 24px;
+    font-weight: 700;
+    color: #51C2F4;
+}
+
+/* Developer Image Styles */
+.dev-image-placeholder {
+    width: 180px;
+    height: 180px;
+    background: linear-gradient(135deg, rgba(81, 194, 244, 0.1) 0%, rgba(108, 212, 255, 0.15) 100%);
+    border: 2px solid rgba(81, 194, 244, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    color: #1FA3FF;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.team-card:hover .dev-image-placeholder {
+    border-color: #1FA3FF;
+    transform: scale(1.05);
+}
+
+.dev-info p {
+    margin: 0.6rem 0;
+    color: #555;
+    font-size: 1.05rem;
+}
+
+.dev-role {
+    font-weight: 600;
+    color: #215F8F !important;
+}
+
+/* Contact Specifics */
+.university-logo-placeholder,
+.cognia-logo-placeholder {
+    width: 140px;
+    height: 140px;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.contact-details p {
+    margin: 1rem 0;
+    color: #444;
+    font-size: 1.1rem;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE (Matching NuestroSistema)
+   ======================================== */
+
+@media (max-width: 1024px) {
+    .sobre-nosotros-container {
+        padding: 60px 40px;
+    }
+
+    .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+        /* 2 columns on tablet */
+        gap: 2rem;
+    }
+
+    .team-card:last-child {
+        grid-column: 1 / -1;
+        /* Center the last one if logical */
+        max-width: 500px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .contact-grid {
+        gap: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .sobre-nosotros-container {
+        padding: 50px 24px;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .team-grid {
+        grid-template-columns: 1fr;
+        /* Stack on mobile */
+    }
+
+    .team-card:last-child {
+        grid-column: auto;
+    }
+
+    .contact-grid {
+        grid-template-columns: 1fr;
+        /* Stack on mobile */
+        gap: 2rem;
+    }
+
+    .team-card,
+    .contact-card {
+        padding: 32px 24px;
+    }
+
+    .dev-image-placeholder {
+        width: 150px;
+        height: 150px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sobre-nosotros-container {
+        padding: 40px 16px;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+    }
+
+    .team-description {
+        font-size: 1rem;
+    }
+
+    .team-card,
+    .contact-card {
+        padding: 24px 20px;
+    }
+}

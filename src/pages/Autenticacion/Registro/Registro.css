@@ -1,0 +1,250 @@
+/* Role Selection - Horizontal Layout */
+.role-selection-horizontal {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    animation: fadeIn 0.3s ease;
+    width: 100%;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Vertical Role Cards */
+.role-card-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 28px;
+    border: 2px solid #E0E0E0;
+    border-radius: 16px;
+    background-color: #F9FAFB;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 180px;
+    height: 280px;
+}
+
+.role-card-vertical:hover {
+    border-color: #1790E9;
+    background-color: #ffffff;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(23, 144, 233, 0.15);
+}
+
+.role-image-placeholder {
+    width: 100px;
+    height: 100px;
+    background-color: #51C2F4;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+}
+
+.role-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #215F8F;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* Form Container with Collapse Animation */
+.form-container-animated {
+    animation: collapseSlideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    width: 100%;
+}
+
+@keyframes collapseSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Role Tag - Small rectangular tag */
+.role-tag {
+    padding: 10px 20px;
+    background-color: #F9FAFB;
+    border: 2px solid #51C2F4;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    text-align: center;
+    margin-bottom: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.role-tag.clickeable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.role-tag.clickeable:hover {
+    background-color: #ffffff;
+    border-color: #1790E9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(23, 144, 233, 0.2);
+}
+
+.change-hint {
+    font-size: 11px;
+    opacity: 0.6;
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+/* Password Toggle */
+.password-group {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: #1790E9;
+}
+
+.password-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Validation Messages */
+.validation-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Forms layout */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* Terms Checkbox */
+.terms-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.terms-checkbox input[type="checkbox"] {
+    margin-top: 4px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.terms-checkbox label {
+    font-size: 14px;
+    color: #2A2D34;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    .role-selection-horizontal {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .role-card-vertical {
+        width: 100%;
+        max-width: 280px;
+        height: auto;
+        padding: 32px 24px;
+    }
+
+    .role-image-placeholder {
+        width: 90px;
+        height: 90px;
+    }
+
+    .role-text {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .role-card-vertical {
+        padding: 28px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .role-selection-horizontal {
+        gap: 16px;
+    }
+
+    .role-card-vertical {
+        max-width: 100%;
+        padding: 24px 16px;
+    }
+
+    .role-image-placeholder {
+        width: 80px;
+        height: 80px;
+    }
+
+    .role-text {
+        font-size: 14px;
+    }
+
+    .terms-checkbox {
+        font-size: 13px;
+    }
+
+    .terms-checkbox input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+}

@@ -1,0 +1,185 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    color: var(--text-main);
+    position: relative;
+    overflow-x: hidden;
+
+    /* Fondo blanco limpio */
+    background-color: #FFFFFF;
+}
+
+/* Fondo moderno 'Mesh Gradient' sutil */
+/* Fondo animado moderno con formas orgánicas */
+/* Fondo animado moderno con formas orgánicas */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background:
+        radial-gradient(at 0% 0%, rgba(81, 194, 244, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.8) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(33, 95, 143, 0.1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(255, 255, 255, 0.8) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(81, 194, 244, 0.05) 0px, transparent 50%);
+    background-color: #ffffff;
+    z-index: -1;
+    pointer-events: none;
+    filter: blur(40px);
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    bottom: -10vh;
+    left: -10vw;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(circle, rgba(33, 95, 143, 0.2) 0%, rgba(33, 95, 143, 0.05) 50%, transparent 80%);
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    animation: float-reverse 25s infinite alternate ease-in-out;
+}
+
+/* Tercera forma para más profundidad */
+body>#root::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 40vw;
+    height: 40vw;
+    background: radial-gradient(circle, rgba(23, 144, 233, 0.15) 0%, rgba(23, 144, 233, 0.05) 50%, transparent 80%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: pulse-glow 15s infinite alternate ease-in-out;
+}
+
+@keyframes float {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(50px, 30px) rotate(10deg);
+    }
+}
+
+@keyframes float-reverse {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-50px, -30px) rotate(-10deg);
+    }
+}
+
+@keyframes pulse-glow {
+    0% {
+        opacity: 0.5;
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Standardized Section Title */
+.section-title {
+    color: #215F8F;
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    display: inline-block;
+    font-weight: 700;
+}
+
+.section-title::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 3px;
+    background-color: #215F8F;
+    margin-top: 8px;
+    border-radius: 2px;
+}
+
+/* Standardized Info Card - Reusable container with light blue background */
+.info-card {
+    background: #F9FCFF;
+    padding: 36px 28px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(81, 194, 244, 0.12);
+    border: 1px solid rgba(81, 194, 244, 0.15);
+    z-index: 10;
+    position: relative;
+    transition: box-shadow 0.3s ease;
+}
+
+.info-card:hover {
+    box-shadow: 0 6px 16px rgba(81, 194, 244, 0.15);
+    border-color: rgba(81, 194, 244, 0.3);
+}
+
+/* Standardized Card Title */
+.card-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #51C2F4;
+    margin-bottom: 1.5rem;
+}
+
+/* Standardized Description Text */
+.description-text {
+    color: #555;
+    line-height: 1.8;
+    font-size: 1.1rem;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    body::before {
+        width: 500px;
+        height: 500px;
+    }
+
+    body::after {
+        width: 400px;
+        height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    body::before {
+        width: 350px;
+        height: 350px;
+    }
+
+    body::after {
+        width: 300px;
+        height: 300px;
+    }
+}

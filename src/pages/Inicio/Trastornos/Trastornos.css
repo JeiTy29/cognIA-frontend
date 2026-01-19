@@ -1,0 +1,274 @@
+.trastornos-container {
+    padding: 80px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.circle-section {
+    margin-bottom: 120px;
+}
+
+.circle-diagram {
+    position: relative;
+    width: 700px;
+    height: 700px;
+    margin: 0 auto;
+}
+
+.large-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    aspect-ratio: 1;
+    border: 3px solid #000000;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.disorder-circle {
+    position: absolute;
+    width: 185px;
+    height: 185px;
+    aspect-ratio: 1;
+    background: #51C2F4;
+    border-radius: 50%;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(81, 194, 244, 0.3);
+    z-index: 2;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.disorder-circle:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(81, 194, 244, 0.4);
+}
+
+/* Position circles around the large circle using polar coordinates */
+/* Radius 350px with smaller circles (185px) for perfect separation */
+.disorder-circle[data-position="0"] {
+    top: 50%;
+    left: calc(100% + 20px);
+    transform: translate(-50%, -50%);
+}
+
+.disorder-circle[data-position="1"] {
+    top: calc(50% - 350px * 0.951);
+    left: calc(50% + 350px * 0.309);
+    transform: translate(-50%, -50%);
+}
+
+.disorder-circle[data-position="2"] {
+    top: calc(50% - 350px * -0.588);
+    left: calc(50% + 350px * -0.809);
+    transform: translate(-50%, -50%);
+}
+
+.disorder-circle[data-position="3"] {
+    top: calc(50% - 350px * -0.588);
+    left: calc(50% + 350px * 0.809);
+    transform: translate(-50%, -50%);
+}
+
+.disorder-circle[data-position="4"] {
+    top: calc(50% - 350px * 0.951);
+    left: calc(50% + 350px * -0.309);
+    transform: translate(-50%, -50%);
+}
+
+.disorder-title {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+
+.disorder-description {
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.info-section {
+    text-align: center;
+    margin-top: 80px;
+}
+
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.info-list li {
+    margin-bottom: 1.5rem;
+    color: #555;
+    line-height: 1.8;
+    font-size: 1.05rem;
+    position: relative;
+    padding-left: 28px;
+}
+
+.info-list li::before {
+    content: '•';
+    position: absolute;
+    left: 8px;
+    color: #215F8F;
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+.info-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+    .circle-diagram {
+        width: 600px;
+        height: 600px;
+    }
+
+    .large-circle {
+        width: 500px;
+        height: 500px;
+    }
+
+    .disorder-circle {
+        width: 200px;
+        min-height: 180px;
+        padding: 20px 16px;
+    }
+
+    .disorder-circle[data-position="1"] {
+        top: calc(50% - 237.5px * 0.951);
+        left: calc(50% + 237.5px * 0.309);
+    }
+
+    .disorder-circle[data-position="2"] {
+        top: calc(50% - 237.5px * -0.588);
+        left: calc(50% + 237.5px * -0.809);
+    }
+
+    .disorder-circle[data-position="3"] {
+        top: calc(50% - 237.5px * -0.588);
+        left: calc(50% + 237.5px * 0.809);
+    }
+
+    .disorder-circle[data-position="4"] {
+        top: calc(50% - 237.5px * 0.951);
+        left: calc(50% + 237.5px * -0.309);
+    }
+
+    .disorder-title {
+        font-size: 20px;
+    }
+
+    .disorder-description {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 768px) {
+    .trastornos-container {
+        padding: 60px 24px;
+    }
+
+    .circle-section {
+        margin-bottom: 60px;
+    }
+
+    /* Hide large circle on mobile */
+    .large-circle {
+        display: none;
+    }
+
+    /* Reset circle diagram for vertical layout */
+    .circle-diagram {
+        position: static;
+        width: 100%;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        align-items: center;
+    }
+
+    /* Reset disorder circles to static vertical layout */
+    .disorder-circle {
+        position: static;
+        width: 100%;
+        max-width: 400px;
+        height: auto;
+        min-height: auto;
+        aspect-ratio: auto;
+        padding: 28px 24px;
+        transform: none !important;
+    }
+
+    .disorder-circle:hover {
+        transform: scale(1.02) !important;
+    }
+
+    .disorder-title {
+        font-size: 20px;
+    }
+
+    .disorder-description {
+        font-size: 14px;
+    }
+
+    .info-list li {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .trastornos-container {
+        padding: 40px 16px;
+    }
+
+    .circle-section {
+        margin-bottom: 50px;
+    }
+
+    .circle-diagram {
+        gap: 20px;
+    }
+
+    .disorder-circle {
+        max-width: 100%;
+        padding: 24px 20px;
+    }
+
+    .disorder-title {
+        font-size: 18px;
+    }
+
+    .disorder-description {
+        font-size: 13px;
+    }
+
+    .info-list li {
+        font-size: 0.9rem;
+        padding-left: 24px;
+    }
+
+    .info-list li::before {
+        font-size: 1.1rem;
+    }
+}

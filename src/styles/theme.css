@@ -1,0 +1,35 @@
+:root {
+    /* Tema claro */
+    --bg-main: linear-gradient(135deg,
+            #E8F4FD 0%,
+            #D5EBFA 25%,
+            #C9E6FB 75%,
+            #E0F0FC 100%);
+    --bg-header: #ffffff;
+
+    --text-main: #2A2D34;
+    --text-secondary: #555;
+
+    --primary: #51C2F4;
+    --login-btn: #1790E9;
+    --register-btn: #215F8F;
+
+    --card-bg: #ffffff;
+    --card-hover: #EAF6FD;
+}
+
+[data-theme="dark"] {
+    /* Tema oscuro */
+    --bg-main: #121417;
+    --bg-header: #1C1F26;
+
+    --text-main: #E6E6E6;
+    --text-secondary: #A0A4B8;
+
+    --primary: #6CD4FF;
+    --login-btn: #1FA3FF;
+    --register-btn: #2C6EA3;
+
+    --card-bg: #1F2330;
+    --card-hover: #2A2F45;
+}
