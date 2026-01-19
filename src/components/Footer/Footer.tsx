@@ -9,10 +9,10 @@ export default function Footer() {
                     © 2025 cognIA - Universidad de Cundinamarca
                 </p>
                 <div className="footer-links">
-                    <Link to="/politicas-privacidad" className="footer-link">
+                    <Link to="/privacy" className="footer-link">
                         Políticas de privacidad
                     </Link>
-                    <Link to="/terminos-uso" className="footer-link">
+                    <Link to="/terms" className="footer-link">
                         Términos de uso
                     </Link>
                 </div>
