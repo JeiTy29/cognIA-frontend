@@ -47,6 +47,13 @@ export function TermsContent() {
                     voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit,
                     sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
                 </p>
+
+                <p>
+                    Puedes consultar también nuestras{' '}
+                    <Link to="/privacy" className="terms-link">
+                        Políticas de Privacidad
+                    </Link>.
+                </p>
             </div>
         </>
     );
