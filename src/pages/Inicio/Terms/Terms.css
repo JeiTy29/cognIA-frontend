@@ -24,6 +24,27 @@
     text-align: center;
 }
 
+.back-to-form-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    margin-bottom: 24px;
+    background-color: #1790E9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-to-form-button:hover {
+    background-color: #1370c0;
+    transform: translateX(-2px);
+}
+
 .content-card {
     background-color: #ffffff;
     border-radius: 12px;

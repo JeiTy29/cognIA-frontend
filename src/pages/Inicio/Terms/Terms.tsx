@@ -1,11 +1,26 @@
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Terms.css';
 
 export default function Terms() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const fromRegistro = location.search.includes('from=registro');
+
     return (
         <div className="terms-page">
             <div className="terms-container">
+                {fromRegistro && (
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="back-to-form-button"
+                        title="Volver al formulario"
+                    >
+                        ← Volver al formulario de registro
+                    </button>
+                )}
+
                 <h1 className="terms-title">Términos de Uso</h1>
-                <p className="terms-subtitle">Condiciones para el uso de nuestra plataforma</p>
+                <p className="terms-subtitle">Condiciones de uso del servicio cognIA</p>
 
                 <div className="content-card">
                     <p>
@@ -19,7 +34,7 @@ export default function Terms() {
                         eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
                     </p>
                     <p>
-                        Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione
+                        Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut  odit aut fugit, sed quia consequuntur magni dolores eos qui ratione
                         voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit,
                         sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
                     </p>

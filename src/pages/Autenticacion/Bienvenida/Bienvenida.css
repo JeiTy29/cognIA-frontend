@@ -1,0 +1,43 @@
+/* Horizontal Button Group */
+.button-group-horizontal {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    margin-bottom: 32px;
+}
+
+.btn-primary-link {
+    flex: 1;
+    text-decoration: none;
+}
+
+.btn-login-color {
+    background-color: #1790E9;
+}
+
+.btn-login-color:hover {
+    background-color: #1370c0;
+}
+
+.btn-home-color {
+    background-color: #215F8F;
+}
+
+.btn-home-color:hover {
+    background-color: #1a4d73;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 600px) {
+    .button-group-horizontal {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .btn-primary-link {
+        width: 100%;
+    }
+}

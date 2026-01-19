@@ -23,6 +23,7 @@
     transform: translate(-50%, -50%);
     width: 600px;
     height: 600px;
+    aspect-ratio: 1;
     border: 3px solid #000000;
     border-radius: 50%;
     z-index: 1;
@@ -30,11 +31,12 @@
 
 .disorder-circle {
     position: absolute;
-    width: 240px;
-    min-height: 200px;
+    width: 185px;
+    height: 185px;
+    aspect-ratio: 1;
     background: #51C2F4;
     border-radius: 50%;
-    padding: 24px 20px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -51,33 +53,34 @@
 }
 
 /* Position circles around the large circle using polar coordinates */
+/* Radius 350px with smaller circles (185px) for perfect separation */
 .disorder-circle[data-position="0"] {
     top: 50%;
-    left: 100%;
+    left: calc(100% + 20px);
     transform: translate(-50%, -50%);
 }
 
 .disorder-circle[data-position="1"] {
-    top: calc(50% - 285px * 0.951);
-    left: calc(50% + 285px * 0.309);
+    top: calc(50% - 350px * 0.951);
+    left: calc(50% + 350px * 0.309);
     transform: translate(-50%, -50%);
 }
 
 .disorder-circle[data-position="2"] {
-    top: calc(50% - 285px * -0.588);
-    left: calc(50% + 285px * -0.809);
+    top: calc(50% - 350px * -0.588);
+    left: calc(50% + 350px * -0.809);
     transform: translate(-50%, -50%);
 }
 
 .disorder-circle[data-position="3"] {
-    top: calc(50% - 285px * -0.588);
-    left: calc(50% + 285px * 0.809);
+    top: calc(50% - 350px * -0.588);
+    left: calc(50% + 350px * 0.809);
     transform: translate(-50%, -50%);
 }
 
 .disorder-circle[data-position="4"] {
-    top: calc(50% - 285px * 0.951);
-    left: calc(50% + 285px * -0.309);
+    top: calc(50% - 350px * 0.951);
+    left: calc(50% + 350px * -0.309);
     transform: translate(-50%, -50%);
 }
 
@@ -186,108 +189,51 @@
     }
 
     .circle-section {
-        margin-bottom: 80px;
+        margin-bottom: 60px;
     }
 
-    .circle-diagram {
-        width: 500px;
-        height: 500px;
-    }
-
+    /* Hide large circle on mobile */
     .large-circle {
-        width: 400px;
-        height: 400px;
+        display: none;
     }
 
+    /* Reset circle diagram for vertical layout */
+    .circle-diagram {
+        position: static;
+        width: 100%;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        align-items: center;
+    }
+
+    /* Reset disorder circles to static vertical layout */
     .disorder-circle {
-        width: 160px;
-        min-height: 150px;
-        padding: 16px 12px;
+        position: static;
+        width: 100%;
+        max-width: 400px;
+        height: auto;
+        min-height: auto;
+        aspect-ratio: auto;
+        padding: 28px 24px;
+        transform: none !important;
     }
 
-    .disorder-circle[data-position="1"] {
-        top: calc(50% - 190px * 0.951);
-        left: calc(50% + 190px * 0.309);
-    }
-
-    .disorder-circle[data-position="2"] {
-        top: calc(50% - 190px * -0.588);
-        left: calc(50% + 190px * -0.809);
-    }
-
-    .disorder-circle[data-position="3"] {
-        top: calc(50% - 190px * -0.588);
-        left: calc(50% + 190px * 0.809);
-    }
-
-    .disorder-circle[data-position="4"] {
-        top: calc(50% - 190px * 0.951);
-        left: calc(50% + 190px * -0.309);
+    .disorder-circle:hover {
+        transform: scale(1.02) !important;
     }
 
     .disorder-title {
-        font-size: 16px;
-        margin-bottom: 8px;
+        font-size: 20px;
     }
 
     .disorder-description {
-        font-size: 11px;
+        font-size: 14px;
     }
 
     .info-list li {
         font-size: 0.95rem;
-    }
-}
-
-@media (max-width: 600px) {
-    .trastornos-container {
-        padding: 50px 20px;
-    }
-
-    .circle-diagram {
-        width: 400px;
-        height: 400px;
-    }
-
-    .large-circle {
-        width: 320px;
-        height: 320px;
-    }
-
-    .disorder-circle {
-        width: 130px;
-        min-height: 130px;
-        padding: 14px 10px;
-    }
-
-    .disorder-circle[data-position="1"] {
-        top: calc(50% - 152px * 0.951);
-        left: calc(50% + 152px * 0.309);
-    }
-
-    .disorder-circle[data-position="2"] {
-        top: calc(50% - 152px * -0.588);
-        left: calc(50% + 152px * -0.809);
-    }
-
-    .disorder-circle[data-position="3"] {
-        top: calc(50% - 152px * -0.588);
-        left: calc(50% + 152px * 0.809);
-    }
-
-    .disorder-circle[data-position="4"] {
-        top: calc(50% - 152px * 0.951);
-        left: calc(50% + 152px * -0.309);
-    }
-
-    .disorder-title {
-        font-size: 14px;
-        margin-bottom: 6px;
-    }
-
-    .disorder-description {
-        font-size: 10px;
-        line-height: 1.4;
     }
 }
 
@@ -297,52 +243,24 @@
     }
 
     .circle-section {
-        margin-bottom: 60px;
+        margin-bottom: 50px;
     }
 
     .circle-diagram {
-        width: 340px;
-        height: 340px;
-    }
-
-    .large-circle {
-        width: 280px;
-        height: 280px;
+        gap: 20px;
     }
 
     .disorder-circle {
-        width: 110px;
-        min-height: 110px;
-        padding: 12px 8px;
-    }
-
-    .disorder-circle[data-position="1"] {
-        top: calc(50% - 133px * 0.951);
-        left: calc(50% + 133px * 0.309);
-    }
-
-    .disorder-circle[data-position="2"] {
-        top: calc(50% - 133px * -0.588);
-        left: calc(50% + 133px * -0.809);
-    }
-
-    .disorder-circle[data-position="3"] {
-        top: calc(50% - 133px * -0.588);
-        left: calc(50% + 133px * 0.809);
-    }
-
-    .disorder-circle[data-position="4"] {
-        top: calc(50% - 133px * 0.951);
-        left: calc(50% + 133px * -0.309);
+        max-width: 100%;
+        padding: 24px 20px;
     }
 
     .disorder-title {
-        font-size: 12px;
-        margin-bottom: 5px;
+        font-size: 18px;
     }
 
     .disorder-description {
-        font-size: 9px;
+        font-size: 13px;
     }
 
     .info-list li {

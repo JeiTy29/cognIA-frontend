@@ -1,9 +1,24 @@
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Privacy.css';
 
 export default function Privacy() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const fromRegistro = location.search.includes('from=registro');
+
     return (
         <div className="privacy-page">
             <div className="privacy-container">
+                {fromRegistro && (
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="back-to-form-button"
+                        title="Volver al formulario"
+                    >
+                        ← Volver al formulario de registro
+                    </button>
+                )}
+
                 <h1 className="privacy-title">Políticas de Privacidad</h1>
                 <p className="privacy-subtitle">Protegemos tu información personal</p>
 

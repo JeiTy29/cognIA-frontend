@@ -37,7 +37,7 @@ Cada círculo contiene:
 **Título del trastorno** (24px, font-weight 700, color blanco):
 1. Ansiedad
 2. Depresión
-3. TDAH (Trastorno por Déficit de Atención e Hiperactividad)
+3. TDAH
 4. Trastorno de eliminación
 5. Trastorno de conducta
 
@@ -45,6 +45,8 @@ Cada círculo contiene:
 - Explicación clara y accesible del trastorno
 - Orientada a un público general sin conocimientos técnicos
 - Enfoque en síntomas observables en niños
+
+**Nota:** El título de TDAH se acortó para mejorar el ajuste dentro del círculo.
 
 #### Sección Informativa
 
@@ -65,12 +67,32 @@ Debajo del diagrama circular se encuentra una tarjeta informativa con:
 
 - `.trastornos-container`: Contenedor principal con padding de 80px
 - `.circle-diagram`: Wrapper relativo para el posicionamiento circular (700px × 700px)
-- `.large-circle`: Círculo grande con borde negro
-- `.disorder-circle`: Círculos individuales de trastornos con:
+- `.large-circle`: Círculo grande con borde negro (600px × 600px con aspect-ratio 1:1 para círculo perfecto)
+- `.disorder-circle`: Círculos individuales de trastornos (220px × 220px con aspect-ratio 1:1):
   - Posicionamiento absoluto calculado mediante trigonometría
   - Atributo `data-position` (0-4) para determinar ubicación
   - Efecto hover con `scale(1.05)`
 - `.info-section`: Sección de información complementaria
+
+### Círculos Perfectos
+
+Los círculos utilizan `aspect-ratio: 1` para garantizar proporciones perfectas:
+
+```css
+.large-circle {
+    width: 600px;
+    height: 600px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+}
+
+.disorder-circle {
+    width: 220px;
+    height: 220px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+}
+```
 
 ### Posicionamiento Polar
 
@@ -88,10 +110,16 @@ Donde 285px es el radio del círculo grande (300px de radio - 120px de radio del
 
 La vista se adapta a diferentes tamaños de pantalla:
 
-- **Desktop (>1024px)**: Diseño completo con círculos de 240px
-- **Tablet (768-1024px)**: Círculos reducidos a 200px, círculo principal a 500px
-- **Mobile (600-768px)**: Círculos de 160px, diseño compacto
-- **Small Mobile (<480px)**: Círculos de 110px, fuentes más pequeñas
+- **Desktop (>1024px)**: Diseño circular completo con 5 círculos posicionados alrededor del círculo grande
+- **Tablet (768-1024px)**: Mantiene diseño circular con ajustes de tamaño
+- **Mobile (<768px)**: 
+  - **Cambio fundamental**: El círculo grande negro se oculta completamente
+  - Los 5 círculos azules se muestran verticalmente en una columna
+  - Posicionamiento absoluto se convierte en estático (position: static)
+  - Layout cambia a flexbox con `flex-direction: column`
+  - Cada círculo mantiene su fondo azul y texto blanco
+  - No se requiere aspect-ratio en mobile (permite altura automática)
+  - Máximo ancho de 400px por círculo para mejor legibilidad
 
 ## Integración con el Proyecto
 

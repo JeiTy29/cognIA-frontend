@@ -13,7 +13,7 @@ export default function Trastornos() {
             position: 1 // 72 degrees
         },
         {
-            title: "TDAH (Trastorno por Déficit de Atención e Hiperactividad)",
+            title: "TDAH",
             description: "Ocurre cuando un niño tiene dificultad para concentrarse, controlar sus impulsos o mantenerse tranquilo por períodos adecuados.",
             position: 2 // 144 degrees
         },

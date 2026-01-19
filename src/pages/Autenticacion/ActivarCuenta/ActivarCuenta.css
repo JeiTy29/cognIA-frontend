@@ -1,0 +1,88 @@
+/* Support Text */
+.auth-support-text {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 32px;
+    text-align: center;
+    line-height: 1.6;
+    max-width: 420px;
+}
+
+/* Codigo Card - Blue background */
+.codigo-card {
+    width: 100%;
+    background-color: #51C2F4;
+    border-radius: 16px;
+    padding: 40px 30px;
+    margin-bottom: 32px;
+}
+
+.codigo-inputs {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.codigo-input {
+    width: 50px;
+    height: 60px;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    border: 3px solid #ffffff;
+    border-radius: 10px;
+    background-color: #ffffff;
+    color: #215F8F;
+    transition: border-color 0.2s ease, transform 0.1s ease;
+}
+
+.codigo-input:focus {
+    outline: none;
+    border-color: #215F8F;
+    transform: scale(1.05);
+}
+
+.codigo-input::placeholder {
+    color: #999;
+}
+
+/* ========================================
+   DISEÑO RESPONSIVE
+   ======================================== */
+
+@media (max-width: 600px) {
+    .codigo-card {
+        padding: 32px 24px;
+    }
+
+    .codigo-inputs {
+        gap: 8px;
+    }
+
+    .codigo-input {
+        width: 42px;
+        height: 52px;
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-support-text {
+        font-size: 14px;
+        max-width: 100%;
+    }
+
+    .codigo-card {
+        padding: 28px 20px;
+    }
+
+    .codigo-inputs {
+        gap: 6px;
+    }
+
+    .codigo-input {
+        width: 38px;
+        height: 48px;
+        font-size: 22px;
+    }
+}
