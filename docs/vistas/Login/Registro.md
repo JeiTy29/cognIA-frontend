@@ -14,8 +14,9 @@ La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA media
 ### Características Especiales
 - **Sin Header ni Footer**: Vista independiente de autenticación
 - **Logo navegable**: Retorno a página principal via logo cognIA
-- **Flujo en две etapas**: Selección de rol + Formulario dinámico
+- **Flujo en dos etapas**: Selección de rol + Formulario dinámico
 - **Animación de transición**: Repliegue hacia arriba al seleccionar rol
+- **PopUps Integrados**: Visualización de términos y privacidad sin salir de la página
 
 ## Arquitectura Visual
 
@@ -107,8 +108,8 @@ La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA media
 ```
 
 **Enlaces activos:**
-- "Términos de uso" → `/terms` (azul #1790E9)
-- "Políticas de privacidad" → `/privacy` (azul #1790E9)
+- "Términos de uso" → Abre PopUp (Modal) con contenido
+- "Políticas de privacidad" → Abre PopUp (Modal) con contenido
 
 **Alineación**: Texto a la izquierda
 
@@ -142,6 +143,8 @@ To: opacity 1, translateY(0), scale(1)
 type TipoUsuario = 'padre' | 'psicologo' | null;
 const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
 const [aceptaTerminos, setAceptaTerminos] = useState(false);
+const [showTerms, setShowTerms] = useState(false);
+const [showPrivacy, setShowPrivacy] = useState(false);
 ```
 
 ## Estilos CSS
@@ -168,8 +171,8 @@ const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
 - **Logo cognIA** → `/`
 - **"Inicia sesión"** → `/inicio-sesion`
-- **"Términos de uso"** → `/terms`
-- **"Políticas de privacidad"** → `/privacy`
+- **"Términos de uso"** → Abre Modal (no navega)
+- **"Políticas de privacidad"** → Abre Modal (no navega)
 - **Botón "Crear cuenta"** → `/activar-cuenta` (tras validación)
 
 ## Flujo de Usuario
@@ -179,7 +182,7 @@ const [aceptaTerminos, setAceptaTerminos] = useState(false);
 3. Tarjetas se replegan con animación
 4. Aparece tag del rol + formulario específico
 5. Usuario completa todos los campos
-6. Marca checkbox de términos
+6. Marca checkbox de términos (puede hacer click para ver detalles en PopUp)
 7. Click en "Crear cuenta"
 8. Navegación a vista de activación
 
@@ -191,3 +194,4 @@ const [aceptaTerminos, setAceptaTerminos] = useState(false);
 - TypeScript para tipado fuerte
 - CSS Grid para layout responsive
 - Animaciones CSS puras (sin JS)
+- Reutilización de `TermsContent` y `PrivacyContent` en Modals

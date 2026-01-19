@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Registro.css';
+import { Modal } from '../../../components/Modal/Modal';
+import { TermsContent } from '../../Inicio/Terms/Terms';
+import { PrivacyContent } from '../../Inicio/Privacy/Privacy';
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
 
@@ -8,6 +11,10 @@ export default function Registro() {
     const navigate = useNavigate();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
+
+    // Estados para Modals
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
 
     // Estados de formulario
     const [nombre, setNombre] = useState('');
@@ -22,40 +29,6 @@ export default function Registro() {
     const [errorContrasena, setErrorContrasena] = useState('');
     const [errorConfirmar, setErrorConfirmar] = useState('');
     const [errorTerminos, setErrorTerminos] = useState('');
-
-    // Cargar datos guardados al volver de terms/privacy
-    useEffect(() => {
-        const savedData = sessionStorage.getItem('registroFormData');
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            setRolSeleccionado(data.rol);
-            setNombre(data.nombre || '');
-            setApellido(data.apellido || '');
-            setEmail(data.email || '');
-            setContrasena(data.contrasena || '');
-            setConfirmarContrasena(data.confirmarContrasena || '');
-            setAceptaTerminos(data.aceptaTerminos || false);
-        }
-    }, []);
-
-    // Guardar datos antes de navegar a terms/privacy
-    const handleTermsClick = () => {
-        const formData = {
-            rol: rolSeleccionado,
-            nombre,
-            apellido,
-            email,
-            contrasena,
-            confirmarContrasena,
-            aceptaTerminos
-        };
-        sessionStorage.setItem('registroFormData', JSON.stringify(formData));
-    };
-
-    // Limpiar datos al enviar formulario exitosamente
-    const clearFormData = () => {
-        sessionStorage.removeItem('registroFormData');
-    };
 
     const validarContrasena = (pass: string): string => {
         if (pass.length < 8) {
@@ -115,7 +88,6 @@ export default function Registro() {
         setErrorConfirmar('');
         setErrorTerminos('');
         setAceptaTerminos(false);
-        sessionStorage.removeItem('registroFormData');
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -140,8 +112,7 @@ export default function Registro() {
             return;
         }
 
-        // Todo válido, limpiar datos y navegar a activación
-        clearFormData();
+        // Todo válido, navegar a activación
         navigate('/activar-cuenta');
     };
 
@@ -278,9 +249,9 @@ export default function Registro() {
                                         />
                                         <label htmlFor="terms">
                                             Confirmo haber leído los{' '}
-                                            <Link to="/terms?from=registro" className="link-highlight" onClick={handleTermsClick}>Términos de uso</Link>
+                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); }}>Términos de uso</a>
                                             {' '}y{' '}
-                                            <Link to="/privacy?from=registro" className="link-highlight" onClick={handleTermsClick}>Políticas de privacidad</Link>
+                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }}>Políticas de privacidad</a>
                                         </label>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
@@ -396,9 +367,9 @@ export default function Registro() {
                                         />
                                         <label htmlFor="terms">
                                             Confirmo haber leído los{' '}
-                                            <Link to="/terms?from=registro" className="link-highlight" onClick={handleTermsClick}>Términos de uso</Link>
+                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); }}>Términos de uso</a>
                                             {' '}y{' '}
-                                            <Link to="/privacy?from=registro" className="link-highlight" onClick={handleTermsClick}>Políticas de privacidad</Link>
+                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }}>Políticas de privacidad</a>
                                         </label>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
@@ -414,6 +385,15 @@ export default function Registro() {
                     <div className="version-footer">
                         cognIA v1.0.0
                     </div>
+
+                    {/* Modals para términos y privacidad */}
+                    <Modal isOpen={showTerms} onClose={() => setShowTerms(false)}>
+                        <TermsContent />
+                    </Modal>
+
+                    <Modal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)}>
+                        <PrivacyContent />
+                    </Modal>
                 </div>
             </div>
         </div>
