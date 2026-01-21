@@ -16,12 +16,18 @@
     font-size: 24px;
     font-weight: bold;
     color: var(--primary);
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    line-height: 1;
 }
 
 .nav {
     display: flex;
-    gap: 32px;
+    gap: 40px;
+    align-items: center;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .nav .nav-link {

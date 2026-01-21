@@ -6,59 +6,54 @@ Este documento centraliza la documentación de los cambios y decisiones de dise�
 
 ## globals.css
 
-## Fondo y Patrón Decorativo 
+## Fondo y Patrón de Red de Nodos Animado
 
+### Degradado base
+```css
+body {
+    background: linear-gradient(180deg, 
+        #FFFFFF 0%,
+        #EAF4FB 40%,
+        #E6F1FA 70%,
+        #E3F0F9 100%
+    );
+    background-attachment: fixed;
+}
+```
+
+### Patrón de nodos animado (discreto)
 ```css
 body::before {
-    background-image:
-        radial-gradient(circle at 50% 50%, transparent 30%, rgba(81, 194, 244, 0.08) 30%, ...),
-        radial-gradient(circle at 0% 50%, ...),
-        radial-gradient(circle at 100% 50%, ...);
-    background-size: 100px 87px;
-    opacity: 0.8;
+    /* Configuración posicional */
+    position: fixed;
+    top: -50px;
+    left: -50px;
+    width: 400px;
+    height: 400px;
+    
+    /* Nodos de diferentes tamaños (5-7px) */
+    radial-gradient(circle at 20% 20%, rgba(33, 95, 143, 0.18) 0 6px, transparent 7px),
+    /* ... 4 nodos más con opacidades 0.14-0.18 */
+    
+    /* Líneas conectoras diagonales */
+    linear-gradient(135deg, transparent 48%, rgba(33, 95, 143, 0.08) 50%, transparent 52%),
+    linear-gradient(45deg, transparent 48%, rgba(33, 95, 143, 0.08) 50%, transparent 52%);
+    
+    /* Animaciones */
+    animation:
+        networkFloat 35s ease-in-out infinite,
+        networkPulse 10s ease-in-out infinite;
 }
 ```
-```css
-body::after {
-    background-image:
-        radial-gradient(circle, transparent 60px, rgba(81, 194, 244, 0.06) 60px, ...),
-        radial-gradient(circle, transparent 100px, rgba(81, 194, 244, 0.08) 100px, ...),
-        radial-gradient(circle, transparent 140px, rgba(81, 194, 244, 0.10) 140px, ...),
-        radial-gradient(circle, transparent 180px, rgba(81, 194, 244, 0.06) 180px, ...);
-}
-```
 
-- **4 círculos concéntricos** con diferentes radios (60px, 100px, 140px, 180px)
-- **Opacidades variables** (6%, 8%, 10%, 6%) para crear profundidad visual
-- **Posición**: Esquina inferior izquierda con overflow
-
-### Optimización responsive
-
-```css
-@media (max-width: 768px) {
-    body::before {
-        width: 400px;
-        height: 400px;
-        background-size: 70px 61px; /* Hexágonos más pequeños */
-    }
-    body::after {
-        width: 350px;
-        height: 350px;
-    }
-}
-
-@media (max-width: 480px) {
-    body::before {
-        width: 300px;
-        height: 300px;
-        background-size: 50px 43.5px;
-    }
-    body::after {
-        width: 250px;
-        height: 250px;
-    }
-}
-```
+**Características del patrón**:
+- **Esquema de red animado**: 5 nodos flotantes en esquina superior izquierda
+- **Animación de flotación**: Movimiento suave de 12px horizontal y 10px vertical en 35s
+- **Pulsación de opacidad**: Oscila entre 0.45 y 0.65 en 10s
+- **Color**: Azul oscuro opaco (rgba(33, 95, 143)) con opacidades entre 0.14-0.18
+- **Opacidad base**: 0.6 para mantener sutileza
+- **Tamaño contenedor**: 400px × 400px posicionado fuera del viewport (-50px top/left)
+- **Concepto**: Evoca redes neuronales con movimiento orgánico y vitalidad
 
 ### Reset CSS básico
 
@@ -174,6 +169,24 @@ Cualquier componente puede usar estas variables:
 
 ## Historial de cambios
 
+### Enero 19, 2025 - Patrón de red animado
+**Cambio**: Implementación de patrón de nodos con animaciones de flotación y pulsación  
+**Archivos modificados**: `globals.css`  
+**Razón**: Agregar dinamismo visual sutil que refuerce la identidad tecnológica sin distraer  
+**Resultado**: Patrón flotante de 5 nodos en esquina superior izquierda con movimiento orgánico de 35s y pulsación de opacidad de 10s
+
+### Enero 19, 2025 - Patrón de red de nodos estático (reemplazado)
+**Cambio**: Adición de patrón minimalista de nodos conectados  
+**Archivos modificados**: `globals.css`  
+**Razón**: Añadir sutileza visual que evoque conceptos tecnológicos  
+**Resultado**: Fondo con degradado + patrón de red muy sutil en azul oscuro opaco
+
+### Enero 19, 2025 - Simplificación del fondo (revertido)
+**Cambio**: Eliminación de patrones abstractos animados  
+**Archivos modificados**: `globals.css`, `App.tsx`  
+**Razón**: Simplificación visual y enfoque en degradado limpio  
+**Resultado**: Fondo con degradado suave sin patrones decorativos
+
 ### Diciembre 15, 2024 - Sistema de fondo profesional
 **Cambio**: Reemplazo completo del fondo animado por patrón técnico  
 **Archivos modificados**: `globals.css`  
@@ -182,9 +195,12 @@ Cualquier componente puede usar estas variables:
 
 ### Versiones anteriores
 - **v1.0** (2024-12): Gradiente animado simple con círculos blur
-- **v2.0** (2024-12): Patrón técnico profesional (actual)
+- **v2.0** (2024-12): Patrón técnico profesional
+- **v3.0** (2025-01): Degradado suave sin patrones
+- **v3.1** (2025-01): Degradado con patrón de red de nodos estático
+- **v3.2** (2025-01): Degradado con patrón de red animado (actual)
 
 ---
 
 **Mantenido por**: Equipo de desarrollo cognIA  
-**Última actualización**: Diciembre 15, 2024
+**Última actualización**: Enero 19, 2025

@@ -83,7 +83,7 @@ La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA media
 2. Contraseña
 3. Confirmar contraseña
 
-### Formulario Psicólogo (5 campos)
+### Formulario Psicólogo (6 campos)
 
 **Layout:**
 1. **Fila horizontal** (grid 1fr 1fr):
@@ -91,6 +91,7 @@ La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA media
    - Apellido
 2. **Campos verticales**:
    - Correo electrónico
+   - Número de operador nacional (nuevo campo requerido)
    - Contraseña
    - Confirmar contraseña
 
@@ -104,14 +105,20 @@ La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA media
 
 **Contenido**:
 ```
-☐ Confirmo haber leído los Términos de uso y Políticas de privacidad
+☐ Confirm haber leído y acepto los Términos de uso y Políticas de privacidad
 ```
 
-**Enlaces activos:**
-- "Términos de uso" → Abre PopUp (Modal) con contenido
-- "Políticas de privacidad" → Abre PopUp (Modal) con contenido
+**Validación y Control**:
+- **Estado inicial**: Deshabilitado (disabled) con opacidad reducida
+- **Habilitación**: Se habilita solo cuando el usuario ha abierto ambos modales (Términos y Privacidad)
+- **Mensaje de ayuda**: Si no se han abierto los modales, se muestra un mensaje informativo en azul: "Por favor, lee los términos de uso y las políticas de privacidad antes de continuar"
+- **Tracking de modales**: El sistema registra cuando el usuario abre cada modal mediante estados `hasOpenedTerms` y `hasOpenedPrivacy`
 
-**Alineación**: Texto a la izquierda
+**Enlaces activos:**
+- "Términos de uso" → Abre PopUp (Modal) con contenido y marca como leído
+- "Políticas de privacidad" → Abre PopUp (Modal) con contenido y marca como leído
+
+**Alineación**: Texto a la izquierda con disposición vertical (columna)
 
 ### Botón de Acción
 - Texto: **"Crear cuenta"**
@@ -145,6 +152,9 @@ const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
 const [aceptaTerminos, setAceptaTerminos] = useState(false);
 const [showTerms, setShowTerms] = useState(false);
 const [showPrivacy, setShowPrivacy] = useState(false);
+const [hasOpenedTerms, setHasOpenedTerms] = useState(false);
+const [hasOpenedPrivacy, setHasOpenedPrivacy] = useState(false);
+const [numeroOperador, setNumeroOperador] = useState(''); // Solo para psicólogos
 ```
 
 ## Estilos CSS

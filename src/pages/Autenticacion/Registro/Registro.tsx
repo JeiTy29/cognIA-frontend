@@ -15,11 +15,14 @@ export default function Registro() {
     // Estados para Modals
     const [showTerms, setShowTerms] = useState(false);
     const [showPrivacy, setShowPrivacy] = useState(false);
+    const [hasOpenedTerms, setHasOpenedTerms] = useState(false);
+    const [hasOpenedPrivacy, setHasOpenedPrivacy] = useState(false);
 
     // Estados de formulario
     const [nombre, setNombre] = useState('');
     const [apellido, setApellido] = useState('');
     const [email, setEmail] = useState('');
+    const [numeroOperador, setNumeroOperador] = useState('');
     const [contrasena, setContrasena] = useState('');
     const [confirmarContrasena, setConfirmarContrasena] = useState('');
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
@@ -99,6 +102,12 @@ export default function Registro() {
             return;
         }
 
+        // Validar que haya abierto los modales
+        if (!hasOpenedTerms || !hasOpenedPrivacy) {
+            setErrorTerminos('Debes leer los términos de uso y políticas de privacidad antes de continuar');
+            return;
+        }
+
         // Validar contraseña
         const errorPass = validarContrasena(contrasena);
         if (errorPass) {
@@ -122,12 +131,12 @@ export default function Registro() {
 
             <div className="auth-right-panel">
                 <div className="auth-content">
-                    <Link to="/" className="auth-logo-link">
-                        <div className="auth-header">
-                            <div className="auth-logo-icon"></div>
-                            <span className="auth-system-name">cognIA</span>
-                        </div>
-                    </Link>
+                    <div className="header-brand">
+                        <Link to="/" className="brand-link">
+                            <div className="brand-icon">c</div>
+                            <span className="brand-text">cognIA</span>
+                        </Link>
+                    </div>
 
                     <h1 className="auth-title">Regístrate</h1>
 
@@ -242,17 +251,23 @@ export default function Registro() {
                                             type="checkbox"
                                             id="terms"
                                             checked={aceptaTerminos}
+                                            disabled={!hasOpenedTerms || !hasOpenedPrivacy}
                                             onChange={(e) => {
                                                 setAceptaTerminos(e.target.checked);
                                                 setErrorTerminos('');
                                             }}
                                         />
-                                        <label htmlFor="terms">
-                                            Confirmo haber leído los{' '}
-                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); }}>Términos de uso</a>
-                                            {' '}y{' '}
-                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }}>Políticas de privacidad</a>
-                                        </label>
+                                        <div className="terms-text-wrapper">
+                                            <label htmlFor="terms">
+                                                Confirmo haber leído y acepto los{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
+                                                {' '}y{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
+                                            </label>
+                                            {!hasOpenedTerms || !hasOpenedPrivacy ? (
+                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
 
@@ -293,6 +308,17 @@ export default function Registro() {
                                             placeholder="Correo electrónico"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Número de operador nacional"
+                                            value={numeroOperador}
+                                            onChange={(e) => setNumeroOperador(e.target.value)}
                                             required
                                         />
                                     </div>
@@ -360,17 +386,23 @@ export default function Registro() {
                                             type="checkbox"
                                             id="terms"
                                             checked={aceptaTerminos}
+                                            disabled={!hasOpenedTerms || !hasOpenedPrivacy}
                                             onChange={(e) => {
                                                 setAceptaTerminos(e.target.checked);
                                                 setErrorTerminos('');
                                             }}
                                         />
-                                        <label htmlFor="terms">
-                                            Confirmo haber leído los{' '}
-                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); }}>Términos de uso</a>
-                                            {' '}y{' '}
-                                            <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }}>Políticas de privacidad</a>
-                                        </label>
+                                        <div className="terms-text-wrapper">
+                                            <label htmlFor="terms">
+                                                Confirmo haber leído y acepto los{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
+                                                {' '}y{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
+                                            </label>
+                                            {!hasOpenedTerms || !hasOpenedPrivacy ? (
+                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
 
