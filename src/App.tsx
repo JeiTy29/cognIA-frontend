@@ -8,7 +8,7 @@ import InicioSesion from './pages/Autenticacion/InicioSesion/InicioSesion';
 import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import Bienvenida from './pages/Autenticacion/Bienvenida/Bienvenida';
-import Autenticacion from './pages/Autenticacion/Autenticacion/Autenticacion';
+import Autenticacion from './pages/Autenticacion/Autenticacion';
 import Privacy from './pages/Inicio/Privacy/Privacy';
 import Terms from './pages/Inicio/Terms/Terms';
 

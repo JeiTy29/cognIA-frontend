@@ -6,8 +6,8 @@ Pantalla de verificación con QR y código de 6 dígitos. Se muestra después de
 
 ## Ubicación
 
-- Componente: `src/pages/Autenticacion/Autenticacion/Autenticacion.tsx`
-- Estilos: `src/pages/Autenticacion/Autenticacion/Autenticacion.css`
+- Componente: `src/pages/Autenticacion/Autenticacion.tsx`
+- Estilos: `src/pages/Autenticacion/Autenticacion.css`
 - Ruta: `/autenticacion`
 
 ## Estructura
