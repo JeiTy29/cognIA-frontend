@@ -6,11 +6,6 @@ export default function InicioSesion() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        navigate('/autenticacion');
-    };
-
     return (
         <div className="auth-container">
             <div className="auth-left-panel"></div>
@@ -31,7 +26,13 @@ export default function InicioSesion() {
                         <Link to="/registro" className="link-highlight">Regístrate</Link>
                     </p>
 
-                    <form className="auth-form" onSubmit={handleSubmit}>
+                    <form
+                        className="auth-form"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            navigate('/autenticacion');
+                        }}
+                    >
                         <div className="form-group">
                             <input
                                 type="email"
