@@ -37,23 +37,35 @@
     margin-bottom: 40px;
 }
 
-/* Logo and System Name */
-.auth-header {
+/* Header Brand - matches Registro styling */
+.header-brand {
+    margin-bottom: 40px;
+}
+
+.brand-link {
     display: flex;
     align-items: center;
     gap: 10px;
+    text-decoration: none;
     justify-content: center;
 }
 
-.auth-logo-icon {
+.brand-icon {
     width: 36px;
     height: 36px;
     background-color: #51C2F4;
     border-radius: 6px;
     flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: 'Segoe UI', sans-serif;
+    line-height: 1;
 }
 
-.auth-system-name {
+.brand-text {
     font-size: 22px;
     font-weight: 700;
     color: #215F8F;

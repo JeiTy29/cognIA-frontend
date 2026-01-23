@@ -1,161 +1,80 @@
 # Vista: Trastornos
 
-## Descripción General
+## Descripcion general
 
-La vista **Trastornos** presenta información educativa sobre los cinco trastornos psicológicos infantiles que el sistema cognIA está diseñado para identificar. Utiliza un diseño visual único basado en círculos para mostrar de manera clara y accesible cada trastorno.
+La vista **Trastornos** presenta informacion educativa sobre cinco trastornos psicologicos infantiles. El foco visual es el **Grafico de trastornos**, compuesto por un circulo central negro y cinco circulos azules interactivos.
 
-## Estructura del Componente
+## Ubicacion
 
-### Ubicación
 - **Ruta del archivo**: `src/pages/Inicio/Trastornos/Trastornos.tsx`
 - **Archivo de estilos**: `src/pages/Inicio/Trastornos/Trastornos.css`
-- **Ruta de navegación**: `/trastornos`
+- **Ruta de navegacion**: `/trastornos`
 
-### Arquitectura Visual
+## Arquitectura visual
 
-#### Diagrama Circular de Trastornos
+### Titulo
 
-La vista presenta un diseño innovador con:
+- El titulo utiliza la clase global `.section-title` para mantener coherencia con otras vistas.
+- Esta centrado y la linea inferior es ligeramente mas larga que el texto.
 
-1. **Círculo Grande Central**: 
-   - Borde negro de 3px
-   - Solo contorno, sin relleno
-   - Diámetro de 600px (responsive en dispositivos móviles)
-   - Actúa como contenedor visual para los círculos de trastornos
+### Texto de ayuda
 
-2. **Cinco Círculos de Trastornos**:
-   - Posicionados sobre el contorno del círculo grande utilizando coordenadas polares
-   - Espaciados uniformemente a 72° de separación
-   - Fondo azul claro (#51C2F4)
-   - Texto blanco para alto contraste
-   - Dimensiones: 240px de ancho, altura mínima de 200px
+- Mensaje guia con fondo, borde y sombra.
+- Ubicado cerca del titulo para reforzar la accion.
+- El `z-index` evita que el grafico lo tape.
 
-#### Trastornos Presentados
+### Grafico de trastornos
 
-Cada círculo contiene:
+**Estado base**:
+- Grafico centrado debajo del titulo.
+- Circulo negro central y cinco circulos azules alrededor.
+- Cada circulo muestra icono y titulo.
 
-**Título del trastorno** (24px, font-weight 700, color blanco):
-1. Ansiedad
-2. Depresión
-3. TDAH
-4. Trastorno de eliminación
-5. Trastorno de conducta
+**Estado expandido**:
+- El circulo seleccionado se desplaza hacia la derecha y crece.
+- El grafico completo se desplaza suavemente a la izquierda.
+- El circulo expandido mantiene la sensacion de transformacion desde el original.
 
-**Descripción** (14px, color blanco):
-- Explicación clara y accesible del trastorno
-- Orientada a un público general sin conocimientos técnicos
-- Enfoque en síntomas observables en niños
+**Comportamiento**:
+- Clic fuera del grafico cierra el estado expandido.
+- Clic en otro trastorno intercambia el expandido con transicion fluida.
 
-**Nota:** El título de TDAH se acortó para mejorar el ajuste dentro del círculo.
+## Iconos
 
-#### Sección Informativa
+- Los iconos se cargan desde `src/assets/Iconos/Trastornos/`.
+- Se renderizan sin fondo ni sombras para mantener transparencia visual.
+- Archivos actuales:
+  - `Ansiedad.png`
+  - `Depresion.png`
+  - `TDAH.png`
+  - `Trastorno de Conducta.png`
+  - `Trastorno de Eliminacion.png`
 
-Debajo del diagrama circular se encuentra una tarjeta informativa con:
+## Estilos principales
 
-- **Título**: "No lo olvides, estos no son los únicos trastornos"
-  - Utiliza la clase global `.section-title` (2.2rem, color #215F8F)
-  
-- **Contenido**: Dos puntos importantes:
-  1. Limitación del alcance del sistema a los cinco trastornos presentados
-  2. Recordatorio de que los resultados no constituyen diagnóstico clínico
-  
-- **Estilos**: Utiliza la clase global `.info-card` para mantener consistencia visual
+- `.circle-diagram-wrapper.is-expanded`: mueve el grafico a la izquierda.
+- `.disorder-circle.expanded`: expande y desplaza el circulo seleccionado.
+- `.disorder-icon`: iconos con fondo transparente y `object-fit: contain`.
 
-## Estilos CSS
+## Espaciado
 
-### Clases Principales
+- Reduccion de espacios entre titulo, texto guia y grafico.
+- Margen inferior menor entre grafico y bloque informativo.
 
-- `.trastornos-container`: Contenedor principal con padding de 80px
-- `.circle-diagram`: Wrapper relativo para el posicionamiento circular (700px × 700px)
-- `.large-circle`: Círculo grande con borde negro (600px × 600px con aspect-ratio 1:1 para círculo perfecto)
-- `.disorder-circle`: Círculos individuales de trastornos (220px × 220px con aspect-ratio 1:1):
-  - Posicionamiento absoluto calculado mediante trigonometría
-  - Atributo `data-position` (0-4) para determinar ubicación
-  - Efecto hover con `scale(1.05)`
-- `.info-section`: Sección de información complementaria
+## Responsive
 
-### Círculos Perfectos
+- **Desktop**: grafico circular completo con expansion lateral.
+- **Tablet**: tamanos reducidos, mantiene desplazamiento lateral.
+- **Mobile**:
+  - Se oculta el circulo negro.
+  - Los circulos se apilan verticalmente.
+  - La descripcion se muestra sin expansion.
 
-Los círculos utilizan `aspect-ratio: 1` para garantizar proporciones perfectas:
+## Historial de cambios
 
-```css
-.large-circle {
-    width: 600px;
-    height: 600px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-}
+### Enero 2026 - Ajustes de grafico y titulo
 
-.disorder-circle {
-    width: 220px;
-    height: 220px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-}
-```
-
-### Posicionamiento Polar
-
-Los círculos se posicionan usando cálculos trigonométricos:
-
-```css
-/* Ejemplo para position="1" (72°) */
-top: calc(50% - 285px * 0.951);
-left: calc(50% + 285px * 0.309);
-```
-
-Donde 285px es el radio del círculo grande (300px de radio - 120px de radio del círculo pequeño).
-
-### Diseño Responsive
-
-La vista se adapta a diferentes tamaños de pantalla:
-
-- **Desktop (>1024px)**: Diseño circular completo con 5 círculos posicionados alrededor del círculo grande
-- **Tablet (768-1024px)**: Mantiene diseño circular con ajustes de tamaño
-- **Mobile (<768px)**: 
-  - **Cambio fundamental**: El círculo grande negro se oculta completamente
-  - Los 5 círculos azules se muestran verticalmente en una columna
-  - Posicionamiento absoluto se convierte en estático (position: static)
-  - Layout cambia a flexbox con `flex-direction: column`
-  - Cada círculo mantiene su fondo azul y texto blanco
-  - No se requiere aspect-ratio en mobile (permite altura automática)
-  - Máximo ancho de 400px por círculo para mejor legibilidad
-
-## Integración con el Proyecto
-
-### Navegación
-- Enlace en Header como tercera opción del menú
-- Accesible mediante `<Link to="/trastornos">`
-
-### Clases Globales Utilizadas
-- `.section-title`: Para el título de la sección informativa
-- `.info-card`: Para el contenedor de información complementaria
-
-## Consideraciones de Diseño
-
-1. **Accesibilidad**: Texto blanco sobre fondo azul cumple con contraste WCAG AA
-2. **Usabilidad**: Diagrama circular facilita la visualización de todos los trastornos simultáneamente
-3. **Educativo**: Descripciones simples y directas apropiadas para padres y educadores
-4. **Ético**: Incluye disclaimers claros sobre las limitaciones del sistema y la necesidad de consultar profesionales
-
-## Mantenimiento
-
-Para actualizar la información de trastornos, modificar el array `disorders` en `Trastornos.tsx`:
-
-```typescript
-const disorders = [
-    {
-        title: "Nombre del Trastorno",
-        description: "Descripción clara y concisa",
-        position: 0 // 0-4 para posición en el círculo
-    },
-    // ...
-];
-```
-
-## Notas Técnicas
-
-- Utiliza flexbox para centrado de contenido en los círculos
-- Animación de hover para mejorar interactividad
-- Posicionamiento CSS puro sin dependencias de JavaScript para renderizado
-- Compatible con todos los navegadores modernos que soportan CSS3 calc()
+- Titulo alineado al estilo global y centrado.
+- Texto guia cercano al titulo y con mayor presencia.
+- Animacion de expansion mas fluida, evitando saltos al centro.
+- Iconos transparentes con rutas correctas.

@@ -12,13 +12,33 @@
 }
 
 .cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 28px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: nowrap;
+    margin-bottom: 80px;
+}
+
+.flow-arrow {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #51C2F4;
+    opacity: 0.7;
+}
+
+.flow-arrow svg {
+    width: 32px;
+    height: 32px;
 }
 
 .card {
-    background: #F5FAFD;
+    background: linear-gradient(135deg, #FDFEFF 0%, #F8FCFE 100%);
     padding: 40px 32px;
     border-radius: 24px;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -173,7 +193,7 @@
 }
 
 .rf-benefits li::before {
-    content: '✓';
+    content: '—';
     position: absolute;
     left: 0;
     color: var(--primary);
@@ -340,8 +360,16 @@
     }
 
     .cards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
+        gap: 16px;
+    }
+
+    .card {
+        flex: 1 1 calc(50% - 20px);
+        min-width: 280px;
+    }
+
+    .flow-arrow {
+        display: none;
     }
 
     .rf-container {
@@ -371,7 +399,7 @@
     }
 
     .cards {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 20px;
         max-width: 500px;
         margin: 0 auto;
@@ -379,6 +407,8 @@
 
     .card {
         padding: 32px 24px;
+        flex: 1 1 100%;
+        width: 100%;
     }
 
     .icon {

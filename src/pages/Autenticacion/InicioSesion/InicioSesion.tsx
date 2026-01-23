@@ -17,12 +17,12 @@ export default function InicioSesion() {
 
             <div className="auth-right-panel">
                 <div className="auth-content">
-                    <Link to="/" className="auth-logo-link">
-                        <div className="auth-header">
-                            <div className="auth-logo-icon"></div>
-                            <span className="auth-system-name">cognIA</span>
-                        </div>
-                    </Link>
+                    <div className="header-brand">
+                        <Link to="/" className="brand-link">
+                            <div className="brand-icon">c</div>
+                            <span className="brand-text">cognIA</span>
+                        </Link>
+                    </div>
 
                     <h1 className="auth-title">Iniciar sesión</h1>
 

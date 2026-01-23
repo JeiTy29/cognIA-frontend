@@ -22,9 +22,11 @@
 
 /* Grids Layout */
 .team-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-direction: row;
     gap: 2rem;
+    justify-content: center;
+    align-items: stretch;
 }
 
 .contact-section {

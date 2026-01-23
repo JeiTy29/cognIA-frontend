@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import './Header.css';
 
 export default function Header() {
@@ -7,18 +6,18 @@ export default function Header() {
             <div className="logo">cognIA</div>
 
             <nav className="nav">
-                <Link to="/" className="nav-link">Nuestro Sistema</Link>
-                <Link to="/sobre-nosotros" className="nav-link">Sobre Nosotros</Link>
-                <Link to="/trastornos" className="nav-link">Trastornos</Link>
+                <a href="/" className="nav-link">Nuestro Sistema</a>
+                <a href="/sobre-nosotros" className="nav-link">Sobre Nosotros</a>
+                <a href="/trastornos" className="nav-link">Trastornos</a>
             </nav>
 
             <div className="auth-buttons">
-                <Link to="/inicio-sesion">
+                <a href="/inicio-sesion">
                     <button className="login">Iniciar sesión</button>
-                </Link>
-                <Link to="/registro">
+                </a>
+                <a href="/registro">
                     <button className="register">Registrarse</button>
-                </Link>
+                </a>
             </div>
         </header>
     );

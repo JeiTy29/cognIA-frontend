@@ -75,12 +75,17 @@ Los usuarios pueden explorar visualmente las 4 etapas del sistema:
 La sección Random Forest utiliza un grid de dos columnas:
 - **Columna izquierda (40%)**: Información educativa sobre Random Forest
   - Explicación del algoritmo
-  - Descripción del proceso de votación
-  - Lista de ventajas con checkmarks
+  - Descripción detallada del proceso de votación
+  - Cómo reduce errores individuales
+  - Beneficios del enfoque colaborativo
+  - Aplicación en el contexto de cognIA
 - **Columna derecha (60%)**: Área interactiva
+  - Disclaimer sobre demostración simplificada
   - Selector de preguntas
   - Visualización de árboles votando
   - Resultado final
+
+**Nota**: La información anteriormente en una tarjeta de "Ventajas" con lista punteada se ha integrado directamente en la descripción principal para un flujo de lectura más natural y cohesivo.
 
 ## Consideraciones de diseño
 

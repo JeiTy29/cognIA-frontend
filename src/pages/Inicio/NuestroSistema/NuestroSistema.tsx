@@ -80,6 +80,12 @@ export default function NuestroSistema() {
           </p>
         </div>
 
+        <div className="flow-arrow">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+
         <div className="card">
           <div className="icon">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -93,6 +99,12 @@ export default function NuestroSistema() {
           </p>
         </div>
 
+        <div className="flow-arrow">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+
         <div className="card">
           <div className="icon">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -104,6 +116,12 @@ export default function NuestroSistema() {
             Un conjunto de árboles de decisión evalúa las respuestas
             mediante el algoritmo Random Forest.
           </p>
+        </div>
+
+        <div className="flow-arrow">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
 
         <div className="card">
@@ -128,20 +146,21 @@ export default function NuestroSistema() {
             <h3>Algoritmo Random Forest</h3>
             <p>
               Random Forest es un método de aprendizaje automático que utiliza múltiples
-              árboles de decisión para hacer predicciones más precisas.
+              árboles de decisión para hacer predicciones más precisas y confiables.
             </p>
             <p>
               Cada árbol analiza las respuestas del cuestionario de forma independiente
-              y emite su "voto". El resultado final se determina por la mayoría de votos.
+              y emite su "voto" sobre la clasificación. El resultado final se determina
+              por la mayoría de votos entre todos los árboles, lo que reduce la probabilidad
+              de errores individuales y aumenta la precisión general del sistema.
             </p>
-            <div className="rf-benefits">
-              <h4>Ventajas:</h4>
-              <ul>
-                <li>Mayor precisión en las predicciones</li>
-                <li>Reduce el riesgo de errores</li>
-                <li>Robusto ante datos variados</li>
-              </ul>
-            </div>
+            <p>
+              Este enfoque colaborativo permite que el sistema sea más robusto ante datos
+              variados y proporciona mayor precisión en las predicciones. Al combinar las
+              decisiones de múltiples árboles, el modelo puede capturar patrones complejos
+              que un solo árbol no detectaría, haciendo que las alertas tempranas sean más
+              confiables para los profesionales de salud mental.
+            </p>
           </div>
 
           <div className="rf-interactive info-card">

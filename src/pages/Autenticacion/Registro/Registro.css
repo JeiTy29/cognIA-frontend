@@ -51,6 +51,35 @@
     flex-shrink: 0;
 }
 
+/* Brand Icon for Authentication Header */
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    background-color: #51C2F4;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: 'Segoe UI', sans-serif;
+    line-height: 1;
+}
+
+.brand-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.brand-text {
+    font-size: 22px;
+    font-weight: 700;
+    color: #215F8F;
+}
+
 .role-text {
     font-size: 16px;
     font-weight: 600;
@@ -160,6 +189,7 @@
 /* Terms Checkbox */
 .terms-checkbox {
     display: flex;
+    flex-direction: row;
     align-items: flex-start;
     gap: 10px;
     margin-bottom: 24px;
@@ -174,11 +204,32 @@
     flex-shrink: 0;
 }
 
+.terms-checkbox input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.terms-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .terms-checkbox label {
     font-size: 14px;
     color: #2A2D34;
     line-height: 1.5;
     cursor: pointer;
+}
+
+.checkbox-hint {
+    font-size: 12px;
+    color: #1790E9;
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(23, 144, 233, 0.1);
+    border-radius: 6px;
+    border-left: 3px solid #1790E9;
 }
 
 /* ========================================

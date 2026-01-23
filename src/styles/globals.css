@@ -11,91 +11,115 @@ body {
     position: relative;
     overflow-x: hidden;
 
-    /* Fondo blanco limpio */
-    background-color: #FFFFFF;
+    /* Base de fondo: blanco a azul suave */
+    background: linear-gradient(180deg,
+            #FFFFFF 0%,
+            #F8FBFF 35%,
+            #EDF6FF 70%,
+            #E2F0FF 100%);
+    background-attachment: fixed;
 }
 
-/* Fondo moderno 'Mesh Gradient' sutil */
-/* Fondo animado moderno con formas orgánicas */
-/* Fondo animado moderno con formas orgánicas */
+/* ========================================
+   FONDO ORGANICO ANIMADO (MANCHAS SUAVES)
+   ======================================== */
+
 body::before {
     content: '';
     position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    background:
-        radial-gradient(at 0% 0%, rgba(81, 194, 244, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.8) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(33, 95, 143, 0.1) 0px, transparent 50%),
-        radial-gradient(at 0% 100%, rgba(255, 255, 255, 0.8) 0px, transparent 50%),
-        radial-gradient(at 50% 50%, rgba(81, 194, 244, 0.05) 0px, transparent 50%);
-    background-color: #ffffff;
-    z-index: -1;
+    inset: -20%;
     pointer-events: none;
-    filter: blur(40px);
+    z-index: -2;
+    opacity: 0.95;
+    filter: blur(26px);
+    background-image:
+        radial-gradient(60% 45% at 18% 20%, rgba(81, 194, 244, 0.55), rgba(81, 194, 244, 0)),
+        radial-gradient(55% 40% at 80% 25%, rgba(33, 95, 143, 0.42), rgba(33, 95, 143, 0)),
+        radial-gradient(70% 60% at 55% 80%, rgba(23, 144, 233, 0.42), rgba(23, 144, 233, 0));
+    background-size: 60% 60%, 45% 45%, 55% 55%;
+    background-repeat: no-repeat;
+    animation: blobShift 18s ease-in-out infinite, blobDrift 16s ease-in-out infinite;
 }
 
 body::after {
     content: '';
     position: fixed;
-    bottom: -10vh;
-    left: -10vw;
-    width: 50vw;
-    height: 50vw;
-    background: radial-gradient(circle, rgba(33, 95, 143, 0.2) 0%, rgba(33, 95, 143, 0.05) 50%, transparent 80%);
-    filter: blur(80px);
-    z-index: 0;
+    inset: -25%;
     pointer-events: none;
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-    animation: float-reverse 25s infinite alternate ease-in-out;
-}
-
-/* Tercera forma para más profundidad */
-body>#root::before {
-    content: '';
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 40vw;
-    height: 40vw;
-    background: radial-gradient(circle, rgba(23, 144, 233, 0.15) 0%, rgba(23, 144, 233, 0.05) 50%, transparent 80%);
-    filter: blur(100px);
     z-index: -1;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-    animation: pulse-glow 15s infinite alternate ease-in-out;
+    opacity: 0.9;
+    filter: blur(34px);
+    background-image:
+        radial-gradient(65% 55% at 30% 70%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)),
+        radial-gradient(55% 45% at 70% 65%, rgba(81, 194, 244, 0.38), rgba(81, 194, 244, 0));
+    background-size: 58% 58%, 42% 42%;
+    background-repeat: no-repeat;
+    animation: blobShiftAlt 24s ease-in-out infinite, blobDriftAlt 20s ease-in-out infinite;
 }
 
-@keyframes float {
+/* ========================================
+   ANIMACIONES
+   ======================================== */
+
+@keyframes blobShift {
     0% {
-        transform: translate(0, 0) rotate(0deg);
+        background-position: 10% 18%, 85% 22%, 58% 80%;
+        background-size: 62% 62%, 44% 44%, 56% 56%;
+    }
+
+    50% {
+        background-position: 22% 30%, 72% 12%, 50% 72%;
+        background-size: 70% 70%, 40% 40%, 60% 60%;
     }
 
     100% {
-        transform: translate(50px, 30px) rotate(10deg);
+        background-position: 14% 12%, 80% 28%, 62% 78%;
+        background-size: 60% 60%, 46% 46%, 54% 54%;
     }
 }
 
-@keyframes float-reverse {
+@keyframes blobShiftAlt {
     0% {
-        transform: translate(0, 0) rotate(0deg);
+        background-position: 28% 72%, 78% 60%;
+        background-size: 60% 60%, 45% 45%;
+    }
+
+    50% {
+        background-position: 20% 62%, 70% 72%;
+        background-size: 66% 66%, 40% 40%;
     }
 
     100% {
-        transform: translate(-50px, -30px) rotate(-10deg);
+        background-position: 32% 78%, 82% 58%;
+        background-size: 58% 58%, 44% 44%;
     }
 }
 
-@keyframes pulse-glow {
+@keyframes blobDrift {
     0% {
-        opacity: 0.5;
-        transform: scale(0.9);
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate3d(5%, -6%, 0) scale(1.05);
     }
 
     100% {
-        opacity: 1;
-        transform: scale(1.1);
+        transform: translate3d(-4%, 3%, 0) scale(1.01);
+    }
+}
+
+@keyframes blobDriftAlt {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate3d(-5%, 6%, 0) scale(1.04);
+    }
+
+    100% {
+        transform: translate3d(4%, -3%, 0) scale(1.01);
     }
 }
 
@@ -110,18 +134,25 @@ a {
     font-size: 2.2rem;
     margin-bottom: 2rem;
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
     font-weight: 700;
+    width: fit-content;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .section-title::after {
     content: '';
     display: block;
-    width: 100%;
+    width: calc(100% + 12px);
     height: 3px;
     background-color: #215F8F;
     margin-top: 8px;
     border-radius: 2px;
+    transform: translateX(-6px);
 }
 
 /* Standardized Info Card - Reusable container with light blue background */
@@ -161,25 +192,22 @@ a {
    ======================================== */
 
 @media (max-width: 768px) {
-    body::before {
-        width: 500px;
-        height: 500px;
-    }
-
+    body::before,
     body::after {
-        width: 400px;
-        height: 400px;
+        filter: blur(26px);
     }
 }
 
 @media (max-width: 480px) {
-    body::before {
-        width: 350px;
-        height: 350px;
-    }
-
+    body::before,
     body::after {
-        width: 300px;
-        height: 300px;
+        filter: blur(22px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body::before,
+    body::after {
+        animation: none;
     }
 }

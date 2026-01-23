@@ -16,12 +16,20 @@
     font-size: 24px;
     font-weight: bold;
     color: var(--primary);
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    align-self: center;
+    transform: translateY(-1px);
 }
 
 .nav {
     display: flex;
-    gap: 32px;
+    gap: 40px;
+    align-items: center;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .nav .nav-link {
@@ -59,12 +67,12 @@
 }
 
 .login {
-    background-color: #1790E9 !important;
+    background: linear-gradient(180deg, #2AA1F0 0%, #1790E9 100%) !important;
     color: #ffffff !important;
 }
 
 .register {
-    background-color: #215F8F !important;
+    background: linear-gradient(180deg, #2F74A9 0%, #215F8F 100%) !important;
     color: #ffffff !important;
 }
 
@@ -76,11 +84,12 @@
 .auth-buttons button {
     padding: 9px 20px;
     border-radius: 12px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.45);
     cursor: pointer;
     color: var(--bg-header);
     font-weight: 700;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
 }
 
 .auth-buttons button:hover {
