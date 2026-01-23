@@ -11,6 +11,7 @@ export default function Registro() {
     const navigate = useNavigate();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
+    const [usarDosPasos, setUsarDosPasos] = useState(false);
 
     // Estados para Modals
     const [showTerms, setShowTerms] = useState(false);
@@ -91,6 +92,7 @@ export default function Registro() {
         setErrorConfirmar('');
         setErrorTerminos('');
         setAceptaTerminos(false);
+        setUsarDosPasos(false);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -126,7 +128,7 @@ export default function Registro() {
     };
 
     return (
-        <div className="auth-container">
+        <div className="auth-container registro-container">
             <div className="auth-left-panel"></div>
 
             <div className="auth-right-panel">
@@ -246,6 +248,23 @@ export default function Registro() {
                                         {errorConfirmar && <div className="validation-error">{errorConfirmar}</div>}
                                     </div>
 
+                                    <div className="twofactor-option">
+                                        <div className="twofactor-row">
+                                            <input
+                                                type="checkbox"
+                                                id="twofactor"
+                                                checked={usarDosPasos}
+                                                onChange={(e) => setUsarDosPasos(e.target.checked)}
+                                            />
+                                            <label htmlFor="twofactor">Activar autenticación en dos pasos</label>
+                                        </div>
+                                        {usarDosPasos ? (
+                                            <p className="twofactor-hint">
+                                                Necesitarás una app de autenticación como Google Authenticator o Microsoft Authenticator.
+                                            </p>
+                                        ) : null}
+                                    </div>
+
                                     <div className="terms-checkbox">
                                         <input
                                             type="checkbox"
@@ -271,7 +290,7 @@ export default function Registro() {
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
 
-                                    <button type="submit" className="btn-primary">
+                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos}>
                                         Crear cuenta
                                     </button>
                                 </form>
@@ -406,7 +425,7 @@ export default function Registro() {
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
 
-                                    <button type="submit" className="btn-primary">
+                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos}>
                                         Crear cuenta
                                     </button>
                                 </form>

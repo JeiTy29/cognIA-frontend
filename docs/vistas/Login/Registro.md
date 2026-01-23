@@ -1,207 +1,129 @@
-# Vista: Registro
+﻿# Vista: Registro
 
-## Descripción General
+## Descripción general
 
-La vista **Registro** permite a nuevos usuarios crear una cuenta en cognIA mediante un proceso de dos etapas: selección de rol y formulario específico.
+Flujo de creación de cuenta con selección de rol, formularios dinámicos, validación de contraseña y aceptación de términos.
 
-## Estructura del Componente
+## Ubicación
 
-### Ubicación
-- **Ruta del archivo**: `src/pages/Autenticacion/Registro/Registro.tsx`
-- **Archivo de estilos**: `src/pages/Autenticacion/Registro/Registro.css`
-- **Ruta de navegación**: `/registro`
-
-### Características Especiales
-- **Sin Header ni Footer**: Vista independiente de autenticación
-- **Logo navegable**: Retorno a página principal via logo cognIA
-- **Flujo en dos etapas**: Selección de rol + Formulario dinámico
-- **Animación de transición**: Repliegue hacia arriba al seleccionar rol
-- **PopUps Integrados**: Visualización de términos y privacidad sin salir de la página
-
-## Arquitectura Visual
-
-### Panel Izquierdo (40%)
-- Fondo azul claro sólido (#51C2F4)
-- Presente en todas las etapas del registro
-
-### Panel Derecho (60%)
-
-**Contenido centrado:**
-
-#### Elementos Comunes
-
-1. **Logo e Identidad** (36px icon, 22px text)
-2. **Título**: "Regístrate" (32px, #215F8F, centrado)
-3. **Enlace**: "¿Ya tienes una cuenta? Inicia sesión" → `/inicio-sesion`
+- Componente: `src/pages/Autenticacion/Registro/Registro.tsx`
+- Estilos: `src/pages/Autenticacion/Registro/Registro.css`
+- Ruta: `/registro`
+- Reutiliza el layout `auth-*` definido en `InicioSesion.css`.
 
 ---
 
-## Etapa 1: Selección de Rol
+## Etapa 1: Selección de rol
 
 ### Layout
-- **Alineación**: Horizontal (dos tarjetas lado a lado)
-- **Gap**: 24px entre tarjetas
-- **Responsive**: Se apilan verticalmente en móvil
 
-### Tarjetas de Rol
+- Contenedor horizontal `.role-selection-horizontal`.
+- Dos tarjetas `.role-card-vertical`:
+  - **Padre/Docente**
+  - **Psicólogo**
+- Cada tarjeta incluye `.role-image-placeholder` (bloque para imagen/ilustración).
 
-**Dimensiones:**
-- Ancho: 180px
-- Alto: 280px
-- Orientación: Vertical (más alto que ancho)
+### Estados visuales
 
-**Contenido:**
-1. Placeholder de imagen (100px × 100px, fondo #51C2F4)
-2. Texto descriptivo:
-   - "Soy padre o docente"
-   - "Soy psicólogo"
+- Normal: borde **#E0E0E0**, fondo **#F9FAFB**.
+- Hover: borde **#1790E9**, fondo **#FFFFFF**, sombra `rgba(23,144,233,0.15)`.
 
-**Estados:**
-- Normal: Borde gris, fondo claro
-- Hover: Borde azul, fondo blanco, elevación 4px
+### Acción al click
 
-**Acción al click:**
-- Animación de repliegue hacia arriba
-- Imagen desaparece
-- Tarjeta se convierte en tag pequeño rectangular
-- Aparece formulario correspondiente
+- Al seleccionar, se ocultan las tarjetas y se muestra el formulario con animación `collapseSlideUp`.
 
 ---
 
-## Etapa 2: Formulario Dinámico
+## Etapa 2: Formulario dinámico
 
-### Tag de Rol
-- Rectángulo pequeño con texto del rol seleccionado
-- Borde azul claro
-- Posición: arriba del formulario
-- Permite identificar el tipo de registro activo
+### Tag del rol
 
-### Formulario Padre/Docente (3 campos)
+- Botón `.role-tag` con texto del rol activo.
+- Permite volver a la selección inicial (resetea estados y campos).
 
-**Campos verticales:**
+### Formulario Padre/Docente
+
+Campos:
 1. Correo electrónico
 2. Contraseña
 3. Confirmar contraseña
+4. Checkbox **“Activar autenticación en dos pasos”** (opcional)
+   - Si se activa, se muestra `.twofactor-hint` con aviso de apps compatibles.
 
-### Formulario Psicólogo (6 campos)
+### Formulario Psicólogo
 
-**Layout:**
-1. **Fila horizontal** (grid 1fr 1fr):
-   - Nombre
-   - Apellido
-2. **Campos verticales**:
-   - Correo electrónico
-   - Número de operador nacional (nuevo campo requerido)
-   - Contraseña
-   - Confirmar contraseña
-
----
-
-## Elementos Adicionales
-
-### Checkbox de Términos
-
-**Posición**: Debajo de todos los campos, antes del botón
-
-**Contenido**:
-```
-☐ Confirm haber leído y acepto los Términos de uso y Políticas de privacidad
-```
-
-**Validación y Control**:
-- **Estado inicial**: Deshabilitado (disabled) con opacidad reducida
-- **Habilitación**: Se habilita solo cuando el usuario ha abierto ambos modales (Términos y Privacidad)
-- **Mensaje de ayuda**: Si no se han abierto los modales, se muestra un mensaje informativo en azul: "Por favor, lee los términos de uso y las políticas de privacidad antes de continuar"
-- **Tracking de modales**: El sistema registra cuando el usuario abre cada modal mediante estados `hasOpenedTerms` y `hasOpenedPrivacy`
-
-**Enlaces activos:**
-- "Términos de uso" → Abre PopUp (Modal) con contenido y marca como leído
-- "Políticas de privacidad" → Abre PopUp (Modal) con contenido y marca como leído
-
-**Alineación**: Texto a la izquierda con disposición vertical (columna)
-
-### Botón de Acción
-- Texto: **"Crear cuenta"**
-- Color: #1790E9
-- Ancho: 100%
+Campos:
+1. Nombre
+2. Apellido
+3. Correo electrónico
+4. Número de operador nacional
+5. Contraseña
+6. Confirmar contraseña
 
 ---
 
-## Animaciones
+## Validaciones
 
-### fadeIn (Selección de rol)
-```css
-Duración: 0.3s ease
-From: opacity 0, translateY(10px)
-To: opacity 1, translateY(0)
+- Contraseña mínima **8 caracteres**.
+- Debe incluir: mayúscula, minúscula, número y carácter especial.
+- Confirmación debe coincidir con contraseña.
+- Mensajes de error en `.validation-error`.
+
+---
+
+## Términos y privacidad
+
+### Checkbox de aceptación
+
+- Deshabilitado hasta abrir ambos modales (`hasOpenedTerms`, `hasOpenedPrivacy`).
+- Mensaje de ayuda en azul cuando faltan lecturas.
+- Botón **“Crear cuenta”** se habilita solo si `aceptaTerminos` está activo.
+
+### Modales
+
+- Se controlan con `showTerms` / `showPrivacy`.
+- `Modal` aplica animación de salida sutil con clase `.is-closing`.
+
+---
+
+## Estados principales (TypeScript)
+
+```ts
+const [rolSeleccionado, setRolSeleccionado]
+const [aceptaTerminos, setAceptaTerminos]
+const [usarDosPasos, setUsarDosPasos]
+const [hasOpenedTerms, setHasOpenedTerms]
+const [hasOpenedPrivacy, setHasOpenedPrivacy]
+const [errorContrasena, setErrorContrasena]
+const [errorConfirmar, setErrorConfirmar]
+const [errorTerminos, setErrorTerminos]
 ```
 
-### collapseSlideUp (Formulario)
-```css
-Duración: 0.5s cubic-bezier
-From: opacity 0, translateY(40px), scale(0.95)
-To: opacity 1, translateY(0), scale(1)
-```
-
-## Estado del Componente
-
-**TypeScript State:**
-```typescript
-type TipoUsuario = 'padre' | 'psicologo' | null;
-const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
-const [aceptaTerminos, setAceptaTerminos] = useState(false);
-const [showTerms, setShowTerms] = useState(false);
-const [showPrivacy, setShowPrivacy] = useState(false);
-const [hasOpenedTerms, setHasOpenedTerms] = useState(false);
-const [hasOpenedPrivacy, setHasOpenedPrivacy] = useState(false);
-const [numeroOperador, setNumeroOperador] = useState(''); // Solo para psicólogos
-```
-
-## Estilos CSS
-
-### Clases específicas
-
-- `.role-selection-horizontal`: Contenedor flex horizontal
-- `.role-card-vertical`: Tarjetas verticales de rol
-- `.role-image-placeholder`: Espacio para imagen (100px)
-- `.role-text`: Texto del rol (16px, centrado)
-- `.form-container-animated`: Wrapper con animación collapse
-- `.role-tag`: Tag rectangular pequeño with rol seleccionado
-- `.form-row`: Grid 1fr 1fr para nombre/apellido
-- `.terms-checkbox`: Contenedor del checkbox
-
-## Responsive Design
-
-- **>768px**: Tarjetas horizontales, formulario completo
-- **<768px**: Tarjetas apiladas verticalmente
-- **<600px**: Grid de nombre/apellido cambia a columna única
-- **<480px**: Tarjetas max-width 100%, placeholders 80px
+---
 
 ## Navegación
 
-- **Logo cognIA** → `/`
-- **"Inicia sesión"** → `/inicio-sesion`
-- **"Términos de uso"** → Abre Modal (no navega)
-- **"Políticas de privacidad"** → Abre Modal (no navega)
-- **Botón "Crear cuenta"** → `/activar-cuenta` (tras validación)
+- Logo superior → `/`.
+- Link “Inicia sesión” → `/inicio-sesion`.
+- Submit válido → `/activar-cuenta`.
 
-## Flujo de Usuario
+---
 
-1. Usuario ve título y tarjetas de rol
-2. Selecciona padre/docente O psicólogo
-3. Tarjetas se replegan con animación
-4. Aparece tag del rol + formulario específico
-5. Usuario completa todos los campos
-6. Marca checkbox de términos (puede hacer click para ver detalles en PopUp)
-7. Click en "Crear cuenta"
-8. Navegación a vista de activación
+## Flujo de usuario
 
-## Notas Técnicas
+1. Selecciona rol (padre/docente o psicólogo).
+2. Completa el formulario correspondiente.
+3. Abre términos y privacidad (modales).
+4. Marca el checkbox de aceptación.
+5. Click en **Crear cuenta** → `/activar-cuenta`.
 
-- Renderizado condicional basado en `rolSeleccionado`
-- Labels clickeables en checkbox
-- Validación HTML nativa (`required`)
-- TypeScript para tipado fuerte
-- CSS Grid para layout responsive
-- Animaciones CSS puras (sin JS)
-- Reutilización de `TermsContent` y `PrivacyContent` en Modals
+---
+
+## Clases CSS clave
+
+- `.role-selection-horizontal`, `.role-card-vertical`, `.role-tag`, `.terms-checkbox`, `.twofactor-option`.
+
+## Responsive
+
+- Tarjetas en horizontal en desktop.
+- Apiladas en móvil (`max-width: 768px`).

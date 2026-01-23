@@ -1,67 +1,41 @@
-# Políticas de Privacidad
+﻿# Vista: Políticas de Privacidad
 
-## Descripción
+## Descripción general
 
-Vista dedicada a mostrar las políticas de privacidad del aplicativo cognIA. Esta página informa a los usuarios sobre cómo se recopila, utiliza y protege su información personal.
+Página legal con contenido de privacidad y enlaces contextuales al registro.
 
 ## Ubicación
 
-**Ruta**: `src/pages/Inicio/Privacy/`
+- Componente: `src/pages/Inicio/Privacy/Privacy.tsx`
+- Estilos: `src/pages/Inicio/Privacy/Privacy.css`
+- Ruta: `/privacy`
+- Se muestra con Header y Footer (ver `src/App.tsx`).
 
-**Archivos**:
-- `Privacy.tsx` - Componente React
-- `Privacy.css` - Estilos de la vista
+## Lógica de navegación
 
-**Ruta de acceso**: `/politicas-privacidad`
+- Si la URL incluye `?from=registro`, se muestra botón **“Volver al formulario de registro”**.
+- El botón ejecuta `navigate(-1)`.
 
-## Características
+## Estructura
 
-### Diseño visual
+- `.privacy-title` y `.privacy-subtitle` centrados.
+- `.content-card` con texto legal.
+- Link interno a `Términos y Condiciones`.
+- Link inferior “Volver al inicio”.
 
-- **Fondo**: Blanco (#ffffff)
-- **Layout**: Centrado con ancho máximo de 900px
-- **Componentes**:
-  - Título principal
-  - Subtítulo contextual
-  - Tarjeta de contenido con sombra sutil
+## Estilos clave
 
-### Estructura
+- Fondo blanco, card con sombra y padding de 2rem.
+- Botón de regreso: **#1790E9**, hover **#1370c0** con desplazamiento.
 
-1. **Título**: "Políticas de Privacidad"
-2. **Subtítulo**: "Protegemos tu información personal"
-3. **Content Card**: Tarjeta con:
-   - Fondo blanco
-   - Bordes redondeados (12px)
-   - Sombra sutil (box-shadow)
-   - Padding generoso (2rem)
+## Clases CSS clave
 
-## Estado actual
+- `.privacy-page`, `.privacy-title`, `.content-card`, `.back-to-form-button`.
 
-> **Nota**: Esta vista contiene actualmente texto de placeholder (Lorem Ipsum) mientras se define el contenido legal definitivo de las políticas de privacidad.
+## Reutilización
 
-## Contenido pendiente
+- `PrivacyContent` se exporta y se usa dentro de los modales de registro.
 
-El contenido final debe incluir información sobre:
+## Responsive
 
-- [Pendiente definir contenido específico]
-
-## Implementación
-
-### Responsive
-
-La vista se adapta a diferentes dispositivos:
-
-**Desktop** (> 768px):
-- Título: 2.5rem
-- Padding de tarjeta: 2rem
-
-**Mobile** (≤ 768px):
-- Título reducido: 2rem
-- Padding de tarjeta: 1.5rem
-- Ajuste de márgenes y espaciado
-
-## Acceso
-
-Los usuarios pueden acceder a esta vista a través de:
-- Enlace en el Footer
-- Navegación directa a `/politicas-privacidad`
+- `max-width: 768px`: título 2rem, subtítulo 1rem, padding menor.

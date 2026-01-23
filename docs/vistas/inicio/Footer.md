@@ -1,98 +1,38 @@
-# Footer
+﻿# Vista: Footer
 
-## Descripción
+## Descripción general
 
-El Footer es un componente global que aparece en la parte inferior de todas las páginas del aplicativo cognIA. Proporciona información de copyright y enlaces a documentos legales importantes.
+Pie de página institucional con contacto y enlaces legales.
 
 ## Ubicación
 
-**Ruta**: `src/components/Footer/`
+- Componente: `src/components/Footer/Footer.tsx`
+- Estilos: `src/components/Footer/Footer.css`
 
-**Archivos**:
-- `Footer.tsx` - Componente React
-- `Footer.css` - Estilos del footer
+## Estructura
 
-## Características
+- `.footer` → contenedor principal negro.
+- `.footer-content` (flex) con tres bloques:
+  1. Copyright.
+  2. Email de contacto.
+  3. Enlaces legales.
 
-### Diseño visual
+## Enlaces
 
-- **Fondo**: Negro (#000000)
-- **Texto**: Blanco (#ffffff), coincide con el color del fondo principal de la aplicación
-- **Layout**: Flexbox con distribución horizontal
-- **Responsive**: Se adapta a móviles cambiando a layout vertical
+- `Políticas de privacidad` → `/privacy`.
+- `Términos de uso` → `/terms`.
+- Email: `mailto:contacto@cognia.edu.co`.
 
-### Contenido
+## Estilos clave
 
-1. **Texto de copyright**: "© 2025 cognIA - Universidad de Cundinamarca"
-2. **Enlaces legales**:
-   - Políticas de privacidad
-   - Términos de uso
+- Fondo negro **#000**, texto blanco.
+- Tipografía 0.9rem, enlaces subrayados en hover.
+- Layout flexible con `flex-wrap`.
 
-## Implementación
+## Clases CSS clave
 
-### Estructura del componente
+- `.footer`, `.footer-content`, `.footer-links`, `.footer-link`, `.footer-contact`.
 
-```tsx
-import { Link } from 'react-router-dom';
-import './Footer.css';
+## Responsive
 
-export default function Footer() {
-    return (
-        <footer className="footer">
-            <div className="footer-content">
-                <p className="footer-copyright">
-                    © 2025 cognIA - Universidad de Cundinamarca
-                </p>
-                <div className="footer-links">
-                    <Link to="/politicas-privacidad">Políticas de privacidad</Link>
-                    <Link to="/terminos-uso">Términos de uso</Link>
-                </div>
-            </div>
-        </footer>
-    );
-}
-```
-
-### Navegación
-
-Los enlaces del footer utilizan React Router para navegar a:
-- `/politicas-privacidad` → Vista de Políticas de Privacidad
-- `/terminos-uso` → Vista de Términos de Uso
-
-## Estilos
-
-### Responsive
-
-El footer implementa un diseño responsive:
-
-**Desktop** (> 768px):
-- Contenido distribuido horizontalmente
-- Copyright a la izquierda, enlaces a la derecha
-
-**Mobile** (≤ 768px):
-- Contenido apilado verticalmente
-- Texto centrado
-- Enlaces en columna con menor espaciado
-
-### Interactividad
-
-- **Hover**: Los enlaces reducen su opacidad a 0.7 y muestran subrayado
-- **Transiciones**: Animación suave de 0.3s en el efecto hover
-
-## Uso
-
-El Footer debe incluirse en el layout principal de la aplicación para que aparezca en todas las páginas:
-
-```tsx
-<App>
-  <Header />
-  <main>{/* Contenido de la página */}</main>
-  <Footer />
-</App>
-```
-
-## Notas de diseño
-
-- El color negro del footer contrasta con el fondo blanco de las páginas
-- Los enlaces mantienen la accesibilidad con buen contraste de colores
-- El diseño minimalista mantiene el foco en el contenido principal
+- `max-width: 768px`: columnas apiladas y centradas.

@@ -5,35 +5,23 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
 }
 
 .trastornos-container > .section-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.35rem;
     align-self: center;
 }
 
 .circle-section {
-    min-height: 960px;
+    min-height: 820px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin: 6px 0 48px;
-    gap: 10px;
-}
-
-.circle-hint {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #184b76;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(33, 95, 143, 0.25);
-    padding: 8px 14px;
-    border-radius: 999px;
-    box-shadow: 0 6px 14px rgba(33, 95, 143, 0.12);
-    position: relative;
-    z-index: 3;
+    margin: 0 0 24px;
+    gap: 6px;
+    padding-top: 6px;
 }
 
 .circle-diagram-wrapper {
@@ -44,7 +32,7 @@
 }
 
 .circle-diagram-wrapper.is-expanded {
-    transform: translateX(-160px);
+    transform: translateX(-140px);
 }
 
 .circle-diagram {
@@ -146,9 +134,9 @@
 }
 
 .disorder-icon {
-    width: 70px;
-    height: 70px;
-    border-radius: 14px;
+    width: 108px;
+    height: 108px;
+    border-radius: 20px;
     object-fit: contain;
     background-color: transparent;
     box-shadow: none;
@@ -181,40 +169,13 @@
     max-width: 440px;
 }
 
-.hover-hint {
-    position: absolute;
-    bottom: -35px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    white-space: nowrap;
-    animation: fadeInHint 0.3s ease;
-    pointer-events: none;
-    z-index: 20;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-    font-weight: 700;
-}
-
-@keyframes fadeInHint {
-    from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-5px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+.disorder-circle.expanded .disorder-icon {
+    display: none;
 }
 
 .info-section {
     text-align: center;
-    margin-top: 48px;
+    margin-top: 28px;
 }
 
 .info-section .section-title {
@@ -389,17 +350,17 @@
     .info-list li {
         font-size: 0.95rem;
     }
+
+    .disorder-icon {
+        width: 90px;
+        height: 90px;
+        border-radius: 18px;
+    }
 }
 
 @media (max-width: 480px) {
     .trastornos-container {
         padding: 40px 16px;
-    }
-
-    .circle-hint {
-        font-size: 0.95rem;
-        text-align: center;
-        padding: 0 12px;
     }
 
     .disorder-title {

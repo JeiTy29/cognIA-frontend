@@ -31,12 +31,6 @@
     text-align: center;
 }
 
-/* Logo Link */
-.auth-logo-link {
-    text-decoration: none;
-    margin-bottom: 40px;
-}
-
 /* Header Brand - matches Registro styling */
 .header-brand {
     margin-bottom: 40px;
@@ -157,6 +151,13 @@
     transform: translateY(0);
 }
 
+.btn-primary:disabled {
+    background-color: #9cc9e8;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.85;
+}
+
 /* Forgot Password Link */
 .forgot-password-link {
     font-size: 14px;
@@ -268,15 +269,6 @@
 
     .auth-content {
         max-width: 100%;
-    }
-
-    .auth-logo-icon {
-        width: 30px;
-        height: 30px;
-    }
-
-    .auth-system-name {
-        font-size: 18px;
     }
 
     .auth-title {

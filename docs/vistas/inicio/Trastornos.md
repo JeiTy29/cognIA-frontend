@@ -1,80 +1,70 @@
-# Vista: Trastornos
+﻿# Vista: Trastornos
 
-## Descripcion general
+## Descripción general
 
-La vista **Trastornos** presenta informacion educativa sobre cinco trastornos psicologicos infantiles. El foco visual es el **Grafico de trastornos**, compuesto por un circulo central negro y cinco circulos azules interactivos.
+Presenta el **Gráfico de trastornos** (círculo central + 5 trastornos) y una sección informativa al pie.
 
-## Ubicacion
+## Ubicación
 
-- **Ruta del archivo**: `src/pages/Inicio/Trastornos/Trastornos.tsx`
-- **Archivo de estilos**: `src/pages/Inicio/Trastornos/Trastornos.css`
-- **Ruta de navegacion**: `/trastornos`
+- Componente: `src/pages/Inicio/Trastornos/Trastornos.tsx`
+- Estilos: `src/pages/Inicio/Trastornos/Trastornos.css`
+- Ruta: `/trastornos`
+- Íconos: `src/assets/Iconos/Trastornos/`.
 
-## Arquitectura visual
+## Datos del gráfico
 
-### Titulo
+Cada trastorno se define en el arreglo `disorders` con:
 
-- El titulo utiliza la clase global `.section-title` para mantener coherencia con otras vistas.
-- Esta centrado y la linea inferior es ligeramente mas larga que el texto.
+- `title`, `fullDescription`.
+- `position` (0–4) para ubicación circular.
+- `icon` (PNG de la carpeta de íconos).
 
-### Texto de ayuda
+### Iconografía (assets)
 
-- Mensaje guia con fondo, borde y sombra.
-- Ubicado cerca del titulo para reforzar la accion.
-- El `z-index` evita que el grafico lo tape.
+- Ansiedad → `Ansiedad.png`
+- Depresión → `Depresion.png`
+- TDAH → `TDAH.png`
+- Trastorno de eliminación → `Trastorno de Eliminacion.png`
+- Trastorno de conducta → `Trastorno de Conducta.png`
 
-### Grafico de trastornos
+## Estados y lógica (TypeScript)
 
-**Estado base**:
-- Grafico centrado debajo del titulo.
-- Circulo negro central y cinco circulos azules alrededor.
-- Cada circulo muestra icono y titulo.
+- `expandedDisorder: number | null` → índice expandido.
+- `hoveredDisorder: number | null` → hover para realce visual.
 
-**Estado expandido**:
-- El circulo seleccionado se desplaza hacia la derecha y crece.
-- El grafico completo se desplaza suavemente a la izquierda.
-- El circulo expandido mantiene la sensacion de transformacion desde el original.
+Interacciones:
+- **Click en círculo** → expande hacia la derecha y revela descripción larga.
+- **Click fuera** → vuelve al estado base.
+- **Click en otro círculo** → colapsa el anterior y expande el nuevo.
 
-**Comportamiento**:
-- Clic fuera del grafico cierra el estado expandido.
-- Clic en otro trastorno intercambia el expandido con transicion fluida.
+## Estilos clave
 
-## Iconos
+- Círculo central: **620px**, borde negro **8px**.
+- Círculos pequeños: **220px** con gradiente azul.
+- Íconos: **108px** en estado base.
+- Expandido: círculo crece a **500px** y se mueve con `translateX(640px)`.
+- El wrapper aplica `translateX(-140px)` cuando hay un círculo expandido.
+- Movimiento suave: transiciones **0.7s** en `transform`, `width`, `height`.
+- Ícono se oculta al expandir (`.disorder-circle.expanded .disorder-icon`).
+- Hover: círculo se realza con sombra y crece a **238px**.
 
-- Los iconos se cargan desde `src/assets/Iconos/Trastornos/`.
-- Se renderizan sin fondo ni sombras para mantener transparencia visual.
-- Archivos actuales:
-  - `Ansiedad.png`
-  - `Depresion.png`
-  - `TDAH.png`
-  - `Trastorno de Conducta.png`
-  - `Trastorno de Eliminacion.png`
+## Sección informativa
 
-## Estilos principales
+- Título `.section-title` + `.info-card`.
+- Lista `.info-list` con viñetas en azul **#215F8F**.
 
-- `.circle-diagram-wrapper.is-expanded`: mueve el grafico a la izquierda.
-- `.disorder-circle.expanded`: expande y desplaza el circulo seleccionado.
-- `.disorder-icon`: iconos con fondo transparente y `object-fit: contain`.
+## Clases CSS clave
 
-## Espaciado
-
-- Reduccion de espacios entre titulo, texto guia y grafico.
-- Margen inferior menor entre grafico y bloque informativo.
+- `.circle-diagram-wrapper`, `.circle-diagram`, `.disorder-circle`, `.large-circle`.
 
 ## Responsive
 
-- **Desktop**: grafico circular completo con expansion lateral.
-- **Tablet**: tamanos reducidos, mantiene desplazamiento lateral.
-- **Mobile**:
-  - Se oculta el circulo negro.
-  - Los circulos se apilan verticalmente.
-  - La descripcion se muestra sin expansion.
+- `max-width: 1024px`: reduce tamaños del diagrama y posiciones.
+- `max-width: 768px`: layout vertical, sin círculo central, descripción siempre visible.
+- `max-width: 480px`: padding más compacto y tipografía menor.
 
-## Historial de cambios
+## Flujo de usuario
 
-### Enero 2026 - Ajustes de grafico y titulo
-
-- Titulo alineado al estilo global y centrado.
-- Texto guia cercano al titulo y con mayor presencia.
-- Animacion de expansion mas fluida, evitando saltos al centro.
-- Iconos transparentes con rutas correctas.
+1. Observa el gráfico centrado bajo el título.
+2. Hace clic en un trastorno → se expande a la derecha con descripción larga.
+3. Hace clic fuera → el gráfico vuelve al estado base.

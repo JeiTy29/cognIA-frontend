@@ -1,129 +1,59 @@
-# Vista: Inicio de Sesión
+﻿# Vista: Inicio de Sesión
 
-## Descripción General
+## Descripción general
 
-La vista **Inicio de Sesión** permite a los usuarios autenticarse en el sistema cognIA mediante sus credenciales (correo electrónico y contraseña).
+Formulario de acceso con validación visual básica, alternado de contraseña y navegación a autenticación.
 
-## Estructura del Componente
+## Ubicación
 
-### Ubicación
-- **Ruta del archivo**: `src/pages/Autenticacion/InicioSesion/InicioSesion.tsx`
-- **Archivo de estilos**: `src/pages/Autenticacion/InicioSesion/InicioSesion.css`
-- **Ruta de navegación**: `/inicio-sesion`
+- Componente: `src/pages/Autenticacion/InicioSesion/InicioSesion.tsx`
+- Estilos: `src/pages/Autenticacion/InicioSesion/InicioSesion.css`
+- Ruta: `/inicio-sesion`
 
-### Características Especiales
-- **Sin Header ni Footer**: La vista de autenticación no incluye el encabezado ni pie de página del sitio principal
-- **Logo navegable**: El icono y texto "cognIA" funcionan como enlace de retorno a la página principal
+## Estructura
 
-## Arquitectura Visual
+- Layout en dos paneles:
+  - `.auth-left-panel`: 40% azul **#51C2F4**.
+- `.auth-right-panel`: 60% blanco.
+- Logo superior (`.header-brand`) con link a `/`.
+- Formulario con correo, contraseña y botón principal.
 
-### Panel Izquierdo (40%)
-- Fondo azul claro sólido (#51C2F4)
-- Espacio reservado para imagen representativa
-- Se oculta en dispositivos móviles (<768px)
+Detalle de logo:
+- `.brand-icon` 36px con letra “c” sobre fondo **#51C2F4**.
+- `.brand-text` en **#215F8F**.
 
-### Panel Derecho (60%)
+Campos:
+- Email con placeholder “Correo electrónico”.
+- Password con placeholder “Contraseña”.
 
-**Contenido centrado (vertical y horizontalmente):**
+## Estado y lógica
 
-#### 1. Logo e Identidad
-- Icono cuadrado: 36px × 36px con fondo azul claro
-- Texto "cognIA": 22px, color #215F8F
-- Todo el conjunto es clickeable y navega a "/"
+- `mostrarContrasena: boolean` → alterna tipo `text/password`.
+- `handleSubmit` ejecuta `navigate('/autenticacion')`.
 
-#### 2. Título Principal
-- Texto: "Iniciar sesión"
-- Tamaño: 32px
-- Peso: 700
-- Color: #215F8F
-- Alineación: centrado
+## Interacciones
 
-#### 3. Enlace a Registro
-- Texto: "¿Aún no tienes una cuenta? Regístrate"
-- "Regístrate" resaltado en azul (#1790E9)
-- Navegación a `/registro`
-- Alineación: centrado
+- Ícono de ojo (`.password-toggle`) alterna visibilidad.
+- Enlace “Regístrate” → `/registro`.
+- Enlace “¿Olvidaste tu contraseña?” → `/recuperar-contrasena`.
 
-#### 4. Formulario
-**Campos:**
-- Correo electrónico (email, required)
-- Contraseña (password, required)
+## Flujo de usuario
 
-**Características:**
-- Bordes redondeados: 10px
-- Padding: 14px vertical, 18px horizontal
-- Focus: borde azul (#1790E9)
-- Placeholders alineados a la izquierda
-- **Toggle de contraseña**: Icono de ojo para mostrar/ocultar contraseña
-  - Ojo normal: Contraseña visible
-  - Ojo tachado: Contraseña oculta (puntos)
-  - Color: #666, hover #1790E9
+1. Ingresa correo y contraseña.
+2. (Opcional) Activa el ícono de ojo para ver la contraseña.
+3. Presiona **Ingresar** y navega a `/autenticacion`.
 
-#### 5. Botón Principal
-- Texto: "Ingresar"
-- Color: #1790E9 (fondo), blanco (texto)
-- Ancho: 100%
-- Hover: color más oscuro y elevación
+## Estilos clave
 
-#### 6. Enlace de Recuperación
-- Texto: "¿Olvidaste tu contraseña?"
-- Color: #1790E9
-- Tamaño: 14px
-- Alineación: centrado
+- Inputs con borde **#E0E0E0**, foco en **#1790E9**.
+- Botón principal **#1790E9** con hover **#1370c0**.
+- Footer de versión en gris claro.
 
-#### 7. Versión
-- Texto: "cognIA v1.0.0"
-- Color: #999
-- Tamaño: 13px
-- Margen superior: 60px
+## Clases CSS clave
 
-## Estilos CSS
+- `.auth-container`, `.auth-content`, `.form-input`, `.password-toggle`, `.btn-primary`.
 
-### Clases Globales de Autenticación
-(Compartidas con todas las vistas de autenticación)
+## Responsive
 
-- `.auth-container`: Contenedor flex de altura completa
-- `.auth-left-panel`: Panel izquierdo azul (40%)
-- `.auth-right-panel`: Panel derecho blanco (60%)
-- `.auth-content`: Contenedor centrado (max-width 450px)
-- `.auth-logo-link`: Enlace del logo a página principal
-- `.auth-header`: Flex container para logo + nombre
-- `.auth-logo-icon`: Icono cuadrado 36px
-- `.auth-system-name`: Nombre del sistema 22px
-- `.auth-title`: Títulos principales 32px
-- `.auth-subtitle`: Subtítulos 16px
-- `.link-highlight`: Enlaces azul resaltado
-
-### Clases Específicas
-
-- `.auth-form`: Contenedor del formulario
-- `.form-group`: Wrapper de cada campo
-- `.form-input`: Campos de entrada
-- `.btn-primary`: Botón principal
-- `.forgot-password-link`: Enlace de recuperación
-- `.version-footer`: Versión del sistema
-
-## Responsive Design
-
-- **>968px**: Layout completo 40/60
-- **768-968px**: Layout ajustado 35/65
-- **<768px**: Panel izquierdo oculto, formulario 100%
-- **<480px**: Logo y textos más pequeños
-
-## Navegación
-
-- **Logo cognIA** → `/` (página principal)
-- **"Regístrate"** → `/registro`
-- **"¿Olvidaste tu contraseña?"** → `/recuperar-contrasena` (por implementar)
-- **Botón "Ingresar"** → Submit (integración backend pendiente)
-
-## Notas Técnicas
-
-- Validación HTML nativa con `required`
-- Transiciones CSS suaves (0.2s ease)
-- Todos los textos centrados excepto placeholders
-- Layout responsive automático
-- Sin dependencia de Header/Footer global
-- **Estado React**: `mostrarContrasena` para toggle de visibilidad
-- **Iconos SVG**: Ojo/ojo tachado inline
-- **Botón toggle**: Posicionado absolute dentro del input group
+- `max-width: 768px`: se oculta panel izquierdo y el contenido se centra.
+- `max-width: 480px`: padding reducido, tipografías pequeñas.
