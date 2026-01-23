@@ -93,34 +93,31 @@
 }
 
 .role-point {
-    border-radius: 999px;
-    aspect-ratio: 1;
+    border-radius: 16px;
     width: 100%;
-    max-width: 190px;
-    padding: 16px;
-    background: linear-gradient(135deg, #FFFFFF 0%, #E7F4FF 100%);
-    border: 1px solid rgba(81, 194, 244, 0.35);
-    box-shadow: 0 10px 24px rgba(81, 194, 244, 0.18);
-    display: flex;
-    flex-direction: column;
+    min-height: 128px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #215F8F 0%, #2F74A9 100%);
+    border: 1px solid rgba(33, 95, 143, 0.45);
+    box-shadow: 0 14px 28px rgba(33, 95, 143, 0.28);
+    display: grid;
+    grid-template-columns: auto 1fr;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 10px;
-    margin: 0 auto;
+    gap: 12px;
 }
 
 .role-point-icon {
-    width: 34px;
-    height: 34px;
+    width: 56px;
+    height: 56px;
     object-fit: contain;
 }
 
 .role-point p {
     margin: 0;
-    font-size: 13px;
-    color: #2A2D34;
+    font-size: 17px;
+    color: #ffffff;
     line-height: 1.35;
+    text-align: left;
 }
 
 .rf-note {
@@ -817,12 +814,13 @@
     }
 
     .role-point {
-        max-width: 170px;
-        padding: 14px;
+        max-width: 100%;
+        min-height: 120px;
+        padding: 16px 18px;
     }
 
     .role-point p {
-        font-size: 12px;
+        font-size: 14px;
     }
 
     .rf-note {

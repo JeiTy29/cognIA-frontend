@@ -45,7 +45,7 @@ Flujo al hacer clic en una pregunta:
 **Contenido por rol**
 
 - Línea principal (1 oración).
-- 4 círculos con texto e ícono (sin viñetas).
+- 4 rectángulos horizontales con texto e ícono (sin viñetas).
 - Iconografía desde `src/assets/iconos/NuestroSistema/`:
   - Padres: `FrasePadre1.png` a `FrasePadre4.png`.
   - Psicólogos: `FrasePsico1.png` a `FrasePsico4.png`.
@@ -83,7 +83,7 @@ Flujo al hacer clic en una pregunta:
 - Flechas entre tarjetas (`.flow-arrow`) con color **#51C2F4**.
 - Secciones informativas usan `.info-card` global.
 - Panel único con tabs (`.audience-panel`, `.role-tabs`, `.role-tab`).
-- Círculos con icono y texto (`.role-points`, `.role-point`, `.role-point-icon`).
+- Rectángulos con icono y texto (`.role-points`, `.role-point`, `.role-point-icon`).
 - Nota integrada con borde izquierdo (`.rf-note`).
 
 ## Animaciones
