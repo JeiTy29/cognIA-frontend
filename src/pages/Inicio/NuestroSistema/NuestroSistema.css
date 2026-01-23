@@ -21,6 +21,121 @@
     margin-bottom: 80px;
 }
 
+.audience-section {
+    margin-top: 20px;
+    margin-bottom: 80px;
+    text-align: center;
+}
+
+.audience-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.audience-card {
+    text-align: left;
+    padding: 28px;
+}
+
+.audience-card h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+    color: #215F8F;
+}
+
+.audience-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.compact-list,
+.privacy-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.compact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.compact-list li {
+    position: relative;
+    padding-left: 18px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.compact-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #215F8F;
+    font-weight: 700;
+}
+
+.privacy-panel {
+    margin-top: 24px;
+    text-align: left;
+    padding: 28px;
+}
+
+.privacy-panel h3 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: #215F8F;
+}
+
+.privacy-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 24px;
+}
+
+.privacy-list li {
+    position: relative;
+    padding-left: 18px;
+    padding-bottom: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    border-bottom: 1px solid rgba(81, 194, 244, 0.15);
+}
+
+.privacy-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #215F8F;
+    font-weight: 700;
+}
+
+.privacy-list li:nth-last-child(-n + 2) {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.rf-callout {
+    margin: 24px auto 0;
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    background: #F7FBFF;
+    color: #215F8F;
+    font-size: 14px;
+    font-weight: 600;
+    max-width: 960px;
+}
+
 .flow-arrow {
     flex-shrink: 0;
     width: 40px;
@@ -159,45 +274,71 @@
     color: var(--primary);
 }
 
-.rf-description p {
-    font-size: 15px;
-    line-height: 1.7;
+.rf-intro-line {
+    font-size: 14px;
+    line-height: 1.6;
     color: var(--text-secondary);
     margin-bottom: 16px;
 }
 
-.rf-benefits {
-    margin-top: 24px;
-    padding: 20px;
-    background: rgba(81, 194, 244, 0.05);
+.rf-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.accordion-item {
+    border: 1px solid rgba(81, 194, 244, 0.2);
     border-radius: 12px;
-    border-left: 4px solid var(--primary);
+    background: #ffffff;
+    overflow: hidden;
 }
 
-.rf-benefits h4 {
-    font-size: 16px;
-    margin-bottom: 12px;
-    color: var(--text-main);
+.accordion-trigger {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #215F8F;
+    text-align: left;
 }
 
-.rf-benefits ul {
-    list-style: none;
-    padding: 0;
+.accordion-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(81, 194, 244, 0.35);
+    color: #215F8F;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    transition: transform 0.2s ease;
 }
 
-.rf-benefits li {
-    padding: 6px 0 6px 24px;
-    position: relative;
-    color: var(--text-secondary);
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 16px;
     font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    transition: max-height 0.25s ease, padding 0.25s ease;
 }
 
-.rf-benefits li::before {
-    content: '—';
-    position: absolute;
-    left: 0;
-    color: var(--primary);
-    font-weight: bold;
+.accordion-item.is-open .accordion-content {
+    max-height: 120px;
+    padding: 0 16px 14px;
+}
+
+.accordion-item.is-open .accordion-icon {
+    transform: rotate(45deg);
 }
 
 .instruction {
@@ -381,6 +522,7 @@
     .rf-interactive {
         padding: 32px;
     }
+
 }
 
 @media (max-width: 768px) {
@@ -403,6 +545,14 @@
         gap: 20px;
         max-width: 500px;
         margin: 0 auto;
+    }
+
+    .audience-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .privacy-list {
+        grid-template-columns: 1fr;
     }
 
     .card {
@@ -451,19 +601,15 @@
         font-size: 20px;
     }
 
-    .rf-description p {
+    .rf-intro-line {
+        font-size: 13px;
+    }
+
+    .accordion-trigger {
         font-size: 14px;
     }
 
-    .rf-benefits {
-        padding: 16px;
-    }
-
-    .rf-benefits h4 {
-        font-size: 15px;
-    }
-
-    .rf-benefits li {
+    .accordion-content {
         font-size: 13px;
     }
 
@@ -497,6 +643,10 @@
     .result {
         font-size: 16px;
         padding: 16px;
+    }
+
+    .audience-section {
+        margin-bottom: 60px;
     }
 }
 
@@ -590,29 +740,23 @@
         margin-bottom: 12px;
     }
 
-    .rf-description p {
-        font-size: 13px;
-        margin-bottom: 12px;
-    }
-
     .instruction {
         font-size: 13px;
         margin-bottom: 16px;
     }
-
-    .rf-benefits {
-        padding: 14px;
-        margin-top: 20px;
+ 
+    .rf-intro-line {
+        font-size: 13px;
+        margin-bottom: 12px;
     }
 
-    .rf-benefits h4 {
-        font-size: 14px;
-        margin-bottom: 10px;
+    .accordion-trigger {
+        padding: 12px 14px;
+        font-size: 13px;
     }
 
-    .rf-benefits li {
+    .accordion-content {
         font-size: 12px;
-        padding: 5px 0 5px 20px;
     }
 
     .question-selector {
@@ -658,6 +802,22 @@
         font-size: 15px;
         padding: 14px;
         margin-top: 24px;
+    }
+
+    .audience-card,
+    .privacy-panel {
+        padding: 24px 20px;
+    }
+
+    .audience-subtitle,
+    .compact-list li,
+    .privacy-list li {
+        font-size: 13px;
+    }
+
+    .rf-callout {
+        font-size: 13px;
+        padding: 12px 16px;
     }
 }
 

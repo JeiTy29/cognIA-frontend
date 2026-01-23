@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './NuestroSistema.css';
 
 export default function NuestroSistema() {
   const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [accordionIndex, setAccordionIndex] = useState<number | null>(0);
+  const [animationCycle, setAnimationCycle] = useState(0);
+  const animationTimeoutRef = useRef<number | null>(null);
 
   const questions = [
     {
@@ -45,17 +48,63 @@ export default function NuestroSistema() {
     }
   ];
 
+  const accordionItems = [
+    {
+      title: '1) Un árbol toma decisiones',
+      body: (
+        <>
+          Un árbol de decisión aprende reglas a partir de ejemplos.
+          <br />
+          Cada pregunta guía el camino hacia un resultado.
+        </>
+      )
+    },
+    {
+      title: '2) Un bosque combina muchos árboles',
+      body: (
+        <>
+          Random Forest entrena muchos árboles con variaciones.
+          <br />
+          Luego combina sus respuestas para reducir errores.
+        </>
+      )
+    },
+    {
+      title: '3) ¿Cómo se obtiene la alerta?',
+      body: (
+        <>
+          Los árboles “votan” y el sistema calcula un nivel de alerta.
+          <br />
+          En perfiles profesionales se muestra más detalle del porqué.
+        </>
+      )
+    }
+  ];
+
   const handleQuestionClick = (questionId: number) => {
+    if (animationTimeoutRef.current !== null) {
+      window.clearTimeout(animationTimeoutRef.current);
+    }
+
     setSelectedQuestion(questionId);
     setIsAnimating(true);
     setShowResult(false);
+    setAnimationCycle((prev) => prev + 1);
 
     // Simulate animation delay
-    setTimeout(() => {
+    animationTimeoutRef.current = window.setTimeout(() => {
       setShowResult(true);
       setIsAnimating(false);
     }, 2500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current !== null) {
+        window.clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const currentQuestion = questions.find(q => q.id === selectedQuestion);
 
@@ -138,39 +187,90 @@ export default function NuestroSistema() {
         </div>
       </section>
 
+      <section className="audience-section">
+        <h2 className="section-title">¿Para quién es?</h2>
+        <div className="audience-grid">
+          <div className="info-card audience-card">
+            <h3>Padres y docentes</h3>
+            <p className="audience-subtitle">Realizan cuestionarios y consultan sus propios resultados</p>
+            <ul className="compact-list">
+              <li>Diligencian el cuestionario sobre comportamiento.</li>
+              <li>Ven únicamente los resultados de los cuestionarios que realizaron.</li>
+              <li>Reciben una alerta general (sin diagnóstico).</li>
+            </ul>
+          </div>
+
+          <div className="info-card audience-card">
+            <h3>Psicólogos</h3>
+            <p className="audience-subtitle">Acceden a múltiples evaluaciones y mayor detalle</p>
+            <ul className="compact-list">
+              <li>Acceden al historial de múltiples cuestionarios (según permisos).</li>
+              <li>Visualizan resultados con mayor detalle e interpretación del modelo.</li>
+              <li>Pueden entender cómo el modelo llegó a la alerta.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="info-card privacy-panel">
+          <h3>Datos y privacidad</h3>
+          <ul className="privacy-list">
+            <li>No solicitamos datos que identifiquen al niño (sin nombres, documentos o direcciones).</li>
+            <li>Solo se registran respuestas relacionadas con comportamiento.</li>
+            <li>Los datos se almacenan de forma anónima.</li>
+            <li>La información pasa por procesos de cifrado para protegerla.</li>
+            <li>El objetivo es prevenir exposición de datos sensibles.</li>
+          </ul>
+        </div>
+
+        <div className="rf-callout">
+          Importante: el sistema no diagnostica; genera una alerta temprana sobre un posible trastorno.
+        </div>
+      </section>
+
       <section className="rf-demo">
-        <h2 className="section-title">¿Cómo funciona el Random Forest?</h2>
+        <h2 className="section-title">¿Qué es Random Forest?</h2>
 
         <div className="rf-container">
           <div className="rf-description info-card">
-            <h3>Algoritmo Random Forest</h3>
-            <p>
-              Random Forest es un método de aprendizaje automático que utiliza múltiples
-              árboles de decisión para hacer predicciones más precisas y confiables.
+            <h3>Así funciona Random Forest</h3>
+            <p className="rf-intro-line">
+              Usamos Random Forest para combinar múltiples decisiones y obtener una alerta más estable.
             </p>
-            <p>
-              Cada árbol analiza las respuestas del cuestionario de forma independiente
-              y emite su "voto" sobre la clasificación. El resultado final se determina
-              por la mayoría de votos entre todos los árboles, lo que reduce la probabilidad
-              de errores individuales y aumenta la precisión general del sistema.
-            </p>
-            <p>
-              Este enfoque colaborativo permite que el sistema sea más robusto ante datos
-              variados y proporciona mayor precisión en las predicciones. Al combinar las
-              decisiones de múltiples árboles, el modelo puede capturar patrones complejos
-              que un solo árbol no detectaría, haciendo que las alertas tempranas sean más
-              confiables para los profesionales de salud mental.
-            </p>
+            <div className="rf-accordion">
+              {accordionItems.map((item, index) => (
+                <div
+                  key={item.title}
+                  className={`accordion-item ${accordionIndex === index ? 'is-open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="accordion-trigger"
+                    onClick={() => setAccordionIndex(accordionIndex === index ? null : index)}
+                    aria-expanded={accordionIndex === index}
+                    aria-controls={`rf-accordion-panel-${index}`}
+                  >
+                    <span>{item.title}</span>
+                    <span className="accordion-icon">+</span>
+                  </button>
+                  <div
+                    id={`rf-accordion-panel-${index}`}
+                    className="accordion-content"
+                    role="region"
+                    aria-hidden={accordionIndex !== index}
+                  >
+                    {item.body}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="rf-interactive info-card">
             <h3>Simulación Interactiva</h3>
             <div className="rf-disclaimer">
-              <strong>Nota:</strong> Esta es una demostración simplificada.
-              El sistema real utiliza un cuestionario completo con muchas más preguntas
-              y un conjunto mayor de árboles de decisión para mayor precisión.
+              <strong>Nota:</strong> Demostración simplificada; el sistema real utiliza más preguntas y árboles.
             </div>
-            <p className="instruction">Selecciona una pregunta para ver cómo votan los árboles:</p>
+            <p className="instruction">Simulación simplificada: observa cómo varios ‘árboles’ pueden votar por un resultado.</p>
 
             <div className="question-selector">
               {questions.map(q => (
@@ -186,10 +286,10 @@ export default function NuestroSistema() {
             </div>
 
             {selectedQuestion && (
-              <div className="forest">
+              <div className="forest" key={`${selectedQuestion}-${animationCycle}`}>
                 {currentQuestion?.results.map((result, index) => (
                   <div
-                    key={result.tree}
+                    key={`${animationCycle}-${result.tree}`}
                     className={`tree ${isAnimating ? 'animating' : 'voted'}`}
                     style={{ animationDelay: `${index * 0.3}s` }}
                   >
