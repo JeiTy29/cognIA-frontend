@@ -22,118 +22,116 @@
 }
 
 .audience-section {
-    margin-top: 20px;
+    margin-top: 12px;
     margin-bottom: 80px;
     text-align: center;
 }
 
-.audience-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-    margin-top: 24px;
-}
-
-.audience-card {
+.audience-panel {
     text-align: left;
     padding: 28px;
 }
 
-.audience-card h3 {
-    font-size: 20px;
-    margin-bottom: 8px;
-    color: #215F8F;
-}
-
-.audience-subtitle {
-    font-size: 14px;
-    color: var(--text-secondary);
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
-    line-height: 1.5;
 }
 
-.compact-list,
-.privacy-list {
-    list-style: none;
-    padding: 0;
+.panel-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #51C2F4;
     margin: 0;
 }
 
-.compact-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.role-tabs {
+    display: inline-flex;
+    gap: 6px;
+    padding: 4px;
+    background: rgba(81, 194, 244, 0.08);
+    border-radius: 999px;
 }
 
-.compact-list li {
-    position: relative;
-    padding-left: 18px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    line-height: 1.45;
-}
-
-.compact-list li::before {
-    content: '•';
-    position: absolute;
-    left: 0;
-    top: 0;
-    color: #215F8F;
-    font-weight: 700;
-}
-
-.privacy-panel {
-    margin-top: 24px;
-    text-align: left;
-    padding: 28px;
-}
-
-.privacy-panel h3 {
-    font-size: 20px;
-    margin-bottom: 16px;
-    color: #215F8F;
-}
-
-.privacy-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 24px;
-}
-
-.privacy-list li {
-    position: relative;
-    padding-left: 18px;
-    padding-bottom: 12px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    line-height: 1.45;
-    border-bottom: 1px solid rgba(81, 194, 244, 0.15);
-}
-
-.privacy-list li::before {
-    content: '•';
-    position: absolute;
-    left: 0;
-    top: 0;
-    color: #215F8F;
-    font-weight: 700;
-}
-
-.privacy-list li:nth-last-child(-n + 2) {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.rf-callout {
-    margin: 24px auto 0;
-    padding: 14px 18px;
-    border-radius: 12px;
-    border: 1px solid rgba(33, 95, 143, 0.2);
-    background: #F7FBFF;
-    color: #215F8F;
+.role-tab {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 999px;
     font-size: 14px;
     font-weight: 600;
-    max-width: 960px;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.role-tab.active {
+    background: #215F8F;
+    color: #ffffff;
+}
+
+.role-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.role-line {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.role-points {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.role-point {
+    border-radius: 999px;
+    aspect-ratio: 1;
+    width: 100%;
+    max-width: 190px;
+    padding: 16px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #E7F4FF 100%);
+    border: 1px solid rgba(81, 194, 244, 0.35);
+    box-shadow: 0 10px 24px rgba(81, 194, 244, 0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 10px;
+    margin: 0 auto;
+}
+
+.role-point-icon {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+}
+
+.role-point p {
+    margin: 0;
+    font-size: 13px;
+    color: #2A2D34;
+    line-height: 1.35;
+}
+
+.rf-note {
+    margin: 18px 0 0;
+    max-width: none;
+    text-align: left;
+    border-left: 3px solid #215F8F;
+    padding-left: 12px;
+    color: #215F8F;
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .flow-arrow {
@@ -547,14 +545,6 @@
         margin: 0 auto;
     }
 
-    .audience-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .privacy-list {
-        grid-template-columns: 1fr;
-    }
-
     .card {
         padding: 32px 24px;
         flex: 1 1 100%;
@@ -611,6 +601,20 @@
 
     .accordion-content {
         font-size: 13px;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .role-tabs {
+        width: 100%;
+    }
+
+    .role-tab {
+        flex: 1;
+        text-align: center;
     }
 
     .question-btn {
@@ -804,20 +808,25 @@
         margin-top: 24px;
     }
 
-    .audience-card,
-    .privacy-panel {
+    .audience-panel {
         padding: 24px 20px;
     }
 
-    .audience-subtitle,
-    .compact-list li,
-    .privacy-list li {
+    .role-line {
         font-size: 13px;
     }
 
-    .rf-callout {
+    .role-point {
+        max-width: 170px;
+        padding: 14px;
+    }
+
+    .role-point p {
+        font-size: 12px;
+    }
+
+    .rf-note {
         font-size: 13px;
-        padding: 12px 16px;
     }
 }
 

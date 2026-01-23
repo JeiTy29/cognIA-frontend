@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import './NuestroSistema.css';
+import frasePadre1 from '../../../assets/iconos/NuestroSistema/FrasePadre1.png';
+import frasePadre2 from '../../../assets/iconos/NuestroSistema/FrasePadre2.png';
+import frasePadre3 from '../../../assets/iconos/NuestroSistema/FrasePadre3.png';
+import frasePadre4 from '../../../assets/iconos/NuestroSistema/FrasePadre4.png';
+import frasePsico1 from '../../../assets/iconos/NuestroSistema/FrasePsico1.png';
+import frasePsico2 from '../../../assets/iconos/NuestroSistema/FrasePsico2.png';
+import frasePsico3 from '../../../assets/iconos/NuestroSistema/FrasePsico3.png';
+import frasePsico4 from '../../../assets/iconos/NuestroSistema/FrasePsico4.png';
 
 export default function NuestroSistema() {
   const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
@@ -7,6 +15,7 @@ export default function NuestroSistema() {
   const [showResult, setShowResult] = useState(false);
   const [accordionIndex, setAccordionIndex] = useState<number | null>(0);
   const [animationCycle, setAnimationCycle] = useState(0);
+  const [rolActivo, setRolActivo] = useState<'padres' | 'psicologos'>('padres');
   const animationTimeoutRef = useRef<number | null>(null);
 
   const questions = [
@@ -73,13 +82,62 @@ export default function NuestroSistema() {
       title: '3) ¿Cómo se obtiene la alerta?',
       body: (
         <>
-          Los árboles “votan” y el sistema calcula un nivel de alerta.
+          Los árboles 'votan' y el sistema calcula un nivel de alerta.
           <br />
           En perfiles profesionales se muestra más detalle del porqué.
         </>
       )
     }
   ];
+
+  const roleContent = {
+    padres: {
+      line: 'Diligencian el cuestionario y consultan sus propios resultados.',
+      items: [
+        {
+          text: 'Ven únicamente resultados de cuestionarios realizados por ellos.',
+          icon: frasePadre1
+        },
+        {
+          text: 'Reciben una alerta sobre un posible trastorno.',
+          icon: frasePadre2
+        },
+        {
+          text: 'El cuestionario evalúa el comportamiento sin identificar al niño.',
+          icon: frasePadre3
+        },
+        {
+          text: 'La alerta se basa en un posible trastorno que pueda tener el infante.',
+          icon: frasePadre4
+        }
+      ]
+    },
+    psicologos: {
+      line: 'Realizan evaluaciones, acceden a múltiples alertas y visualizan con mayor detalle.',
+      items: [
+        {
+          text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o docente alla dado los permisos necesarios.',
+          icon: frasePsico1
+        },
+        {
+          text: 'Ven interpretación mas detallada de cómo el modelo llega a la alerta.',
+          icon: frasePsico2
+        },
+        {
+          text: 'La vista profesional incluye más detalle para análisis.',
+          icon: frasePsico3
+        },
+        {
+          text: 'El resultado no reemplaza una evaluación clínica.',
+          icon: frasePsico4
+        }
+      ]
+    }
+  };
+
+  const handleRoleChange = (role: 'padres' | 'psicologos') => {
+    setRolActivo(role);
+  };
 
   const handleQuestionClick = (questionId: number) => {
     if (animationTimeoutRef.current !== null) {
@@ -188,43 +246,47 @@ export default function NuestroSistema() {
       </section>
 
       <section className="audience-section">
-        <h2 className="section-title">¿Para quién es?</h2>
-        <div className="audience-grid">
-          <div className="info-card audience-card">
-            <h3>Padres y docentes</h3>
-            <p className="audience-subtitle">Realizan cuestionarios y consultan sus propios resultados</p>
-            <ul className="compact-list">
-              <li>Diligencian el cuestionario sobre comportamiento.</li>
-              <li>Ven únicamente los resultados de los cuestionarios que realizaron.</li>
-              <li>Reciben una alerta general (sin diagnóstico).</li>
-            </ul>
+        <div className="info-card audience-panel">
+          <div className="panel-header">
+            <h2 className="panel-title">¿Para quien va dirigido?</h2>
+            <div className="role-tabs" role="tablist" aria-label="Roles principales">
+              <button
+                type="button"
+                className={`role-tab ${rolActivo === 'padres' ? 'active' : ''}`}
+                onClick={() => handleRoleChange('padres')}
+                role="tab"
+                aria-selected={rolActivo === 'padres'}
+              >
+                Padres y docentes
+              </button>
+              <button
+                type="button"
+                className={`role-tab ${rolActivo === 'psicologos' ? 'active' : ''}`}
+                onClick={() => handleRoleChange('psicologos')}
+                role="tab"
+                aria-selected={rolActivo === 'psicologos'}
+              >
+                Psicólogos
+              </button>
+            </div>
           </div>
 
-          <div className="info-card audience-card">
-            <h3>Psicólogos</h3>
-            <p className="audience-subtitle">Acceden a múltiples evaluaciones y mayor detalle</p>
-            <ul className="compact-list">
-              <li>Acceden al historial de múltiples cuestionarios (según permisos).</li>
-              <li>Visualizan resultados con mayor detalle e interpretación del modelo.</li>
-              <li>Pueden entender cómo el modelo llegó a la alerta.</li>
-            </ul>
+          <div className="role-content" role="tabpanel">
+            <p className="role-line">{roleContent[rolActivo].line}</p>
+            <div className="role-points">
+              {roleContent[rolActivo].items.map((item) => (
+                <div key={item.text} className="role-point">
+                  <img className="role-point-icon" src={item.icon} alt="" aria-hidden="true" />
+                  <p>{item.text}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="info-card privacy-panel">
-          <h3>Datos y privacidad</h3>
-          <ul className="privacy-list">
-            <li>No solicitamos datos que identifiquen al niño (sin nombres, documentos o direcciones).</li>
-            <li>Solo se registran respuestas relacionadas con comportamiento.</li>
-            <li>Los datos se almacenan de forma anónima.</li>
-            <li>La información pasa por procesos de cifrado para protegerla.</li>
-            <li>El objetivo es prevenir exposición de datos sensibles.</li>
-          </ul>
-        </div>
-
-        <div className="rf-callout">
+        <p className="rf-note">
           Importante: el sistema no diagnostica; genera una alerta temprana sobre un posible trastorno.
-        </div>
+        </p>
       </section>
 
       <section className="rf-demo">
