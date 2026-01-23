@@ -50,12 +50,13 @@ Interacciones:
 
 ## Sección informativa
 
-- Título `.section-title` + `.info-card`.
-- Lista `.info-list` con viñetas en azul **#215F8F**.
+- Banner sobrio `.info-banner` con frase principal y secundaria.
+- Fondo suave **#F5FAFF** y borde izquierdo sutil.
 
 ## Clases CSS clave
 
 - `.circle-diagram-wrapper`, `.circle-diagram`, `.disorder-circle`, `.large-circle`.
+- `.info-banner`, `.info-banner-title`, `.info-banner-subtitle`.
 
 ## Responsive
 

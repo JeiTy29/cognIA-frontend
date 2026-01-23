@@ -76,12 +76,13 @@ export default function Trastornos() {
             </div>
 
             <div className="info-section">
-                <h2 className="section-title">No lo olvides, estos no son los únicos trastornos</h2>
-                <div className="info-card">
-                    <ul className="info-list">
-                        <li>Los trastornos psicológicos presentados en esta sección corresponden a algunos de los más comunes en la infancia. Sin embargo, existen otros trastornos y condiciones que no son contemplados por el sistema. El aplicativo cognIA ha sido diseñado para trabajar únicamente con los trastornos aquí descritos, de acuerdo con el alcance definido para el proyecto.</li>
-                        <li>Los resultados generados por el sistema no constituyen un diagnóstico clínico. Incluso si el sistema no identifica indicios de algún trastorno, se recomienda acudir a un profesional de la salud mental ante cualquier preocupación sobre el comportamiento o bienestar del niño.</li>
-                    </ul>
+                <div className="info-banner">
+                    <p className="info-banner-title">
+                        Este software no diagnostica. El objetivo es generar una alerta temprana sobre un posible trastorno.
+                    </p>
+                    <p className="info-banner-subtitle">
+                        Los trastornos mostrados son los más frecuentes en el alcance del proyecto; existen otros posibles que no se contemplan aquí.
+                    </p>
                 </div>
             </div>
         </div>
