@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import './NuestroSistema.css';
-import frasePadre1 from '../../../assets/Iconos/NuestroSistema/FrasePadre1.png';
-import frasePadre2 from '../../../assets/Iconos/NuestroSistema/FrasePadre2.png';
-import frasePadre3 from '../../../assets/Iconos/NuestroSistema/FrasePadre3.png';
-import frasePadre4 from '../../../assets/Iconos/NuestroSistema/FrasePadre4.png';
-import frasePsico1 from '../../../assets/Iconos/NuestroSistema/FrasePsico1.png';
-import frasePsico2 from '../../../assets/Iconos/NuestroSistema/FrasePsico2.png';
-import frasePsico3 from '../../../assets/Iconos/NuestroSistema/FrasePsico3.png';
-import frasePsico4 from '../../../assets/Iconos/NuestroSistema/FrasePsico4.png';
+import frasePadre1 from '../../../assets/Iconos_2/NuestroSistema/FrasePadre1.png';
+import frasePadre2 from '../../../assets/Iconos_2/NuestroSistema/FrasePadre2.png';
+import frasePadre3 from '../../../assets/Iconos_2/NuestroSistema/FrasePadre3.png';
+import frasePadre4 from '../../../assets/Iconos_2/NuestroSistema/FrasePadre4.png';
+import frasePsico1 from '../../../assets/Iconos_2/NuestroSistema/FrasePsico1.png';
+import frasePsico2 from '../../../assets/Iconos_2/NuestroSistema/FrasePsico2.png';
+import frasePsico3 from '../../../assets/Iconos_2/NuestroSistema/FrasePsico3.png';
+import frasePsico4 from '../../../assets/Iconos_2/NuestroSistema/FrasePsico4.png';
 
 export default function NuestroSistema() {
   const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
