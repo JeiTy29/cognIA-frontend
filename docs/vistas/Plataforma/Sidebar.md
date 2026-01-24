@@ -8,7 +8,13 @@ Proveer navegación principal compacta con solo iconos y etiqueta flotante (flyo
 
 - Estado base: barra angosta con iconos centrados.
 - Hover/focus: aparece etiqueta a la derecha con transición sutil (fade + desplazamiento leve).
-- Estado activo: fondo suave + indicador lateral.
+- Estado activo: fondo suave + indicador lateral con animación rápida de desplazamiento vertical.
+
+## Estilo actual
+
+- Fondo de Sidebar: azul claro **#51C2F4**.
+- Iconos en blanco y hover con fondo claro.
+- Label flotante con fondo blanco, texto azul y tamaño de texto ligeramente mayor (16px).
 
 ## Ítems, íconos y rutas
 
@@ -26,6 +32,10 @@ Los ítems se configuran en `SidebarConfig.tsx` con `label`, `icon` y `paths`.
 - Sugerencias → `IconLightbulb` → `/psicologo/sugerencias`
 - Cuenta → `IconUser` → `/psicologo/cuenta`
 - Soporte → `IconSupport` → `/psicologo/soporte`
+
+Notas:
+- `Sugerencias` solo aparece para rol psicólogo.
+- El indicador activo usa `.sidebar-active-indicator` y `.sidebar-active-bg`, posicionados con `transform` para el deslizamiento.
 
 ## Accesibilidad
 
