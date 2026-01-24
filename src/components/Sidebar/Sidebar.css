@@ -1,5 +1,5 @@
 .sidebar {
-    width: 64px;
+    width: 82px;
     background: #ffffff;
     border-right: 1px solid rgba(81, 194, 244, 0.2);
     box-shadow: 2px 0 12px rgba(33, 95, 143, 0.06);
@@ -7,8 +7,9 @@
     top: 0;
     height: 100vh;
     display: flex;
-    align-items: flex-start;
-    padding: 20px 0;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 0;
     z-index: 20;
 }
 
@@ -22,7 +23,7 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     align-items: center;
 }
 
@@ -34,9 +35,9 @@
 
 .sidebar-item {
     position: relative;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -46,8 +47,8 @@
 }
 
 .sidebar-item svg {
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     fill: currentColor;
 }
 
@@ -78,14 +79,14 @@
 
 .sidebar-label {
     position: absolute;
-    left: 56px;
+    left: 66px;
     top: 50%;
     transform: translateY(-50%) translateX(-6px);
     background: #215F8F;
     color: #ffffff;
-    padding: 6px 12px;
+    padding: 8px 14px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
     opacity: 0;
@@ -102,15 +103,15 @@
 
 @media (max-width: 768px) {
     .sidebar {
-        width: 56px;
+        width: 72px;
     }
 
     .sidebar-item {
-        width: 40px;
-        height: 40px;
+        width: 46px;
+        height: 46px;
     }
 
     .sidebar-label {
-        left: 52px;
+        left: 60px;
     }
 }

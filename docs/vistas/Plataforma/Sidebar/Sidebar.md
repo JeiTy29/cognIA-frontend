@@ -10,20 +10,22 @@ Proveer navegación principal compacta con solo iconos y etiqueta flotante (flyo
 - Hover/focus: aparece etiqueta a la derecha con transición sutil (fade + desplazamiento leve).
 - Estado activo: fondo suave + indicador lateral.
 
-## Roles y rutas
+## Ítems, íconos y rutas
+
+Los ítems se configuran en `SidebarConfig.tsx` con `label`, `icon` y `paths`.
 
 **Padre/Tutor**
-- /padre/cuestionario
-- /padre/historial
-- /padre/cuenta
-- /padre/soporte
+- Cuestionario → `IconClipboard` → `/padre/cuestionario`
+- Historial → `IconHistory` → `/padre/historial`
+- Cuenta → `IconUser` → `/padre/cuenta`
+- Soporte → `IconSupport` → `/padre/soporte`
 
 **Psicólogo**
-- /psicologo/cuestionario
-- /psicologo/historial
-- /psicologo/sugerencias
-- /psicologo/cuenta
-- /psicologo/soporte
+- Cuestionario → `IconClipboard` → `/psicologo/cuestionario`
+- Historial → `IconHistory` → `/psicologo/historial`
+- Sugerencias → `IconLightbulb` → `/psicologo/sugerencias`
+- Cuenta → `IconUser` → `/psicologo/cuenta`
+- Soporte → `IconSupport` → `/psicologo/soporte`
 
 ## Accesibilidad
 
