@@ -72,16 +72,6 @@ export const sidebarItems: SidebarItem[] = [
         }
     },
     {
-        id: 'cuenta',
-        label: 'Cuenta',
-        icon: IconUser,
-        roles: ['padre', 'psicologo'],
-        paths: {
-            padre: '/padre/cuenta',
-            psicologo: '/psicologo/cuenta'
-        }
-    },
-    {
         id: 'soporte',
         label: 'Soporte',
         icon: IconSupport,
@@ -89,6 +79,16 @@ export const sidebarItems: SidebarItem[] = [
         paths: {
             padre: '/padre/soporte',
             psicologo: '/psicologo/soporte'
+        }
+    },
+    {
+        id: 'cuenta',
+        label: 'Cuenta',
+        icon: IconUser,
+        roles: ['padre', 'psicologo'],
+        paths: {
+            padre: '/padre/cuenta',
+            psicologo: '/psicologo/cuenta'
         }
     }
 ];

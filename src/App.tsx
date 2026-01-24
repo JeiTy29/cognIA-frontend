@@ -14,12 +14,11 @@ import Terms from './pages/Inicio/Terms/Terms';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
-import CuentaPadre from './pages/Plataforma/CuentaPadre/CuentaPadre';
+import MiCuenta from './pages/Plataforma/MiCuenta/MiCuenta';
 import SoportePadre from './pages/Plataforma/SoportePadre/SoportePadre';
 import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/CuestionarioPsicologo';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
-import CuentaPsicologo from './pages/Plataforma/CuentaPsicologo/CuentaPsicologo';
 import SoportePsicologo from './pages/Plataforma/SoportePsicologo/SoportePsicologo';
 
 export default function App() {
@@ -76,7 +75,7 @@ export default function App() {
                         <Route index element={<Navigate to="/padre/cuestionario" replace />} />
                         <Route path="cuestionario" element={<CuestionarioPadre />} />
                         <Route path="historial" element={<HistorialPadre />} />
-                        <Route path="cuenta" element={<CuentaPadre />} />
+                        <Route path="cuenta" element={<MiCuenta />} />
                         <Route path="soporte" element={<SoportePadre />} />
                     </Route>
                     <Route path="/psicologo">
@@ -84,7 +83,7 @@ export default function App() {
                         <Route path="cuestionario" element={<CuestionarioPsicologo />} />
                         <Route path="historial" element={<HistorialPsicologo />} />
                         <Route path="sugerencias" element={<SugerenciasPsicologo />} />
-                        <Route path="cuenta" element={<CuentaPsicologo />} />
+                        <Route path="cuenta" element={<MiCuenta />} />
                         <Route path="soporte" element={<SoportePsicologo />} />
                     </Route>
                 </Route>

@@ -23,19 +23,20 @@ Los ítems se configuran en `SidebarConfig.tsx` con `label`, `icon` y `paths`.
 **Padre/Tutor**
 - Cuestionario → `IconClipboard` → `/padre/cuestionario`
 - Historial → `IconHistory` → `/padre/historial`
-- Cuenta → `IconUser` → `/padre/cuenta`
 - Soporte → `IconSupport` → `/padre/soporte`
+- Cuenta → `IconUser` → `/padre/cuenta`
 
 **Psicólogo**
 - Cuestionario → `IconClipboard` → `/psicologo/cuestionario`
 - Historial → `IconHistory` → `/psicologo/historial`
 - Sugerencias → `IconLightbulb` → `/psicologo/sugerencias`
-- Cuenta → `IconUser` → `/psicologo/cuenta`
 - Soporte → `IconSupport` → `/psicologo/soporte`
+- Cuenta → `IconUser` → `/psicologo/cuenta`
 
 Notas:
 - `Sugerencias` solo aparece para rol psicólogo.
 - El indicador activo usa `.sidebar-active-indicator` y `.sidebar-active-bg`, posicionados con `transform` para el deslizamiento.
+- El ítem **Cuenta** se ubica al final de la lista en ambos roles.
 
 ## Accesibilidad
 
