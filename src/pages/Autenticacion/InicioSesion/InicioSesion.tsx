@@ -1,15 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
 
 export default function InicioSesion() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        // Aquí iría la lógica de autenticación
-        console.log('Login submitted');
-    };
+    const navigate = useNavigate();
 
     return (
         <div className="auth-container">
@@ -31,7 +26,13 @@ export default function InicioSesion() {
                         <Link to="/registro" className="link-highlight">Regístrate</Link>
                     </p>
 
-                    <form className="auth-form" onSubmit={handleSubmit}>
+                    <form
+                        className="auth-form"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            navigate('/autenticacion');
+                        }}
+                    >
                         <div className="form-group">
                             <input
                                 type="email"

@@ -1,107 +1,53 @@
-# Header
+﻿# Vista: Header
 
-## Descripción
+## Descripción general
 
-El Header es el componente de navegación principal del aplicativo cognIA. Se muestra en la parte superior de todas las páginas y proporciona acceso rápido a las secciones principales del sistema, así como opciones de autenticación.
+Barra superior con navegación principal y accesos de autenticación. Se mantiene sobre el fondo animado con blur.
 
 ## Ubicación
 
-**Ruta**: `src/components/Header/`
+- Componente: `src/components/Header/Header.tsx`
+- Estilos: `src/components/Header/Header.css`
 
-**Archivos**:
-- `Header.tsx` - Componente React
-- `Header.css` - Estilos del header
+## Estructura
 
-## Características
+- `header.header` con tres bloques:
+  - `.logo` → texto “cognIA”.
+  - `nav.nav` → enlaces a **Nuestro Sistema**, **Sobre Nosotros**, **Trastornos**.
+  - `.auth-buttons` → botones **Iniciar sesión** y **Registrarse**.
 
-### Diseño visual
+## Navegación
 
-- **Efecto glassmorphism**: Fondo semitransparente con desenfoque
-- **Posicionamiento**: Fixed o sticky en la parte superior
-- **z-index**: 10 para mantenerse sobre el contenido
-- **Layout**: Flexbox con distribución horizontal
+- Logo y enlaces usan `href`:
+  - `/` (Nuestro Sistema)
+  - `/sobre-nosotros`
+  - `/trastornos`
+  - `/inicio-sesion`
+  - `/registro`
 
-### Contenido
+## Estilos clave
 
-El header se divide en tres secciones principales:
+- Fondo translúcido: `rgba(255,255,255,0.95)` + blur 12px.
+- Línea inferior: `border-bottom` con azul tenue.
+- Sombra: `0 4px 20px -2px rgba(0,0,0,0.1)`.
+- Logo centrado verticalmente (`transform: translateY(-1px)`).
 
-1. **Logo**: "cognIA" - Identidad de marca en el lado izquierdo
+### Botones de autenticación
 
-2. **Navegación central**:
-   - Nuestro Sistema (activo por defecto)
-   - Sobre Nosotros
-   - Trastornos
+- **Login**: gradiente **#2AA1F0 → #1790E9**.
+- **Registro**: gradiente **#2F74A9 → #215F8F**.
+- Sombra activa y elevación en hover.
 
-3. **Botones de autenticación** (lado derecho):
-   - Iniciar sesión
-   - Registrarse
+### Enlaces del menú
 
-## Implementación
+- Subrayado animado con `::after`.
+- Hover cambia color a `var(--primary)`.
 
-### Estructura del componente
+## Clases CSS clave
 
-```tsx
-import './Header.css';
+- `.header`, `.logo`, `.nav`, `.nav-link`, `.auth-buttons`, `.login`, `.register`.
 
-export default function Header() {
-    return (
-        <header className="header">
-            <div className="logo">cognIA</div>
-            
-            <nav className="nav">
-                <span className="active">Nuestro Sistema</span>
-                <span>Sobre Nosotros</span>
-                <span>Trastornos</span>
-            </nav>
-            
-            <div className="auth-buttons">
-                <button className="login">Iniciar sesión</button>
-                <button className="register">Registrarse</button>
-            </div>
-        </header>
-    );
-}
-```
+## Responsive
 
-## Estilos
-
-### Responsive
-
-El header se adapta a diferentes tamaños de pantalla:
-
-**Desktop** (> 768px):
-- Distribución horizontal completa
-- Todos los elementos visibles
-
-**Tablet/Mobile** (≤ 768px):
-- Layout reorganizado con flex-wrap
-- Navegación se reposiciona para ocupar el ancho completo
-- Elementos apilados verticalmente cuando es necesario
-
-### Glassmorphism
-
-El header utiliza el efecto de vidrio esmerilado:
-- Fondo semitransparente con blur
-- Borde sutil con color primario
-- Se integra visualmente con el fondo de la página
-
-### Navegación activa
-
-La pestaña activa tiene:
-- Indicador visual diferenciado
-- Underline animado (si está implementado)
-- Color destacado
-
-## Interactividad
-
-- **Hover en navegación**: Efectos visuales al pasar el cursor
-- **Hover en botones**: Cambios de color y elevación
-- **Transiciones suaves**: Todos los estados tienen animaciones fluidas
-- **Touch-friendly**: Áreas de toque apropiadas para dispositivos móviles (mínimo 44x44px)
-
-## Notas de diseño
-
-- El header mantiene visibilidad sobre el contenido con z-index elevado
-- El glassmorphism proporciona un look moderno sin sacrificar legibilidad
-- La navegación responsive asegura usabilidad en todos los dispositivos
-- Los colores y espaciado siguen las variables del sistema de diseño definidas en `theme.css`
+- `max-width: 768px`: header se envuelve y el nav baja a una fila propia.
+- `max-width: 480px`: tipografías y padding más compactos.

@@ -1,115 +1,115 @@
-# Vista Nuestro Sistema
+﻿# Vista: Nuestro Sistema
 
 ## Descripción general
 
-La vista **Nuestro Sistema** es una sección informativa del sitio web de cognIA que explica de manera visual e interactiva el funcionamiento del sistema de evaluación basado en Random Forest. La vista se compone de dos partes principales:
+Explica el flujo de evaluación en cuatro etapas y muestra una simulación interactiva del algoritmo Random Forest.
 
-1. **Proceso de Evaluación en 4 Etapas**: Presenta de forma visual las cuatro fases del proceso (Observar, Cuestionar, Votar, Sugerir) mediante tarjetas con iconos SVG personalizados.
+## Ubicación
 
-2. **Demostración Interactiva de Random Forest**: Componente demostrativo que permite al usuario seleccionar entre diferentes preguntas de ejemplo para observar cómo múltiples árboles de decisión votan y generan una clasificación final.
+- Componente: `src/pages/Inicio/NuestroSistema/NuestroSistema.tsx`
+- Estilos: `src/pages/Inicio/NuestroSistema/NuestroSistema.css`
+- Ruta: `/`
 
-## Justificación
+## Estructura
 
-## Justificación
+1. **Título principal** `.section-title` y texto introductorio `.intro`.
+2. **Cards de etapas** (`.cards`): 4 tarjetas con ícono SVG, numeración y descripción.
+3. **Bloque "¿Para quien va dirigido?"** (`.audience-section`):
+   - Un panel principal con tabs (`.audience-panel`, `.role-tabs`).
+   - Cuatro círculos por rol con iconos (`.role-point`).
+   - Nota integrada de no diagnóstico (`.rf-note`).
+4. **Sección Random Forest** (`.rf-demo`):
+   - Columna izquierda con acordeón (`.rf-description.info-card`).
+   - Columna derecha con simulación (`.rf-interactive.info-card`).
 
-Se optó por un diseño moderno con efectos de **glassmorphism** (transparencias con blur) para integración visual con el fondo técnico de la página. Las tarjetas semi-transparentes crean una experiencia visual sofisticada y moderna. Los títulos principales siguen rigurosamente el estándar global de la aplicación (Clase `.section-title`: Azul Oscuro, 2.2rem) para mantener una identidad visual unificada frente a la sección "Sobre Nosotros". 
+## Estados y lógica (TypeScript)
 
-Las preguntas de la demostración interactiva  se diseñaron para ser:
+- `selectedQuestion: number | null` → pregunta activa.
+- `isAnimating: boolean` → bloquea botones durante animación.
+- `showResult: boolean` → muestra resultado final al terminar.
+- `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
+- `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
 
-- **Intuitivas**: Ejemplos cotidianos fáciles de comprender (clasificación de emails, predicción del clima, análisis de clientes)
-- **Neutrales**: No relacionadas directamente con el dominio médico para evitar sensibilidad
-- **Informativas**: Ilustran claramente el concepto de clasificación binaria y votación mayoritaria
+Flujo al hacer clic en una pregunta:
+1. Se asigna `selectedQuestion`.
+2. Se activa `isAnimating` y se oculta resultado.
+3. Después de **2500ms**, se muestra el resultado y se apaga la animación.
 
-## Funcionamiento
+## Bloque "¿Para quien va dirigido?"
 
-### Estructura de las Tarjetas del Proceso
+### Panel único con tabs
 
-Cada tarjeta del proceso incluye un icono SVG, título numerado y descripción breve. Las tarjetas implementan efectos hover que incluyen elevación, cambio de sombras y bordes, y animación de iconos.
+- Título: "¿Para quien va dirigido?" (color igual a los títulos de las cards superiores).
+- Selector tipo tabs: **Padres y docentes** / **Psicólogos**.
+- El contenido cambia con `rolActivo`.
 
-### Demostración Random Forest
+**Contenido por rol**
 
-**Estado del Componente**:
-El componente utiliza React hooks para gestionar tres estados principales:
-- `selectedQuestion`: ID de la pregunta actualmente seleccionada
-- `isAnimating`: Indicador booleano de animación en progreso
-- `showResult`: Control de visualización del resultado final
+- Línea principal (1 oración).
+- 4 rectángulos horizontales con texto e ícono (sin viñetas).
+- Iconografía desde `src/assets/iconos/NuestroSistema/`:
+  - Padres: `FrasePadre1.png` a `FrasePadre4.png`.
+  - Psicólogos: `FrasePsico1.png` a `FrasePsico4.png`.
 
-**Flujo de Interacción**:
-1. El usuario selecciona una pregunta mediante botones
-2. Se activa el estado de animación
-3. Los 5 árboles de decisión aparecen secuencialmente con animación escalonada (delay de 0.3s)
-4. Cada árbol muestra su voto individual (Sí/No) con colores distintivos
-5. Después de 2.5 segundos, se muestra el resultado final con animación fade-in
+### Nota integrada
 
-## Interacción con el usuario
+- Texto fijo bajo el panel: "Importante: el sistema no diagnostica; genera una alerta temprana sobre un posible trastorno."
 
-### Tarjetas del Proceso
+## Sección Random Forest (acordeón)
 
-Los usuarios pueden explorar visualmente las 4 etapas del sistema:
-- **Hover**: Al pasar el cursor, las tarjetas se elevan y los iconos rotan sutilmente
-- **Lectura secuencial**: La numeración guía al usuario a través del flujo lógico
-- **Comprensión rápida**: Iconos + texto breve permiten asimilar el proceso en segundos
+### Encabezado
 
-### Simulación Interactiva
+- Título: "¿Qué es Random Forest?".
+- Línea introductoria: "Usamos Random Forest para combinar múltiples decisiones y obtener una alerta más estable."
 
-**Antes de interactuar**:
-- El usuario ve el título "Simulación Interactiva"
-- Un disclaimer naranja advierte que es una demostración simplificada
-- Se presentan 3 botones con preguntas de ejemplo
-- Instrucción clara: "Selecciona una pregunta para ver cómo votan los árboles"
+### Acordeón (3 ítems)
 
-**Durante la interacción**:
-1. Al hacer clic en una pregunta, el botón se destaca con gradiente azul brillante
-2. Los botones restantes se deshabilitan temporalmente (opacity reducida)
-3. Los árboles aparecen uno por uno con animación de rebote
-4. Cada árbol muestra claramente su voto con badges de colores
-5. Feedback visual continuo mantiene al usuario informado del progreso
+1. **Un árbol toma decisiones**: reglas + camino por preguntas.
+2. **Un bosque combina muchos árboles**: variaciones + reducción de errores.
+3. **¿Cómo se obtiene la alerta?**: votación + nivel de alerta.
 
-**Después de la votación**:
-- Aparece un banner destacado con el resultado final
-- El resultado incluye contexto ("Clasificación:", "Predicción:")
-- Los usuarios pueden seleccionar otra pregunta para repetir la experiencia
+## Simulación Random Forest
 
-### Layout Responsivo de Dos Columnas
+- Botones `.question-btn` se deshabilitan cuando `isAnimating` es `true`.
+- Cada árbol se renderiza con clase `.tree` y `animationDelay` escalonado.
+- Voto "Sí/No" se marca con `.vote.positive` o `.vote.negative`.
+- El arreglo `questions` incluye **3 preguntas demo** y **5 votos** por árbol.
+- Se fuerza el reinicio de animación con `animationCycle` al cambiar de pregunta.
+- Texto guía: "Simulación simplificada: observa cómo varios 'árboles' pueden votar por un resultado."
 
-La sección Random Forest utiliza un grid de dos columnas:
-- **Columna izquierda (40%)**: Información educativa sobre Random Forest
-  - Explicación del algoritmo
-  - Descripción detallada del proceso de votación
-  - Cómo reduce errores individuales
-  - Beneficios del enfoque colaborativo
-  - Aplicación en el contexto de cognIA
-- **Columna derecha (60%)**: Área interactiva
-  - Disclaimer sobre demostración simplificada
-  - Selector de preguntas
-  - Visualización de árboles votando
-  - Resultado final
+## Estilos clave
 
-**Nota**: La información anteriormente en una tarjeta de "Ventajas" con lista punteada se ha integrado directamente en la descripción principal para un flujo de lectura más natural y cohesivo.
+- Tarjetas con gradiente suave y hover (elevación + cambio de borde).
+- Íconos en cajas **80x80** con fondo azul translúcido.
+- Flechas entre tarjetas (`.flow-arrow`) con color **#51C2F4**.
+- Secciones informativas usan `.info-card` global.
+- Panel único con tabs (`.audience-panel`, `.role-tabs`, `.role-tab`).
+- Rectángulos con icono y texto (`.role-points`, `.role-point`, `.role-point-icon`).
+- Nota integrada con borde izquierdo (`.rf-note`).
 
-## Consideraciones de diseño
+## Animaciones
 
-### Usabilidad
+- `treeVote`: entrada de cada árbol (0.5s–0.6s).
+- `fadeIn`: aparición del resultado final.
 
-- **Estados claros**: Los botones tienen estados visuales distintos (normal, hover, active, disabled)
-- **Feedback inmediato**: Cada acción del usuario genera una respuesta visual instantánea
-- **Prevención de errores**: Los botones se deshabilitan durante las animaciones para evitar estados inconsistentes
-- **Jerarquía visual**: Uso de tamaños de fuente, pesos y colores para guiar la atención
+## Clases CSS clave
 
-### Accesibilidad
+- `.card`, `.icon`, `.flow-arrow`, `.question-btn`, `.forest`, `.tree`, `.result`.
+- `.audience-section`, `.audience-panel`, `.role-tabs`, `.role-tab`.
+- `.role-points`, `.role-point`, `.role-point-icon`, `.rf-note`.
+- `.rf-accordion`, `.accordion-item`, `.accordion-trigger`, `.accordion-content`.
 
-- **Contraste adecuado**: Todos los textos sobre fondos semi-transparentes mantienen ratio de contraste suficiente
-- **Iconos + texto**: Los iconos SVG siempre van acompañados de texto descriptivo
-- **Colores semánticos**: Uso de azul para positivo y naranja para negativo (en lugar de verde/rojo para evitar problemas de daltonismo severo)
-- **Animaciones controladas**: Las animaciones son suaves (15s para gradient) y no parpadean, evitando problemas de accesibilidad
+## Responsive
 
-### Experiencia de Usuario
+- `max-width: 1024px`: flechas se ocultan y cards se distribuyen en 2 columnas.
+- `max-width: 768px`: cards en columna, tipografías reducidas.
+- `max-width: 480px`: padding y tamaños compactos.
+- Tabs y contenido se ajustan a una sola columna en mobile.
 
-- **Carga cognitiva reducida**: Información presentada en chunks pequeños y digeribles
-- **Educación progresiva**: Se explica el concepto antes de permitir la interacción
-- **Gratificación instantánea**: Las animaciones son lo suficientemente rápidas (2.5s) para mantener el interés sin aburrir
-- **Estética consistente**: Todos los elementos siguen la paleta de colores y estilo de cognIA
+## Flujo de usuario
 
-## Estado actual
-
-La vista está completamente implementada y funcional con diseño responsive, glassmorphism, componente interactivo de Random Forest con animaciones, e iconos SVG personalizados.
+1. Lee las 4 etapas del sistema.
+2. Revisa roles, privacidad y el aviso de no diagnóstico.
+3. En la sección Random Forest, revisa el acordeón.
+4. Selecciona una pregunta en la simulación.
+5. Observa la animación de votos y el resultado final.

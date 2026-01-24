@@ -1,0 +1,53 @@
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+    background: transparent;
+}
+
+.app-main {
+    flex: 1;
+    padding: 24px 32px 48px;
+    background: #ffffff;
+    min-height: 100vh;
+}
+
+.role-toggle {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 999px;
+    background: rgba(81, 194, 244, 0.12);
+    border: 1px solid rgba(81, 194, 244, 0.2);
+}
+
+.role-toggle-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.role-toggle-btn.active {
+    background: #215F8F;
+    color: #ffffff;
+}
+
+.app-content {
+    margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+    .app-main {
+        padding: 20px 20px 36px;
+    }
+
+    .role-toggle {
+        width: 100%;
+        justify-content: center;
+    }
+}

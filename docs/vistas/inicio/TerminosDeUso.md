@@ -1,67 +1,40 @@
-# Términos de Uso
+﻿# Vista: Términos de Uso
 
-## Descripción
+## Descripción general
 
-Vista dedicada a mostrar los términos y condiciones de uso del aplicativo cognIA. Esta página establece las reglas y directrices que los usuarios deben aceptar para utilizar la plataforma.
+Página legal con condiciones del servicio.
 
 ## Ubicación
 
-**Ruta**: `src/pages/Inicio/Terms/`
+- Componente: `src/pages/Inicio/Terms/Terms.tsx`
+- Estilos: `src/pages/Inicio/Terms/Terms.css`
+- Ruta: `/terms`
+- Se muestra con Header y Footer (ver `src/App.tsx`).
 
-**Archivos**:
-- `Terms.tsx` - Componente React
-- `Terms.css` - Estilos de la vista
+## Lógica de navegación
 
-**Ruta de acceso**: `/terminos-uso`
+- Si la URL incluye `?from=registro`, se muestra botón **“Volver al formulario de registro”**.
+- El botón ejecuta `navigate(-1)`.
 
-## Características
+## Estructura
 
-### Diseño visual
+- `.terms-title` y `.terms-subtitle` centrados.
+- `.content-card` con texto legal.
+- Link interno a **Políticas de Privacidad**.
 
-- **Fondo**: Blanco (#ffffff)
-- **Layout**: Centrado con ancho máximo de 900px
-- **Componentes**:
-  - Título principal
-  - Subtítulo contextual
-  - Tarjeta de contenido con sombra sutil
+## Estilos clave
 
-### Estructura
+- Fondo blanco, card con sombra y padding de 2rem.
+- Botón de regreso con color primario **#1790E9** y hover desplazado.
 
-1. **Título**: "Términos de Uso"
-2. **Subtítulo**: "Condiciones para el uso de nuestra plataforma"
-3. **Content Card**: Tarjeta con:
-   - Fondo blanco
-   - Bordes redondeados (12px)
-   - Sombra sutil (box-shadow)
-   - Padding generoso (2rem)
+## Clases CSS clave
 
-## Estado actual
+- `.terms-page`, `.terms-title`, `.content-card`, `.back-to-form-button`.
 
-> **Nota**: Esta vista contiene actualmente texto de placeholder (Lorem Ipsum) mientras se definen los términos legales definitivos para el uso de la plataforma.
+## Reutilización
 
-## Contenido pendiente
+- `TermsContent` se exporta y se usa dentro de los modales de registro.
 
-El contenido final debe incluir información sobre:
+## Responsive
 
-- [Pendiente definir contenido específico]
-
-## Implementación
-
-### Responsive
-
-La vista se adapta a diferentes dispositivos:
-
-**Desktop** (> 768px):
-- Título: 2.5rem
-- Padding de tarjeta: 2rem
-
-**Mobile** (≤ 768px):
-- Título reducido: 2rem
-- Padding de tarjeta: 1.5rem
-- Ajuste de márgenes y espaciado
-
-## Acceso
-
-Los usuarios pueden acceder a esta vista a través de:
-- Enlace en el Footer
-- Navegación directa a `/terminos-uso`
+- `max-width: 768px`: título 2rem, subtítulo 1rem, padding menor.

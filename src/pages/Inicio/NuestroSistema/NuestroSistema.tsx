@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './NuestroSistema.css';
+import frasePadre1 from '../../../assets/iconos/NuestroSistema/FrasePadre1.png';
+import frasePadre2 from '../../../assets/iconos/NuestroSistema/FrasePadre2.png';
+import frasePadre3 from '../../../assets/iconos/NuestroSistema/FrasePadre3.png';
+import frasePadre4 from '../../../assets/iconos/NuestroSistema/FrasePadre4.png';
+import frasePsico1 from '../../../assets/iconos/NuestroSistema/FrasePsico1.png';
+import frasePsico2 from '../../../assets/iconos/NuestroSistema/FrasePsico2.png';
+import frasePsico3 from '../../../assets/iconos/NuestroSistema/FrasePsico3.png';
+import frasePsico4 from '../../../assets/iconos/NuestroSistema/FrasePsico4.png';
 
 export default function NuestroSistema() {
   const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [accordionIndex, setAccordionIndex] = useState<number | null>(0);
+  const [animationCycle, setAnimationCycle] = useState(0);
+  const [rolActivo, setRolActivo] = useState<'padres' | 'psicologos'>('padres');
+  const animationTimeoutRef = useRef<number | null>(null);
 
   const questions = [
     {
@@ -45,17 +57,112 @@ export default function NuestroSistema() {
     }
   ];
 
+  const accordionItems = [
+    {
+      title: '1) Un árbol toma decisiones',
+      body: (
+        <>
+          Un árbol de decisión aprende reglas a partir de ejemplos.
+          <br />
+          Cada pregunta guía el camino hacia un resultado.
+        </>
+      )
+    },
+    {
+      title: '2) Un bosque combina muchos árboles',
+      body: (
+        <>
+          Random Forest entrena muchos árboles con variaciones.
+          <br />
+          Luego combina sus respuestas para reducir errores.
+        </>
+      )
+    },
+    {
+      title: '3) ¿Cómo se obtiene la alerta?',
+      body: (
+        <>
+          Los árboles 'votan' y el sistema calcula un nivel de alerta.
+          <br />
+          En perfiles profesionales se muestra más detalle del porqué.
+        </>
+      )
+    }
+  ];
+
+  const roleContent = {
+    padres: {
+      line: 'Diligencian el cuestionario y consultan sus propios resultados.',
+      items: [
+        {
+          text: 'Ven únicamente resultados de cuestionarios realizados por ellos.',
+          icon: frasePadre1
+        },
+        {
+          text: 'Reciben una alerta sobre un posible trastorno.',
+          icon: frasePadre2
+        },
+        {
+          text: 'El cuestionario evalúa el comportamiento sin identificar al niño.',
+          icon: frasePadre3
+        },
+        {
+          text: 'La alerta se basa en un posible trastorno que pueda tener el infante.',
+          icon: frasePadre4
+        }
+      ]
+    },
+    psicologos: {
+      line: 'Realizan evaluaciones, acceden a múltiples alertas y visualizan con mayor detalle.',
+      items: [
+        {
+          text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o docente alla dado los permisos necesarios.',
+          icon: frasePsico1
+        },
+        {
+          text: 'Ven interpretación mas detallada de cómo el modelo llega a la alerta.',
+          icon: frasePsico2
+        },
+        {
+          text: 'La vista profesional incluye más detalle para análisis.',
+          icon: frasePsico3
+        },
+        {
+          text: 'El resultado no reemplaza una evaluación clínica.',
+          icon: frasePsico4
+        }
+      ]
+    }
+  };
+
+  const handleRoleChange = (role: 'padres' | 'psicologos') => {
+    setRolActivo(role);
+  };
+
   const handleQuestionClick = (questionId: number) => {
+    if (animationTimeoutRef.current !== null) {
+      window.clearTimeout(animationTimeoutRef.current);
+    }
+
     setSelectedQuestion(questionId);
     setIsAnimating(true);
     setShowResult(false);
+    setAnimationCycle((prev) => prev + 1);
 
     // Simulate animation delay
-    setTimeout(() => {
+    animationTimeoutRef.current = window.setTimeout(() => {
       setShowResult(true);
       setIsAnimating(false);
     }, 2500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current !== null) {
+        window.clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const currentQuestion = questions.find(q => q.id === selectedQuestion);
 
@@ -138,39 +245,94 @@ export default function NuestroSistema() {
         </div>
       </section>
 
+      <section className="audience-section">
+        <div className="info-card audience-panel">
+          <div className="panel-header">
+            <h2 className="panel-title">¿Para quien va dirigido?</h2>
+            <div className="role-tabs" role="tablist" aria-label="Roles principales">
+              <button
+                type="button"
+                className={`role-tab ${rolActivo === 'padres' ? 'active' : ''}`}
+                onClick={() => handleRoleChange('padres')}
+                role="tab"
+                aria-selected={rolActivo === 'padres'}
+              >
+                Padres y docentes
+              </button>
+              <button
+                type="button"
+                className={`role-tab ${rolActivo === 'psicologos' ? 'active' : ''}`}
+                onClick={() => handleRoleChange('psicologos')}
+                role="tab"
+                aria-selected={rolActivo === 'psicologos'}
+              >
+                Psicólogos
+              </button>
+            </div>
+          </div>
+
+          <div className="role-content" role="tabpanel">
+            <p className="role-line">{roleContent[rolActivo].line}</p>
+            <div className="role-points">
+              {roleContent[rolActivo].items.map((item) => (
+                <div key={item.text} className="role-point">
+                  <img className="role-point-icon" src={item.icon} alt="" aria-hidden="true" />
+                  <p>{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="rf-note">
+          Importante: el sistema no diagnostica; genera una alerta temprana sobre un posible trastorno.
+        </p>
+      </section>
+
       <section className="rf-demo">
-        <h2 className="section-title">¿Cómo funciona el Random Forest?</h2>
+        <h2 className="section-title">¿Qué es Random Forest?</h2>
 
         <div className="rf-container">
           <div className="rf-description info-card">
-            <h3>Algoritmo Random Forest</h3>
-            <p>
-              Random Forest es un método de aprendizaje automático que utiliza múltiples
-              árboles de decisión para hacer predicciones más precisas y confiables.
+            <h3>Así funciona Random Forest</h3>
+            <p className="rf-intro-line">
+              Usamos Random Forest para combinar múltiples decisiones y obtener una alerta más estable.
             </p>
-            <p>
-              Cada árbol analiza las respuestas del cuestionario de forma independiente
-              y emite su "voto" sobre la clasificación. El resultado final se determina
-              por la mayoría de votos entre todos los árboles, lo que reduce la probabilidad
-              de errores individuales y aumenta la precisión general del sistema.
-            </p>
-            <p>
-              Este enfoque colaborativo permite que el sistema sea más robusto ante datos
-              variados y proporciona mayor precisión en las predicciones. Al combinar las
-              decisiones de múltiples árboles, el modelo puede capturar patrones complejos
-              que un solo árbol no detectaría, haciendo que las alertas tempranas sean más
-              confiables para los profesionales de salud mental.
-            </p>
+            <div className="rf-accordion">
+              {accordionItems.map((item, index) => (
+                <div
+                  key={item.title}
+                  className={`accordion-item ${accordionIndex === index ? 'is-open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="accordion-trigger"
+                    onClick={() => setAccordionIndex(accordionIndex === index ? null : index)}
+                    aria-expanded={accordionIndex === index}
+                    aria-controls={`rf-accordion-panel-${index}`}
+                  >
+                    <span>{item.title}</span>
+                    <span className="accordion-icon">+</span>
+                  </button>
+                  <div
+                    id={`rf-accordion-panel-${index}`}
+                    className="accordion-content"
+                    role="region"
+                    aria-hidden={accordionIndex !== index}
+                  >
+                    {item.body}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="rf-interactive info-card">
             <h3>Simulación Interactiva</h3>
             <div className="rf-disclaimer">
-              <strong>Nota:</strong> Esta es una demostración simplificada.
-              El sistema real utiliza un cuestionario completo con muchas más preguntas
-              y un conjunto mayor de árboles de decisión para mayor precisión.
+              <strong>Nota:</strong> Demostración simplificada; el sistema real utiliza más preguntas y árboles.
             </div>
-            <p className="instruction">Selecciona una pregunta para ver cómo votan los árboles:</p>
+            <p className="instruction">Simulación simplificada: observa cómo varios ‘árboles’ pueden votar por un resultado.</p>
 
             <div className="question-selector">
               {questions.map(q => (
@@ -186,10 +348,10 @@ export default function NuestroSistema() {
             </div>
 
             {selectedQuestion && (
-              <div className="forest">
+              <div className="forest" key={`${selectedQuestion}-${animationCycle}`}>
                 {currentQuestion?.results.map((result, index) => (
                   <div
-                    key={result.tree}
+                    key={`${animationCycle}-${result.tree}`}
                     className={`tree ${isAnimating ? 'animating' : 'voted'}`}
                     style={{ animationDelay: `${index * 0.3}s` }}
                   >

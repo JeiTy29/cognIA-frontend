@@ -21,6 +21,116 @@
     margin-bottom: 80px;
 }
 
+.audience-section {
+    margin-top: 12px;
+    margin-bottom: 80px;
+    text-align: center;
+}
+
+.audience-panel {
+    text-align: left;
+    padding: 28px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.panel-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #51C2F4;
+    margin: 0;
+}
+
+.role-tabs {
+    display: inline-flex;
+    gap: 6px;
+    padding: 4px;
+    background: rgba(81, 194, 244, 0.08);
+    border-radius: 999px;
+}
+
+.role-tab {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.role-tab.active {
+    background: #215F8F;
+    color: #ffffff;
+}
+
+.role-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.role-line {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.role-points {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.role-point {
+    border-radius: 16px;
+    width: 100%;
+    min-height: 128px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #215F8F 0%, #2F74A9 100%);
+    border: 1px solid rgba(33, 95, 143, 0.45);
+    box-shadow: 0 14px 28px rgba(33, 95, 143, 0.28);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 12px;
+}
+
+.role-point-icon {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+.role-point p {
+    margin: 0;
+    font-size: 17px;
+    color: #ffffff;
+    line-height: 1.35;
+    text-align: left;
+}
+
+.rf-note {
+    margin: 18px 0 0;
+    max-width: none;
+    text-align: left;
+    border-left: 3px solid #215F8F;
+    padding-left: 12px;
+    color: #215F8F;
+    font-size: 15px;
+    font-weight: 600;
+}
+
 .flow-arrow {
     flex-shrink: 0;
     width: 40px;
@@ -159,45 +269,71 @@
     color: var(--primary);
 }
 
-.rf-description p {
-    font-size: 15px;
-    line-height: 1.7;
+.rf-intro-line {
+    font-size: 14px;
+    line-height: 1.6;
     color: var(--text-secondary);
     margin-bottom: 16px;
 }
 
-.rf-benefits {
-    margin-top: 24px;
-    padding: 20px;
-    background: rgba(81, 194, 244, 0.05);
+.rf-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.accordion-item {
+    border: 1px solid rgba(81, 194, 244, 0.2);
     border-radius: 12px;
-    border-left: 4px solid var(--primary);
+    background: #ffffff;
+    overflow: hidden;
 }
 
-.rf-benefits h4 {
-    font-size: 16px;
-    margin-bottom: 12px;
-    color: var(--text-main);
+.accordion-trigger {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #215F8F;
+    text-align: left;
 }
 
-.rf-benefits ul {
-    list-style: none;
-    padding: 0;
+.accordion-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(81, 194, 244, 0.35);
+    color: #215F8F;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    transition: transform 0.2s ease;
 }
 
-.rf-benefits li {
-    padding: 6px 0 6px 24px;
-    position: relative;
-    color: var(--text-secondary);
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 16px;
     font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    transition: max-height 0.25s ease, padding 0.25s ease;
 }
 
-.rf-benefits li::before {
-    content: '—';
-    position: absolute;
-    left: 0;
-    color: var(--primary);
-    font-weight: bold;
+.accordion-item.is-open .accordion-content {
+    max-height: 120px;
+    padding: 0 16px 14px;
+}
+
+.accordion-item.is-open .accordion-icon {
+    transform: rotate(45deg);
 }
 
 .instruction {
@@ -381,6 +517,7 @@
     .rf-interactive {
         padding: 32px;
     }
+
 }
 
 @media (max-width: 768px) {
@@ -451,20 +588,34 @@
         font-size: 20px;
     }
 
-    .rf-description p {
+    .rf-intro-line {
+        font-size: 13px;
+    }
+
+    .accordion-trigger {
         font-size: 14px;
     }
 
-    .rf-benefits {
-        padding: 16px;
-    }
-
-    .rf-benefits h4 {
-        font-size: 15px;
-    }
-
-    .rf-benefits li {
+    .accordion-content {
         font-size: 13px;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .role-tabs {
+        width: 100%;
+    }
+
+    .role-tab {
+        flex: 1;
+        text-align: center;
+    }
+
+    .role-points {
+        grid-template-columns: 1fr;
     }
 
     .question-btn {
@@ -497,6 +648,10 @@
     .result {
         font-size: 16px;
         padding: 16px;
+    }
+
+    .audience-section {
+        margin-bottom: 60px;
     }
 }
 
@@ -590,29 +745,23 @@
         margin-bottom: 12px;
     }
 
-    .rf-description p {
-        font-size: 13px;
-        margin-bottom: 12px;
-    }
-
     .instruction {
         font-size: 13px;
         margin-bottom: 16px;
     }
-
-    .rf-benefits {
-        padding: 14px;
-        margin-top: 20px;
+ 
+    .rf-intro-line {
+        font-size: 13px;
+        margin-bottom: 12px;
     }
 
-    .rf-benefits h4 {
-        font-size: 14px;
-        margin-bottom: 10px;
+    .accordion-trigger {
+        padding: 12px 14px;
+        font-size: 13px;
     }
 
-    .rf-benefits li {
+    .accordion-content {
         font-size: 12px;
-        padding: 5px 0 5px 20px;
     }
 
     .question-selector {
@@ -658,6 +807,28 @@
         font-size: 15px;
         padding: 14px;
         margin-top: 24px;
+    }
+
+    .audience-panel {
+        padding: 24px 20px;
+    }
+
+    .role-line {
+        font-size: 13px;
+    }
+
+    .role-point {
+        max-width: 100%;
+        min-height: 120px;
+        padding: 16px 18px;
+    }
+
+    .role-point p {
+        font-size: 14px;
+    }
+
+    .rf-note {
+        font-size: 13px;
     }
 }
 
