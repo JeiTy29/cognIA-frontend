@@ -28,6 +28,7 @@ Explica el flujo de evaluación en cuatro etapas y muestra una simulación inter
 - `isAnimating: boolean` → bloquea botones durante animación.
 - `showResult: boolean` → muestra resultado final al terminar.
 - `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
+- `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
 
 Flujo al hacer clic en una pregunta:
 1. Se asigna `selectedQuestion`.

@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Autenticacion.css';
 
 export default function Autenticacion() {
     const [codigo, setCodigo] = useState('');
+    const navigate = useNavigate();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const storedRole = localStorage.getItem('cogniaRole');
+        const nextPath = storedRole === 'psicologo' ? '/psicologo/cuestionario' : '/padre/cuestionario';
+        navigate(nextPath);
     };
 
     return (

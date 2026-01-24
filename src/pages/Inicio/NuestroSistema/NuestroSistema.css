@@ -614,6 +614,10 @@
         text-align: center;
     }
 
+    .role-points {
+        grid-template-columns: 1fr;
+    }
+
     .question-btn {
         padding: 12px 16px;
         font-size: 13px;

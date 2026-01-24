@@ -1,0 +1,116 @@
+.sidebar {
+    width: 64px;
+    background: #ffffff;
+    border-right: 1px solid rgba(81, 194, 244, 0.2);
+    box-shadow: 2px 0 12px rgba(33, 95, 143, 0.06);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    padding: 20px 0;
+    z-index: 20;
+}
+
+.sidebar-nav {
+    width: 100%;
+}
+
+.sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.sidebar-item-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.sidebar-item {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #215F8F;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-item svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.sidebar-item::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 4px;
+    background: transparent;
+}
+
+.sidebar-item.active {
+    background: rgba(81, 194, 244, 0.15);
+    color: #1790E9;
+}
+
+.sidebar-item.active::before {
+    background: #1790E9;
+}
+
+.sidebar-item:focus-visible {
+    outline: 2px solid rgba(23, 144, 233, 0.35);
+    outline-offset: 2px;
+}
+
+.sidebar-label {
+    position: absolute;
+    left: 56px;
+    top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    background: #215F8F;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 6px 14px rgba(33, 95, 143, 0.2);
+}
+
+.sidebar-item:hover .sidebar-label,
+.sidebar-item:focus-visible .sidebar-label {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 56px;
+    }
+
+    .sidebar-item {
+        width: 40px;
+        height: 40px;
+    }
+
+    .sidebar-label {
+        left: 52px;
+    }
+}

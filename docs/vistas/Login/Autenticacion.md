@@ -37,6 +37,7 @@ Pantalla de verificación con QR y código de 6 dígitos. Se muestra después de
 ## Navegación
 
 - Logo → `/`.
+- Botón **Verificar** → ruta de cuestionario según rol (`/padre/cuestionario` o `/psicologo/cuestionario`).
 
 ## Responsive
 
