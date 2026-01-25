@@ -54,11 +54,11 @@ Constantes configurables en la vista:
 ## Reportar un problema
 
 - Botón que despliega un formulario con animación tipo collapse.
-- El select de tipo de problema tiene transición suave al enfocar.
+- El selector de tipo de problema usa un menú personalizado con animación de apertura/cierre.
 - Campos:
   - Tipo de problema (select)
   - Descripción (textarea)
-  - Adjuntar captura con botón personalizado y vista previa de imagen.
+  - Adjuntar captura con botón personalizado, vista previa estandarizada y acción para descartar.
 - Acciones: **Cancelar** (cierra y resetea) y **Enviar** en la misma fila.
 - Al enviar, se muestra un mensaje de éxito visible.
 
@@ -82,4 +82,4 @@ Constantes configurables en la vista:
 
 - Vista compartida (ambos roles): `src/pages/Plataforma/Ayuda/AyudaBase.tsx`
 - Estilos: `src/pages/Plataforma/Ayuda/Ayuda.css`
-- Vista compartida por rol detectado en ruta (usa `useLocation`).
+- La vista acepta `role` desde las rutas y, si no se envía, infiere el rol por la URL (`useLocation`).

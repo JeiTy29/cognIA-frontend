@@ -77,14 +77,14 @@
 }
 
 .ayuda-textarea {
-    min-height: 160px;
+    min-height: 180px;
     resize: vertical;
 }
 
 .ayuda-input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .ayuda-section-title {
@@ -128,6 +128,14 @@
 .ayuda-faq-icon {
     font-size: 18px;
     color: #ffffff;
+}
+
+.ayuda-faq-icon svg,
+.ayuda-toggle-icon svg,
+.ayuda-select-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
 }
 
 .ayuda-faq-answer {
@@ -281,15 +289,27 @@
 }
 
 .ayuda-report.is-open {
-    max-height: 520px;
+    max-height: 760px;
     opacity: 1;
     transform: translateY(0);
     margin-top: 12px;
 }
 
+.ayuda-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1790E9;
+    transition: transform 0.2s ease;
+}
+
+.ayuda-toggle-icon.open {
+    transform: rotate(180deg);
+}
+
 .ayuda-report-form {
     display: grid;
-    gap: 16px;
+    gap: 18px;
 }
 
 .ayuda-attachment {
@@ -326,16 +346,90 @@
 }
 
 .ayuda-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%23215F8F'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 38px;
-    cursor: pointer;
+    position: relative;
 }
 
-.ayuda-select:focus {
-    transform: translateY(-1px);
+.ayuda-select-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ayuda-select-trigger:hover {
+    border-color: rgba(33, 95, 143, 0.45);
+}
+
+.ayuda-select-trigger:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+}
+
+.ayuda-select-icon {
+    font-size: 14px;
+    transition: transform 0.2s ease;
+    color: #215F8F;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ayuda-select-icon.open {
+    transform: rotate(180deg);
+}
+
+.ayuda-select-menu {
+    position: relative;
+    margin-top: 8px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.18);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+    z-index: 5;
+}
+
+.ayuda-select-menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 240px;
+    pointer-events: auto;
+}
+
+.ayuda-select-option {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.ayuda-select-option:hover {
+    background: rgba(81, 194, 244, 0.2);
 }
 
 .ayuda-upload {
@@ -371,9 +465,28 @@
 .ayuda-preview {
     width: 100%;
     max-height: 200px;
-    object-fit: cover;
+    object-fit: contain;
+    background: #ffffff;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.ayuda-preview-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ayuda-btn.discard {
+    background: #ffffff;
+    color: #215F8F;
+    border-color: rgba(33, 95, 143, 0.3);
+    align-self: flex-start;
+}
+
+.ayuda-btn.discard:hover {
+    border-color: rgba(33, 95, 143, 0.5);
 }
 
 @media (max-width: 900px) {
