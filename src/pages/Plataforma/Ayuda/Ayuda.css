@@ -54,9 +54,10 @@
 }
 
 .ayuda-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: #d5efff;
+    color: #f3fbff;
+    align-self: flex-start;
 }
 
 .ayuda-input {
@@ -66,7 +67,7 @@
     font-size: 14px;
     color: #1f2a37;
     background: #ffffff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .ayuda-input:focus {
@@ -76,8 +77,14 @@
 }
 
 .ayuda-textarea {
-    min-height: 100px;
+    min-height: 160px;
     resize: vertical;
+}
+
+.ayuda-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .ayuda-section-title {
@@ -155,6 +162,12 @@
     gap: 10px;
 }
 
+.ayuda-actions.inline {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
 .ayuda-btn {
     border-radius: 12px;
     padding: 10px 16px;
@@ -200,6 +213,17 @@
     background: #ffffff;
     color: #215F8F;
     border-color: rgba(33, 95, 143, 0.25);
+}
+
+.ayuda-btn.cancel {
+    background: #eaf6ff;
+    color: #215F8F;
+    border-color: rgba(33, 95, 143, 0.35);
+}
+
+.ayuda-btn.cancel:hover {
+    background: #dff0ff;
+    border-color: rgba(33, 95, 143, 0.5);
 }
 
 .ayuda-btn.copy:hover {
@@ -265,7 +289,7 @@
 
 .ayuda-report-form {
     display: grid;
-    gap: 12px;
+    gap: 16px;
 }
 
 .ayuda-attachment {
@@ -299,6 +323,57 @@
     text-align: left;
     cursor: pointer;
     text-decoration: underline;
+}
+
+.ayuda-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%23215F8F'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 38px;
+    cursor: pointer;
+}
+
+.ayuda-select:focus {
+    transform: translateY(-1px);
+}
+
+.ayuda-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.ayuda-file-input {
+    display: none;
+}
+
+.ayuda-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(33, 95, 143, 0.3);
+    color: #215F8F;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ayuda-upload-btn:hover {
+    border-color: rgba(33, 95, 143, 0.5);
+    box-shadow: 0 6px 12px rgba(33, 95, 143, 0.15);
+}
+
+.ayuda-preview {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 @media (max-width: 900px) {

@@ -17,6 +17,7 @@ Concentrar el soporte al usuario en un solo lugar: respuestas rápidas (FAQ), co
 - FAQ en acordeón (sin tarjetas por pregunta):
   - Clic en la pregunta despliega la respuesta con animación suave.
   - El texto se mantiene breve para lectura rápida.
+  - Icono de despliegue con chevron para indicar apertura/cierre.
 
 ### Preguntas por rol
 
@@ -53,11 +54,12 @@ Constantes configurables en la vista:
 ## Reportar un problema
 
 - Botón que despliega un formulario con animación tipo collapse.
+- El select de tipo de problema tiene transición suave al enfocar.
 - Campos:
   - Tipo de problema (select)
   - Descripción (textarea)
-  - Adjuntar captura (input file)
-- Acciones: **Cancelar** (cierra y resetea) y **Enviar**.
+  - Adjuntar captura con botón personalizado y vista previa de imagen.
+- Acciones: **Cancelar** (cierra y resetea) y **Enviar** en la misma fila.
 - Al enviar, se muestra un mensaje de éxito visible.
 
 ## Legal (modals existentes)

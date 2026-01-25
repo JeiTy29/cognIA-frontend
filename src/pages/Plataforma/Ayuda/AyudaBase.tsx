@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Modal } from '../../../components/Modal/Modal';
@@ -71,7 +71,7 @@ export default function AyudaBase() {
 
     const [issueType, setIssueType] = useState('');
     const [description, setDescription] = useState('');
-    const [attachment, setAttachment] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     const faqs = role === 'psicologo' ? faqsPsicologo : faqsPadre;
     const roleLabel = role === 'psicologo' ? 'Psicólogo' : 'Padre/Tutor';
@@ -87,6 +87,14 @@ Descripción: `;
     const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT_EMAIL)}&su=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
     const outlookLink = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(SUPPORT_EMAIL)}&subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
 
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
     const handleFaqToggle = (id: string) => {
         setOpenFaqId((prev) => (prev === id ? null : id));
     };
@@ -101,7 +109,10 @@ Descripción: `;
         setReportSent(false);
         setIssueType('');
         setDescription('');
-        setAttachment(null);
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        setPreviewUrl(null);
     };
 
     const handleReportSubmit = (event: FormEvent) => {
@@ -117,6 +128,18 @@ Descripción: `;
         } catch {
             setCopied(false);
         }
+    };
+
+    const handleFileChange = (file: File | null) => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        if (!file) {
+                setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
     };
 
     return (
@@ -139,7 +162,7 @@ Descripción: `;
                                     aria-expanded={openFaqId === item.id}
                                 >
                                     <span>{item.question}</span>
-                                    <span className="ayuda-faq-icon">{openFaqId === item.id ? '–' : '+'}</span>
+                                    <span className="ayuda-faq-icon">{openFaqId === item.id ? '-' : '+'}</span>
                                 </button>
                                 <div className={`ayuda-faq-answer ${openFaqId === item.id ? 'is-open' : ''}`}>
                                     <p>{item.answer}</p>
@@ -153,14 +176,14 @@ Descripción: `;
                     <section className="info-card ayuda-panel ayuda-report-panel">
                         <button type="button" className="ayuda-toggle" onClick={handleReportToggle}>
                             <span>Reportar un problema</span>
-                            <span className="ayuda-toggle-icon">{showReportForm ? '–' : '+'}</span>
+                            <span className="ayuda-toggle-icon">{showReportForm ? '▲' : '▼'}</span>
                         </button>
                         <div className={`ayuda-report ${showReportForm ? 'is-open' : ''}`}>
                             <form className="ayuda-report-form" onSubmit={handleReportSubmit}>
                                 <label className="ayuda-input-group">
                                     <span className="ayuda-label">Tipo de problema</span>
                                     <select
-                                        className="ayuda-input"
+                                        className="ayuda-input ayuda-select"
                                         value={issueType}
                                         onChange={(event) => setIssueType(event.target.value)}
                                     >
@@ -183,23 +206,33 @@ Descripción: `;
                                 </label>
                                 <label className="ayuda-input-group">
                                     <span className="ayuda-label">Adjuntar captura</span>
-                                    <input
-                                        className="ayuda-input"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(event) => setAttachment(event.target.files?.[0] || null)}
-                                    />
-                                    {attachment && (
-                                        <span className="ayuda-attachment">Archivo: {attachment.name}</span>
-                                    )}
+                                    <div className="ayuda-upload">
+                                        <input
+                                            className="ayuda-input ayuda-file-input"
+                                            type="file"
+                                            id="ayuda-file"
+                                            accept="image/*"
+                                            onChange={(event) => handleFileChange(event.target.files?.[0] || null)}
+                                        />
+                                        <label htmlFor="ayuda-file" className="ayuda-upload-btn">
+                                            Seleccionar imagen
+                                        </label>
+                                        {previewUrl && (
+                                            <img
+                                                className="ayuda-preview"
+                                                src={previewUrl}
+                                                alt="Vista previa de la captura"
+                                            />
+                                        )}
+                                    </div>
                                 </label>
 
                                 {reportSent && (
                                     <div className="ayuda-success">Reporte enviado correctamente.</div>
                                 )}
 
-                                <div className="ayuda-actions">
-                                    <button type="button" className="ayuda-btn ghost" onClick={handleReportCancel}>
+                                <div className="ayuda-actions inline">
+                                    <button type="button" className="ayuda-btn cancel" onClick={handleReportCancel}>
                                         Cancelar
                                     </button>
                                     <button
