@@ -72,13 +72,13 @@ export const sidebarItems: SidebarItem[] = [
         }
     },
     {
-        id: 'soporte',
-        label: 'Soporte',
+        id: 'ayuda',
+        label: 'Ayuda',
         icon: IconSupport,
         roles: ['padre', 'psicologo'],
         paths: {
-            padre: '/padre/soporte',
-            psicologo: '/psicologo/soporte'
+            padre: '/padre/ayuda',
+            psicologo: '/psicologo/ayuda'
         }
     },
     {

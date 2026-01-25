@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Centralizar la gestión de datos del perfil, seguridad, legal y soporte en una sola vista para ambos roles.
+Centralizar la gestión de datos del perfil y seguridad en una sola vista para ambos roles.
 
 ## Roles y contenido visible
 
@@ -51,17 +51,7 @@ Centralizar la gestión de datos del perfil, seguridad, legal y soporte en una s
   - Mensaje de éxito visible tras guardar cambios.
   - Ícono de visibilidad en campos de contraseña.
 
-### C) Legal
-- Acciones:
-  - **Política de privacidad**.
-  - **Términos de uso**.
-- Al hacer clic se abren los modals existentes (`Modal`, `TermsContent`, `PrivacyContent`).
-
-### D) Ayuda / Soporte
-- Texto breve de orientación.
-- Botón **Ir a soporte** redirige a la ruta de soporte según rol.
-
-### E) Cerrar sesión
+### C) Cerrar sesión
 - Bloque final fuera de tarjetas grandes.
 - Texto + botón en la misma fila, centrados y con mayor presencia visual.
 - Botón con color sólido para distinguirse del fondo.
@@ -72,9 +62,6 @@ Centralizar la gestión de datos del perfil, seguridad, legal y soporte en una s
 - Rutas:
   - Padre/Tutor: `/padre/cuenta`
   - Psicólogo: `/psicologo/cuenta`
-- Botón **Ir a soporte**:
-  - Padre/Tutor: `/padre/soporte`
-  - Psicólogo: `/psicologo/soporte`
 
 ## Archivos relacionados
 

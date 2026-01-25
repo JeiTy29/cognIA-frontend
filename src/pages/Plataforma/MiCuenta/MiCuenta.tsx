@@ -1,9 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Modal } from '../../../components/Modal/Modal';
-import { TermsContent } from '../../Inicio/Terms/Terms';
-import { PrivacyContent } from '../../Inicio/Privacy/Privacy';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
 
@@ -18,9 +15,6 @@ export default function MiCuenta() {
     const correo = role === 'psicologo' ? 'psicologo@cognia.com' : 'tutor@cognia.com';
     const nombre = role === 'psicologo' ? 'Dra. Camila Pérez' : undefined;
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
-    const [showTerms, setShowTerms] = useState(false);
-    const [showPrivacy, setShowPrivacy] = useState(false);
-
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
     const [passwordCorreo, setPasswordCorreo] = useState('');
@@ -35,8 +29,6 @@ export default function MiCuenta() {
     const [passwordSaved, setPasswordSaved] = useState(false);
 
     const tipoCuenta = role === 'psicologo' ? 'Psicólogo' : 'Padre o tutor';
-    const soportePath = role === 'psicologo' ? '/psicologo/soporte' : '/padre/soporte';
-
     useEffect(() => {
         if (openPanel !== 'correo') {
             setEmailSaved(false);
@@ -340,27 +332,6 @@ export default function MiCuenta() {
                     </div>
                 </section>
 
-                <section className="info-card mi-cuenta-section">
-                    <h2 className="mi-cuenta-section-title">Legal</h2>
-                    <div className="mi-cuenta-legal">
-                        <button type="button" className="mi-cuenta-link" onClick={() => setShowPrivacy(true)}>
-                            Política de privacidad
-                        </button>
-                        <button type="button" className="mi-cuenta-link" onClick={() => setShowTerms(true)}>
-                            Términos de uso
-                        </button>
-                    </div>
-                </section>
-
-                <section className="info-card mi-cuenta-section">
-                    <h2 className="mi-cuenta-section-title">Ayuda / Soporte</h2>
-                    <p className="mi-cuenta-section-note">
-                        ¿Necesitas ayuda o quieres reportar un problema? Escríbenos desde la sección de soporte.
-                    </p>
-                    <Link to={soportePath} className="mi-cuenta-btn primary mi-cuenta-support-btn">
-                        Ir a soporte
-                    </Link>
-                </section>
             </div>
 
             <div className="mi-cuenta-logout">
@@ -370,12 +341,6 @@ export default function MiCuenta() {
                 </button>
             </div>
 
-            <Modal isOpen={showTerms} onClose={() => setShowTerms(false)}>
-                <TermsContent />
-            </Modal>
-            <Modal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)}>
-                <PrivacyContent />
-            </Modal>
         </div>
     );
 }

@@ -23,14 +23,14 @@ Los ítems se configuran en `SidebarConfig.tsx` con `label`, `icon` y `paths`.
 **Padre/Tutor**
 - Cuestionario → `IconClipboard` → `/padre/cuestionario`
 - Historial → `IconHistory` → `/padre/historial`
-- Soporte → `IconSupport` → `/padre/soporte`
+- Ayuda → `IconSupport` → `/padre/ayuda`
 - Cuenta → `IconUser` → `/padre/cuenta`
 
 **Psicólogo**
 - Cuestionario → `IconClipboard` → `/psicologo/cuestionario`
 - Historial → `IconHistory` → `/psicologo/historial`
 - Sugerencias → `IconLightbulb` → `/psicologo/sugerencias`
-- Soporte → `IconSupport` → `/psicologo/soporte`
+- Ayuda → `IconSupport` → `/psicologo/ayuda`
 - Cuenta → `IconUser` → `/psicologo/cuenta`
 
 Notas:
