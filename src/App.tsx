@@ -76,7 +76,7 @@ export default function App() {
                         <Route path="cuestionario" element={<CuestionarioPadre />} />
                         <Route path="historial" element={<HistorialPadre />} />
                         <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="soporte" element={<SoportePadre />} />
+                        <Route path="ayuda" element={<SoportePadre />} />
                     </Route>
                     <Route path="/psicologo">
                         <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
@@ -84,7 +84,7 @@ export default function App() {
                         <Route path="historial" element={<HistorialPsicologo />} />
                         <Route path="sugerencias" element={<SugerenciasPsicologo />} />
                         <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="soporte" element={<SoportePsicologo />} />
+                        <Route path="ayuda" element={<SoportePsicologo />} />
                     </Route>
                 </Route>
             </Routes>

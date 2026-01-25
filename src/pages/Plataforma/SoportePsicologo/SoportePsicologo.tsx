@@ -1,11 +1,7 @@
-import '../Plataforma.css';
-import './SoportePsicologo.css';
+import AyudaBase from '../AyudaBase';
 
 export default function SoportePsicologo() {
     return (
-        <div className="plataforma-view">
-            <div className="info-card plataforma-card">Soporte psicólogo</div>
-        </div>
+        <AyudaBase role="psicologo" />
     );
 }
-

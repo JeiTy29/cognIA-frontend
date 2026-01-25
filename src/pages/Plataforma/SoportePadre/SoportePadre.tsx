@@ -1,11 +1,8 @@
-import '../Plataforma.css';
-import './SoportePadre.css';
+import AyudaBase from '../AyudaBase';
 
 export default function SoportePadre() {
     return (
-        <div className="plataforma-view">
-            <div className="info-card plataforma-card">Soporte padre/tutor</div>
-        </div>
+        <AyudaBase role="padre" />
     );
 }
 
