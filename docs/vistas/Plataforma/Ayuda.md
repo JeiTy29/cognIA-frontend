@@ -78,8 +78,6 @@ Constantes configurables en la vista:
 
 ## Archivos relacionados
 
-- Vista compartida (ambos roles): `src/pages/Plataforma/AyudaBase.tsx`
-- Estilos: `src/pages/Plataforma/Ayuda.css`
-- Enrutado por rol:
-  - `src/pages/Plataforma/SoportePadre/SoportePadre.tsx`
-  - `src/pages/Plataforma/SoportePsicologo/SoportePsicologo.tsx`
+- Vista compartida (ambos roles): `src/pages/Plataforma/Ayuda/AyudaBase.tsx`
+- Estilos: `src/pages/Plataforma/Ayuda/Ayuda.css`
+- Vista compartida por rol detectado en ruta (usa `useLocation`).

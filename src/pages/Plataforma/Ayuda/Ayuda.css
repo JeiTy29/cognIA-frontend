@@ -179,19 +179,21 @@
 }
 
 .ayuda-btn.whatsapp {
-    background: #25D366;
+    background: #2EBF73;
     color: #ffffff;
-    box-shadow: 0 6px 14px rgba(37, 211, 102, 0.25);
+    box-shadow: 0 6px 12px rgba(46, 191, 115, 0.2);
 }
 
 .ayuda-btn.gmail {
-    background: #EA4335;
+    background: #E05A52;
     color: #ffffff;
+    box-shadow: 0 6px 12px rgba(224, 90, 82, 0.2);
 }
 
 .ayuda-btn.outlook {
-    background: #0078D4;
+    background: #2F74A9;
     color: #ffffff;
+    box-shadow: 0 6px 12px rgba(47, 116, 169, 0.2);
 }
 
 .ayuda-btn.copy {

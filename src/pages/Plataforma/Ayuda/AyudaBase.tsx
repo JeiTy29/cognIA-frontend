@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Modal } from '../../components/Modal/Modal';
-import { TermsContent } from '../Inicio/Terms/Terms';
-import { PrivacyContent } from '../Inicio/Privacy/Privacy';
-import './Plataforma.css';
+import { useLocation } from 'react-router-dom';
+import { Modal } from '../../../components/Modal/Modal';
+import { TermsContent } from '../../Inicio/Terms/Terms';
+import { PrivacyContent } from '../../Inicio/Privacy/Privacy';
+import '../Plataforma.css';
 import './Ayuda.css';
 
 type HelpRole = 'padre' | 'psicologo';
-
-interface AyudaBaseProps {
-    role: HelpRole;
-}
 
 const WHATSAPP_NUMBER = '0000000000';
 const SUPPORT_EMAIL = 'soporte@cognia.com';
@@ -18,22 +15,22 @@ const SUPPORT_EMAIL = 'soporte@cognia.com';
 const faqsPadre = [
     {
         id: 'padre-1',
-        question: '?Qu? significa la alerta que muestra el sistema?',
-        answer: 'La alerta indica un posible trastorno seg?n el cuestionario. No es un diagn?stico cl?nico.'
+        question: '¿Qué significa la alerta que muestra el sistema?',
+        answer: 'La alerta indica un posible trastorno según el cuestionario. No es un diagnóstico clínico.'
     },
     {
         id: 'padre-2',
-        question: '?C?mo diligencio el cuestionario correctamente?',
+        question: '¿Cómo diligencio el cuestionario correctamente?',
         answer: 'Responde con honestidad y completa todas las preguntas para obtener un resultado confiable.'
     },
     {
         id: 'padre-3',
-        question: '?D?nde veo el historial de mis cuestionarios?',
-        answer: 'En la secci?n Historial puedes consultar los cuestionarios realizados por tu cuenta.'
+        question: '¿Dónde veo el historial de mis cuestionarios?',
+        answer: 'En la sección Historial puedes consultar los cuestionarios realizados por tu cuenta.'
     },
     {
         id: 'padre-4',
-        question: '?Qu? datos se guardan sobre mi hijo?',
+        question: '¿Qué datos se guardan sobre mi hijo?',
         answer: 'Solo se registran respuestas de comportamiento sin datos personales identificables.'
     }
 ];
@@ -41,27 +38,30 @@ const faqsPadre = [
 const faqsPsicologo = [
     {
         id: 'psicologo-1',
-        question: '?C?mo interpreto los resultados detallados?',
-        answer: 'Los resultados muestran la alerta y el razonamiento del modelo para apoyar tu an?lisis profesional.'
+        question: '¿Cómo interpreto los resultados detallados?',
+        answer: 'Los resultados muestran la alerta y el razonamiento del modelo para apoyar tu análisis profesional.'
     },
     {
         id: 'psicologo-2',
-        question: '?Puedo ver m?ltiples evaluaciones de un mismo caso?',
-        answer: 'S?, si el tutor otorg? permisos, puedes acceder al historial completo de cuestionarios.'
+        question: '¿Puedo ver múltiples evaluaciones de un mismo caso?',
+        answer: 'Sí, si el tutor otorgó permisos, puedes acceder al historial completo de cuestionarios.'
     },
     {
         id: 'psicologo-3',
-        question: '?Qu? hacer si necesito reportes adicionales?',
-        answer: 'Puedes usar la secci?n de reporte de problemas o contactarnos para solicitar soporte.'
+        question: '¿Qué hacer si necesito reportes adicionales?',
+        answer: 'Puedes usar la sección de reporte de problemas o contactarnos para solicitar soporte.'
     },
     {
         id: 'psicologo-4',
-        question: '?C?mo se muestran las sugerencias del sistema?',
-        answer: 'Las sugerencias se presentan como apoyo y no reemplazan la evaluaci?n cl?nica.'
+        question: '¿Cómo se muestran las sugerencias del sistema?',
+        answer: 'Las sugerencias se presentan como apoyo y no reemplazan la evaluación clínica.'
     }
 ];
 
-export default function AyudaBase({ role }: AyudaBaseProps) {
+export default function AyudaBase() {
+    const location = useLocation();
+    const role: HelpRole = location.pathname.includes('/psicologo') ? 'psicologo' : 'padre';
+
     const [openFaqId, setOpenFaqId] = useState<string | null>(null);
     const [showReportForm, setShowReportForm] = useState(false);
     const [reportSent, setReportSent] = useState(false);
@@ -74,7 +74,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
     const [attachment, setAttachment] = useState<File | null>(null);
 
     const faqs = role === 'psicologo' ? faqsPsicologo : faqsPadre;
-    const roleLabel = role === 'psicologo' ? 'Psic?logo' : 'Padre/Tutor';
+    const roleLabel = role === 'psicologo' ? 'Psicólogo' : 'Padre/Tutor';
 
     const whatsappMessage = `Hola, necesito ayuda con CognIA. Mi tipo de cuenta es: ${roleLabel}.`;
     const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
@@ -82,8 +82,8 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
     const mailSubject = 'Soporte CognIA';
     const mailBody = `Hola, necesito ayuda con CognIA.
 Tipo de cuenta: ${roleLabel}.
-M?dulo: Ayuda.
-Descripci?n: `;
+Módulo: Ayuda.
+Descripción: `;
     const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT_EMAIL)}&su=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
     const outlookLink = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(SUPPORT_EMAIL)}&subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
 
@@ -124,7 +124,7 @@ Descripci?n: `;
             <div className="ayuda-container">
                 <header className="ayuda-header">
                     <h1 className="ayuda-title">Ayuda</h1>
-                    <p className="ayuda-subtitle">Encuentra respuestas r?pidas o cont?ctanos si necesitas ayuda.</p>
+                    <p className="ayuda-subtitle">Encuentra respuestas rápidas o contáctanos si necesitas ayuda.</p>
                 </header>
 
                 <section className="info-card ayuda-panel ayuda-faq">
@@ -139,7 +139,7 @@ Descripci?n: `;
                                     aria-expanded={openFaqId === item.id}
                                 >
                                     <span>{item.question}</span>
-                                    <span className="ayuda-faq-icon">{openFaqId === item.id ? '?' : '+'}</span>
+                                    <span className="ayuda-faq-icon">{openFaqId === item.id ? '–' : '+'}</span>
                                 </button>
                                 <div className={`ayuda-faq-answer ${openFaqId === item.id ? 'is-open' : ''}`}>
                                     <p>{item.answer}</p>
@@ -150,10 +150,10 @@ Descripci?n: `;
                 </section>
 
                 <div className="ayuda-lower">
-                    <section className="info-card ayuda-panel ayuda-report">
+                    <section className="info-card ayuda-panel ayuda-report-panel">
                         <button type="button" className="ayuda-toggle" onClick={handleReportToggle}>
                             <span>Reportar un problema</span>
-                            <span className="ayuda-toggle-icon">{showReportForm ? '?' : '+'}</span>
+                            <span className="ayuda-toggle-icon">{showReportForm ? '–' : '+'}</span>
                         </button>
                         <div className={`ayuda-report ${showReportForm ? 'is-open' : ''}`}>
                             <form className="ayuda-report-form" onSubmit={handleReportSubmit}>
@@ -164,7 +164,7 @@ Descripci?n: `;
                                         value={issueType}
                                         onChange={(event) => setIssueType(event.target.value)}
                                     >
-                                        <option value="">Selecciona una opci?n</option>
+                                        <option value="">Selecciona una opción</option>
                                         <option value="Acceso">Acceso</option>
                                         <option value="Cuestionario">Cuestionario</option>
                                         <option value="Resultados">Resultados</option>
@@ -173,7 +173,7 @@ Descripci?n: `;
                                     </select>
                                 </label>
                                 <label className="ayuda-input-group">
-                                    <span className="ayuda-label">Descripci?n</span>
+                                    <span className="ayuda-label">Descripción</span>
                                     <textarea
                                         className="ayuda-input ayuda-textarea"
                                         placeholder="Describe el problema de forma breve."
@@ -240,10 +240,10 @@ Descripci?n: `;
                             <h2 className="ayuda-section-title">Legal</h2>
                             <div className="ayuda-legal">
                                 <button type="button" className="ayuda-link" onClick={() => setShowPrivacy(true)}>
-                                    Pol?tica de privacidad
+                                    Política de privacidad
                                 </button>
                                 <button type="button" className="ayuda-link" onClick={() => setShowTerms(true)}>
-                                    T?rminos de uso
+                                    Términos de uso
                                 </button>
                             </div>
                         </div>

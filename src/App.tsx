@@ -15,11 +15,10 @@ import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
 import MiCuenta from './pages/Plataforma/MiCuenta/MiCuenta';
-import SoportePadre from './pages/Plataforma/SoportePadre/SoportePadre';
+import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
 import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/CuestionarioPsicologo';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
-import SoportePsicologo from './pages/Plataforma/SoportePsicologo/SoportePsicologo';
 
 export default function App() {
     return (
@@ -76,7 +75,7 @@ export default function App() {
                         <Route path="cuestionario" element={<CuestionarioPadre />} />
                         <Route path="historial" element={<HistorialPadre />} />
                         <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="ayuda" element={<SoportePadre />} />
+                        <Route path="ayuda" element={<AyudaBase />} />
                     </Route>
                     <Route path="/psicologo">
                         <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
@@ -84,7 +83,7 @@ export default function App() {
                         <Route path="historial" element={<HistorialPsicologo />} />
                         <Route path="sugerencias" element={<SugerenciasPsicologo />} />
                         <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="ayuda" element={<SoportePsicologo />} />
+                        <Route path="ayuda" element={<AyudaBase />} />
                     </Route>
                 </Route>
             </Routes>
