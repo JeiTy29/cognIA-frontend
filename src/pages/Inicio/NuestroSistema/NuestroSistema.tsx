@@ -16,7 +16,9 @@ export default function NuestroSistema() {
   const [accordionIndex, setAccordionIndex] = useState<number | null>(0);
   const [animationCycle, setAnimationCycle] = useState(0);
   const [rolActivo, setRolActivo] = useState<'padres' | 'psicologos'>('padres');
+  const [isRoleSwitching, setIsRoleSwitching] = useState(false);
   const animationTimeoutRef = useRef<number | null>(null);
+  const roleAnimationRef = useRef<number | null>(null);
 
   const questions = [
     {
@@ -62,9 +64,11 @@ export default function NuestroSistema() {
       title: '1) Un árbol toma decisiones',
       body: (
         <>
-          Un árbol de decisión aprende reglas a partir de ejemplos.
+          Un árbol de decisión funciona como un camino de preguntas: 
           <br />
-          Cada pregunta guía el camino hacia un resultado.
+          Según la respuesta, avanza por una rama u otra.
+          <br />
+          Al final del camino llega a una conclusión.
         </>
       )
     },
@@ -72,9 +76,11 @@ export default function NuestroSistema() {
       title: '2) Un bosque combina muchos árboles',
       body: (
         <>
-          Random Forest entrena muchos árboles con variaciones.
+          En Random Forest se hace uso de muchos árboles diferentes.
           <br />
-          Luego combina sus respuestas para reducir errores.
+          Cada uno aprende con ejemplos ligeramente distintos, por lo que no todos toman el mismo camino
+          <br />
+          Luego se combinan sus respuestas, obteniendo un resultado más estable.
         </>
       )
     },
@@ -82,9 +88,9 @@ export default function NuestroSistema() {
       title: '3) ¿Cómo se obtiene la alerta?',
       body: (
         <>
-          Los árboles 'votan' y el sistema calcula un nivel de alerta.
+          Cada árbol da su “opinión” y el sistema hace un conteo de votos.
           <br />
-          En perfiles profesionales se muestra más detalle del porqué.
+          Si la mayoría coincide en que hay señales de un posible trastorno, se genera una alerta (no un diagnóstico).
         </>
       )
     }
@@ -92,19 +98,18 @@ export default function NuestroSistema() {
 
   const roleContent = {
     padres: {
-      line: 'Diligencian el cuestionario y consultan sus propios resultados.',
       items: [
         {
-          text: 'Ven únicamente resultados de cuestionarios realizados por ellos.',
-          icon: frasePadre1
+          text: 'Realizan los cuestionarios para sus hijos o estudiantes. El cuestionario evalúa el comportamiento sin identificar al niño. ',
+          icon: frasePadre3
         },
         {
           text: 'Reciben una alerta sobre un posible trastorno.',
           icon: frasePadre2
         },
         {
-          text: 'El cuestionario evalúa el comportamiento sin identificar al niño.',
-          icon: frasePadre3
+          text: 'Pueden visualizar los resultados de sus propios cuestionarios.',
+          icon: frasePadre1
         },
         {
           text: 'La alerta se basa en un posible trastorno que pueda tener el infante.',
@@ -113,7 +118,6 @@ export default function NuestroSistema() {
       ]
     },
     psicologos: {
-      line: 'Realizan evaluaciones, acceden a múltiples alertas y visualizan con mayor detalle.',
       items: [
         {
           text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o docente alla dado los permisos necesarios.',
@@ -136,7 +140,15 @@ export default function NuestroSistema() {
   };
 
   const handleRoleChange = (role: 'padres' | 'psicologos') => {
+    if (role === rolActivo) return;
+    if (roleAnimationRef.current !== null) {
+      window.clearTimeout(roleAnimationRef.current);
+    }
     setRolActivo(role);
+    setIsRoleSwitching(true);
+    roleAnimationRef.current = window.setTimeout(() => {
+      setIsRoleSwitching(false);
+    }, 500);
   };
 
   const handleQuestionClick = (questionId: number) => {
@@ -248,8 +260,8 @@ export default function NuestroSistema() {
       <section className="audience-section">
         <div className="info-card audience-panel">
           <div className="panel-header">
-            <h2 className="panel-title">¿Para quien va dirigido?</h2>
-            <div className="role-tabs" role="tablist" aria-label="Roles principales">
+            <h2 className="panel-title">¿Quienes pueden usar el sistema?</h2>
+            <div className={`role-tabs ${isRoleSwitching ? 'is-switching' : ''}`} role="tablist" aria-label="Roles principales">
               <button
                 type="button"
                 className={`role-tab ${rolActivo === 'padres' ? 'active' : ''}`}
@@ -271,8 +283,7 @@ export default function NuestroSistema() {
             </div>
           </div>
 
-          <div className="role-content" role="tabpanel">
-            <p className="role-line">{roleContent[rolActivo].line}</p>
+          <div className={`role-content ${isRoleSwitching ? 'is-switching' : ''}`} role="tabpanel">
             <div className="role-points">
               {roleContent[rolActivo].items.map((item) => (
                 <div key={item.text} className="role-point">
@@ -296,7 +307,7 @@ export default function NuestroSistema() {
           <div className="rf-description info-card">
             <h3>Así funciona Random Forest</h3>
             <p className="rf-intro-line">
-              Usamos Random Forest para combinar múltiples decisiones y obtener una alerta más estable.
+              Es una técnica que usa muchas “decisiones simples” para llegar a una conclusión más confiable. En vez de depender de una sola regla, combina varias opiniones y así reduce errores por casos aislados.
             </p>
             <div className="rf-accordion">
               {accordionItems.map((item, index) => (
