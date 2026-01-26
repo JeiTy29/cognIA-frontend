@@ -15,7 +15,7 @@ Explica el flujo de evaluación en cuatro etapas y muestra una simulación inter
 1. **Título principal** `.section-title` y texto introductorio `.intro`.
 2. **Cards de etapas** (`.cards`): 4 tarjetas con ícono SVG, numeración y descripción.
 3. **Bloque "¿Para quien va dirigido?"** (`.audience-section`):
-   - Un panel principal con tabs (`.audience-panel`, `.role-tabs`).
+- Un panel principal con tabs centrados (`.audience-panel`, `.role-tabs`).
    - Cuatro círculos por rol con iconos (`.role-point`).
    - Nota integrada de no diagnóstico (`.rf-note`).
 4. **Sección Random Forest** (`.rf-demo`):
@@ -28,7 +28,7 @@ Explica el flujo de evaluación en cuatro etapas y muestra una simulación inter
 - `isAnimating: boolean` → bloquea botones durante animación.
 - `showResult: boolean` → muestra resultado final al terminar.
 - `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
-- `rolActivo: 'padres' | 'psicologos'` → tab activo del panel.
+- `isRoleSwitching: boolean` → activa animación al alternar el rol.
 
 Flujo al hacer clic en una pregunta:
 1. Se asigna `selectedQuestion`.
@@ -39,7 +39,7 @@ Flujo al hacer clic en una pregunta:
 
 ### Panel único con tabs
 
-- Título: "¿Para quien va dirigido?" (color igual a los títulos de las cards superiores).
+- Título centrado y selector alineado al centro, bajo el título.
 - Selector tipo tabs: **Padres y docentes** / **Psicólogos**.
 - El contenido cambia con `rolActivo`.
 
@@ -91,6 +91,7 @@ Flujo al hacer clic en una pregunta:
 
 - `treeVote`: entrada de cada árbol (0.5s–0.6s).
 - `fadeIn`: aparición del resultado final.
+- Cambio de rol: tabs con pulso sutil y cards con transición de aparición.
 
 ## Clases CSS clave
 

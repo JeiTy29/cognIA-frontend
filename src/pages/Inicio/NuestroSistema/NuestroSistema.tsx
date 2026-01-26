@@ -16,7 +16,9 @@ export default function NuestroSistema() {
   const [accordionIndex, setAccordionIndex] = useState<number | null>(0);
   const [animationCycle, setAnimationCycle] = useState(0);
   const [rolActivo, setRolActivo] = useState<'padres' | 'psicologos'>('padres');
+  const [isRoleSwitching, setIsRoleSwitching] = useState(false);
   const animationTimeoutRef = useRef<number | null>(null);
+  const roleAnimationRef = useRef<number | null>(null);
 
   const questions = [
     {
@@ -96,19 +98,18 @@ export default function NuestroSistema() {
 
   const roleContent = {
     padres: {
-      line: 'Diligencian el cuestionario y consultan sus propios resultados.',
       items: [
         {
-          text: 'Ven únicamente resultados de cuestionarios realizados por ellos.',
-          icon: frasePadre1
+          text: 'Realizan los cuestionarios para sus hijos o estudiantes. El cuestionario evalúa el comportamiento sin identificar al niño. ',
+          icon: frasePadre3
         },
         {
           text: 'Reciben una alerta sobre un posible trastorno.',
           icon: frasePadre2
         },
         {
-          text: 'El cuestionario evalúa el comportamiento sin identificar al niño.',
-          icon: frasePadre3
+          text: 'Pueden visualizar los resultados de sus propios cuestionarios.',
+          icon: frasePadre1
         },
         {
           text: 'La alerta se basa en un posible trastorno que pueda tener el infante.',
@@ -117,7 +118,6 @@ export default function NuestroSistema() {
       ]
     },
     psicologos: {
-      line: 'Realizan evaluaciones, acceden a múltiples alertas y visualizan con mayor detalle.',
       items: [
         {
           text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o docente alla dado los permisos necesarios.',
@@ -140,7 +140,15 @@ export default function NuestroSistema() {
   };
 
   const handleRoleChange = (role: 'padres' | 'psicologos') => {
+    if (role === rolActivo) return;
+    if (roleAnimationRef.current !== null) {
+      window.clearTimeout(roleAnimationRef.current);
+    }
     setRolActivo(role);
+    setIsRoleSwitching(true);
+    roleAnimationRef.current = window.setTimeout(() => {
+      setIsRoleSwitching(false);
+    }, 500);
   };
 
   const handleQuestionClick = (questionId: number) => {
@@ -252,8 +260,8 @@ export default function NuestroSistema() {
       <section className="audience-section">
         <div className="info-card audience-panel">
           <div className="panel-header">
-            <h2 className="panel-title">¿Para quien va dirigido?</h2>
-            <div className="role-tabs" role="tablist" aria-label="Roles principales">
+            <h2 className="panel-title">¿Quienes pueden usar el sistema?</h2>
+            <div className={`role-tabs ${isRoleSwitching ? 'is-switching' : ''}`} role="tablist" aria-label="Roles principales">
               <button
                 type="button"
                 className={`role-tab ${rolActivo === 'padres' ? 'active' : ''}`}
@@ -275,8 +283,7 @@ export default function NuestroSistema() {
             </div>
           </div>
 
-          <div className="role-content" role="tabpanel">
-            <p className="role-line">{roleContent[rolActivo].line}</p>
+          <div className={`role-content ${isRoleSwitching ? 'is-switching' : ''}`} role="tabpanel">
             <div className="role-points">
               {roleContent[rolActivo].items.map((item) => (
                 <div key={item.text} className="role-point">
