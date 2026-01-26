@@ -62,9 +62,11 @@ export default function NuestroSistema() {
       title: '1) Un árbol toma decisiones',
       body: (
         <>
-          Un árbol de decisión aprende reglas a partir de ejemplos.
+          Un árbol de decisión funciona como un camino de preguntas: 
           <br />
-          Cada pregunta guía el camino hacia un resultado.
+          Según la respuesta, avanza por una rama u otra.
+          <br />
+          Al final del camino llega a una conclusión.
         </>
       )
     },
@@ -72,9 +74,11 @@ export default function NuestroSistema() {
       title: '2) Un bosque combina muchos árboles',
       body: (
         <>
-          Random Forest entrena muchos árboles con variaciones.
+          En Random Forest se hace uso de muchos árboles diferentes.
           <br />
-          Luego combina sus respuestas para reducir errores.
+          Cada uno aprende con ejemplos ligeramente distintos, por lo que no todos toman el mismo camino
+          <br />
+          Luego se combinan sus respuestas, obteniendo un resultado más estable.
         </>
       )
     },
@@ -82,9 +86,9 @@ export default function NuestroSistema() {
       title: '3) ¿Cómo se obtiene la alerta?',
       body: (
         <>
-          Los árboles 'votan' y el sistema calcula un nivel de alerta.
+          Cada árbol da su “opinión” y el sistema hace un conteo de votos.
           <br />
-          En perfiles profesionales se muestra más detalle del porqué.
+          Si la mayoría coincide en que hay señales de un posible trastorno, se genera una alerta (no un diagnóstico).
         </>
       )
     }
@@ -296,7 +300,7 @@ export default function NuestroSistema() {
           <div className="rf-description info-card">
             <h3>Así funciona Random Forest</h3>
             <p className="rf-intro-line">
-              Usamos Random Forest para combinar múltiples decisiones y obtener una alerta más estable.
+              Es una técnica que usa muchas “decisiones simples” para llegar a una conclusión más confiable. En vez de depender de una sola regla, combina varias opiniones y así reduce errores por casos aislados.
             </p>
             <div className="rf-accordion">
               {accordionItems.map((item, index) => (
