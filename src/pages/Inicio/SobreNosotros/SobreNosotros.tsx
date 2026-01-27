@@ -1,5 +1,5 @@
 import './SobreNosotros.css';
-import udecLogo from '../../../assets/Iconos/SobreNosotros/UDEC.png';
+import udecLogo from '../../../assets/Iconos_2/SobreNosotros/UDEC.png';
 
 export default function SobreNosotros() {
     return (
