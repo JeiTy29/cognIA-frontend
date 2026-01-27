@@ -1,40 +1,29 @@
-Ôªø# Vista: T√©rminos de Uso
+# Vista: TÈrminos de Uso
 
-## Descripci√≥n general
+## DescripciÛn general
 
-P√°gina legal con condiciones del servicio.
+Contenido legal de tÈrminos usado en modales.
 
-## Ubicaci√≥n
+## UbicaciÛn
 
-- Componente: `src/pages/Inicio/Terms/Terms.tsx`
-- Estilos: `src/pages/Inicio/Terms/Terms.css`
-- Ruta: `/terms`
-- Se muestra con Header y Footer (ver `src/App.tsx`).
+- Componente: `src/components/Legal/TermsContent.tsx`
+- Estilos: `src/components/Legal/LegalContent.css`
+- Se muestra dentro de modales (Footer y Registro).
 
-## L√≥gica de navegaci√≥n
+## LÛgica
 
-- Si la URL incluye `?from=registro`, se muestra bot√≥n **‚ÄúVolver al formulario de registro‚Äù**.
-- El bot√≥n ejecuta `navigate(-1)`.
+- No hay navegaciÛn propia: se muestra como contenido embebido en un modal.
 
-## Estructura
+## Contenido
 
-- `.terms-title` y `.terms-subtitle` centrados.
-- `.content-card` con texto legal.
-- Link interno a **Pol√≠ticas de Privacidad**.
+- Aclara que CognIA no reemplaza evaluaciÛn clÌnica ni diagnostica.
+- Recalca uso responsable y confidencialidad.
+- Indica que los tÈrminos pueden actualizarse.
 
 ## Estilos clave
 
-- Fondo blanco, card con sombra y padding de 2rem.
-- Bot√≥n de regreso con color primario **#1790E9** y hover desplazado.
+- Card con sombra y padding de ~1.75rem.
 
 ## Clases CSS clave
 
-- `.terms-page`, `.terms-title`, `.content-card`, `.back-to-form-button`.
-
-## Reutilizaci√≥n
-
-- `TermsContent` se exporta y se usa dentro de los modales de registro.
-
-## Responsive
-
-- `max-width: 768px`: t√≠tulo 2rem, subt√≠tulo 1rem, padding menor.
+- `.terms-title`, `.terms-subtitle`, `.content-card`.

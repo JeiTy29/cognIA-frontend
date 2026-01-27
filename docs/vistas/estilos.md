@@ -26,8 +26,8 @@ El fondo combina un degradado base con “manchas” animadas usando pseudo-elem
 - Base del `body`: gradiente lineal **#FFFFFF → #E2F0FF**.
 - `body::before`: 3 manchas radiales (azules) con **blur 26px**.
 - `body::after`: 2 manchas radiales (blanco/azul) con **blur 34px**.
-- Animaciones: `blobShift` (18s), `blobDrift` (16s), `blobShiftAlt` (24s), `blobDriftAlt` (20s).
-- Movimiento suave continuo, pensado para no distraer.
+- Animaciones: `blobShift` (12s), `blobDrift` (14s), `blobShiftAlt` (16s), `blobDriftAlt` (18s).
+- Movimiento suave continuo con loop sin saltos (0% y 100% alineados).
 - `prefers-reduced-motion`: desactiva animaciones.
 
 ## Tipografía base

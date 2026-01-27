@@ -10,7 +10,7 @@
     align-items: center;
     z-index: 1000;
     opacity: 1;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.42s ease;
 }
 
 .modal-content {
@@ -23,9 +23,9 @@
     overflow-y: auto;
     position: relative;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transform: scale(1);
+    transform: translateY(0) scale(1);
     opacity: 1;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.42s ease, opacity 0.42s ease;
 }
 
 .modal-overlay.is-closing {
@@ -33,7 +33,16 @@
 }
 
 .modal-overlay.is-closing .modal-content {
-    transform: scale(0.98);
+    transform: translateY(6px) scale(0.97);
+    opacity: 0;
+}
+
+.modal-overlay.is-opening {
+    opacity: 0;
+}
+
+.modal-overlay.is-opening .modal-content {
+    transform: translateY(10px) scale(0.98);
     opacity: 0;
 }
 

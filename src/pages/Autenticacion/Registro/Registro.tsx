@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
-import { TermsContent } from '../../Inicio/Terms/Terms';
-import { PrivacyContent } from '../../Inicio/Privacy/Privacy';
+import { TermsContent } from '../../../components/Legal/TermsContent';
+import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
 import { validatePassword } from '../../../utils/passwordValidation';
 
 type TipoUsuario = 'padre' | 'psicologo' | null;

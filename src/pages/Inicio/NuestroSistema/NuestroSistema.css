@@ -35,10 +35,12 @@
 .panel-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 16px;
     flex-wrap: wrap;
     margin-bottom: 16px;
+    flex-direction: column;
+    text-align: center;
 }
 
 .panel-title {
@@ -54,6 +56,7 @@
     padding: 4px;
     background: rgba(81, 194, 244, 0.08);
     border-radius: 999px;
+    justify-content: center;
 }
 
 .role-tab {
@@ -65,18 +68,27 @@
     font-weight: 600;
     color: #215F8F;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .role-tab.active {
     background: #215F8F;
     color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.role-tabs.is-switching .role-tab.active {
+    animation: roleTabPulse 0.8s ease;
 }
 
 .role-content {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.role-content.is-switching .role-point {
+    animation: roleCardFade 0.8s ease;
 }
 
 .role-line {
@@ -104,6 +116,32 @@
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
+}
+
+@keyframes roleTabPulse {
+    0% {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+    50% {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(33, 95, 143, 0.25);
+    }
+    100% {
+        transform: translateY(-1px);
+        box-shadow: none;
+    }
+}
+
+@keyframes roleCardFade {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .role-point-icon {

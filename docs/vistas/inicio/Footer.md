@@ -19,8 +19,8 @@ Pie de página institucional con contacto y enlaces legales.
 
 ## Enlaces
 
-- `Políticas de privacidad` → `/privacy`.
-- `Términos de uso` → `/terms`.
+- `Políticas de privacidad` → abre modal con `PrivacyContent`.
+- `Términos de uso` → abre modal con `TermsContent`.
 - Email: `mailto:contacto@cognia.edu.co`.
 
 ## Estilos clave

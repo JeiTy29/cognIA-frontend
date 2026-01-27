@@ -2,8 +2,8 @@
 import type { FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Modal } from '../../../components/Modal/Modal';
-import { TermsContent } from '../../Inicio/Terms/Terms';
-import { PrivacyContent } from '../../Inicio/Privacy/Privacy';
+import { TermsContent } from '../../../components/Legal/TermsContent';
+import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
 import '../Plataforma.css';
 import './Ayuda.css';
 

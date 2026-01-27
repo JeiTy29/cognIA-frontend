@@ -39,9 +39,9 @@ Interacciones:
 
 ## Estilos clave
 
-- Círculo central: **620px**, borde negro **8px**.
+- Círculo central: **620px**, borde azul **#1790E9** (solo contorno).
 - Círculos pequeños: **220px** con gradiente azul.
-- Íconos: **108px** en estado base.
+- Íconos: **140px** en estado base.
 - Expandido: círculo crece a **500px** y se mueve con `translateX(640px)`.
 - El wrapper aplica `translateX(-140px)` cuando hay un círculo expandido.
 - Movimiento suave: transiciones **0.7s** en `transform`, `width`, `height`.
