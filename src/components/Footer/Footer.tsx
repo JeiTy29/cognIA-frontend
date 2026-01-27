@@ -1,25 +1,38 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import './Footer.css';
+import { Modal } from '../Modal/Modal';
+import { TermsContent } from '../Legal/TermsContent';
+import { PrivacyContent } from '../Legal/PrivacyContent';
 
 export default function Footer() {
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
+
     return (
         <footer className="footer">
             <div className="footer-content">
                 <p className="footer-copyright">
-                    © 2026 cognIA - Universidad de Cundinamarca
+                    &copy; 2026 cognIA - Universidad de Cundinamarca
                 </p>
                 <p className="footer-contact">
                     Contacto: <a href="mailto:contacto@cognia.edu.co">contacto@cognia.edu.co</a>
                 </p>
                 <div className="footer-links">
-                    <Link to="/privacy" className="footer-link">
-                        Políticas de privacidad
-                    </Link>
-                    <Link to="/terms" className="footer-link">
-                        Términos de uso
-                    </Link>
+                    <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>
+                        Pol&iacute;ticas de privacidad
+                    </button>
+                    <button type="button" className="footer-link" onClick={() => setShowTerms(true)}>
+                        T&eacute;rminos de uso
+                    </button>
                 </div>
             </div>
+
+            <Modal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)}>
+                <PrivacyContent />
+            </Modal>
+            <Modal isOpen={showTerms} onClose={() => setShowTerms(false)}>
+                <TermsContent />
+            </Modal>
         </footer>
     );
 }

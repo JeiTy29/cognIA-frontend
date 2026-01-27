@@ -28,6 +28,7 @@ Página institucional con el equipo de desarrollo y datos de contacto.
 - Tarjetas heredan `.info-card` global.
 - Placeholder de foto: `.dev-image-placeholder` (180px) con borde azul suave.
 - Hover en foto: `scale(1.05)` y borde más vivo.
+- Logo universidad: `.university-logo-placeholder` contiene la imagen `UDEC.png` con `.university-logo` (140px, `object-fit: contain`).
 - Logos de contacto: `.university-logo-placeholder` / `.cognia-logo-placeholder` (140px, borde gris).
 - Roles en azul oscuro: `.dev-role` **#215F8F**.
 

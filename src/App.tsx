@@ -9,8 +9,6 @@ import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import Bienvenida from './pages/Autenticacion/Bienvenida/Bienvenida';
 import Autenticacion from './pages/Autenticacion/Autenticacion';
-import Privacy from './pages/Inicio/Privacy/Privacy';
-import Terms from './pages/Inicio/Terms/Terms';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
@@ -46,21 +44,6 @@ export default function App() {
                         <Footer />
                     </>
                 } />
-                <Route path="/privacy" element={
-                    <>
-                        <Header />
-                        <Privacy />
-                        <Footer />
-                    </>
-                } />
-                <Route path="/terms" element={
-                    <>
-                        <Header />
-                        <Terms />
-                        <Footer />
-                    </>
-                } />
-
                 {/* Rutas de autenticación sin Header y Footer */}
                 <Route path="/inicio-sesion" element={<InicioSesion />} />
                 <Route path="/registro" element={<Registro />} />

@@ -1,0 +1,50 @@
+.privacy-title,
+.terms-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.4rem;
+    text-align: center;
+}
+
+.privacy-subtitle,
+.terms-subtitle {
+    font-size: 1rem;
+    color: #666666;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.content-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    line-height: 1.8;
+}
+
+.content-card p {
+    margin-bottom: 1.2rem;
+    color: #333333;
+    font-size: 0.98rem;
+}
+
+.content-card p:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .privacy-title,
+    .terms-title {
+        font-size: 1.7rem;
+    }
+
+    .privacy-subtitle,
+    .terms-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .content-card {
+        padding: 1.4rem;
+    }
+}

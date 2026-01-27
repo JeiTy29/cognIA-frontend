@@ -1,4 +1,5 @@
 import './SobreNosotros.css';
+import udecLogo from '../../../assets/iconos/SobreNosotros/UDEC.png';
 
 export default function SobreNosotros() {
     return (
@@ -7,10 +8,8 @@ export default function SobreNosotros() {
                 <h2 className="section-title">Equipo de desarrollo</h2>
                 <div className="team-description">
                     <p>
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod timer incididunt ut labore et dolore magna aliqua.
-                        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-                    </p>
+                        Somos un equipo académico de la Universidad de Cundinamarca (Extensión Facatativá), integrado por dos estudiantes de Ingeniería de Software y nuestro director de tesis. Nuestro objetivo es desarrollar una herramienta web que, a partir de un cuestionario y un modelo de aprendizaje automático, genere alertas tempranas que apoyen a padres, docentes y profesionales en la toma de decisiones.
+                   </p>
                 </div>
 
                 <div className="team-grid">
@@ -62,7 +61,7 @@ export default function SobreNosotros() {
                     <div className="contact-card info-card">
                         <h3>Universidad de Cundinamarca - Sede Facatativá</h3>
                         <div className="university-logo-placeholder">
-                            <span>Logo UDec</span>
+                            <img className="university-logo" src={udecLogo} alt="Logo Universidad de Cundinamarca" />
                         </div>
                         <div className="contact-details">
                             <p><strong>Email:</strong> info@ucundinamarca.edu.co</p>
@@ -88,3 +87,5 @@ export default function SobreNosotros() {
         </div>
     );
 }
+
+
