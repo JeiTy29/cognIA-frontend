@@ -4,11 +4,10 @@ import './Bienvenida.css';
 export default function BienvenidaInicio() {
     return (
         <main className="bienvenida-page">
-            <div className="bienvenida-wave-block">
-                <svg className="wave-divider" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0,96 C240,150 480,40 720,70 C960,100 1200,30 1440,80 L1440,160 L0,160 Z" />
-                </svg>
-                <div className="wave-pattern" aria-hidden="true"></div>
+            <div className="blueArea" aria-hidden="true">
+                <div className="waveLayer waveLayer--1" />
+                <div className="waveLayer waveLayer--2" />
+                <div className="waveLayer waveLayer--3" />
             </div>
 
             <div className="bienvenida-content">
@@ -32,7 +31,8 @@ export default function BienvenidaInicio() {
                             Explora c&oacute;mo funciona el sistema, nuestro equipo de trabajo y los trastornos relacionados.
                         </p>
                         <Link to="/nuestro-sistema" className="cta-button">
-                            Explorar
+                            <span className="cta-button-text">Explorar</span>
+                            <span className="cta-button-icon">&gt;</span>
                         </Link>
                     </article>
 
@@ -43,7 +43,8 @@ export default function BienvenidaInicio() {
                             Inicia sesi&oacute;n para diligenciar el cuestionario y consultar tus resultados.
                         </p>
                         <Link to="/inicio-sesion" className="cta-button">
-                            Empezar
+                            <span className="cta-button-text">Empezar</span>
+                            <span className="cta-button-icon">&gt;</span>
                         </Link>
                     </article>
                 </div>
