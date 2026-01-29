@@ -1,0 +1,269 @@
+.bienvenida-page {
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: #F8FBFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px 72px;
+}
+
+.blueArea {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 100vh;
+    background: transparent;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.waveLayer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-repeat: repeat-x;
+    background-position: 0 bottom;
+    opacity: 1;
+    will-change: transform, background-position;
+}
+
+.waveLayer--1 {
+    height: 80%;
+    z-index: 3;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%201200%20300'%3E%3Cdefs%3E%3ClinearGradient%20id='g1'%20x1='0'%20y1='0'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0%25'%20stop-color='%2356B2E8'/%3E%3Cstop%20offset='100%25'%20stop-color='%233D9AD6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d='M0%20140%20C200%2080%20400%20200%20600%20140%20C800%2080%201000%20200%201200%20140%20L1200%20300%20L0%20300%20Z'%20fill='url(%23g1)'/%3E%3C/svg%3E");
+    background-size: 1200px 300px;
+    animation:
+        waveShift1 16s linear infinite,
+        waveBob1 7s ease-in-out infinite;
+    animation-delay: -3s, -1s;
+}
+
+.waveLayer--2 {
+    height: 102%;
+    z-index: 2;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%201400%20320'%3E%3Cdefs%3E%3ClinearGradient%20id='g2'%20x1='0'%20y1='0'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0%25'%20stop-color='%2372BDEB'/%3E%3Cstop%20offset='100%25'%20stop-color='%2359A9E0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d='M0%20160%20C240%2090%20480%20230%20700%20160%20C920%2090%201160%20230%201400%20160%20L1400%20320%20L0%20320%20Z'%20fill='url(%23g2)'/%3E%3C/svg%3E");
+    background-size: 1400px 320px;
+    animation:
+        waveShift2 22s linear infinite,
+        waveBob2 11s ease-in-out infinite;
+    animation-delay: -10s, -4s;
+}
+
+.waveLayer--3 {
+    height: 130%;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%201600%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g3'%20x1='0'%20y1='0'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0%25'%20stop-color='%2390C8F0'/%3E%3Cstop%20offset='100%25'%20stop-color='%2371B5E6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d='M0%20180%20C260%20100%20520%20260%20800%20180%20C1080%20100%201340%20260%201600%20180%20L1600%20360%20L0%20360%20Z'%20fill='url(%23g3)'/%3E%3C/svg%3E");
+    background-size: 1600px 360px;
+    animation:
+        waveShift3 30s linear infinite,
+        waveBob3 13s ease-in-out infinite;
+    animation-delay: -18s, -7s;
+}
+
+@keyframes waveShift1 {
+    from { background-position: 0 bottom; }
+    to { background-position: -1200px bottom; }
+}
+
+@keyframes waveShift2 {
+    from { background-position: 0 bottom; }
+    to { background-position: 1400px bottom; }
+}
+
+@keyframes waveShift3 {
+    from { background-position: 0 bottom; }
+    to { background-position: -1600px bottom; }
+}
+
+@keyframes waveBob1 {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes waveBob2 {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(12px); }
+}
+
+@keyframes waveBob3 {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.bienvenida-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 18px;
+}
+
+.bienvenida-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    border: 2px dashed rgba(33, 95, 143, 0.35);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    color: #215F8F;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.brand-text {
+    font-size: 54px;
+    font-weight: 700;
+    color: #51C2F4;
+}
+
+.bienvenida-brand .brand-text {
+    font-size: 64px;
+    line-height: 1;
+    color: #51C2F4;
+}
+
+.bienvenida-title {
+    font-size: 3rem;
+    color: #215F8F;
+    margin: 6px 0 0;
+}
+
+.bienvenida-description {
+    max-width: 920px;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #4a5f73;
+}
+
+.cta-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 10px;
+}
+
+.cta-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(81, 194, 244, 0.18);
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 16px 28px rgba(33, 95, 143, 0.18);
+}
+
+.cta-image-placeholder {
+    width: 100%;
+    height: 140px;
+    border-radius: 14px;
+    border: 1px dashed rgba(33, 95, 143, 0.3);
+    background: rgba(255, 255, 255, 0.7);
+    display: grid;
+    place-items: center;
+    color: #215F8F;
+    font-size: 13px;
+}
+
+.cta-title {
+    font-size: 1.3rem;
+    color: #215F8F;
+}
+
+.cta-text {
+    font-size: 0.95rem;
+    color: #4a5f73;
+    line-height: 1.6;
+}
+
+.cta-button {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: stretch;
+    text-decoration: none;
+    box-shadow: 0 6px 14px rgba(23, 144, 233, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(23, 144, 233, 0.25);
+}
+
+.cta-button-text {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 22px;
+    background: linear-gradient(180deg, #2AA1F0 0%, #1790E9 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 8px 0 0 8px;
+    min-width: 180px;
+    text-align: center;
+}
+
+.cta-button-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    background: #2F74A9;
+    color: #ffffff;
+    border-left: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 0 8px 8px 0;
+    font-size: 18px;
+}
+
+@media (max-width: 900px) {
+    .bienvenida-title {
+        font-size: 2.6rem;
+    }
+
+    .cta-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .bienvenida-page {
+        padding: 56px 18px 80px;
+    }
+
+    .bienvenida-title {
+        font-size: 2.2rem;
+    }
+
+    .bienvenida-description {
+        font-size: 0.95rem;
+    }
+
+    .cta-card {
+        padding: 20px;
+    }
+
+    .cta-image-placeholder {
+        height: 120px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .waveLayer {
+        animation: none !important;
+    }
+}

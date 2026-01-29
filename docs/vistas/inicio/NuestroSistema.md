@@ -8,7 +8,7 @@ Explica el flujo de evaluación en cuatro etapas y muestra una simulación inter
 
 - Componente: `src/pages/Inicio/NuestroSistema/NuestroSistema.tsx`
 - Estilos: `src/pages/Inicio/NuestroSistema/NuestroSistema.css`
-- Ruta: `/`
+- Ruta: `/nuestro-sistema`
 
 ## Estructura
 

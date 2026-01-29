@@ -21,6 +21,7 @@
     line-height: 1;
     align-self: center;
     transform: translateY(-1px);
+    text-decoration: none;
 }
 
 .nav {

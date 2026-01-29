@@ -1,13 +1,14 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
+import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
 import NuestroSistema from './pages/Inicio/NuestroSistema/NuestroSistema';
 import SobreNosotros from './pages/Inicio/SobreNosotros/SobreNosotros';
 import Trastornos from './pages/Inicio/Trastornos/Trastornos';
 import InicioSesion from './pages/Autenticacion/InicioSesion/InicioSesion';
 import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
-import Bienvenida from './pages/Autenticacion/Bienvenida/Bienvenida';
+import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
 import Autenticacion from './pages/Autenticacion/Autenticacion';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
@@ -23,7 +24,8 @@ export default function App() {
         <>
             <Routes>
                 {/* Rutas con Header y Footer */}
-                <Route path="/" element={
+                <Route path="/" element={<BienvenidaInicio />} />
+                <Route path="/nuestro-sistema" element={
                     <>
                         <Header />
                         <NuestroSistema />
@@ -48,7 +50,7 @@ export default function App() {
                 <Route path="/inicio-sesion" element={<InicioSesion />} />
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
-                <Route path="/bienvenida" element={<Bienvenida />} />
+                <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
                 <Route path="/autenticacion" element={<Autenticacion />} />
 
                 {/* Rutas de plataforma con Sidebar */}
