@@ -44,10 +44,11 @@ Flujo de creación de cuenta con selección de rol, formularios dinámicos, vali
 ### Formulario Padre/Docente
 
 Campos:
-1. Correo electrónico
-2. Contraseña
-3. Confirmar contraseña
-4. Checkbox **“Activar autenticación en dos pasos”** (opcional)
+1. Nombre de usuario (case-sensitive, patrón `^[A-Za-z0-9._-]{3,32}$`)
+2. Correo electrónico
+3. Contraseña
+4. Confirmar contraseña
+5. Checkbox **“Activar autenticación en dos pasos”** (opcional)
    - Si se activa, se muestra `.twofactor-hint` con aviso de apps compatibles.
 
 ### Formulario Psicólogo
@@ -55,10 +56,11 @@ Campos:
 Campos:
 1. Nombre
 2. Apellido
-3. Correo electrónico
-4. Número de operador nacional
-5. Contraseña
-6. Confirmar contraseña
+3. Nombre de usuario (case-sensitive, patrón `^[A-Za-z0-9._-]{3,32}$`)
+4. Correo electrónico
+5. Número de operador nacional
+6. Contraseña
+7. Confirmar contraseña
 
 ---
 

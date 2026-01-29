@@ -195,6 +195,14 @@
     gap: 16px;
 }
 
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #215F8F;
+}
+
 /* Terms Checkbox */
 .terms-checkbox {
     display: flex;
