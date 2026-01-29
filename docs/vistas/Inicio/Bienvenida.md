@@ -27,13 +27,14 @@ Landing inicial de CognIA. Es la primera vista al entrar al sitio y no utiliza e
 
 ## Fondo con ola y patron animado
 
-- El bloque azul inferior es `.blueArea`, con `height: 60vh`, fondo transparente y `overflow: hidden`, para que la parte superior quede con curva animada.
+- El bloque azul inferior es `.blueArea`, con `height: 100vh`, fondo transparente y `overflow: hidden`, para que la parte superior quede con curva animada.
 - Dentro del bloque azul se crean 3 capas de ondas (una por profundidad):
   - `<div class="waveLayer waveLayer--1" />` (frente)
   - `<div class="waveLayer waveLayer--2" />` (media)
   - `<div class="waveLayer waveLayer--3" />` (fondo)
 - Cada capa usa un SVG de **relleno** (no solo linea) con borde superior ondulado y `background-repeat: repeat-x`.
-- El borde superior de cada capa es la ‚Äúola‚Äù visible; al moverse, la curva superior se anima (no queda recta).
+- Se aplican gradientes suaves dentro del SVG de cada capa para dar profundidad y tonos azules mas oscuros.
+- El borde superior de cada capa es la ìolaî visible; al moverse, la curva superior se anima (no queda recta).
 - La animacion se logra moviendo `background-position` con `@keyframes waveShiftX` y un bamboleo vertical suave con `@keyframes waveBobX`.
 - Las duraciones son largas y con `linear`/`ease-in-out` para movimiento continuo sin saltos visibles.
 - Accesibilidad: en `prefers-reduced-motion` se desactivan las animaciones.
