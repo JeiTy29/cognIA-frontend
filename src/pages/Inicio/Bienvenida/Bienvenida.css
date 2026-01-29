@@ -124,9 +124,15 @@
 }
 
 .brand-text {
-    font-size: 38px;
+    font-size: 54px;
     font-weight: 700;
-    color: #215F8F;
+    color: #51C2F4;
+}
+
+.bienvenida-brand .brand-text {
+    font-size: 64px;
+    line-height: 1;
+    color: #51C2F4;
 }
 
 .bienvenida-title {

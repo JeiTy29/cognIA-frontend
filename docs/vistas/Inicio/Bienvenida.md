@@ -13,7 +13,7 @@ Landing inicial de CognIA. Es la primera vista al entrar al sitio y no utiliza e
 ## Estructura
 
 - Contenedor principal `.bienvenida-page` que ocupa casi toda la pantalla.
-- Marca superior con placeholder de logo + texto **cognIA** destacado.
+- Marca superior con placeholder de logo + texto **cognIA** destacado (tipografia grande).
 - Titulo principal **&iexcl;Bienvenido!** y descripcion del objetivo del sistema.
 - Dos tarjetas CTA grandes `.cta-card` con:
   - Placeholder de imagen.
