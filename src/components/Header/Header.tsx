@@ -3,10 +3,10 @@ import './Header.css';
 export default function Header() {
     return (
         <header className="header">
-            <div className="logo">cognIA</div>
+            <a href="/" className="logo">cognIA</a>
 
             <nav className="nav">
-                <a href="/" className="nav-link">Nuestro Sistema</a>
+                <a href="/nuestro-sistema" className="nav-link">Nuestro Sistema</a>
                 <a href="/sobre-nosotros" className="nav-link">Sobre Nosotros</a>
                 <a href="/trastornos" className="nav-link">Trastornos</a>
             </nav>

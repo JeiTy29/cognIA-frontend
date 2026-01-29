@@ -1,10 +1,10 @@
-﻿# Vista: Header
+# Vista: Header
 
-## Descripción general
+## Descripcion general
 
-Barra superior con navegación principal y accesos de autenticación. Se mantiene sobre el fondo animado con blur.
+Barra superior con navegacion principal y accesos de autenticacion. Se mantiene sobre el fondo animado con blur.
 
-## Ubicación
+## Ubicacion
 
 - Componente: `src/components/Header/Header.tsx`
 - Estilos: `src/components/Header/Header.css`
@@ -12,14 +12,15 @@ Barra superior con navegación principal y accesos de autenticación. Se mantien
 ## Estructura
 
 - `header.header` con tres bloques:
-  - `.logo` → texto “cognIA”.
-  - `nav.nav` → enlaces a **Nuestro Sistema**, **Sobre Nosotros**, **Trastornos**.
-  - `.auth-buttons` → botones **Iniciar sesión** y **Registrarse**.
+  - `.logo` -> texto �cognIA�.
+  - `nav.nav` -> enlaces a **Nuestro Sistema**, **Sobre Nosotros**, **Trastornos**.
+  - `.auth-buttons` -> botones **Iniciar sesion** y **Registrarse**.
 
-## Navegación
+## Navegacion
 
 - Logo y enlaces usan `href`:
-  - `/` (Nuestro Sistema)
+  - `/` (Bienvenida)
+  - `/nuestro-sistema`
   - `/sobre-nosotros`
   - `/trastornos`
   - `/inicio-sesion`
@@ -27,18 +28,18 @@ Barra superior con navegación principal y accesos de autenticación. Se mantien
 
 ## Estilos clave
 
-- Fondo translúcido: `rgba(255,255,255,0.95)` + blur 12px.
-- Línea inferior: `border-bottom` con azul tenue.
+- Fondo translucido: `rgba(255,255,255,0.95)` + blur 12px.
+- Linea inferior: `border-bottom` con azul tenue.
 - Sombra: `0 4px 20px -2px rgba(0,0,0,0.1)`.
 - Logo centrado verticalmente (`transform: translateY(-1px)`).
 
-### Botones de autenticación
+### Botones de autenticacion
 
-- **Login**: gradiente **#2AA1F0 → #1790E9**.
-- **Registro**: gradiente **#2F74A9 → #215F8F**.
-- Sombra activa y elevación en hover.
+- **Login**: gradiente **#2AA1F0 -> #1790E9**.
+- **Registro**: gradiente **#2F74A9 -> #215F8F**.
+- Sombra activa y elevacion en hover.
 
-### Enlaces del menú
+### Enlaces del menu
 
 - Subrayado animado con `::after`.
 - Hover cambia color a `var(--primary)`.
@@ -50,4 +51,4 @@ Barra superior con navegación principal y accesos de autenticación. Se mantien
 ## Responsive
 
 - `max-width: 768px`: header se envuelve y el nav baja a una fila propia.
-- `max-width: 480px`: tipografías y padding más compactos.
+- `max-width: 480px`: tipografias y padding mas compactos.
