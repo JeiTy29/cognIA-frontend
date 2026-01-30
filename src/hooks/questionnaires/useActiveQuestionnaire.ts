@@ -23,7 +23,7 @@ export function useActiveQuestionnaire() {
         setState(prev => ({ ...prev, loading: true, error: null }));
         try {
             const response = await getActiveQuestionnaire();
-            const ordered = sortQuestionsByPosition(response.questions ?? []);
+            const ordered = sortQuestionsByPosition(response.questions ? []);
             setState({
                 data: {
                     ...response,

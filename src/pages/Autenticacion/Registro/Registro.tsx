@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -31,7 +31,7 @@ export default function Registro() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
     const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
-    // Estados de validaciÃ³n
+    // Estados de validación
     const [errorContrasena, setErrorContrasena] = useState('');
     const [errorConfirmar, setErrorConfirmar] = useState('');
     const [errorTerminos, setErrorTerminos] = useState('');
@@ -42,7 +42,7 @@ export default function Registro() {
         setErrorContrasena(validatePassword(valor));
 
         if (confirmarContrasena && valor !== confirmarContrasena) {
-            setErrorConfirmar('Las contraseÃ±as no coinciden');
+            setErrorConfirmar('Las contraseñas no coinciden');
         } else {
             setErrorConfirmar('');
         }
@@ -53,7 +53,7 @@ export default function Registro() {
         setConfirmarContrasena(valor);
 
         if (valor !== contrasena) {
-            setErrorConfirmar('Las contraseÃ±as no coinciden');
+            setErrorConfirmar('Las contraseñas no coinciden');
         } else {
             setErrorConfirmar('');
         }
@@ -82,19 +82,19 @@ export default function Registro() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validar tÃ©rminos
+        // Validar términos
         if (!aceptaTerminos) {
-            setErrorTerminos('Debes aceptar los tÃ©rminos de uso y polÃ­ticas de privacidad');
+            setErrorTerminos('Debes aceptar los términos de uso y políticas de privacidad');
             return;
         }
 
         // Validar que haya abierto los modales
         if (!hasOpenedTerms || !hasOpenedPrivacy) {
-            setErrorTerminos('Debes leer los tÃ©rminos de uso y polÃ­ticas de privacidad antes de continuar');
+            setErrorTerminos('Debes leer los términos de uso y políticas de privacidad antes de continuar');
             return;
         }
 
-        // Validar contraseÃ±a
+        // Validar contraseña
         const errorPass = validatePassword(contrasena);
         if (errorPass) {
             setErrorContrasena(errorPass);
@@ -103,11 +103,11 @@ export default function Registro() {
 
         // Validar coincidencia
         if (contrasena !== confirmarContrasena) {
-            setErrorConfirmar('Las contraseÃ±as no coinciden');
+            setErrorConfirmar('Las contraseñas no coinciden');
             return;
         }
 
-        // Todo vÃ¡lido, navegar a activaciÃ³n
+        // Todo válido, navegar a activación
         navigate('/activar-cuenta');
     };
 
@@ -124,11 +124,11 @@ export default function Registro() {
                         </Link>
                     </div>
 
-                    <h1 className="auth-title">RegÃ­strate</h1>
+                    <h1 className="auth-title">Regístrate</h1>
 
                     <p className="auth-subtitle">
-                        Â¿Ya tienes una cuenta?{' '}
-                        <Link to="/inicio-sesion" className="link-highlight">Inicia sesiÃ³n</Link>
+                        ¿Ya tienes una cuenta?{' '}
+                        <Link to="/inicio-sesion" className="link-highlight">Inicia sesión</Link>
                     </p>
 
                     {!rolSeleccionado ? (
@@ -146,7 +146,7 @@ export default function Registro() {
                                 onClick={() => handleRolSelect('psicologo')}
                             >
                                 <div className="role-image-placeholder"></div>
-                                <h3 className="role-text">Soy psicÃ³logo</h3>
+                                <h3 className="role-text">Soy psicólogo</h3>
                             </div>
                         </div>
                     ) : (
@@ -157,14 +157,13 @@ export default function Registro() {
                                 onClick={handleRolTagClick}
                                 title="Click para cambiar rol"
                             >
-                                {rolSeleccionado === 'padre' ? 'Soy padre o docente' : 'Soy psicÃ³logo'}
+                                {rolSeleccionado === 'padre' ? 'Soy padre o docente' : 'Soy psicólogo'}
                                 <span className="change-hint">cambiar rol</span>
                             </button>
 
                             {rolSeleccionado === 'padre' ? (
                                 <form className="auth-form" onSubmit={handleSubmit}>
                                     <div className="form-group">
-                                        <label className="form-label" htmlFor="username-padre">Nombre de usuario</label>
                                         <input
                                             id="username-padre"
                                             type="text"
@@ -182,7 +181,7 @@ export default function Registro() {
                                         <input
                                             type="email"
                                             className="form-input"
-                                            placeholder="Correo electrÃ³nico"
+                                            placeholder="Correo electrónico"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
@@ -193,7 +192,7 @@ export default function Registro() {
                                         <input
                                             type={mostrarContrasena ? "text" : "password"}
                                             className="form-input"
-                                            placeholder="ContraseÃ±a"
+                                            placeholder="Contraseña"
                                             value={contrasena}
                                             onChange={handleContrasenaChange}
                                             required
@@ -222,7 +221,7 @@ export default function Registro() {
                                         <input
                                             type={mostrarConfirmar ? "text" : "password"}
                                             className="form-input"
-                                            placeholder="Confirmar contraseÃ±a"
+                                            placeholder="Confirmar contraseña"
                                             value={confirmarContrasena}
                                             onChange={handleConfirmarChange}
                                             required
@@ -255,11 +254,11 @@ export default function Registro() {
                                                 checked={usarDosPasos}
                                                 onChange={(e) => setUsarDosPasos(e.target.checked)}
                                             />
-                                            <label htmlFor="twofactor">Activar autenticaciÃ³n en dos pasos</label>
+                                            <label htmlFor="twofactor">Activar autenticación en dos pasos</label>
                                         </div>
                                         {usarDosPasos ? (
                                             <p className="twofactor-hint">
-                                                NecesitarÃ¡s una app de autenticaciÃ³n como Google Authenticator o Microsoft Authenticator.
+                                                Necesitarás una app de autenticación como Google Authenticator o Microsoft Authenticator.
                                             </p>
                                         ) : null}
                                     </div>
@@ -277,13 +276,13 @@ export default function Registro() {
                                         />
                                         <div className="terms-text-wrapper">
                                             <label htmlFor="terms">
-                                                Confirmo haber leÃ­do y acepto los{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>TÃ©rminos de uso</a>
+                                                Confirmo haber leído y acepto los{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
                                                 {' '}y{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>PolÃ­ticas de privacidad</a>
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
                                             </label>
                                             {!hasOpenedTerms || !hasOpenedPrivacy ? (
-                                                <p className="checkbox-hint">Por favor, lee los tÃ©rminos de uso y las polÃ­ticas de privacidad antes de continuar</p>
+                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
                                             ) : null}
                                         </div>
                                     </div>
@@ -320,7 +319,6 @@ export default function Registro() {
                                     </div>
 
                                     <div className="form-group">
-                                        <label className="form-label" htmlFor="username-psico">Nombre de usuario</label>
                                         <input
                                             id="username-psico"
                                             type="text"
@@ -338,7 +336,7 @@ export default function Registro() {
                                         <input
                                             type="email"
                                             className="form-input"
-                                            placeholder="Correo electrÃ³nico"
+                                            placeholder="Correo electrónico"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
@@ -349,7 +347,7 @@ export default function Registro() {
                                         <input
                                             type="text"
                                             className="form-input"
-                                            placeholder="NÃºmero de operador nacional"
+                                            placeholder="Número de operador nacional"
                                             value={numeroOperador}
                                             onChange={(e) => setNumeroOperador(e.target.value)}
                                             required
@@ -360,7 +358,7 @@ export default function Registro() {
                                         <input
                                             type={mostrarContrasena ? "text" : "password"}
                                             className="form-input"
-                                            placeholder="ContraseÃ±a"
+                                            placeholder="Contraseña"
                                             value={contrasena}
                                             onChange={handleContrasenaChange}
                                             required
@@ -389,7 +387,7 @@ export default function Registro() {
                                         <input
                                             type={mostrarConfirmar ? "text" : "password"}
                                             className="form-input"
-                                            placeholder="Confirmar contraseÃ±a"
+                                            placeholder="Confirmar contraseña"
                                             value={confirmarContrasena}
                                             onChange={handleConfirmarChange}
                                             required
@@ -427,13 +425,13 @@ export default function Registro() {
                                         />
                                         <div className="terms-text-wrapper">
                                             <label htmlFor="terms">
-                                                Confirmo haber leÃ­do y acepto los{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>TÃ©rminos de uso</a>
+                                                Confirmo haber leído y acepto los{' '}
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
                                                 {' '}y{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>PolÃ­ticas de privacidad</a>
+                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
                                             </label>
                                             {!hasOpenedTerms || !hasOpenedPrivacy ? (
-                                                <p className="checkbox-hint">Por favor, lee los tÃ©rminos de uso y las polÃ­ticas de privacidad antes de continuar</p>
+                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
                                             ) : null}
                                         </div>
                                     </div>
@@ -451,7 +449,7 @@ export default function Registro() {
                         cognIA v1.0.0
                     </div>
 
-                    {/* Modals para tÃ©rminos y privacidad */}
+                    {/* Modals para términos y privacidad */}
                     <Modal isOpen={showTerms} onClose={() => setShowTerms(false)}>
                         <TermsContent />
                     </Modal>

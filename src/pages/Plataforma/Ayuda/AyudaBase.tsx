@@ -77,7 +77,7 @@ const faqsPsicologo = [
 
 export default function AyudaBase({ role }: AyudaBaseProps) {
     const location = useLocation();
-    const resolvedRole: HelpRole = role ?? (location.pathname.includes('/psicologo') ? 'psicologo' : 'padre');
+    const resolvedRole: HelpRole = role ? (location.pathname.includes('/psicologo') ? 'psicologo' : 'padre');
 
     const [openFaqId, setOpenFaqId] = useState<string | null>(null);
     const [showReportForm, setShowReportForm] = useState(false);

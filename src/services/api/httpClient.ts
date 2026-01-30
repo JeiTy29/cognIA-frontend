@@ -35,7 +35,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 
     if (!response.ok) {
         const payload = await parseJsonSafe(response);
-        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ? undefined);
     }
 
     return response.json() as Promise<T>;

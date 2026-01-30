@@ -55,9 +55,9 @@ function renderQuestionInput(
                 </div>
             );
         case 'integer': {
-            const min = question.response_min ?? undefined;
-            const max = question.response_max ?? undefined;
-            const step = question.response_step ?? undefined;
+            const min = question.response_min ? undefined;
+            const max = question.response_max ? undefined;
+            const step = question.response_step ? undefined;
             return (
                 <input
                     type="number"
@@ -100,7 +100,7 @@ export default function CuestionarioPsicologo() {
     }, [error]);
 
     const template = data?.questionnaire_template;
-    const questions = data?.questions ?? [];
+    const questions = data?.questions ? [];
 
     const handleAnswerChange = (questionId: string, value: unknown) => {
         setAnswers(prev => ({
