@@ -51,7 +51,12 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Mensaje de éxito visible tras guardar cambios.
   - Ícono de visibilidad en campos de contraseña.
 
-### C) Cerrar sesión
+### C) Verificación en dos pasos (MFA)
+- Solo visible para **Padre/Tutor**.
+- Texto informativo: “Activa la verificación en dos pasos para proteger tu cuenta.”
+- Botón **Activar MFA** (UI/estructura; sin llamada a backend por ahora).
+
+### D) Cerrar sesión
 - Bloque final fuera de tarjetas grandes.
 - Texto + botón en la misma fila, centrados y con mayor presencia visual.
 - Botón con color sólido para distinguirse del fondo.
