@@ -29,7 +29,7 @@ Campos:
 ## Estado y lógica
 
 - `mostrarContrasena: boolean` → alterna tipo `text/password`.
-- `handleSubmit` ejecuta `navigate('/autenticacion')`.
+- `handleSubmit` ejecuta `navigate('/mfa/challenge')`.
 
 ## Interacciones
 
@@ -41,7 +41,7 @@ Campos:
 
 1. Ingresa correo y contraseña.
 2. (Opcional) Activa el ícono de ojo para ver la contraseña.
-3. Presiona **Ingresar** y navega a `/autenticacion`.
+3. Presiona **Ingresar** y navega a `/mfa/challenge`.
 
 ## Estilos clave
 

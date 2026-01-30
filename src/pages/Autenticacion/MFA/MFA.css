@@ -2,6 +2,13 @@
     max-width: 420px;
 }
 
+.auth-mfa-note {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #5d7186;
+    text-align: center;
+}
+
 .qr-card {
     width: 100%;
     max-width: 280px;

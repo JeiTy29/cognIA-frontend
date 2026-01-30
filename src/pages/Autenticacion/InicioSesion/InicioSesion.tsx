@@ -30,7 +30,7 @@ export default function InicioSesion() {
                         className="auth-form"
                         onSubmit={(e) => {
                             e.preventDefault();
-                            navigate('/autenticacion');
+                            navigate('/mfa/challenge');
                         }}
                     >
                         <div className="form-group">
