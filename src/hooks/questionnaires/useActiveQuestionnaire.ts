@@ -23,7 +23,8 @@ export function useActiveQuestionnaire() {
         setState(prev => ({ ...prev, loading: true, error: null }));
         try {
             const response = await getActiveQuestionnaire();
-            const ordered = sortQuestionsByPosition(response.questions ? []);
+            const questions = response.questions || [];
+            const ordered = sortQuestionsByPosition(questions);
             setState({
                 data: {
                     ...response,
@@ -38,7 +39,11 @@ export function useActiveQuestionnaire() {
     }, []);
 
     useEffect(() => {
-        fetchActive();
+        const timeoutId = window.setTimeout(() => {
+            void fetchActive();
+        }, 0);
+
+        return () => window.clearTimeout(timeoutId);
     }, [fetchActive]);
 
     return {

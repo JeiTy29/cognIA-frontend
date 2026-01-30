@@ -1,4 +1,4 @@
-﻿# Vista: Registro
+# Vista: Registro
 
 ## Descripción general
 
@@ -41,26 +41,45 @@ Flujo de creación de cuenta con selección de rol, formularios dinámicos, vali
 - Botón `.role-tag` con texto del rol activo.
 - Permite volver a la selección inicial (resetea estados y campos).
 
-### Formulario Padre/Docente
+### Formulario Padre/Docente (guardian)
 
 Campos:
 1. Nombre de usuario (case-sensitive, patrón `^[A-Za-z0-9._-]{3,32}$`)
 2. Correo electrónico
 3. Contraseña
 4. Confirmar contraseña
-5. Checkbox **“Activar autenticación en dos pasos”** (opcional)
-   - Si se activa, se muestra `.twofactor-hint` con aviso de apps compatibles.
 
-### Formulario Psicólogo
+Payload enviado:
+- `username`, `email`, `password`, `user_type: "guardian"`
+
+### Formulario Psicólogo (psychologist)
 
 Campos:
-1. Nombre
-2. Apellido
-3. Nombre de usuario (case-sensitive, patrón `^[A-Za-z0-9._-]{3,32}$`)
-4. Correo electrónico
-5. Número de operador nacional
-6. Contraseña
-7. Confirmar contraseña
+1. Nombre completo
+2. Nombre de usuario (case-sensitive, patrón `^[A-Za-z0-9._-]{3,32}$`)
+3. Correo electrónico
+4. Número de tarjeta profesional
+5. Contraseña
+6. Confirmar contraseña
+
+Payload enviado:
+- `username`, `email`, `password`, `full_name`, `professional_card_number`, `user_type: "psychologist"`
+
+---
+
+## Endpoint de registro
+
+- `POST /api/auth/register`
+- Base URL: `VITE_API_BASE_URL=https://cognia-api.onrender.com`
+
+---
+
+## Manejo de respuestas
+
+- **201**: muestra éxito y redirige a `/inicio-sesion`.
+- **400**: "Revisa los datos ingresados. Verifica correo/usuario y el formato de la contraseña."
+- **500**: "Ocurrió un error en el servidor. Intenta nuevamente en unos minutos."
+- Otros: "Ocurrió un error al registrar. Intenta nuevamente."
 
 ---
 
@@ -79,7 +98,7 @@ Campos:
 
 - Deshabilitado hasta abrir ambos modales (`hasOpenedTerms`, `hasOpenedPrivacy`).
 - Mensaje de ayuda en azul cuando faltan lecturas.
-- Botón **“Crear cuenta”** se habilita solo si `aceptaTerminos` está activo.
+- Botón **"Crear cuenta"** se habilita solo si `aceptaTerminos` está activo.
 
 ### Modales
 
@@ -93,21 +112,22 @@ Campos:
 ```ts
 const [rolSeleccionado, setRolSeleccionado]
 const [aceptaTerminos, setAceptaTerminos]
-const [usarDosPasos, setUsarDosPasos]
 const [hasOpenedTerms, setHasOpenedTerms]
 const [hasOpenedPrivacy, setHasOpenedPrivacy]
 const [errorContrasena, setErrorContrasena]
 const [errorConfirmar, setErrorConfirmar]
 const [errorTerminos, setErrorTerminos]
+const [submitError, setSubmitError]
+const [submitSuccess, setSubmitSuccess]
 ```
 
 ---
 
 ## Navegación
 
-- Logo superior → `/`.
-- Link “Inicia sesión” → `/inicio-sesion`.
-- Submit válido → `/activar-cuenta`.
+- Logo superior -> `/`.
+- Link "Inicia sesión" -> `/inicio-sesion`.
+- Submit válido -> `/inicio-sesion`.
 
 ---
 
@@ -117,15 +137,16 @@ const [errorTerminos, setErrorTerminos]
 2. Completa el formulario correspondiente.
 3. Abre términos y privacidad (modales).
 4. Marca el checkbox de aceptación.
-5. Click en **Crear cuenta** → `/activar-cuenta`.
+5. Click en **Crear cuenta** -> `/inicio-sesion`.
 
 ---
 
 ## Clases CSS clave
 
-- `.role-selection-horizontal`, `.role-card-vertical`, `.role-tag`, `.terms-checkbox`, `.twofactor-option`.
+- `.role-selection-horizontal`, `.role-card-vertical`, `.role-tag`, `.terms-checkbox`, `.validation-error`, `.validation-success`.
 
 ## Responsive
 
 - Tarjetas en horizontal en desktop.
 - Apiladas en móvil (`max-width: 768px`).
+

@@ -55,9 +55,9 @@ function renderQuestionInput(
                 </div>
             );
         case 'integer': {
-            const min = question.response_min ? undefined;
-            const max = question.response_max ? undefined;
-            const step = question.response_step ? undefined;
+            const min = question.response_min ?? undefined;
+            const max = question.response_max ?? undefined;
+            const step = question.response_step ?? undefined;
             return (
                 <input
                     type="number"
@@ -100,12 +100,13 @@ export default function CuestionarioPadre() {
     }, [error]);
 
     const template = data?.questionnaire_template;
-    const questions = data?.questions ? [];
+    const questions = data?.questions ?? [];
 
-    const handleAnswerChange = (questionId: string, value: unknown) => {
+    const handleAnswerChange = (questionId: string | number, value: unknown) => {
+        const key = String(questionId);
         setAnswers(prev => ({
             ...prev,
-            [questionId]: value
+            [key]: value
         }));
     };
 
@@ -148,7 +149,7 @@ export default function CuestionarioPadre() {
                                         <p className="question-text">{question.text}</p>
                                         {renderQuestionInput(
                                             question,
-                                            answers[question.id],
+                                            answers[String(question.id)],
                                             (value) => handleAnswerChange(question.id, value)
                                         )}
                                     </div>

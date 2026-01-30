@@ -35,7 +35,25 @@ export async function apiGet<T>(path: string): Promise<T> {
 
     if (!response.ok) {
         const payload = await parseJsonSafe(response);
-        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ? undefined);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return response.json() as Promise<T>;
+}
+
+export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
     }
 
     return response.json() as Promise<T>;

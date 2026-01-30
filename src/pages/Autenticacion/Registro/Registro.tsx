@@ -5,14 +5,20 @@ import { Modal } from '../../../components/Modal/Modal';
 import { TermsContent } from '../../../components/Legal/TermsContent';
 import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
 import { validatePassword } from '../../../utils/passwordValidation';
+import { useRegister } from '../../../hooks/auth/useRegister';
+import { ApiError } from '../../../services/api/httpClient';
+
+const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
 
+type ErrorMessage = string | null;
+
 export default function Registro() {
     const navigate = useNavigate();
+    const { submit, loading } = useRegister();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
-    const [usarDosPasos, setUsarDosPasos] = useState(false);
 
     // Estados para Modals
     const [showTerms, setShowTerms] = useState(false);
@@ -21,8 +27,7 @@ export default function Registro() {
     const [hasOpenedPrivacy, setHasOpenedPrivacy] = useState(false);
 
     // Estados de formulario
-    const [nombre, setNombre] = useState('');
-    const [apellido, setApellido] = useState('');
+    const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [numeroOperador, setNumeroOperador] = useState('');
@@ -35,6 +40,8 @@ export default function Registro() {
     const [errorContrasena, setErrorContrasena] = useState('');
     const [errorConfirmar, setErrorConfirmar] = useState('');
     const [errorTerminos, setErrorTerminos] = useState('');
+    const [submitError, setSubmitError] = useState<ErrorMessage>(null);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
 
     const handleContrasenaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const valor = e.target.value;
@@ -66,21 +73,26 @@ export default function Registro() {
     const handleRolTagClick = () => {
         setRolSeleccionado(null);
         // Resetear form
-        setNombre('');
-        setApellido('');
+        setFullName('');
         setUsername('');
         setEmail('');
+        setNumeroOperador('');
         setContrasena('');
         setConfirmarContrasena('');
         setErrorContrasena('');
         setErrorConfirmar('');
         setErrorTerminos('');
+        setSubmitError(null);
+        setSubmitSuccess(false);
         setAceptaTerminos(false);
-        setUsarDosPasos(false);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitError(null);
+        setSubmitSuccess(false);
+
+        if (!rolSeleccionado) return;
 
         // Validar términos
         if (!aceptaTerminos) {
@@ -91,6 +103,11 @@ export default function Registro() {
         // Validar que haya abierto los modales
         if (!hasOpenedTerms || !hasOpenedPrivacy) {
             setErrorTerminos('Debes leer los términos de uso y políticas de privacidad antes de continuar');
+            return;
+        }
+
+        if (!usernamePattern.test(username)) {
+            setSubmitError('Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres válidos.');
             return;
         }
 
@@ -107,8 +124,44 @@ export default function Registro() {
             return;
         }
 
-        // Todo válido, navegar a activación
-        navigate('/activar-cuenta');
+        try {
+            const payloadBase = {
+                username,
+                email,
+                password: contrasena
+            };
+
+            if (rolSeleccionado === 'padre') {
+                await submit({
+                    ...payloadBase,
+                    user_type: 'guardian'
+                });
+            } else {
+                await submit({
+                    ...payloadBase,
+                    user_type: 'psychologist',
+                    full_name: fullName,
+                    professional_card_number: numeroOperador
+                });
+            }
+
+            setSubmitSuccess(true);
+            setTimeout(() => {
+                navigate('/inicio-sesion');
+            }, 1200);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                if (error.status === 400) {
+                    setSubmitError('Revisa los datos ingresados. Verifica correo/usuario y el formato de la contraseña.');
+                } else if (error.status === 500) {
+                    setSubmitError('Ocurrió un error en el servidor. Intenta nuevamente en unos minutos.');
+                } else {
+                    setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
+                }
+            } else {
+                setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
+            }
+        }
     };
 
     return (
@@ -246,23 +299,6 @@ export default function Registro() {
                                         {errorConfirmar && <div className="validation-error">{errorConfirmar}</div>}
                                     </div>
 
-                                    <div className="twofactor-option">
-                                        <div className="twofactor-row">
-                                            <input
-                                                type="checkbox"
-                                                id="twofactor"
-                                                checked={usarDosPasos}
-                                                onChange={(e) => setUsarDosPasos(e.target.checked)}
-                                            />
-                                            <label htmlFor="twofactor">Activar autenticación en dos pasos</label>
-                                        </div>
-                                        {usarDosPasos ? (
-                                            <p className="twofactor-hint">
-                                                Necesitarás una app de autenticación como Google Authenticator o Microsoft Authenticator.
-                                            </p>
-                                        ) : null}
-                                    </div>
-
                                     <div className="terms-checkbox">
                                         <input
                                             type="checkbox"
@@ -287,37 +323,25 @@ export default function Registro() {
                                         </div>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
+                                    {submitError && <div className="validation-error" style={{ marginBottom: '16px' }}>{submitError}</div>}
+                                    {submitSuccess && <div className="validation-success" style={{ marginBottom: '16px' }}>Cuenta creada correctamente. Redirigiendo...</div>}
 
-                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos}>
-                                        Crear cuenta
+                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos || loading}>
+                                        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
                                     </button>
                                 </form>
                             ) : (
                                 <form className="auth-form" onSubmit={handleSubmit}>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Nombre"
-                                                value={nombre}
-                                                onChange={(e) => setNombre(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="form-group">
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Apellido"
-                                                value={apellido}
-                                                onChange={(e) => setApellido(e.target.value)}
-                                                required
-                                            />
-                                        </div>
+                                    <div className="form-group">
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Nombre completo"
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            required
+                                        />
                                     </div>
-
                                     <div className="form-group">
                                         <input
                                             id="username-psico"
@@ -347,7 +371,7 @@ export default function Registro() {
                                         <input
                                             type="text"
                                             className="form-input"
-                                            placeholder="Número de operador nacional"
+                                            placeholder="Número de tarjeta profesional"
                                             value={numeroOperador}
                                             onChange={(e) => setNumeroOperador(e.target.value)}
                                             required
@@ -436,9 +460,11 @@ export default function Registro() {
                                         </div>
                                     </div>
                                     {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
+                                    {submitError && <div className="validation-error" style={{ marginBottom: '16px' }}>{submitError}</div>}
+                                    {submitSuccess && <div className="validation-success" style={{ marginBottom: '16px' }}>Cuenta creada correctamente. Redirigiendo...</div>}
 
-                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos}>
-                                        Crear cuenta
+                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos || loading}>
+                                        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
                                     </button>
                                 </form>
                             )}
@@ -461,7 +487,4 @@ export default function Registro() {
             </div>
         </div>
     );
-}
-
-
-
+}
