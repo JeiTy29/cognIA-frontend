@@ -8,7 +8,7 @@ import { validatePassword } from '../../../utils/passwordValidation';
 import { useRegister } from '../../../hooks/auth/useRegister';
 import { ApiError } from '../../../services/api/httpClient';
 
-const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
+const usernamePattern = /^[A-Za-z0-9._\\-]{3,32}$/;
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
 
@@ -224,7 +224,7 @@ export default function Registro() {
                                             placeholder="Nombre de usuario"
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
-                                            pattern="^[A-Za-z0-9._-]{3,32}$"
+                                            pattern="^[A-Za-z0-9._\\-]{3,32}$"
                                             title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required
@@ -350,7 +350,7 @@ export default function Registro() {
                                             placeholder="Nombre de usuario"
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
-                                            pattern="^[A-Za-z0-9._-]{3,32}$"
+                                            pattern="^[A-Za-z0-9._\\-]{3,32}$"
                                             title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required
