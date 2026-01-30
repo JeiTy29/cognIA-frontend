@@ -332,6 +332,14 @@ export default function MiCuenta() {
                     </div>
                 </section>
 
+                {role === 'padre' && (
+                    <section className="info-card mi-cuenta-section">
+                        <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
+                        <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
+                        <button type="button" className="mi-cuenta-btn primary">Activar MFA</button>
+                    </section>
+                )}
+
             </div>
 
             <div className="mi-cuenta-logout">
