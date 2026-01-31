@@ -1,9 +1,14 @@
 ﻿import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
 import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole, type AppRole } from '../utils/auth/roles';
-
-const ACCESS_TOKEN_KEY = 'cognia_access_token';
-const EXPIRES_AT_KEY = 'cognia_access_expires_at';
+import {
+    getStoredToken,
+    getStoredExpiresAt,
+    removeStoredExpiresAt,
+    removeStoredToken,
+    setStoredExpiresAt,
+    setStoredToken
+} from '../utils/auth/storage';
 const AUTH_NOTICE_KEY = 'cognia_auth_notice';
 
 type LogoutReason = 'expired' | 'manual';
@@ -21,13 +26,6 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-function getStoredExpiresAt() {
-    const raw = localStorage.getItem(EXPIRES_AT_KEY);
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
-}
-
 function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
     if (payload?.exp) {
         return payload.exp * 1000;
@@ -39,7 +37,7 @@ function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const storedToken = getStoredToken();
     const storedPayload = storedToken ? decodeJwtPayload(storedToken) : null;
     const storedExpiresAt = getStoredExpiresAt();
     const invalidToken = !!storedToken && !storedPayload;
@@ -58,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (initialExpired) {
-            localStorage.removeItem(ACCESS_TOKEN_KEY);
-            localStorage.removeItem(EXPIRES_AT_KEY);
+            removeStoredToken();
+            removeStoredExpiresAt();
         }
     }, [initialExpired]);
 
@@ -68,8 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles([]);
         setUserId(null);
         setExpiresAt(null);
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        localStorage.removeItem(EXPIRES_AT_KEY);
+        removeStoredToken();
+        removeStoredExpiresAt();
         if (reason === 'expired') {
             sessionStorage.setItem(AUTH_NOTICE_KEY, 'expired');
         }
@@ -82,12 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(payload?.roles ?? []);
         setUserId(payload?.sub ?? null);
         setExpiresAt(nextExpiresAt);
-        localStorage.setItem(ACCESS_TOKEN_KEY, token);
-        if (nextExpiresAt) {
-            localStorage.setItem(EXPIRES_AT_KEY, String(nextExpiresAt));
-        } else {
-            localStorage.removeItem(EXPIRES_AT_KEY);
-        }
+        setStoredToken(token);
+        setStoredExpiresAt(nextExpiresAt);
         sessionStorage.removeItem(AUTH_NOTICE_KEY);
     }, []);
 
