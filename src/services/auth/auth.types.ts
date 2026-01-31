@@ -44,6 +44,11 @@ export interface MFAEnrollmentRequiredResponse {
 
 export type LoginResponse = LoginSuccessResponse | MFALoginChallengeResponse | MFAEnrollmentRequiredResponse;
 
+export interface LoginErrorResponse {
+    error: 'invalid_credentials';
+    status: number;
+}
+
 export interface MFALoginRequest {
     challenge_id: string;
     code?: string;

@@ -2,6 +2,7 @@ import { apiPost } from '../api/httpClient';
 import type {
     LoginRequest,
     LoginResponse,
+    LoginErrorResponse,
     MFALoginRequest,
     MFALoginResponse,
     MFASetupResponse,
@@ -17,10 +18,20 @@ export function registerUser(payload: RegisterPayload): Promise<RegisterResponse
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
 }
 
-export function login(payload: LoginRequest): Promise<LoginResponse> {
-    return apiPost<LoginResponse, LoginRequest>('/api/auth/login', payload, {
-        credentials: 'include'
-    });
+export async function login(payload: LoginRequest): Promise<LoginResponse | LoginErrorResponse> {
+    try {
+        return await apiPost<LoginResponse, LoginRequest>('/api/auth/login', payload, {
+            credentials: 'include'
+        });
+    } catch (error) {
+        if (error instanceof Error && 'status' in error) {
+            const status = (error as { status?: number }).status;
+            if (status === 400 || status === 401) {
+                return { error: 'invalid_credentials', status: status ?? 400 };
+            }
+        }
+        throw error;
+    }
 }
 
 export function loginMfa(payload: MFALoginRequest): Promise<MFALoginResponse> {

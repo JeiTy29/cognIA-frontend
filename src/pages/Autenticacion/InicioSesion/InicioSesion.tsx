@@ -47,6 +47,10 @@ export default function InicioSesion() {
         setLoading(true);
         try {
             const response = await login({ username, password });
+            if ('error' in response && response.error === 'invalid_credentials') {
+                setErrorMessage('Usuario o contraseña incorrectos.');
+                return;
+            }
             if ('access_token' in response) {
                 setSession(response.access_token, response.expires_in);
                 const payload = decodeJwtPayload(response.access_token);
@@ -110,7 +114,7 @@ export default function InicioSesion() {
                                 placeholder="Nombre de usuario"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                pattern="^[A-Za-z0-9._\\-]{3,32}$"
+                                pattern="^[A-Za-z0-9._-]{3,32}$"
                                 title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
                                 autoCapitalize="none"
                                 autoCorrect="off"
