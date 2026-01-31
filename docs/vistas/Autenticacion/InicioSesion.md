@@ -20,7 +20,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 1) **Login completo**
 - Respuesta: `{ access_token, token_type, expires_in }`
-- Acción: guarda `access_token` en almacenamiento persistente y redirige a la plataforma según rol.
+- Acción: guarda `access_token` en sessionStorage y redirige a la plataforma según rol.
 
 2) **MFA requerido (challenge)**
 - Respuesta: `{ mfa_required: true, challenge_id, expires_in, msg, error }`
@@ -43,14 +43,25 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ### Validación rápida de usuario
 
-- Patrón: `^[A-Za-z0-9._-]{3,32}$`
+- Patrón HTML: `^[A-Za-z0-9._-]{3,32}$` (sin delimitadores ni flags).
 - Diferencia mayúsculas/minúsculas.
 
 ## Almacenamiento de sesión
 
-- `access_token`: se guarda de forma persistente en almacenamiento local del navegador.
+- `access_token`: se guarda en **sessionStorage** (persistente al recargar, se pierde al cerrar la pestaña).
 - Se decodifica el JWT para extraer `roles` y `exp`.
 - **No** se guardan en storage: `challenge_id` ni `enrollment_token`.
+
+## Manejo de errores esperados
+
+- Credenciales inválidas se manejan como flujo normal (sin logs ni errores no capturados).
+
+## Logout (referencia técnica)
+
+- Endpoint: `POST /api/auth/logout`
+- Header requerido: `X-CSRF-Token` con el valor de la cookie `csrf_refresh_token`.
+- Se envían cookies con `credentials: include`.
+- El frontend limpia siempre los tokens locales aunque el backend responda 401.
 
 ## Redirección por rol
 
