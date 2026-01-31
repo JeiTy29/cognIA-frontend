@@ -10,21 +10,46 @@ Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (co
 - Estilos: `src/pages/Autenticacion/MFA/MFA.css`
 - Rutas: `/mfa/setup` y `/mfa/challenge`
 
-## Modos
+## Endpoints relacionados
 
-### Modo setup
+- `POST /api/auth/login/mfa` → completa el challenge con `challenge_id` y código.
+- `POST /api/mfa/setup` → genera `otpauth_uri` para QR.
+- `POST /api/mfa/confirm` → confirma TOTP y finaliza enrolamiento.
+- `POST /api/mfa/disable` → deshabilita MFA (no usado aquí).
+
+## Modo setup
 
 - Título: “Configurar verificación en dos pasos”.
-- Muestra QR (`.qr-card`) + texto guía para escanear e ingresar el código.
-- Botón principal: **Confirmar**.
+- Muestra QR (`.qr-card`) generado desde `otpauth_uri`.
+- Input de 6 dígitos + botón **Confirmar**.
 - Nota inferior: “Si no puedes escanear el QR…”.
 
-### Modo challenge
+### Flujo setup
+
+1. El login redirige con `state` `{ mode: 'setup', enrollmentToken }`.
+2. La vista llama `POST /api/mfa/setup` con `Authorization: Bearer <enrollmentToken>`.
+3. Se genera el QR y se muestra al usuario.
+4. El usuario ingresa el código y se llama `POST /api/mfa/confirm`.
+5. En éxito, redirige a `/inicio-sesion` con mensaje de confirmación.
+
+## Modo challenge
 
 - Título: “Verificación requerida”.
-- Oculta por completo el QR.
-- Texto guía: ingresar el código de 6 dígitos.
-- Botón principal: **Verificar**.
+- No muestra QR.
+- Input de 6 dígitos + botón **Verificar**.
+- Opción para usar **código de recuperación**.
+
+### Flujo challenge
+
+1. El login redirige con `state` `{ mode: 'challenge', challengeId }`.
+2. El usuario ingresa el código (o recovery) y se llama `POST /api/auth/login/mfa`.
+3. En éxito, se guarda el `access_token` y se redirige a la plataforma según rol.
+
+## Seguridad de tokens
+
+- `challengeId` y `enrollmentToken` se mantienen **solo en memoria** (React Router `state`).
+- No se guardan en localStorage, sessionStorage ni query params.
+- Si el usuario entra a `/mfa/*` sin `state` válido, se redirige a `/inicio-sesion`.
 
 ## Estructura base
 
@@ -32,13 +57,6 @@ Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (co
 - Logo superior con link a `/`.
 - Input centrado `.auth-code-input` para 6 dígitos.
 - Footer de versión `.version-footer`.
-- Reutiliza las clases base `auth-*` definidas en `InicioSesion.css`.
-
-## Estado y lógica
-
-- `codigo: string` → solo números (`replace(/\D/g, '')`).
-- `maxLength={6}` para restringir longitud.
-- El modo se toma desde el parámetro de ruta `:mode`.
 
 ## Estilos clave
 
@@ -48,19 +66,20 @@ Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (co
 
 ## Clases CSS clave
 
-- `.auth-2fa`, `.auth-mfa`, `.qr-card`, `.qr-placeholder`, `.auth-code-input`, `.auth-mfa-note`.
+- `.auth-2fa`, `.auth-mfa`, `.qr-card`, `.qr-placeholder`, `.qr-image`, `.auth-code-input`, `.auth-mfa-note`.
+
+## Validaciones
+
+- El código debe tener 6 dígitos.
+- Si se usa recovery, el input de recovery es obligatorio.
 
 ## Navegación
 
 - Logo → `/`.
-- Botón principal → `/padre/cuestionario` (pendiente de integración backend).
+- En modo setup: redirige a `/inicio-sesion` tras confirmar.
+- En modo challenge: redirige a plataforma según rol.
 
 ## Responsive
 
 - `max-width: 480px`: QR más compacto y tracking de texto menor.
 
-## Flujo de usuario
-
-1. Accede a `/mfa/setup` o `/mfa/challenge`.
-2. Ingresa el código de 6 dígitos (y escanea QR si está en setup).
-3. Presiona el botón principal para continuar.

@@ -2,7 +2,7 @@
 
 ## Descripción general
 
-Formulario de acceso con validación visual básica, alternado de contraseña y navegación a autenticación.
+Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia el flujo de autenticación y decide si el usuario entra directo a la plataforma o debe completar MFA.
 
 ## Ubicación
 
@@ -10,44 +10,75 @@ Formulario de acceso con validación visual básica, alternado de contraseña y 
 - Estilos: `src/pages/Autenticacion/InicioSesion/InicioSesion.css`
 - Ruta: `/inicio-sesion`
 
-## Estructura
+## Endpoint
 
-- Layout en dos paneles:
-  - `.auth-left-panel`: 40% azul **#51C2F4**.
-- `.auth-right-panel`: 60% blanco.
-- Logo superior (`.header-brand`) con link a `/`.
-- Formulario con correo, contraseña y botón principal.
+- `POST /api/auth/login`
+- Base URL: `VITE_API_BASE_URL=https://cognia-api.onrender.com`
+- Body: `{ username, password }`
 
-Detalle de logo:
-- `.brand-icon` 36px con letra “c” sobre fondo **#51C2F4**.
-- `.brand-text` en **#215F8F**.
+## Respuestas posibles (200)
 
-Campos:
-- Email con placeholder “Correo electrónico”.
-- Password con placeholder “Contraseña”.
+1) **Login completo**
+- Respuesta: `{ access_token, token_type, expires_in }`
+- Acción: guarda `access_token` en almacenamiento persistente y redirige a la plataforma según rol.
+
+2) **MFA requerido (challenge)**
+- Respuesta: `{ mfa_required: true, challenge_id, expires_in, msg, error }`
+- Acción: navega a `/mfa/challenge` usando `state` con `challengeId` (no se persiste).
+
+3) **MFA enrollment requerido**
+- Respuesta: `{ mfa_enrollment_required: true, enrollment_token, token_type, expires_in, msg, error }`
+- Acción: navega a `/mfa/setup` usando `state` con `enrollmentToken` (no se persiste).
+
+## Manejo de errores
+
+- 400/401: “Usuario o contraseña incorrectos.”
+- Otros: “Ocurrió un error al iniciar sesión. Intenta nuevamente.”
 
 ## Estado y lógica
 
-- `mostrarContrasena: boolean` → alterna tipo `text/password`.
-- `handleSubmit` ejecuta `navigate('/mfa/challenge')`.
+- `username`, `password`, `loading`, `errorMessage`, `infoMessage`.
+- `mostrarContrasena` alterna tipo `text/password`.
+- Si el usuario ya está autenticado, se redirige automáticamente a la plataforma.
+
+### Validación rápida de usuario
+
+- Patrón: `^[A-Za-z0-9._-]{3,32}$`
+- Diferencia mayúsculas/minúsculas.
+
+## Almacenamiento de sesión
+
+- `access_token`: se guarda de forma persistente en almacenamiento local del navegador.
+- Se decodifica el JWT para extraer `roles` y `exp`.
+- **No** se guardan en storage: `challenge_id` ni `enrollment_token`.
+
+## Redirección por rol
+
+- `GUARDIAN` → `/padre/cuestionario`
+- `PSYCHOLOGIST` → `/psicologo/cuestionario`
+
+## Rutas protegidas
+
+- Las rutas de plataforma están envueltas por `ProtectedRoute`.
+- Si no hay sesión válida, se redirige a `/inicio-sesion` con aviso breve.
 
 ## Interacciones
 
-- Ícono de ojo (`.password-toggle`) alterna visibilidad.
 - Enlace “Regístrate” → `/registro`.
 - Enlace “¿Olvidaste tu contraseña?” → `/recuperar-contrasena`.
 
 ## Flujo de usuario
 
-1. Ingresa correo y contraseña.
-2. (Opcional) Activa el ícono de ojo para ver la contraseña.
-3. Presiona **Ingresar** y navega a `/mfa/challenge`.
+1. Ingresa usuario y contraseña.
+2. Presiona **Ingresar**.
+3. Si hay MFA, navega a `/mfa/challenge` o `/mfa/setup`.
+4. Si no hay MFA, entra directo a la plataforma según rol.
 
 ## Estilos clave
 
 - Inputs con borde **#E0E0E0**, foco en **#1790E9**.
 - Botón principal **#1790E9** con hover **#1370c0**.
-- Footer de versión en gris claro.
+- Mensajes con `.validation-error` y `.validation-success`.
 
 ## Clases CSS clave
 

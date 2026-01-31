@@ -9,6 +9,29 @@
     text-align: center;
 }
 
+.validation-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.validation-success {
+    color: #28a745;
+    font-size: 13px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.mfa-recovery-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #52667a;
+    margin-bottom: 12px;
+}
+
 .qr-card {
     width: 100%;
     max-width: 280px;
@@ -20,6 +43,12 @@
     align-items: center;
     justify-content: center;
     margin: 0 0 24px;
+}
+
+.qr-image {
+    width: 180px;
+    height: 180px;
+    object-fit: contain;
 }
 
 .qr-placeholder {
@@ -39,6 +68,11 @@
     .qr-card {
         max-width: 240px;
         height: 200px;
+    }
+
+    .qr-image {
+        width: 160px;
+        height: 160px;
     }
 
     .auth-code-input {
