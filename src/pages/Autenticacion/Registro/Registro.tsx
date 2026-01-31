@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
 import { TermsContent } from '../../../components/Legal/TermsContent';
@@ -7,8 +7,10 @@ import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
 import { validatePassword } from '../../../utils/passwordValidation';
 import { useRegister } from '../../../hooks/auth/useRegister';
 import { ApiError } from '../../../services/api/httpClient';
+import { useAuth } from '../../../hooks/auth/useAuth';
+import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 
-const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
+const usernamePattern = /^[A-Za-z0-9._\\-]{3,32}$/;
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
 
@@ -17,6 +19,7 @@ type ErrorMessage = string | null;
 export default function Registro() {
     const navigate = useNavigate();
     const { submit, loading } = useRegister();
+    const { isAuthenticated, roles } = useAuth();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
@@ -42,6 +45,10 @@ export default function Registro() {
     const [errorTerminos, setErrorTerminos] = useState('');
     const [submitError, setSubmitError] = useState<ErrorMessage>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+
+    if (isAuthenticated) {
+        return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
+    }
 
     const handleContrasenaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const valor = e.target.value;
@@ -224,7 +231,7 @@ export default function Registro() {
                                             placeholder="Nombre de usuario"
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
-                                            pattern="^[A-Za-z0-9._-]{3,32}$"
+                                            pattern="^[A-Za-z0-9._\\-]{3,32}$"
                                             title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required
@@ -350,7 +357,7 @@ export default function Registro() {
                                             placeholder="Nombre de usuario"
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
-                                            pattern="^[A-Za-z0-9._-]{3,32}$"
+                                            pattern="^[A-Za-z0-9._\\-]{3,32}$"
                                             title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required

@@ -41,14 +41,25 @@ export async function apiGet<T>(path: string): Promise<T> {
     return response.json() as Promise<T>;
 }
 
-export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T> {
+type ApiRequestOptions = {
+    headers?: Record<string, string>;
+    credentials?: RequestCredentials;
+};
+
+export async function apiPost<T, B = unknown>(
+    path: string,
+    body: B,
+    options?: ApiRequestOptions
+): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
         headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(options?.headers ?? {})
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        credentials: options?.credentials
     });
 
     if (!response.ok) {
