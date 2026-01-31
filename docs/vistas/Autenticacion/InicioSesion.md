@@ -56,6 +56,13 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 - Credenciales inválidas se manejan como flujo normal (sin logs ni errores no capturados).
 
+## Logout (referencia técnica)
+
+- Endpoint: `POST /api/auth/logout`
+- Header requerido: `X-CSRF-Token` con el valor de la cookie `csrf_refresh_token`.
+- Se envían cookies con `credentials: include`.
+- El frontend limpia siempre los tokens locales aunque el backend responda 401.
+
 ## Redirección por rol
 
 - `GUARDIAN` → `/padre/cuestionario`

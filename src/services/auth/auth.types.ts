@@ -85,3 +85,12 @@ export interface MFADisableRequest {
 export interface MFADisableResponse {
     msg: string;
 }
+
+export interface LogoutResponse {
+    message: string;
+}
+
+export interface LogoutErrorResponse {
+    error: 'invalid_credentials';
+    status: number;
+}

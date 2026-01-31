@@ -10,9 +10,12 @@ import type {
     MFAConfirmResponse,
     MFADisableRequest,
     MFADisableResponse,
+    LogoutResponse,
+    LogoutErrorResponse,
     RegisterPayload,
     RegisterResponse
 } from './auth.types';
+import { getCsrfToken } from '../../utils/auth/csrf';
 
 export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
@@ -62,4 +65,22 @@ export function mfaDisable(accessToken: string, payload: MFADisableRequest): Pro
             Authorization: `Bearer ${accessToken}`
         }
     });
+}
+
+export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {
+    const csrfToken = getCsrfToken();
+    try {
+        return await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
+            headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+            credentials: 'include'
+        });
+    } catch (error) {
+        if (error instanceof Error && 'status' in error) {
+            const status = (error as { status?: number }).status;
+            if (status === 401) {
+                return { error: 'invalid_credentials', status: status ?? 401 };
+            }
+        }
+        throw error;
+    }
 }

@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
+import { logout } from '../../../services/auth/auth.api';
+import { useAuth } from '../../../hooks/auth/useAuth';
 
 type AccountRole = 'padre' | 'psicologo';
 
@@ -11,6 +13,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function MiCuenta() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { logout: clearSession } = useAuth();
     const role: AccountRole = location.pathname.includes('/psicologo') ? 'psicologo' : 'padre';
     const correo = role === 'psicologo' ? 'psicologo@cognia.com' : 'tutor@cognia.com';
     const nombre = role === 'psicologo' ? 'Dra. Camila Pérez' : undefined;
@@ -27,6 +30,9 @@ export default function MiCuenta() {
     const [mostrarNueva, setMostrarNueva] = useState(false);
     const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
     const [passwordSaved, setPasswordSaved] = useState(false);
+    const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
+    const [logoutError, setLogoutError] = useState(false);
+    const [logoutLoading, setLogoutLoading] = useState(false);
 
     const tipoCuenta = role === 'psicologo' ? 'Psicólogo' : 'Padre o tutor';
     useEffect(() => {
@@ -102,8 +108,28 @@ export default function MiCuenta() {
         setPasswordSaved(true);
     };
 
-    const handleLogout = () => {
-        navigate('/inicio-sesion');
+    const handleLogout = async () => {
+        setLogoutLoading(true);
+        setLogoutMessage(null);
+        setLogoutError(false);
+        try {
+            const response = await logout();
+            if ('error' in response) {
+                setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
+                setLogoutError(true);
+            } else {
+                setLogoutMessage('Sesión cerrada.');
+            }
+        } catch {
+            setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
+            setLogoutError(true);
+        } finally {
+            clearSession('manual');
+            setLogoutLoading(false);
+            window.setTimeout(() => {
+                navigate('/inicio-sesion', { replace: true });
+            }, 500);
+        }
     };
 
     return (
@@ -344,10 +370,15 @@ export default function MiCuenta() {
 
             <div className="mi-cuenta-logout">
                 <span>¿Quieres salir de tu cuenta?</span>
-                <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout}>
-                    Cerrar sesión
+                <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout} disabled={logoutLoading}>
+                    {logoutLoading ? 'Cerrando...' : 'Cerrar sesión'}
                 </button>
             </div>
+            {logoutMessage ? (
+                <div className={logoutError ? 'mi-cuenta-error' : 'mi-cuenta-success'}>
+                    {logoutMessage}
+                </div>
+            ) : null}
 
         </div>
     );
