@@ -1,23 +1,37 @@
+import { Link } from 'react-router-dom';
 import './Header.css';
+import { useAuth } from '../../hooks/auth/useAuth';
+import { getDefaultRouteForRoles } from '../../utils/auth/roles';
 
 export default function Header() {
+    const { isAuthenticated, roles } = useAuth();
+    const platformRoute = getDefaultRouteForRoles(roles);
+
     return (
         <header className="header">
-            <a href="/" className="logo">cognIA</a>
+            <Link to="/" className="logo">cognIA</Link>
 
             <nav className="nav">
-                <a href="/nuestro-sistema" className="nav-link">Nuestro Sistema</a>
-                <a href="/sobre-nosotros" className="nav-link">Sobre Nosotros</a>
-                <a href="/trastornos" className="nav-link">Trastornos</a>
+                <Link to="/nuestro-sistema" className="nav-link">Nuestro Sistema</Link>
+                <Link to="/sobre-nosotros" className="nav-link">Sobre Nosotros</Link>
+                <Link to="/trastornos" className="nav-link">Trastornos</Link>
             </nav>
 
             <div className="auth-buttons">
-                <a href="/inicio-sesion">
-                    <button className="login">Iniciar sesión</button>
-                </a>
-                <a href="/registro">
-                    <button className="register">Registrarse</button>
-                </a>
+                {isAuthenticated ? (
+                    <Link to={platformRoute}>
+                        <button className="register">Empezar cuestionario</button>
+                    </Link>
+                ) : (
+                    <>
+                        <Link to="/inicio-sesion">
+                            <button className="login">Iniciar sesión</button>
+                        </Link>
+                        <Link to="/registro">
+                            <button className="register">Registrarse</button>
+                        </Link>
+                    </>
+                )}
             </div>
         </header>
     );

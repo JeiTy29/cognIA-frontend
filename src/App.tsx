@@ -9,7 +9,7 @@ import InicioSesion from './pages/Autenticacion/InicioSesion/InicioSesion';
 import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
-import Autenticacion from './pages/Autenticacion/Autenticacion';
+import MFA from './pages/Autenticacion/MFA/MFA';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
@@ -18,6 +18,7 @@ import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
 import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/CuestionarioPsicologo';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 
 export default function App() {
     return (
@@ -51,24 +52,31 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
-                <Route path="/autenticacion" element={<Autenticacion />} />
+                <Route path="/mfa" element={<Navigate to="/mfa/challenge" replace />} />
+                <Route path="/mfa/:mode" element={<MFA />} />
 
                 {/* Rutas de plataforma con Sidebar */}
-                <Route element={<SidebarLayout />}>
-                    <Route path="/padre">
-                        <Route index element={<Navigate to="/padre/cuestionario" replace />} />
-                        <Route path="cuestionario" element={<CuestionarioPadre />} />
-                        <Route path="historial" element={<HistorialPadre />} />
-                        <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="ayuda" element={<AyudaBase role="padre" />} />
-                    </Route>
-                    <Route path="/psicologo">
-                        <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
-                        <Route path="cuestionario" element={<CuestionarioPsicologo />} />
-                        <Route path="historial" element={<HistorialPsicologo />} />
-                        <Route path="sugerencias" element={<SugerenciasPsicologo />} />
-                        <Route path="cuenta" element={<MiCuenta />} />
-                        <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<SidebarLayout />}>
+                        <Route element={<ProtectedRoute allowedRoles={['padre']} />}>
+                            <Route path="/padre">
+                                <Route index element={<Navigate to="/padre/cuestionario" replace />} />
+                                <Route path="cuestionario" element={<CuestionarioPadre />} />
+                                <Route path="historial" element={<HistorialPadre />} />
+                                <Route path="cuenta" element={<MiCuenta />} />
+                                <Route path="ayuda" element={<AyudaBase role="padre" />} />
+                            </Route>
+                        </Route>
+                        <Route element={<ProtectedRoute allowedRoles={['psicologo']} />}>
+                            <Route path="/psicologo">
+                                <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
+                                <Route path="cuestionario" element={<CuestionarioPsicologo />} />
+                                <Route path="historial" element={<HistorialPsicologo />} />
+                                <Route path="sugerencias" element={<SugerenciasPsicologo />} />
+                                <Route path="cuenta" element={<MiCuenta />} />
+                                <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
+                            </Route>
+                        </Route>
                     </Route>
                 </Route>
             </Routes>
