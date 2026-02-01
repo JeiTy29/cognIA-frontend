@@ -43,7 +43,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ### Validación rápida de usuario
 
-- Patrón HTML: `^[A-Za-z0-9._-]{3,32}$` (sin delimitadores ni flags).
+- Patrón HTML: `^[-A-Za-z0-9._]{3,32}$` (sin delimitadores ni flags).
 - Diferencia mayúsculas/minúsculas.
 
 ## Almacenamiento de sesión

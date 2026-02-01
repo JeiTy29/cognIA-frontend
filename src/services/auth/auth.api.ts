@@ -1,4 +1,4 @@
-import { apiPost } from '../api/httpClient';
+import { apiPost, ApiError } from '../api/httpClient';
 import type {
     LoginRequest,
     LoginResponse,
@@ -22,19 +22,27 @@ export function registerUser(payload: RegisterPayload): Promise<RegisterResponse
 }
 
 export async function login(payload: LoginRequest): Promise<LoginResponse | LoginErrorResponse> {
-    try {
-        return await apiPost<LoginResponse, LoginRequest>('/api/auth/login', payload, {
-            credentials: 'include'
-        });
-    } catch (error) {
-        if (error instanceof Error && 'status' in error) {
-            const status = (error as { status?: number }).status;
-            if (status === 400 || status === 401) {
-                return { error: 'invalid_credentials', status: status ?? 400 };
-            }
-        }
-        throw error;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    const response = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => null);
+    if (response.ok) {
+        return data as LoginResponse;
     }
+
+    if (response.status === 400 || response.status === 401) {
+        return { error: 'invalid_credentials', status: response.status };
+    }
+
+    throw new ApiError(`Request failed with status ${response.status}`, response.status, data ?? undefined);
 }
 
 export function loginMfa(payload: MFALoginRequest): Promise<MFALoginResponse> {
