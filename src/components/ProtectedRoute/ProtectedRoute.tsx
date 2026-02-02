@@ -1,14 +1,32 @@
-﻿import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, hasAllowedRole, type AppRole } from '../../utils/auth/roles';
+import './ProtectedRoute.css';
 
 interface ProtectedRouteProps {
     allowedRoles?: AppRole[];
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { isAuthenticated, roles } = useAuth();
+    const { isAuthenticated, roles, isAuthLoading, refreshSession } = useAuth();
     const location = useLocation();
+    const refreshAttemptedRef = useRef(false);
+
+    useEffect(() => {
+        if (!isAuthLoading && !isAuthenticated && !refreshAttemptedRef.current) {
+            refreshAttemptedRef.current = true;
+            void refreshSession({ silent: true });
+        }
+    }, [isAuthLoading, isAuthenticated, refreshSession]);
+
+    if (isAuthLoading) {
+        return (
+            <div className="auth-guard">
+                <p>Cargando sesión...</p>
+            </div>
+        );
+    }
 
     if (!isAuthenticated) {
         return (

@@ -45,7 +45,7 @@ export interface MFAEnrollmentRequiredResponse {
 export type LoginResponse = LoginSuccessResponse | MFALoginChallengeResponse | MFAEnrollmentRequiredResponse;
 
 export interface LoginErrorResponse {
-    error: 'invalid_credentials';
+    error: 'invalid_credentials' | 'request_failed';
     status: number;
 }
 
@@ -92,5 +92,37 @@ export interface LogoutResponse {
 
 export interface LogoutErrorResponse {
     error: 'invalid_credentials';
+    status: number;
+}
+
+export interface AuthMeResponse {
+    id?: string;
+    username?: string;
+    email?: string;
+    roles?: string[];
+    user_type?: string;
+    full_name?: string;
+    professional_card_number?: string;
+    is_active?: boolean;
+    mfa_enabled?: boolean;
+    mfa_confirmed_at?: string | null;
+    mfa_method?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface AuthMeErrorResponse {
+    error: 'missing_token' | 'unauthorized';
+    status: number;
+}
+
+export interface RefreshResponse {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+}
+
+export interface RefreshErrorResponse {
+    error: 'invalid_session';
     status: number;
 }

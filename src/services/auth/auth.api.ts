@@ -1,4 +1,4 @@
-import { apiPost } from '../api/httpClient';
+import { apiGet, apiPost } from '../api/httpClient';
 import type {
     LoginRequest,
     LoginResponse,
@@ -13,27 +13,42 @@ import type {
     LogoutResponse,
     LogoutErrorResponse,
     RegisterPayload,
-    RegisterResponse
+    RegisterResponse,
+    AuthMeResponse,
+    AuthMeErrorResponse
 } from './auth.types';
 import { getCsrfToken } from '../../utils/auth/csrf';
+import { getStoredToken } from '../../utils/auth/storage';
 
 export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
 }
 
 export async function login(payload: LoginRequest): Promise<LoginResponse | LoginErrorResponse> {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
     try {
-        return await apiPost<LoginResponse, LoginRequest>('/api/auth/login', payload, {
-            credentials: 'include'
+        const response = await fetch(`${baseUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload)
         });
-    } catch (error) {
-        if (error instanceof Error && 'status' in error) {
-            const status = (error as { status?: number }).status;
-            if (status === 400 || status === 401) {
-                return { error: 'invalid_credentials', status: status ?? 400 };
-            }
+
+        const data = await response.json().catch(() => null);
+        if (response.ok) {
+            return data as LoginResponse;
         }
-        throw error;
+
+        if (response.status === 400 || response.status === 401) {
+            return { error: 'invalid_credentials', status: response.status };
+        }
+
+        return { error: 'request_failed', status: response.status };
+    } catch {
+        return { error: 'request_failed', status: 0 };
     }
 }
 
@@ -46,7 +61,7 @@ export function loginMfa(payload: MFALoginRequest): Promise<MFALoginResponse> {
 export function mfaSetup(token: string): Promise<MFASetupResponse> {
     return apiPost<MFASetupResponse, Record<string, never>>('/api/mfa/setup', {}, {
         headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: token
         }
     });
 }
@@ -54,7 +69,7 @@ export function mfaSetup(token: string): Promise<MFASetupResponse> {
 export function mfaConfirm(token: string, payload: MFAConfirmRequest): Promise<MFAConfirmResponse> {
     return apiPost<MFAConfirmResponse, MFAConfirmRequest>('/api/mfa/confirm', payload, {
         headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: token
         }
     });
 }
@@ -62,9 +77,28 @@ export function mfaConfirm(token: string, payload: MFAConfirmRequest): Promise<M
 export function mfaDisable(accessToken: string, payload: MFADisableRequest): Promise<MFADisableResponse> {
     return apiPost<MFADisableResponse, MFADisableRequest>('/api/mfa/disable', payload, {
         headers: {
-            Authorization: `Bearer ${accessToken}`
+            Authorization: accessToken
         }
     });
+}
+
+export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse> {
+    const token = getStoredToken();
+    if (!token) {
+        return { error: 'missing_token', status: 401 };
+    }
+    try {
+        return await apiGet<AuthMeResponse>('/api/auth/me', {
+            auth: true,
+            credentials: 'include'
+        });
+    } catch (error) {
+        if (error instanceof Error && 'status' in error) {
+            const status = (error as { status?: number }).status ?? 401;
+            return { error: 'unauthorized', status };
+        }
+        return { error: 'unauthorized', status: 500 };
+    }
 }
 
 export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {

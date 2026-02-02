@@ -232,7 +232,7 @@ export default function Registro() {
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
                                             pattern="^[A-Za-z0-9._-]{3,32}$"
-                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
+                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required
                                         />
@@ -358,7 +358,7 @@ export default function Registro() {
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
                                             pattern="^[A-Za-z0-9._-]{3,32}$"
-                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, numeros, punto, guion y guion bajo."
+                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
                                             autoCapitalize="none"
                                             required
                                         />
