@@ -95,6 +95,19 @@ export interface LogoutErrorResponse {
     status: number;
 }
 
+export interface AuthMeResponse {
+    id?: string;
+    username?: string;
+    email?: string;
+    roles?: string[];
+    user_type?: string;
+}
+
+export interface AuthMeErrorResponse {
+    error: 'missing_token' | 'unauthorized';
+    status: number;
+}
+
 export interface RefreshResponse {
     access_token: string;
     token_type: string;

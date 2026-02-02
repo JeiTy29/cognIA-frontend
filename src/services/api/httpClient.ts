@@ -71,7 +71,7 @@ function buildHeaders(options: ApiRequestOptions | undefined, includeJson: boole
     if (options?.auth) {
         const token = getStoredToken();
         if (token) {
-            headers.Authorization = `Bearer ${token}`;
+            headers.Authorization = token;
         }
     }
     return headers;
