@@ -4,6 +4,9 @@ import type { RefreshErrorResponse, RefreshResponse } from './auth.types';
 export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErrorResponse> {
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
     const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        return { error: 'invalid_session', status: 401 };
+    }
     const response = await fetch(`${baseUrl}/api/auth/refresh`, {
         method: 'POST',
         headers: {
