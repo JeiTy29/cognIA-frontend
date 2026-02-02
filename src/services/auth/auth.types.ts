@@ -45,7 +45,7 @@ export interface MFAEnrollmentRequiredResponse {
 export type LoginResponse = LoginSuccessResponse | MFALoginChallengeResponse | MFAEnrollmentRequiredResponse;
 
 export interface LoginErrorResponse {
-    error: 'invalid_credentials';
+    error: 'invalid_credentials' | 'request_failed';
     status: number;
 }
 
@@ -92,5 +92,16 @@ export interface LogoutResponse {
 
 export interface LogoutErrorResponse {
     error: 'invalid_credentials';
+    status: number;
+}
+
+export interface RefreshResponse {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+}
+
+export interface RefreshErrorResponse {
+    error: 'invalid_session';
     status: number;
 }

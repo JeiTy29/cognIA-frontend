@@ -1,3 +1,8 @@
+import { refreshAccessToken } from '../auth/auth.refresh';
+import type { RefreshResponse } from '../auth/auth.types';
+import { emitAuthRefresh } from '../../utils/auth/events';
+import { getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!BASE_URL) {
@@ -25,15 +30,20 @@ async function parseJsonSafe(response: Response) {
     }
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+export async function apiGet<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
         method: 'GET',
-        headers: {
-            Accept: 'application/json'
-        }
+        headers: buildHeaders(options, false),
+        credentials: options?.credentials
     });
 
     if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiGet<T>(path, { ...options, retryAuth: false });
+            }
+        }
         const payload = await parseJsonSafe(response);
         throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
     }
@@ -44,7 +54,45 @@ export async function apiGet<T>(path: string): Promise<T> {
 type ApiRequestOptions = {
     headers?: Record<string, string>;
     credentials?: RequestCredentials;
+    auth?: boolean;
+    retryAuth?: boolean;
 };
+
+function buildHeaders(options: ApiRequestOptions | undefined, includeJson: boolean) {
+    const headers: Record<string, string> = {
+        Accept: 'application/json'
+    };
+    if (includeJson) {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (options?.headers) {
+        Object.assign(headers, options.headers);
+    }
+    if (options?.auth) {
+        const token = getStoredToken();
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return headers;
+}
+
+let refreshPromise: Promise<RefreshResponse | { error: string }> | null = null;
+
+async function attemptRefresh() {
+    if (!refreshPromise) {
+        refreshPromise = refreshAccessToken();
+    }
+    const result = await refreshPromise;
+    refreshPromise = null;
+    if ('access_token' in result) {
+        setStoredToken(result.access_token);
+        setStoredExpiresAt(Date.now() + result.expires_in * 1000);
+        emitAuthRefresh({ accessToken: result.access_token, expiresIn: result.expires_in });
+        return true;
+    }
+    return false;
+}
 
 export async function apiPost<T, B = unknown>(
     path: string,
@@ -53,16 +101,18 @@ export async function apiPost<T, B = unknown>(
 ): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(options?.headers ?? {})
-        },
+        headers: buildHeaders(options, true),
         body: JSON.stringify(body),
         credentials: options?.credentials
     });
 
     if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiPost<T, B>(path, body, { ...options, retryAuth: false });
+            }
+        }
         const payload = await parseJsonSafe(response);
         throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
     }

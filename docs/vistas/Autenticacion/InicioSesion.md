@@ -43,7 +43,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ### Validación rápida de usuario
 
-- Patrón HTML: `^[-A-Za-z0-9._]{3,32}$` (sin delimitadores ni flags).
+- Patrón HTML: `^[A-Za-z0-9._-]{3,32}$` (sin delimitadores ni flags).
 - Diferencia mayúsculas/minúsculas.
 
 ## Almacenamiento de sesión
@@ -99,3 +99,12 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 - `max-width: 768px`: se oculta panel izquierdo y el contenido se centra.
 - `max-width: 480px`: padding reducido, tipografías pequeñas.
+
+## Refresh de sesión
+
+- Endpoint: `POST /api/auth/refresh`.
+- Header: `X-CSRF-Token` con el valor de la cookie `csrf_refresh_token`.
+- `credentials: include` para enviar cookies.
+- Si el access token expira, el frontend intenta refresh de forma silenciosa.
+- Si falla (401), se limpia la sesión local y se redirige a `/inicio-sesion`.
+- Se reintenta una sola vez en requests protegidos cuando hay 401.
