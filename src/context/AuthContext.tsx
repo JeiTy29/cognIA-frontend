@@ -1,4 +1,4 @@
-import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole, type AppRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = getStoredToken();
     const storedPayload = useMemo(() => (storedToken ? decodeJwtPayload(storedToken) : null), [storedToken]);
     const storedExpiresAt = getStoredExpiresAt();
+    const refreshAttemptedRef = useRef(false);
 
     const [accessToken, setAccessToken] = useState<string | null>(storedToken);
     const [roles, setRoles] = useState<string[]>(storedPayload?.roles ?? []);
@@ -93,16 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await refreshAccessToken();
             if ('error' in response) {
-                logout('expired');
+                if (!accessToken) {
+                    logout('expired');
+                } else {
+                    setIsAuthLoading(false);
+                }
                 return false;
             }
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
-            logout('expired');
+            if (!accessToken) {
+                logout('expired');
+            } else {
+                setIsAuthLoading(false);
+            }
             return false;
         }
-    }, [logout, setSession]);
+    }, [logout, setSession, accessToken]);
 
     const reloadProfile = useCallback(async () => {
         if (!getStoredToken()) {
@@ -148,10 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!storedToken || invalidToken || expired) {
-            const timeoutId = window.setTimeout(() => {
-                void refreshSession();
-            }, 0);
-            return () => window.clearTimeout(timeoutId);
+            if (!refreshAttemptedRef.current) {
+                refreshAttemptedRef.current = true;
+                const timeoutId = window.setTimeout(() => {
+                    void refreshSession();
+                }, 0);
+                return () => window.clearTimeout(timeoutId);
+            }
+            setIsAuthLoading(false);
+            return undefined;
         }
 
         setIsAuthLoading(false);
@@ -159,14 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [storedToken, storedPayload, storedExpiresAt, refreshSession]);
 
     useEffect(() => {
-        if (accessToken) {
-            void reloadProfile();
+        if (!accessToken) {
+            setProfile(null);
+            setProfileStatus('idle');
+            setProfileErrorStatus(null);
             return;
         }
-        setProfile(null);
-        setProfileStatus('idle');
-        setProfileErrorStatus(null);
-    }, [accessToken, reloadProfile]);
+        if (isAuthLoading) return;
+        if (expiresAt && Date.now() >= expiresAt) return;
+        void reloadProfile();
+    }, [accessToken, isAuthLoading, expiresAt, reloadProfile]);
 
     useEffect(() => {
         return onAuthRefresh((detail) => {

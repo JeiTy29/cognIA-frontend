@@ -17,6 +17,7 @@ export default function InicioSesion() {
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated, roles, setSession } = useAuth();
+    const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
     useEffect(() => {
         const storedNotice = consumeAuthNotice();
@@ -45,6 +46,10 @@ export default function InicioSesion() {
         setInfoMessage(null);
         setLoading(true);
         try {
+            if (!usernamePattern.test(username)) {
+                setErrorMessage('Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres válidos.');
+                return;
+            }
             const response = await login({ username, password });
             if ('error' in response) {
                 if (response.error === 'invalid_credentials') {
@@ -109,7 +114,6 @@ export default function InicioSesion() {
                                 placeholder="Nombre de usuario"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                pattern="^[A-Za-z0-9._-]{3,32}$"
                                 title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
                                 autoCapitalize="none"
                                 autoCorrect="off"
