@@ -4,16 +4,19 @@
 
 Centralizar la gestión de datos del perfil y seguridad en una sola vista para ambos roles.
 
-## Roles y contenido visible
+## Roles y contenido visible (desde /api/auth/me)
 
 **Padre/Tutor**
+- Usuario.
 - Tipo de cuenta: **Padre o tutor**.
-- No muestra campo de nombre.
+- No muestra **Nombre completo** ni **Tarjeta profesional**.
 - Muestra el correo actual como dato informativo.
 
 **Psicólogo**
+- Usuario.
 - Tipo de cuenta: **Psicólogo**.
-- Muestra el campo **Nombre**.
+- Muestra **Nombre completo**.
+- Muestra **Tarjeta profesional**.
 - Muestra el correo actual como dato informativo.
 
 ## Estructura visual
@@ -27,8 +30,10 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
 
 ### A) Información de la cuenta
 - Campos visibles:
-  - **Tipo de cuenta**.
-  - **Nombre** (solo psicólogo).
+  - **Usuario**.
+  - **Tipo de cuenta** (mapeado desde roles/user_type).
+  - **Nombre completo** (solo psicólogo).
+  - **Tarjeta profesional** (solo psicólogo).
   - **Correo**.
 
 ### B) Seguridad (desplegables sin modals)
@@ -53,8 +58,23 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
 
 ### C) Verificación en dos pasos (MFA)
 - Solo visible para **Padre/Tutor**.
-- Texto informativo: “Activa la verificación en dos pasos para proteger tu cuenta.”
-- Botón **Activar MFA** (UI/estructura; sin llamada a backend por ahora).
+- Estados:
+  - Si `mfa_enabled` es **false**: CTA **Activar MFA** + texto informativo.
+  - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
+- UI/estructura: sin llamadas a backend por ahora.
+- Para **Psicólogo** no se muestran CTAs de MFA.
+
+## Campos guardados (no visibles)
+
+Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
+- `id`, `is_active`, `roles`, `mfa_confirmed_at`, `mfa_method`, `created_at`, `updated_at`.
+
+## Manejo de errores de perfil (/me)
+
+- **401**: se limpia sesión local y se redirige a login.
+- **403**: mensaje “No tienes permisos para ver tu perfil.”
+- **404**: mensaje “No se encontró tu perfil.”
+- **5xx/red**: “No fue posible cargar tu información. Intenta más tarde.”
 
 ### D) Cerrar sesión
 - Bloque final fuera de tarjetas grandes.

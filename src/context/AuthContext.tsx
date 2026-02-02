@@ -2,6 +2,8 @@ import { createContext, useCallback, useMemo, useState, useEffect, type ReactNod
 import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole, type AppRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
+import { getAuthMe } from '../services/auth/auth.api';
+import type { AuthMeResponse } from '../services/auth/auth.types';
 import { onAuthRefresh } from '../utils/auth/events';
 import {
     getStoredToken,
@@ -23,9 +25,13 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     isAuthLoading: boolean;
     primaryRole: AppRole | null;
+    profile: AuthMeResponse | null;
+    profileStatus: 'idle' | 'loading' | 'success' | 'error';
+    profileErrorStatus: number | null;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
+    reloadProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -50,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [userId, setUserId] = useState<string | null>(storedPayload?.sub ?? null);
     const [expiresAt, setExpiresAt] = useState<number | null>(storedExpiresAt ?? computeExpiresAt(storedPayload, undefined));
     const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+    const [profile, setProfile] = useState<AuthMeResponse | null>(null);
+    const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [profileErrorStatus, setProfileErrorStatus] = useState<number | null>(null);
 
     const logout = useCallback((reason?: LogoutReason) => {
         setAccessToken(null);
@@ -95,6 +104,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [logout, setSession]);
 
+    const reloadProfile = useCallback(async () => {
+        if (!getStoredToken()) {
+            setProfile(null);
+            setProfileStatus('idle');
+            setProfileErrorStatus(401);
+            return;
+        }
+        setProfileStatus('loading');
+        setProfileErrorStatus(null);
+        const response = await getAuthMe();
+        if ('error' in response) {
+            setProfile(null);
+            setProfileStatus('error');
+            setProfileErrorStatus(response.status);
+            if (response.status === 401) {
+                logout('expired');
+            }
+            return;
+        }
+        setProfile(response);
+        setProfileStatus('success');
+        setProfileErrorStatus(null);
+    }, [logout]);
+
     useEffect(() => {
         const invalidToken = !!storedToken && !storedPayload;
         const expired = invalidToken
@@ -126,6 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [storedToken, storedPayload, storedExpiresAt, refreshSession]);
 
     useEffect(() => {
+        if (accessToken) {
+            void reloadProfile();
+            return;
+        }
+        setProfile(null);
+        setProfileStatus('idle');
+        setProfileErrorStatus(null);
+    }, [accessToken, reloadProfile]);
+
+    useEffect(() => {
         return onAuthRefresh((detail) => {
             setSession(detail.accessToken, detail.expiresIn);
         });
@@ -155,10 +198,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         isAuthLoading,
         primaryRole,
+        profile,
+        profileStatus,
+        profileErrorStatus,
         setSession,
         logout,
-        refreshSession
-    }), [accessToken, roles, userId, expiresAt, isAuthenticated, isAuthLoading, primaryRole, setSession, logout, refreshSession]);
+        refreshSession,
+        reloadProfile
+    }), [accessToken, roles, userId, expiresAt, isAuthenticated, isAuthLoading, primaryRole, profile, profileStatus, profileErrorStatus, setSession, logout, refreshSession, reloadProfile]);
 
     return (
         <AuthContext.Provider value={value}>

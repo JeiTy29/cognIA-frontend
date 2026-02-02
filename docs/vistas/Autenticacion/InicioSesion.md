@@ -110,14 +110,18 @@ Formulario de acceso con credenciales (nombre de usuario + contraseÃ±a). Inici
 - Se reintenta una sola vez en requests protegidos cuando hay 401.
 
 
-## Authorization (token crudo)
-
-- Los endpoints protegidos usan `Authorization: <access_token>` (sin `Bearer`).
-- El access token se lee desde `sessionStorage` con la clave `cognia_access_token`.
-
-## Perfil (/api/auth/me)
-
-- Endpoint: `GET /api/auth/me`
-- Headers: `Accept: application/json`, `Authorization: <access_token>`
-- `credentials: include` para enviar cookies.
-- Si no hay token, se considera no autenticado y se redirige a login.
+## Authorization (token crudo)
+
+- Los endpoints protegidos usan `Authorization: <access_token>` (sin `Bearer`).
+- El access token se lee desde `sessionStorage` con la clave `cognia_access_token`.
+
+## Perfil (/api/auth/me)
+
+- Endpoint: `GET /api/auth/me`
+- Headers: `Accept: application/json`, `Authorization: <access_token>`
+- `credentials: include` para enviar cookies.
+- Si no hay token, se considera no autenticado y se redirige a login.
+- Datos usados en UI (Mi Cuenta):
+  - `username`, `email`, `user_type/roles`, `full_name`, `professional_card_number`, `mfa_enabled`.
+- Datos guardados para futuro DTO/admin (no visibles):
+  - `id`, `is_active`, `roles`, `mfa_confirmed_at`, `mfa_method`, `created_at`, `updated_at`.

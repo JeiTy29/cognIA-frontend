@@ -101,6 +101,14 @@ export interface AuthMeResponse {
     email?: string;
     roles?: string[];
     user_type?: string;
+    full_name?: string;
+    professional_card_number?: string;
+    is_active?: boolean;
+    mfa_enabled?: boolean;
+    mfa_confirmed_at?: string | null;
+    mfa_method?: string | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface AuthMeErrorResponse {
