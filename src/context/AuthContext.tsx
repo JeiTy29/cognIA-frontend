@@ -1,6 +1,10 @@
-﻿import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from 'react';
 import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole, type AppRole } from '../utils/auth/roles';
+import { refreshAccessToken } from '../services/auth/auth.refresh';
+import { getAuthMe } from '../services/auth/auth.api';
+import type { AuthMeResponse } from '../services/auth/auth.types';
+import { onAuthRefresh } from '../utils/auth/events';
 import {
     getStoredToken,
     getStoredExpiresAt,
@@ -19,9 +23,15 @@ interface AuthContextValue {
     userId: string | null;
     expiresAt: number | null;
     isAuthenticated: boolean;
+    isAuthLoading: boolean;
     primaryRole: AppRole | null;
+    profile: AuthMeResponse | null;
+    profileStatus: 'idle' | 'loading' | 'success' | 'error';
+    profileErrorStatus: number | null;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
+    refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
+    reloadProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -38,34 +48,24 @@ function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = getStoredToken();
-    const storedPayload = storedToken ? decodeJwtPayload(storedToken) : null;
+    const storedPayload = useMemo(() => (storedToken ? decodeJwtPayload(storedToken) : null), [storedToken]);
     const storedExpiresAt = getStoredExpiresAt();
-    const invalidToken = !!storedToken && !storedPayload;
-    const initialExpired = invalidToken
-        ? true
-        : storedPayload?.exp
-            ? isJwtExpired(storedPayload.exp)
-            : storedExpiresAt
-                ? Date.now() >= storedExpiresAt
-                : false;
 
-    const [accessToken, setAccessToken] = useState<string | null>(initialExpired ? null : storedToken);
-    const [roles, setRoles] = useState<string[]>(initialExpired ? [] : storedPayload?.roles ?? []);
-    const [userId, setUserId] = useState<string | null>(initialExpired ? null : storedPayload?.sub ?? null);
-    const [expiresAt, setExpiresAt] = useState<number | null>(initialExpired ? null : storedExpiresAt ?? computeExpiresAt(storedPayload, undefined));
-
-    useEffect(() => {
-        if (initialExpired) {
-            removeStoredToken();
-            removeStoredExpiresAt();
-        }
-    }, [initialExpired]);
+    const [accessToken, setAccessToken] = useState<string | null>(storedToken);
+    const [roles, setRoles] = useState<string[]>(storedPayload?.roles ?? []);
+    const [userId, setUserId] = useState<string | null>(storedPayload?.sub ?? null);
+    const [expiresAt, setExpiresAt] = useState<number | null>(storedExpiresAt ?? computeExpiresAt(storedPayload, undefined));
+    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+    const [profile, setProfile] = useState<AuthMeResponse | null>(null);
+    const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [profileErrorStatus, setProfileErrorStatus] = useState<number | null>(null);
 
     const logout = useCallback((reason?: LogoutReason) => {
         setAccessToken(null);
         setRoles([]);
         setUserId(null);
         setExpiresAt(null);
+        setIsAuthLoading(false);
         removeStoredToken();
         removeStoredExpiresAt();
         if (reason === 'expired') {
@@ -80,23 +80,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(payload?.roles ?? []);
         setUserId(payload?.sub ?? null);
         setExpiresAt(nextExpiresAt);
+        setIsAuthLoading(false);
         setStoredToken(token);
         setStoredExpiresAt(nextExpiresAt);
         sessionStorage.removeItem(AUTH_NOTICE_KEY);
     }, []);
 
+    const refreshSession = useCallback(async (options?: { silent?: boolean }) => {
+        if (!options?.silent) {
+            setIsAuthLoading(true);
+        }
+        try {
+            const response = await refreshAccessToken();
+            if ('error' in response) {
+                logout('expired');
+                return false;
+            }
+            setSession(response.access_token, response.expires_in);
+            return true;
+        } catch {
+            logout('expired');
+            return false;
+        }
+    }, [logout, setSession]);
+
+    const reloadProfile = useCallback(async () => {
+        if (!getStoredToken()) {
+            setProfile(null);
+            setProfileStatus('idle');
+            setProfileErrorStatus(401);
+            return;
+        }
+        setProfileStatus('loading');
+        setProfileErrorStatus(null);
+        const response = await getAuthMe();
+        if ('error' in response) {
+            setProfile(null);
+            setProfileStatus('error');
+            setProfileErrorStatus(response.status);
+            if (response.status === 401) {
+                logout('expired');
+            }
+            return;
+        }
+        setProfile(response);
+        setProfileStatus('success');
+        setProfileErrorStatus(null);
+    }, [logout]);
+
+    useEffect(() => {
+        const invalidToken = !!storedToken && !storedPayload;
+        const expired = invalidToken
+            ? true
+            : storedPayload?.exp
+                ? isJwtExpired(storedPayload.exp)
+                : storedExpiresAt
+                    ? Date.now() >= storedExpiresAt
+                    : false;
+
+        if (invalidToken || expired) {
+            removeStoredToken();
+            removeStoredExpiresAt();
+            setAccessToken(null);
+            setRoles([]);
+            setUserId(null);
+            setExpiresAt(null);
+        }
+
+        if (!storedToken || invalidToken || expired) {
+            const timeoutId = window.setTimeout(() => {
+                void refreshSession();
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
+        }
+
+        setIsAuthLoading(false);
+        return undefined;
+    }, [storedToken, storedPayload, storedExpiresAt, refreshSession]);
+
+    useEffect(() => {
+        if (accessToken) {
+            void reloadProfile();
+            return;
+        }
+        setProfile(null);
+        setProfileStatus('idle');
+        setProfileErrorStatus(null);
+    }, [accessToken, reloadProfile]);
+
+    useEffect(() => {
+        return onAuthRefresh((detail) => {
+            setSession(detail.accessToken, detail.expiresIn);
+        });
+    }, [setSession]);
+
     useEffect(() => {
         if (!expiresAt) return;
         const timeLeft = expiresAt - Date.now();
         if (timeLeft <= 0) {
-            logout('expired');
+            void refreshSession({ silent: true });
             return;
         }
         const timeoutId = window.setTimeout(() => {
-            logout('expired');
+            void refreshSession({ silent: true });
         }, timeLeft);
         return () => window.clearTimeout(timeoutId);
-    }, [expiresAt, logout]);
+    }, [expiresAt, refreshSession]);
 
     const isAuthenticated = !!accessToken;
     const primaryRole = getPrimaryRole(roles);
@@ -107,10 +196,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId,
         expiresAt,
         isAuthenticated,
+        isAuthLoading,
         primaryRole,
+        profile,
+        profileStatus,
+        profileErrorStatus,
         setSession,
-        logout
-    }), [accessToken, roles, userId, expiresAt, isAuthenticated, primaryRole, setSession, logout]);
+        logout,
+        refreshSession,
+        reloadProfile
+    }), [accessToken, roles, userId, expiresAt, isAuthenticated, isAuthLoading, primaryRole, profile, profileStatus, profileErrorStatus, setSession, logout, refreshSession, reloadProfile]);
 
     return (
         <AuthContext.Provider value={value}>

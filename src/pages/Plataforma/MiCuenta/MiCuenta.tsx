@@ -1,22 +1,17 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
 import { logout } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
-
-type AccountRole = 'padre' | 'psicologo';
+import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const location = useLocation();
-    const { logout: clearSession } = useAuth();
-    const role: AccountRole = location.pathname.includes('/psicologo') ? 'psicologo' : 'padre';
-    const correo = role === 'psicologo' ? 'psicologo@cognia.com' : 'tutor@cognia.com';
-    const nombre = role === 'psicologo' ? 'Dra. Camila Pérez' : undefined;
+    const { logout: clearSession, profile, profileStatus, profileErrorStatus } = useAuth();
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
@@ -34,7 +29,28 @@ export default function MiCuenta() {
     const [logoutError, setLogoutError] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
 
-    const tipoCuenta = role === 'psicologo' ? 'Psicólogo' : 'Padre o tutor';
+    const isPsychologist = isPsychologistProfile(profile);
+    const isGuardian = isGuardianProfile(profile);
+    const tipoCuenta = getAccountTypeLabel(profile);
+    const correo = profile?.email ?? '—';
+    const username = profile?.username ?? '—';
+    const nombreCompleto = profile?.full_name ?? '—';
+    const tarjetaProfesional = profile?.professional_card_number ?? '—';
+    const mfaEnabled = profile?.mfa_enabled ?? false;
+
+    useEffect(() => {
+        if (profileStatus === 'error' && profileErrorStatus === 401) {
+            clearSession('manual');
+            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+        }
+    }, [profileStatus, profileErrorStatus, clearSession, navigate]);
+
+    const profileMessage = useMemo(() => {
+        if (profileStatus !== 'error') return null;
+        if (profileErrorStatus === 403) return 'No tienes permisos para ver tu perfil.';
+        if (profileErrorStatus === 404) return 'No se encontró tu perfil.';
+        return 'No fue posible cargar tu información. Intenta más tarde.';
+    }, [profileStatus, profileErrorStatus]);
     useEffect(() => {
         if (openPanel !== 'correo') {
             setEmailSaved(false);
@@ -139,14 +155,30 @@ export default function MiCuenta() {
             <div className="mi-cuenta-grid">
                 <section className="info-card mi-cuenta-section">
                     <h2 className="mi-cuenta-section-title">Información de la cuenta</h2>
+                    {profileStatus === 'loading' && (
+                        <div className="mi-cuenta-success">Cargando perfil...</div>
+                    )}
+                    {profileMessage && (
+                        <div className="mi-cuenta-error">{profileMessage}</div>
+                    )}
+                    <div className="mi-cuenta-field">
+                        <span className="mi-cuenta-label">Usuario</span>
+                        <span className="mi-cuenta-value">{username}</span>
+                    </div>
                     <div className="mi-cuenta-field">
                         <span className="mi-cuenta-label">Tipo de cuenta</span>
                         <span className="mi-cuenta-value">{tipoCuenta}</span>
                     </div>
-                    {role === 'psicologo' && (
+                    {isPsychologist && (
                         <div className="mi-cuenta-field">
-                            <span className="mi-cuenta-label">Nombre</span>
-                            <span className="mi-cuenta-value">{nombre || 'Nombre del psicólogo'}</span>
+                            <span className="mi-cuenta-label">Nombre completo</span>
+                            <span className="mi-cuenta-value">{nombreCompleto}</span>
+                        </div>
+                    )}
+                    {isPsychologist && (
+                        <div className="mi-cuenta-field">
+                            <span className="mi-cuenta-label">Tarjeta profesional</span>
+                            <span className="mi-cuenta-value">{tarjetaProfesional}</span>
                         </div>
                     )}
                     <div className="mi-cuenta-field">
@@ -358,11 +390,20 @@ export default function MiCuenta() {
                     </div>
                 </section>
 
-                {role === 'padre' && (
+                {isGuardian && (
                     <section className="info-card mi-cuenta-section">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
-                        <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
-                        <button type="button" className="mi-cuenta-btn primary">Activar MFA</button>
+                        {mfaEnabled ? (
+                            <>
+                                <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                                <button type="button" className="mi-cuenta-btn primary">Desactivar MFA</button>
+                            </>
+                        ) : (
+                            <>
+                                <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
+                                <button type="button" className="mi-cuenta-btn primary">Activar MFA</button>
+                            </>
+                        )}
                     </section>
                 )}
 

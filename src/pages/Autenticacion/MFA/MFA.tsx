@@ -59,7 +59,7 @@ export default function MFA() {
                 const response = await mfaSetup(enrollmentToken);
                 const dataUrl = await QRCode.toDataURL(response.otpauth_uri);
                 setQrDataUrl(dataUrl);
-            } catch (error) {
+            } catch {
                 setSubmitError('No se pudo generar el QR. Intenta nuevamente.');
             } finally {
                 setLoadingQr(false);
@@ -124,7 +124,7 @@ export default function MFA() {
                 await mfaConfirm(enrollmentToken, { code: codigo });
                 setSubmitSuccess('MFA configurado correctamente.');
                 navigate('/inicio-sesion', { replace: true, state: { mfaConfigured: true } });
-            } catch (error) {
+            } catch {
                 setSubmitError('El código ingresado no es válido. Intenta nuevamente.');
             } finally {
                 setSubmitting(false);

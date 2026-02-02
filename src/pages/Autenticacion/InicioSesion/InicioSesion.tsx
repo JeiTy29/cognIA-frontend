@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
 import { login } from '../../../services/auth/auth.api';
-import { ApiError } from '../../../services/api/httpClient';
 import { consumeAuthNotice } from '../../../context/AuthContext';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
@@ -47,8 +46,12 @@ export default function InicioSesion() {
         setLoading(true);
         try {
             const response = await login({ username, password });
-            if ('error' in response && response.error === 'invalid_credentials') {
-                setErrorMessage('Usuario o contraseña incorrectos.');
+            if ('error' in response) {
+                if (response.error === 'invalid_credentials') {
+                    setErrorMessage('Usuario o contraseña incorrectos.');
+                } else {
+                    setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
+                }
                 return;
             }
             if ('access_token' in response) {
@@ -66,16 +69,8 @@ export default function InicioSesion() {
                 return;
             }
             setErrorMessage('No se pudo iniciar sesión. Intenta nuevamente.');
-        } catch (error) {
-            if (error instanceof ApiError) {
-                if (error.status === 400 || error.status === 401) {
-                    setErrorMessage('Usuario o contraseña incorrectos.');
-                } else {
-                    setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
-                }
-            } else {
-                setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
-            }
+        } catch {
+            setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
         } finally {
             setLoading(false);
         }

@@ -1,4 +1,4 @@
-﻿# Vista: MFA
+# Vista: MFA
 
 ## Descripción general
 
@@ -12,74 +12,43 @@ Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (co
 
 ## Endpoints relacionados
 
-- `POST /api/auth/login/mfa` → completa el challenge con `challenge_id` y código.
-- `POST /api/mfa/setup` → genera `otpauth_uri` para QR.
-- `POST /api/mfa/confirm` → confirma TOTP y finaliza enrolamiento.
-- `POST /api/mfa/disable` → deshabilita MFA (no usado aquí).
+- `POST /api/auth/login/mfa` (verificación MFA durante login)
+- `POST /api/mfa/setup` (genera `otpauth_uri` para QR)
+- `POST /api/mfa/confirm` (confirma el código)
+- `POST /api/mfa/disable` (deshabilita MFA)
 
-## Modo setup
+## Authorization (token crudo)
+
+- Todos los endpoints protegidos usan **token crudo**:
+  - `Authorization: <access_token>` (sin `Bearer`).
+
+## Modos de la vista
+
+### Modo setup
 
 - Título: “Configurar verificación en dos pasos”.
-- Muestra QR (`.qr-card`) generado desde `otpauth_uri`.
-- Input de 6 dígitos + botón **Confirmar**.
-- Nota inferior: “Si no puedes escanear el QR…”.
+- Muestra QR generado desde `otpauth_uri`.
+- El usuario ingresa el código de 6 dígitos.
+- Al confirmar, se redirige a `/inicio-sesion` con mensaje de MFA configurado.
 
-### Flujo setup
-
-1. El login redirige con `state` `{ mode: 'setup', enrollmentToken }`.
-2. La vista llama `POST /api/mfa/setup` con `Authorization: Bearer <enrollmentToken>`.
-3. Se genera el QR y se muestra al usuario.
-4. El usuario ingresa el código y se llama `POST /api/mfa/confirm`.
-5. En éxito, redirige a `/inicio-sesion` con mensaje de confirmación.
-
-## Modo challenge
+### Modo challenge
 
 - Título: “Verificación requerida”.
 - No muestra QR.
-- Input de 6 dígitos + botón **Verificar**.
-- Opción para usar **código de recuperación**.
+- El usuario ingresa el código de 6 dígitos o un código de recuperación.
+- Si valida, se guarda el `access_token` y se redirige según rol.
 
-### Flujo challenge
+## Flujo de navegación
 
-1. El login redirige con `state` `{ mode: 'challenge', challengeId }`.
-2. El usuario ingresa el código (o recovery) y se llama `POST /api/auth/login/mfa`.
-3. En éxito, se guarda el `access_token` y se redirige a la plataforma según rol.
+- El modo se determina por `state` en `navigate` (`mode`, `challengeId`, `enrollmentToken`).
+- Si se entra sin `state` válido, la vista redirige a `/inicio-sesion`.
 
 ## Seguridad de tokens
 
-- `challengeId` y `enrollmentToken` se mantienen **solo en memoria** (React Router `state`).
-- No se guardan en localStorage, sessionStorage ni query params.
-- Si el usuario entra a `/mfa/*` sin `state` válido, se redirige a `/inicio-sesion`.
+- `challenge_id` y `enrollment_token` **no** se guardan en storage; se mantienen solo en memoria.
+- El token de acceso se guarda en `sessionStorage` (clave `cognia_access_token`).
 
-## Estructura base
+## Mensajes de estado
 
-- Layout de dos paneles (mismo estilo de login).
-- Logo superior con link a `/`.
-- Input centrado `.auth-code-input` para 6 dígitos.
-- Footer de versión `.version-footer`.
-
-## Estilos clave
-
-- QR card con borde punteado y fondo **#f7fbff**.
-- Código con `letter-spacing: 6px` para legibilidad.
-- Nota `.auth-mfa-note` con tipografía pequeña y color neutro.
-
-## Clases CSS clave
-
-- `.auth-2fa`, `.auth-mfa`, `.qr-card`, `.qr-placeholder`, `.qr-image`, `.auth-code-input`, `.auth-mfa-note`.
-
-## Validaciones
-
-- El código debe tener 6 dígitos.
-- Si se usa recovery, el input de recovery es obligatorio.
-
-## Navegación
-
-- Logo → `/`.
-- En modo setup: redirige a `/inicio-sesion` tras confirmar.
-- En modo challenge: redirige a plataforma según rol.
-
-## Responsive
-
-- `max-width: 480px`: QR más compacto y tracking de texto menor.
-
+- Errores de código muestran mensaje inline (sin logs de tokens).
+- Feedback de éxito en confirmación de MFA.

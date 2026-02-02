@@ -1,0 +1,8 @@
+﻿.auth-guard {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #52667a;
+}
