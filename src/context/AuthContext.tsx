@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ? isJwtExpired(storedPayload.exp)
                 : storedExpiresAt
                     ? Date.now() >= storedExpiresAt
-                    : false;
+                    : true;
 
         if (invalidToken || expired) {
             removeStoredToken();
