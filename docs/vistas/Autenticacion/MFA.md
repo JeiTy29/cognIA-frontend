@@ -17,10 +17,10 @@ Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (co
 - `POST /api/mfa/confirm` (confirma el código)
 - `POST /api/mfa/disable` (deshabilita MFA)
 
-## Authorization (token crudo)
+## Authorization (Bearer)
 
-- Todos los endpoints protegidos usan **token crudo**:
-  - `Authorization: <access_token>` (sin `Bearer`).
+- Todos los endpoints protegidos usan **esquema Bearer**:
+  - `Authorization: Bearer <access_token>`.
 
 ## Modos de la vista
 
