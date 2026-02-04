@@ -216,6 +216,12 @@
 .mi-cuenta-mfa {
     align-items: center;
     text-align: center;
+    justify-self: center;
+    width: 100%;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    grid-column: 1 / -1;
 }
 
 .mi-cuenta-mfa .mi-cuenta-section-note {
