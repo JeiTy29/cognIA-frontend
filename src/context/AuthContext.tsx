@@ -5,6 +5,7 @@ import { refreshAccessToken } from '../services/auth/auth.refresh';
 import { getAuthMe } from '../services/auth/auth.api';
 import type { AuthMeResponse } from '../services/auth/auth.types';
 import { onAuthRefresh } from '../utils/auth/events';
+import { devAuthBypassEnabled, getDevProfile, getDevRoleLabel, resolveDevRole } from '../utils/auth/devBypass';
 import {
     getStoredToken,
     getStoredExpiresAt,
@@ -28,6 +29,8 @@ interface AuthContextValue {
     profile: AuthMeResponse | null;
     profileStatus: 'idle' | 'loading' | 'success' | 'error';
     profileErrorStatus: number | null;
+    devBypassEnabled: boolean;
+    devBypassLabel: string | null;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
@@ -51,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedPayload = useMemo(() => (storedToken ? decodeJwtPayload(storedToken) : null), [storedToken]);
     const storedExpiresAt = getStoredExpiresAt();
     const refreshAttemptedRef = useRef(false);
+    const devRole = useMemo(() => (devAuthBypassEnabled ? resolveDevRole() : null), []);
+    const devProfile = useMemo(() => (devRole ? getDevProfile(devRole) : null), [devRole]);
 
     const [accessToken, setAccessToken] = useState<string | null>(storedToken);
     const [roles, setRoles] = useState<string[]>(storedPayload?.roles ?? []);
@@ -88,6 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const refreshSession = useCallback(async (options?: { silent?: boolean }) => {
+        if (devAuthBypassEnabled) {
+            setIsAuthLoading(false);
+            return true;
+        }
         if (!options?.silent) {
             setIsAuthLoading(true);
         }
@@ -114,6 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [logout, setSession, accessToken]);
 
     const reloadProfile = useCallback(async () => {
+        if (devAuthBypassEnabled && devProfile) {
+            setProfile(devProfile);
+            setProfileStatus('success');
+            setProfileErrorStatus(null);
+            return;
+        }
         if (!getStoredToken()) {
             setProfile(null);
             setProfileStatus('idle');
@@ -135,9 +150,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(response);
         setProfileStatus('success');
         setProfileErrorStatus(null);
-    }, [logout]);
+    }, [logout, devProfile]);
 
     useEffect(() => {
+        if (devAuthBypassEnabled) {
+            setIsAuthLoading(false);
+            return;
+        }
         const invalidToken = !!storedToken && !storedPayload;
         const expired = invalidToken
             ? true
@@ -173,6 +192,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [storedToken, storedPayload, storedExpiresAt, refreshSession]);
 
     useEffect(() => {
+        if (devAuthBypassEnabled) {
+            if (devProfile) {
+                setProfile(devProfile);
+                setProfileStatus('success');
+                setProfileErrorStatus(null);
+            }
+            return;
+        }
         if (!accessToken) {
             setProfile(null);
             setProfileStatus('idle');
@@ -182,15 +209,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isAuthLoading) return;
         if (expiresAt && Date.now() >= expiresAt) return;
         void reloadProfile();
-    }, [accessToken, isAuthLoading, expiresAt, reloadProfile]);
+    }, [accessToken, isAuthLoading, expiresAt, reloadProfile, devProfile]);
 
     useEffect(() => {
+        if (devAuthBypassEnabled) return;
         return onAuthRefresh((detail) => {
             setSession(detail.accessToken, detail.expiresIn);
         });
     }, [setSession]);
 
     useEffect(() => {
+        if (devAuthBypassEnabled) return;
         if (!expiresAt) return;
         const timeLeft = expiresAt - Date.now();
         if (timeLeft <= 0) {
@@ -203,25 +232,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => window.clearTimeout(timeoutId);
     }, [expiresAt, refreshSession]);
 
-    const isAuthenticated = !!accessToken;
-    const primaryRole = getPrimaryRole(roles);
+    const effectiveRoles = devAuthBypassEnabled && devProfile?.roles ? devProfile.roles : roles;
+    const isAuthenticated = devAuthBypassEnabled ? true : !!accessToken;
+    const primaryRole = getPrimaryRole(effectiveRoles);
+    const effectiveProfile = devAuthBypassEnabled ? devProfile : profile;
+    const devBypassLabel = devAuthBypassEnabled && devRole ? getDevRoleLabel(devRole) : null;
 
     const value = useMemo<AuthContextValue>(() => ({
         accessToken,
-        roles,
+        roles: effectiveRoles,
         userId,
         expiresAt,
         isAuthenticated,
         isAuthLoading,
         primaryRole,
-        profile,
+        profile: effectiveProfile,
         profileStatus,
         profileErrorStatus,
+        devBypassEnabled: devAuthBypassEnabled,
+        devBypassLabel,
         setSession,
         logout,
         refreshSession,
         reloadProfile
-    }), [accessToken, roles, userId, expiresAt, isAuthenticated, isAuthLoading, primaryRole, profile, profileStatus, profileErrorStatus, setSession, logout, refreshSession, reloadProfile]);
+    }), [accessToken, effectiveRoles, userId, expiresAt, isAuthenticated, isAuthLoading, primaryRole, effectiveProfile, profileStatus, profileErrorStatus, devBypassLabel, setSession, logout, refreshSession, reloadProfile]);
 
     return (
         <AuthContext.Provider value={value}>

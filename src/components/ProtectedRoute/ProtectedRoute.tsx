@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { isAuthenticated, roles, isAuthLoading, refreshSession } = useAuth();
+    const { isAuthenticated, roles, isAuthLoading, refreshSession, devBypassEnabled } = useAuth();
     const location = useLocation();
     const refreshAttemptedRef = useRef(false);
 
@@ -19,6 +19,10 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
             void refreshSession({ silent: true });
         }
     }, [isAuthLoading, isAuthenticated, refreshSession]);
+
+    if (devBypassEnabled) {
+        return <Outlet />;
+    }
 
     if (isAuthLoading) {
         return (

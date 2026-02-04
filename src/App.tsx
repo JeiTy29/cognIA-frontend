@@ -19,6 +19,7 @@ import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/Cues
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 
 export default function App() {
     return (
@@ -80,6 +81,7 @@ export default function App() {
                     </Route>
                 </Route>
             </Routes>
+            <DevAuthBadge />
         </>
     );
 }
