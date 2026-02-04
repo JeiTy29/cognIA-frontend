@@ -19,6 +19,7 @@ import type {
 } from './auth.types';
 import { getCsrfToken } from '../../utils/auth/csrf';
 import { getStoredToken } from '../../utils/auth/storage';
+import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 
 export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
@@ -59,25 +60,28 @@ export function loginMfa(payload: MFALoginRequest): Promise<MFALoginResponse> {
 }
 
 export function mfaSetup(token: string): Promise<MFASetupResponse> {
+    const authorization = buildAuthorizationHeader(token);
     return apiPost<MFASetupResponse, Record<string, never>>('/api/mfa/setup', {}, {
         headers: {
-            Authorization: token
+            ...(authorization ? { Authorization: authorization } : {})
         }
     });
 }
 
 export function mfaConfirm(token: string, payload: MFAConfirmRequest): Promise<MFAConfirmResponse> {
+    const authorization = buildAuthorizationHeader(token);
     return apiPost<MFAConfirmResponse, MFAConfirmRequest>('/api/mfa/confirm', payload, {
         headers: {
-            Authorization: token
+            ...(authorization ? { Authorization: authorization } : {})
         }
     });
 }
 
 export function mfaDisable(accessToken: string, payload: MFADisableRequest): Promise<MFADisableResponse> {
+    const authorization = buildAuthorizationHeader(accessToken);
     return apiPost<MFADisableResponse, MFADisableRequest>('/api/mfa/disable', payload, {
         headers: {
-            Authorization: accessToken
+            ...(authorization ? { Authorization: authorization } : {})
         }
     });
 }

@@ -109,15 +109,15 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 - Si falla (401), se limpia la sesión local y se redirige a `/inicio-sesion`.
 - Se reintenta una sola vez en requests protegidos cuando hay 401.
 
-## Authorization (token crudo)
+## Authorization (Bearer)
 
-- Los endpoints protegidos usan `Authorization: <access_token>` (sin `Bearer`).
+- Los endpoints protegidos usan `Authorization: Bearer <access_token>`.
 - El access token se lee desde `sessionStorage` con la clave `cognia_access_token`.
 
 ## Perfil (/api/auth/me)
 
 - Endpoint: `GET /api/auth/me`
-- Headers: `Accept: application/json`, `Authorization: <access_token>`
+- Headers: `Accept: application/json`, `Authorization: Bearer <access_token>`
 - `credentials: include` para enviar cookies.
 - Si no hay token, se considera no autenticado y se redirige a login.
 - Datos usados en UI (Mi Cuenta):

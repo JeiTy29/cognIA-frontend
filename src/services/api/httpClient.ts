@@ -2,6 +2,7 @@ import { refreshAccessToken } from '../auth/auth.refresh';
 import type { RefreshResponse } from '../auth/auth.types';
 import { emitAuthRefresh } from '../../utils/auth/events';
 import { getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
+import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -71,7 +72,10 @@ function buildHeaders(options: ApiRequestOptions | undefined, includeJson: boole
     if (options?.auth) {
         const token = getStoredToken();
         if (token) {
-            headers.Authorization = token;
+            const authHeader = buildAuthorizationHeader(token);
+            if (authHeader) {
+                headers.Authorization = authHeader;
+            }
         }
     }
     return headers;
