@@ -40,10 +40,10 @@ Concentrar el soporte al usuario en un solo lugar: respuestas rápidas (FAQ), co
   - Mensaje base: “Hola, necesito ayuda con CognIA. Mi tipo de cuenta es: [Padre/Tutor o Psicólogo].”
 - **Gmail**: abre un borrador web en `mail.google.com` con `to`, `su` y `body` codificados.
 - **Outlook**: abre un borrador web en `outlook.live.com` con `to`, `subject` y `body` codificados.
-- **Copiar correo**: copia `soporte@cognia.com` al portapapeles y muestra confirmación breve.
+- **Copiar correo**: copia `soportecognia@gmail.com` al portapapeles y muestra confirmación breve.
 
 Contenido del borrador:
-- Para: `soporte@cognia.com`
+- Para: `soportecognia@gmail.com`
 - Asunto: `Soporte CognIA`
 - Cuerpo: “Hola, necesito ayuda con CognIA. Tipo de cuenta: {Padre/Tutor | Psicólogo}. Módulo: {Ayuda/Cuestionario/Historial/Cuenta}. Descripción:”
 
