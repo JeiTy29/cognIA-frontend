@@ -391,7 +391,7 @@ export default function MiCuenta() {
                 </section>
 
                 {isGuardian && (
-                    <section className="info-card mi-cuenta-section">
+                    <section className="info-card mi-cuenta-section mi-cuenta-mfa">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
                         {mfaEnabled ? (
                             <>

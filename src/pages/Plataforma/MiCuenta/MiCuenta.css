@@ -61,14 +61,14 @@
 
 .mi-cuenta-label {
     font-size: 14px;
-    color: #d5efff;
-    font-weight: 600;
+    color: #ffffff;
+    font-weight: 700;
 }
 
 .mi-cuenta-value {
     font-size: 15px;
-    font-weight: 600;
-    color: #1f3f5a;
+    font-weight: 400;
+    color: #ffffff;
 }
 
 .mi-cuenta-toggle {
@@ -211,6 +211,27 @@
     justify-content: flex-end;
     gap: 12px;
     margin-top: 6px;
+}
+
+.mi-cuenta-mfa {
+    align-items: center;
+    text-align: center;
+}
+
+.mi-cuenta-mfa .mi-cuenta-section-note {
+    color: #ffffff;
+}
+
+.mi-cuenta-mfa .mi-cuenta-btn.primary {
+    background: #ffffff;
+    color: #215F8F;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    box-shadow: 0 6px 14px rgba(33, 95, 143, 0.16);
+}
+
+.mi-cuenta-mfa .mi-cuenta-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(33, 95, 143, 0.22);
 }
 
 .mi-cuenta-btn {
