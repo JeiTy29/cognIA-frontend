@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+﻿import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
@@ -20,6 +20,7 @@ import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialP
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
+import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
 
 export default function App() {
     return (
@@ -82,6 +83,7 @@ export default function App() {
                 </Route>
             </Routes>
             <DevAuthBadge />
+            <DevAuthToggle />
         </>
     );
 }

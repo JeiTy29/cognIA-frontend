@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
 import { login } from '../../../services/auth/auth.api';
-import { consumeAuthNotice } from '../../../context/AuthContext';
+import { consumeAuthNotice } from '../../../context/authNotice';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
@@ -16,7 +16,7 @@ export default function InicioSesion() {
     const [infoMessage, setInfoMessage] = useState<string | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, roles, setSession } = useAuth();
+    const { isAuthenticated, roles, setSession, devAuthActive } = useAuth();
     const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
     useEffect(() => {
@@ -36,7 +36,7 @@ export default function InicioSesion() {
         }
     }, [location.state]);
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
     }
 
@@ -101,6 +101,10 @@ export default function InicioSesion() {
                         <Link to="/registro" className="link-highlight">Regístrate</Link>
                     </p>
 
+                    {devAuthActive ? (
+                        <div className="validation-success">Modo desarrollo activo. Puedes iniciar sesión normalmente.</div>
+                    ) : null}
+
                     <form
                         className="auth-form"
                         onSubmit={handleSubmit}
@@ -123,7 +127,7 @@ export default function InicioSesion() {
 
                         <div className="form-group password-group">
                             <input
-                                type={mostrarContrasena ? "text" : "password"}
+                                type={mostrarContrasena ? 'text' : 'password'}
                                 className="form-input"
                                 placeholder="Contraseña"
                                 value={password}
@@ -134,7 +138,7 @@ export default function InicioSesion() {
                                 type="button"
                                 className="password-toggle"
                                 onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                                aria-label={mostrarContrasena ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
                                 {mostrarContrasena ? (
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -19,7 +19,7 @@ type ErrorMessage = string | null;
 export default function Registro() {
     const navigate = useNavigate();
     const { submit, loading } = useRegister();
-    const { isAuthenticated, roles } = useAuth();
+    const { isAuthenticated, roles, devAuthActive } = useAuth();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
@@ -46,7 +46,7 @@ export default function Registro() {
     const [submitError, setSubmitError] = useState<ErrorMessage>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
     }
 
@@ -191,6 +191,10 @@ export default function Registro() {
                         <Link to="/inicio-sesion" className="link-highlight">Inicia sesión</Link>
                     </p>
 
+                    {devAuthActive ? (
+                        <div className="validation-success">Modo desarrollo activo. Puedes registrarte normalmente.</div>
+                    ) : null}
+
                     {!rolSeleccionado ? (
                         <div className="role-selection-horizontal">
                             <div
@@ -249,7 +253,7 @@ export default function Registro() {
 
                                     <div className="form-group password-group">
                                         <input
-                                            type={mostrarContrasena ? "text" : "password"}
+                                            type={mostrarContrasena ? 'text' : 'password'}
                                             className="form-input"
                                             placeholder="Contraseña"
                                             value={contrasena}
@@ -278,7 +282,7 @@ export default function Registro() {
 
                                     <div className="form-group password-group">
                                         <input
-                                            type={mostrarConfirmar ? "text" : "password"}
+                                            type={mostrarConfirmar ? 'text' : 'password'}
                                             className="form-input"
                                             placeholder="Confirmar contraseña"
                                             value={confirmarContrasena}
@@ -385,7 +389,7 @@ export default function Registro() {
 
                                     <div className="form-group password-group">
                                         <input
-                                            type={mostrarContrasena ? "text" : "password"}
+                                            type={mostrarContrasena ? 'text' : 'password'}
                                             className="form-input"
                                             placeholder="Contraseña"
                                             value={contrasena}
@@ -414,7 +418,7 @@ export default function Registro() {
 
                                     <div className="form-group password-group">
                                         <input
-                                            type={mostrarConfirmar ? "text" : "password"}
+                                            type={mostrarConfirmar ? 'text' : 'password'}
                                             className="form-input"
                                             placeholder="Confirmar contraseña"
                                             value={confirmarContrasena}
@@ -492,4 +496,4 @@ export default function Registro() {
             </div>
         </div>
     );
-}
+}

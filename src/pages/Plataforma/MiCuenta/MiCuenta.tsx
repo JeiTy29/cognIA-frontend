@@ -11,7 +11,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus } = useAuth();
+    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout } = useAuth();
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
@@ -146,6 +146,11 @@ export default function MiCuenta() {
                 navigate('/inicio-sesion', { replace: true });
             }, 500);
         }
+    };
+
+    const handleDevLogout = () => {
+        devLogout();
+        navigate('/inicio-sesion', { replace: true });
     };
 
     return (
@@ -410,12 +415,18 @@ export default function MiCuenta() {
             </div>
 
             <div className="mi-cuenta-logout">
-                <span>¿Quieres salir de tu cuenta?</span>
-                <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout} disabled={logoutLoading}>
-                    {logoutLoading ? 'Cerrando...' : 'Cerrar sesión'}
-                </button>
+                <span>{devAuthActive ? 'Modo desarrollo activo.' : '¿Quieres salir de tu cuenta?'}</span>
+                {devAuthActive ? (
+                    <button type="button" className="mi-cuenta-btn ghost" onClick={handleDevLogout}>
+                        Salir del modo desarrollo
+                    </button>
+                ) : (
+                    <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout} disabled={logoutLoading}>
+                        {logoutLoading ? 'Cerrando...' : 'Cerrar sesión'}
+                    </button>
+                )}
             </div>
-            {logoutMessage ? (
+            {!devAuthActive && logoutMessage ? (
                 <div className={logoutError ? 'mi-cuenta-error' : 'mi-cuenta-success'}>
                     {logoutMessage}
                 </div>
