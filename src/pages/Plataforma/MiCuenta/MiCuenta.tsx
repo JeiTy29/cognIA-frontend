@@ -8,6 +8,17 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordRules = [
+    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
+    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
+    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
+    { id: 'number', label: 'Al menos un número', test: (value: string) => /[0-9]/.test(value) },
+    {
+        id: 'special',
+        label: 'Al menos un carácter especial (!@#$...)',
+        test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
+    }
+];
 
 export default function MiCuenta() {
     const navigate = useNavigate();
@@ -28,6 +39,13 @@ export default function MiCuenta() {
     const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
     const [logoutError, setLogoutError] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
+    const passwordChecks = useMemo(() => (
+        passwordRules.map(rule => ({
+            id: rule.id,
+            label: rule.label,
+            valid: rule.test(nuevaContrasena)
+        }))
+    ), [nuevaContrasena]);
 
     const isPsychologist = isPsychologistProfile(profile);
     const isGuardian = isGuardianProfile(profile);
@@ -346,6 +364,22 @@ export default function MiCuenta() {
                                     </div>
                                     {nuevaContrasenaError && <span className="mi-cuenta-error">{nuevaContrasenaError}</span>}
                                 </label>
+                                <div className="password-checklist">
+                                    <span className="password-checklist-title">Requisitos de contraseña</span>
+                                    <div className="password-checklist-grid">
+                                        {passwordChecks.map((check) => (
+                                            <div
+                                                key={check.id}
+                                                className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
+                                            >
+                                                <span className="password-check-indicator" aria-hidden="true">
+                                                    {check.valid ? '✓' : '•'}
+                                                </span>
+                                                <span>{check.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                                 <label className="mi-cuenta-input-group">
                                     <span className="mi-cuenta-input-label">Confirmar nueva contraseña</span>
                                     <div className="mi-cuenta-input-wrapper">

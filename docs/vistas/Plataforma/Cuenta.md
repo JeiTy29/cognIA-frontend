@@ -1,4 +1,4 @@
-# Vista: Mi cuenta
+﻿# Vista: Mi cuenta
 
 ## Propósito
 
@@ -55,6 +55,11 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
 - UX:
   - Mensaje de éxito visible tras guardar cambios.
   - Ícono de visibilidad en campos de contraseña.
+
+#### Checklist de requisitos (contraseña)
+- Se muestra debajo del campo **Nueva contraseña**.
+- Indicadores en vivo por regla.
+- Clases: `.password-checklist`, `.password-check`, `.password-check-indicator`.
 
 ### C) Verificación en dos pasos (MFA)
 - Solo visible para **Padre/Tutor**.

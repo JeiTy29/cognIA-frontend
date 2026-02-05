@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -11,6 +11,17 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 
 const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
+const passwordRules = [
+    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
+    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
+    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
+    { id: 'number', label: 'Al menos un número', test: (value: string) => /[0-9]/.test(value) },
+    {
+        id: 'special',
+        label: 'Al menos un carácter especial (!@#$...)',
+        test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
+    }
+];
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
 
@@ -45,6 +56,14 @@ export default function Registro() {
     const [errorTerminos, setErrorTerminos] = useState('');
     const [submitError, setSubmitError] = useState<ErrorMessage>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+
+    const passwordChecks = useMemo(() => (
+        passwordRules.map(rule => ({
+            id: rule.id,
+            label: rule.label,
+            valid: rule.test(contrasena)
+        }))
+    ), [contrasena]);
 
     if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
@@ -279,6 +298,22 @@ export default function Registro() {
                                         </button>
                                         {errorContrasena && <div className="validation-error">{errorContrasena}</div>}
                                     </div>
+                                    <div className="password-checklist">
+                                        <span className="password-checklist-title">Requisitos de contraseña</span>
+                                        <div className="password-checklist-grid">
+                                            {passwordChecks.map((check) => (
+                                                <div
+                                                    key={check.id}
+                                                    className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
+                                                >
+                                                    <span className="password-check-indicator" aria-hidden="true">
+                                                        {check.valid ? '✓' : '•'}
+                                                    </span>
+                                                    <span>{check.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
 
                                     <div className="form-group password-group">
                                         <input
@@ -414,6 +449,22 @@ export default function Registro() {
                                             )}
                                         </button>
                                         {errorContrasena && <div className="validation-error">{errorContrasena}</div>}
+                                    </div>
+                                    <div className="password-checklist">
+                                        <span className="password-checklist-title">Requisitos de contraseña</span>
+                                        <div className="password-checklist-grid">
+                                            {passwordChecks.map((check) => (
+                                                <div
+                                                    key={check.id}
+                                                    className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
+                                                >
+                                                    <span className="password-check-indicator" aria-hidden="true">
+                                                        {check.valid ? '✓' : '•'}
+                                                    </span>
+                                                    <span>{check.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <div className="form-group password-group">
