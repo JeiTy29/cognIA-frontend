@@ -15,7 +15,7 @@ export default function Footer() {
                     &copy; 2026 cognIA - Universidad de Cundinamarca
                 </p>
                 <p className="footer-contact">
-                    Contacto: <a href="mailto:contacto@cognia.edu.co">contacto@cognia.edu.co</a>
+                    Soporte: <a href="mailto:soportecognia@gmail.com">soportecognia@gmail.com</a>
                 </p>
                 <div className="footer-links">
                     <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>
