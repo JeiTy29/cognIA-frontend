@@ -8,10 +8,21 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordRules = [
+    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
+    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
+    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
+    { id: 'number', label: 'Al menos un número', test: (value: string) => /[0-9]/.test(value) },
+    {
+        id: 'special',
+        label: 'Al menos un carácter especial (!@#$...)',
+        test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
+    }
+];
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus } = useAuth();
+    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout } = useAuth();
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
@@ -28,6 +39,13 @@ export default function MiCuenta() {
     const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
     const [logoutError, setLogoutError] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
+    const passwordChecks = useMemo(() => (
+        passwordRules.map(rule => ({
+            id: rule.id,
+            label: rule.label,
+            valid: rule.test(nuevaContrasena)
+        }))
+    ), [nuevaContrasena]);
 
     const isPsychologist = isPsychologistProfile(profile);
     const isGuardian = isGuardianProfile(profile);
@@ -146,6 +164,11 @@ export default function MiCuenta() {
                 navigate('/inicio-sesion', { replace: true });
             }, 500);
         }
+    };
+
+    const handleDevLogout = () => {
+        devLogout();
+        navigate('/inicio-sesion', { replace: true });
     };
 
     return (
@@ -341,6 +364,22 @@ export default function MiCuenta() {
                                     </div>
                                     {nuevaContrasenaError && <span className="mi-cuenta-error">{nuevaContrasenaError}</span>}
                                 </label>
+                                <div className="password-checklist">
+                                    <span className="password-checklist-title">Requisitos de contraseña</span>
+                                    <div className="password-checklist-grid">
+                                        {passwordChecks.map((check) => (
+                                            <div
+                                                key={check.id}
+                                                className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
+                                            >
+                                                <span className="password-check-indicator" aria-hidden="true">
+                                                    {check.valid ? '✓' : '•'}
+                                                </span>
+                                                <span>{check.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                                 <label className="mi-cuenta-input-group">
                                     <span className="mi-cuenta-input-label">Confirmar nueva contraseña</span>
                                     <div className="mi-cuenta-input-wrapper">
@@ -391,7 +430,7 @@ export default function MiCuenta() {
                 </section>
 
                 {isGuardian && (
-                    <section className="info-card mi-cuenta-section">
+                    <section className="info-card mi-cuenta-section mi-cuenta-mfa">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
                         {mfaEnabled ? (
                             <>
@@ -410,12 +449,18 @@ export default function MiCuenta() {
             </div>
 
             <div className="mi-cuenta-logout">
-                <span>¿Quieres salir de tu cuenta?</span>
-                <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout} disabled={logoutLoading}>
-                    {logoutLoading ? 'Cerrando...' : 'Cerrar sesión'}
-                </button>
+                <span>{devAuthActive ? 'Modo desarrollo activo.' : '¿Quieres salir de tu cuenta?'}</span>
+                {devAuthActive ? (
+                    <button type="button" className="mi-cuenta-btn ghost" onClick={handleDevLogout}>
+                        Salir del modo desarrollo
+                    </button>
+                ) : (
+                    <button type="button" className="mi-cuenta-btn ghost" onClick={handleLogout} disabled={logoutLoading}>
+                        {logoutLoading ? 'Cerrando...' : 'Cerrar sesión'}
+                    </button>
+                )}
             </div>
-            {logoutMessage ? (
+            {!devAuthActive && logoutMessage ? (
                 <div className={logoutError ? 'mi-cuenta-error' : 'mi-cuenta-success'}>
                     {logoutMessage}
                 </div>

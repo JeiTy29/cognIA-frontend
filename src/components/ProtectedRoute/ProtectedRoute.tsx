@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, hasAllowedRole, type AppRole } from '../../utils/auth/roles';
@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { isAuthenticated, roles, isAuthLoading, refreshSession } = useAuth();
+    const { isAuthenticated, roles, isAuthLoading, refreshSession, devAuthActive } = useAuth();
     const location = useLocation();
     const refreshAttemptedRef = useRef(false);
 
@@ -19,6 +19,10 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
             void refreshSession({ silent: true });
         }
     }, [isAuthLoading, isAuthenticated, refreshSession]);
+
+    if (devAuthActive) {
+        return <Outlet />;
+    }
 
     if (isAuthLoading) {
         return (

@@ -19,7 +19,7 @@ type IssueOption = {
 };
 
 const WHATSAPP_NUMBER = '0000000000';
-const SUPPORT_EMAIL = 'soporte@cognia.com';
+const SUPPORT_EMAIL = 'soportecognia@gmail.com';
 
 const issueOptions: IssueOption[] = [
     { value: 'Acceso', label: 'Acceso' },

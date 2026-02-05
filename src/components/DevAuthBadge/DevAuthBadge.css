@@ -1,0 +1,14 @@
+.dev-auth-badge {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 9999;
+    background: rgba(33, 95, 143, 0.9);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    box-shadow: 0 6px 18px rgba(33, 95, 143, 0.25);
+}

@@ -1,4 +1,4 @@
-# Vista: Registro
+﻿# Vista: Registro
 
 ## Descripción general
 
@@ -90,6 +90,12 @@ Payload enviado:
 - Confirmación debe coincidir con contraseña.
 - Mensajes de error en `.validation-error`.
 
+### Checklist de requisitos
+
+- Se muestra debajo del campo “Contraseña” en ambos formularios.
+- Indicadores en vivo para cada regla.
+- Clases: `.password-checklist`, `.password-check`, `.password-check-indicator`.
+
 ---
 
 ## Términos y privacidad
@@ -143,10 +149,9 @@ const [submitSuccess, setSubmitSuccess]
 
 ## Clases CSS clave
 
-- `.role-selection-horizontal`, `.role-card-vertical`, `.role-tag`, `.terms-checkbox`, `.validation-error`, `.validation-success`.
+- `.role-selection-horizontal`, `.role-card-vertical`, `.role-tag`, `.terms-checkbox`, `.validation-error`, `.validation-success`, `.password-checklist`.
 
 ## Responsive
 
 - Tarjetas en horizontal en desktop.
 - Apiladas en móvil (`max-width: 768px`).
-

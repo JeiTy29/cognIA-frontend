@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
 import { login } from '../../../services/auth/auth.api';
-import { consumeAuthNotice } from '../../../context/AuthContext';
+import { consumeAuthNotice } from '../../../context/authNotice';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
+import { Modal } from '../../../components/Modal/Modal';
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function InicioSesion() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
@@ -14,9 +17,13 @@ export default function InicioSesion() {
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [infoMessage, setInfoMessage] = useState<string | null>(null);
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotError, setForgotError] = useState('');
+    const [forgotSuccess, setForgotSuccess] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, roles, setSession } = useAuth();
+    const { isAuthenticated, roles, setSession, devAuthActive } = useAuth();
     const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
     useEffect(() => {
@@ -36,9 +43,15 @@ export default function InicioSesion() {
         }
     }, [location.state]);
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
     }
+
+    const resetForgotState = () => {
+        setForgotEmail('');
+        setForgotError('');
+        setForgotSuccess(false);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,6 +94,26 @@ export default function InicioSesion() {
         }
     };
 
+    const handleForgotSubmit = () => {
+        setForgotError('');
+        if (!emailPattern.test(forgotEmail)) {
+            setForgotError('Ingresa un correo válido.');
+            return;
+        }
+        setForgotSuccess(true);
+    };
+
+    const handleForgotClose = () => {
+        setShowForgotModal(false);
+        resetForgotState();
+    };
+
+    const handleForgotConfirm = () => {
+        setShowForgotModal(false);
+        resetForgotState();
+        navigate('/restablecer-contraseña');
+    };
+
     return (
         <div className="auth-container">
             <div className="auth-left-panel"></div>
@@ -100,6 +133,10 @@ export default function InicioSesion() {
                         ¿Aún no tienes una cuenta?{' '}
                         <Link to="/registro" className="link-highlight">Regístrate</Link>
                     </p>
+
+                    {devAuthActive ? (
+                        <div className="validation-success">Modo desarrollo activo. Puedes iniciar sesión normalmente.</div>
+                    ) : null}
 
                     <form
                         className="auth-form"
@@ -123,7 +160,7 @@ export default function InicioSesion() {
 
                         <div className="form-group password-group">
                             <input
-                                type={mostrarContrasena ? "text" : "password"}
+                                type={mostrarContrasena ? 'text' : 'password'}
                                 className="form-input"
                                 placeholder="Contraseña"
                                 value={password}
@@ -134,7 +171,7 @@ export default function InicioSesion() {
                                 type="button"
                                 className="password-toggle"
                                 onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                                aria-label={mostrarContrasena ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
                                 {mostrarContrasena ? (
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -154,9 +191,16 @@ export default function InicioSesion() {
                             {loading ? 'Ingresando...' : 'Ingresar'}
                         </button>
 
-                        <Link to="/recuperar-contrasena" className="forgot-password-link">
+                        <button
+                            type="button"
+                            className="forgot-password-link"
+                            onClick={() => {
+                                resetForgotState();
+                                setShowForgotModal(true);
+                            }}
+                        >
                             ¿Olvidaste tu contraseña?
-                        </Link>
+                        </button>
                     </form>
 
                     <div className="version-footer">
@@ -164,6 +208,49 @@ export default function InicioSesion() {
                     </div>
                 </div>
             </div>
+
+            <Modal isOpen={showForgotModal} onClose={handleForgotClose}>
+                <div className="auth-modal">
+                    <h2 className="auth-modal-title">Recuperar contraseña</h2>
+                    {forgotSuccess ? (
+                        <>
+                            <p className="auth-modal-text">
+                                Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.
+                            </p>
+                            <button type="button" className="btn-primary" onClick={handleForgotConfirm}>
+                                Entendido
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <p className="auth-modal-text">
+                                Ingresa el correo con el que te registraste y te enviaremos un enlace para restablecerla.
+                            </p>
+                            <div className="form-group">
+                                <input
+                                    type="email"
+                                    className="form-input"
+                                    placeholder="correo@ejemplo.com"
+                                    value={forgotEmail}
+                                    onChange={(event) => {
+                                        setForgotEmail(event.target.value);
+                                        setForgotError('');
+                                    }}
+                                />
+                                {forgotError ? <div className="validation-error">{forgotError}</div> : null}
+                            </div>
+                            <div className="auth-modal-actions">
+                                <button type="button" className="btn-secondary" onClick={handleForgotClose}>
+                                    Cancelar
+                                </button>
+                                <button type="button" className="btn-primary" onClick={handleForgotSubmit}>
+                                    Enviar
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }
