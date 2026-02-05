@@ -61,14 +61,14 @@
 
 .mi-cuenta-label {
     font-size: 14px;
-    color: #d5efff;
-    font-weight: 600;
+    color: #ffffff;
+    font-weight: 700;
 }
 
 .mi-cuenta-value {
     font-size: 15px;
-    font-weight: 600;
-    color: #1f3f5a;
+    font-weight: 400;
+    color: #ffffff;
 }
 
 .mi-cuenta-toggle {
@@ -127,6 +127,50 @@
 .mi-cuenta-form {
     display: grid;
     gap: 14px;
+}
+
+.password-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: -4px;
+    margin-bottom: 6px;
+}
+
+.password-checklist-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #215F8F;
+}
+
+.password-checklist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+}
+
+.password-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #5a6b7c;
+}
+
+.password-check.is-valid {
+    color: #1f8f4e;
+}
+
+.password-check-indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
 }
 
 .mi-cuenta-input-group {
@@ -213,6 +257,33 @@
     margin-top: 6px;
 }
 
+.mi-cuenta-mfa {
+    align-items: center;
+    text-align: center;
+    justify-self: center;
+    width: 100%;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    grid-column: 1 / -1;
+}
+
+.mi-cuenta-mfa .mi-cuenta-section-note {
+    color: #ffffff;
+}
+
+.mi-cuenta-mfa .mi-cuenta-btn.primary {
+    background: #ffffff;
+    color: #215F8F;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    box-shadow: 0 6px 14px rgba(33, 95, 143, 0.16);
+}
+
+.mi-cuenta-mfa .mi-cuenta-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(33, 95, 143, 0.22);
+}
+
 .mi-cuenta-btn {
     border-radius: 12px;
     padding: 10px 18px;
@@ -291,5 +362,11 @@
     .mi-cuenta-logout {
         flex-direction: column;
         align-items: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .password-checklist-grid {
+        grid-template-columns: 1fr;
     }
 }

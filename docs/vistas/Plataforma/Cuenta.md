@@ -56,6 +56,11 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Mensaje de éxito visible tras guardar cambios.
   - Ícono de visibilidad en campos de contraseña.
 
+#### Checklist de requisitos (contraseña)
+- Se muestra debajo del campo **Nueva contraseña**.
+- Indicadores en vivo por regla.
+- Clases: `.password-checklist`, `.password-check`, `.password-check-indicator`.
+
 ### C) Verificación en dos pasos (MFA)
 - Solo visible para **Padre/Tutor**.
 - Estados:
@@ -63,6 +68,13 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
 - UI/estructura: sin llamadas a backend por ahora.
 - Para **Psicólogo** no se muestran CTAs de MFA.
+
+### D) Cerrar sesión
+- Bloque final fuera de tarjetas grandes.
+- Texto + botón en la misma fila, centrados y con mayor presencia visual.
+- Botón con color sólido para distinguirse del fondo.
+- Al hacer clic, ejecuta logout y limpia sesión local.
+- Referencia técnica: ver **Logout** en `docs/vistas/Autenticacion/InicioSesion.md`.
 
 ## Campos guardados (no visibles)
 
@@ -76,12 +88,11 @@ Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
 - **404**: mensaje “No se encontró tu perfil.”
 - **5xx/red**: “No fue posible cargar tu información. Intenta más tarde.”
 
-### D) Cerrar sesión
-- Bloque final fuera de tarjetas grandes.
-- Texto + botón en la misma fila, centrados y con mayor presencia visual.
-- Botón con color sólido para distinguirse del fondo.
-- Al hacer clic, ejecuta logout y limpia sesión local.
-- Referencia técnica: ver **Logout** en `docs/vistas/Autenticacion/InicioSesion.md`.
+## Estilo de campos visibles
+
+- Labels (**Usuario**, **Tipo de cuenta**, **Correo**, etc.): blanco más claro con peso fuerte.
+- Valores (dato del usuario): blanco sin negrita para contraste.
+- La tarjeta de MFA está centrada y el botón principal es blanco con texto azul.
 
 ## Navegación
 

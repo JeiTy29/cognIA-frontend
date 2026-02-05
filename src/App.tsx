@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+﻿import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
@@ -10,6 +10,7 @@ import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
 import MFA from './pages/Autenticacion/MFA/MFA';
+import RestablecerContraseña from './pages/Autenticacion/RestablecerContraseña/RestablecerContraseña';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
@@ -19,6 +20,8 @@ import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/Cues
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
+import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
 
 export default function App() {
     return (
@@ -52,6 +55,7 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
+                <Route path="/restablecer-contraseña" element={<RestablecerContraseña />} />
                 <Route path="/mfa" element={<Navigate to="/mfa/challenge" replace />} />
                 <Route path="/mfa/:mode" element={<MFA />} />
 
@@ -80,6 +84,8 @@ export default function App() {
                     </Route>
                 </Route>
             </Routes>
+            <DevAuthBadge />
+            <DevAuthToggle />
         </>
     );
 }

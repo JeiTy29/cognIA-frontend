@@ -14,22 +14,32 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setIsVisible(true);
-            setIsClosing(false);
-            setIsOpening(true);
-            const openTimer = setTimeout(() => setIsOpening(false), 420);
-            return () => clearTimeout(openTimer);
+            const openTimer = window.setTimeout(() => {
+                setIsVisible(true);
+                setIsClosing(false);
+                setIsOpening(true);
+            }, 0);
+            const openEndTimer = window.setTimeout(() => setIsOpening(false), 420);
+            return () => {
+                window.clearTimeout(openTimer);
+                window.clearTimeout(openEndTimer);
+            };
         }
 
         if (isVisible) {
-            setIsClosing(true);
-            const timeout = setTimeout(() => {
+            const closeTimer = window.setTimeout(() => {
+                setIsClosing(true);
+            }, 0);
+            const closeEndTimer = window.setTimeout(() => {
                 setIsVisible(false);
                 setIsClosing(false);
             }, 380);
-
-            return () => clearTimeout(timeout);
+            return () => {
+                window.clearTimeout(closeTimer);
+                window.clearTimeout(closeEndTimer);
+            };
         }
+        return undefined;
     }, [isOpen, isVisible]);
 
     if (!isVisible) return null;
