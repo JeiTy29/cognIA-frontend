@@ -10,6 +10,7 @@ import Registro from './pages/Autenticacion/Registro/Registro';
 import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
 import MFA from './pages/Autenticacion/MFA/MFA';
+import RestablecerContraseña from './pages/Autenticacion/RestablecerContraseña/RestablecerContraseña';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
+                <Route path="/restablecer-contraseña" element={<RestablecerContraseña />} />
                 <Route path="/mfa" element={<Navigate to="/mfa/challenge" replace />} />
                 <Route path="/mfa/:mode" element={<MFA />} />
 
