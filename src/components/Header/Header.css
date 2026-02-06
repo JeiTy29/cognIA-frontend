@@ -1,4 +1,4 @@
-.header {
+﻿.header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -8,8 +8,9 @@
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(81, 194, 244, 0.1);
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
-    position: relative;
-    z-index: 10;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .logo {
@@ -40,11 +41,8 @@
     transition: color 0.2s ease;
     padding-bottom: 6px;
     text-decoration: none;
-    /* Ensure no default underline for links */
     color: inherit;
-    /* Inherit color */
     font-size: 16px;
-    /* Reset font size if needed */
 }
 
 .nav .nav-link:hover {
@@ -60,11 +58,17 @@
     height: 2px;
     background-color: var(--primary);
     transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(23, 144, 233, 0.35);
 }
 
 .nav .nav-link:hover::after,
 .nav .active::after {
     width: 100%;
+}
+
+.nav .active {
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .login {
@@ -118,6 +122,8 @@
         order: 3;
         width: 100%;
         justify-content: center;
+        position: static;
+        transform: none;
     }
 
     .nav .nav-link {

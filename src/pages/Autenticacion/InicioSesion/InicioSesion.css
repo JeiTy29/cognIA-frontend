@@ -314,6 +314,7 @@
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+    align-items: stretch;
 }
 
 .btn-secondary {
@@ -340,6 +341,12 @@
 .auth-modal-actions .btn-primary {
     flex: 1;
     width: auto;
+    padding: 14px 24px;
+    height: 48px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .forgot-password-link {

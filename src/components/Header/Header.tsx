@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link, NavLink } from 'react-router-dom';
 import './Header.css';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../utils/auth/roles';
@@ -12,9 +12,15 @@ export default function Header() {
             <Link to="/" className="logo">cognIA</Link>
 
             <nav className="nav">
-                <Link to="/nuestro-sistema" className="nav-link">Nuestro Sistema</Link>
-                <Link to="/sobre-nosotros" className="nav-link">Sobre Nosotros</Link>
-                <Link to="/trastornos" className="nav-link">Trastornos</Link>
+                <NavLink to="/nuestro-sistema" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                    Nuestro Sistema
+                </NavLink>
+                <NavLink to="/sobre-nosotros" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                    Sobre Nosotros
+                </NavLink>
+                <NavLink to="/trastornos" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                    Trastornos
+                </NavLink>
             </nav>
 
             <div className="auth-buttons">
