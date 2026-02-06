@@ -41,12 +41,13 @@ Interacciones:
 
 - Círculo central: **620px**, borde azul **#1790E9** (solo contorno).
 - Círculos pequeños: **220px** con gradiente azul.
-- Íconos: **140px** en estado base.
-- Expandido: círculo crece a **500px** y se mueve con `translateX(640px)`.
-- El wrapper aplica `translateX(-140px)` cuando hay un círculo expandido.
+- Íconos: **170px** en estado base.
+- Expandido: círculo crece a **460px** y se mueve con `translateX(520px)`.
+- El wrapper aplica `translateX(-90px)` cuando hay un círculo expandido y agrega padding derecho.
 - Movimiento suave: transiciones **0.7s** en `transform`, `width`, `height`.
 - Ícono se oculta al expandir (`.disorder-circle.expanded .disorder-icon`).
 - Hover: círculo se realza con sombra y crece a **238px**.
+- Descripción larga: texto justificado con alineación final centrada.
 
 ## Sección informativa
 

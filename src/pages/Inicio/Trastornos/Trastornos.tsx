@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import ansiedadIcon from '../../../assets/Iconos/Trastornos/Ansiedad.png';
 import depresionIcon from '../../../assets/Iconos/Trastornos/Depresion.png';
 import tdahIcon from '../../../assets/Iconos/Trastornos/TDAH.png';
