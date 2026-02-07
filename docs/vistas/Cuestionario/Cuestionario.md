@@ -12,19 +12,15 @@ La vista del cuestionario es única para ambos roles (Padre/Tutor y Psicólogo).
 
 ## Pantalla inicial (antes de responder)
 
-Al entrar, se muestra una pantalla de contexto:
+Al entrar, se muestra una pantalla de contexto centrada verticalmente, con el contenido alineado a la izquierda y una imagen a la derecha.
+
 - Título: **Cuestionario de observación**.
-- Subtítulo: “Responde según lo observado en las últimas 4 semanas.”
-- Texto breve con dos ideas clave:
-  - No diagnostica, solo alerta temprana.
-  - No se solicitan datos que identifiquen al niño.
-- Chips informativas:
-  - “Duración estimada”
-  - “N preguntas” (se calcula con el total de preguntas)
-  - “Respuestas anónimas”
-- Botones:
-  - **Comenzar** (muestra la primera pregunta)
-  - **Volver** (navega atrás o a la ruta principal del rol)
+- Texto conversacional con duración estimada (5–8 min) y número total de preguntas.
+- Mensaje de apoyo: no diagnostica, solo alerta temprana; respuestas anónimas.
+- Imagen a la derecha:
+  - Ruta prevista: `src/assets/Imagenes/Cuestionario.png`
+  - Se renderiza con `object-fit: contain` y ocupa casi el alto del bloque de texto.
+- Botón principal: **Comenzar** (más grande y ubicado debajo del texto y la imagen).
 
 ## Flujo guiado (una pregunta a la vez)
 
@@ -72,7 +68,16 @@ Para trabajar estilos en local sin depender de la API:
 
 ## Estilos clave
 
-- Panel principal: `.questionnaire-shell` (card sobria con sombra ligera).
+- Panel principal: `.questionnaire-shell`.
+- Pantalla inicial sin card: `.questionnaire-shell.is-intro`.
+- Bloque introductorio en dos columnas: `.questionnaire-intro`.
 - Progreso: `.questionnaire-progress`, `.progress-bar`, `.progress-fill`.
 - Opciones de respuesta: `.option-pill` con estado `.is-selected`.
 - Mensaje de éxito: `.questionnaire-modal`.
+
+## Animaciones (pantalla intro)
+
+- Entrada por capas: título, subtítulo, texto, imagen y botón con fade + desplazamiento suave.
+- Acento del título: línea animada que crece de 0% a 100%.
+- SVG: flotación sutil (6px) con ciclo largo y hover ligero.
+- Respeta `prefers-reduced-motion` desactivando animaciones.

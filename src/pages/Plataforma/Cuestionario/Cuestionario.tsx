@@ -4,9 +4,7 @@ import './Cuestionario.css';
 import { useActiveQuestionnaire } from '../../../hooks/questionnaires/useActiveQuestionnaire';
 import type { QuestionDTO } from '../../../services/questionnaires/questionnaires.types';
 import { ApiError } from '../../../services/api/httpClient';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../hooks/auth/useAuth';
-import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
+import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 
 const likertOptions = [
     { value: 1, label: 'Nunca' },
@@ -28,8 +26,6 @@ function renderQuestionInput(
     value: unknown,
     onChange: (newValue: unknown) => void
 ) {
-    const name = `question-${question.id}`;
-
     switch (question.response_type) {
         case 'likert':
             return (
@@ -96,9 +92,6 @@ function renderQuestionInput(
 }
 
 export default function Cuestionario() {
-    const navigate = useNavigate();
-    const { roles } = useAuth();
-    const fallbackRoute = getDefaultRouteForRoles(roles);
     const { data, loading, error, refetch } = useActiveQuestionnaire();
     const [answers, setAnswers] = useState<Record<string, unknown>>({});
     const [started, setStarted] = useState(false);
@@ -148,17 +141,9 @@ export default function Cuestionario() {
         setShowSuccess(true);
     };
 
-    const handleBack = () => {
-        if (window.history.length > 1) {
-            navigate(-1);
-        } else {
-            navigate(fallbackRoute, { replace: true });
-        }
-    };
-
     return (
         <div className="plataforma-view">
-            <div className="questionnaire-shell">
+            <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`}>
                 {loading ? (
                     <div className="questionnaire-state">Cargando cuestionario...</div>
                 ) : errorStatus === 404 ? (
@@ -176,25 +161,30 @@ export default function Cuestionario() {
                         </button>
                     </div>
                 ) : !started ? (
-                    <div className="questionnaire-intro">
-                        <h1 className="questionnaire-title">Cuestionario de observación</h1>
-                        <p className="questionnaire-subtitle">Responde según lo observado en las últimas 4 semanas.</p>
-                        <p className="questionnaire-intro-text">
-                            Este cuestionario no diagnostica, solo genera una alerta temprana.
-                            No se solicitan datos que identifiquen al niño.
-                        </p>
-                        <div className="questionnaire-chips">
-                            <span className="questionnaire-chip">Duración estimada</span>
-                            <span className="questionnaire-chip">{totalQuestions} preguntas</span>
-                            <span className="questionnaire-chip">Respuestas anónimas</span>
+                    <div className="questionnaire-intro intro-animate">
+                        <div className="questionnaire-intro-content">
+                            <div className="questionnaire-intro-text">
+                                <h1 className="questionnaire-title">
+                                    Cuestionario de observación
+                                    <span className="questionnaire-title-accent" aria-hidden="true"></span>
+                                </h1>
+                                <p className="questionnaire-subtitle">
+                                    Responde según lo observado en las últimas 4 semanas. El cuestionario dura entre 5 y 8 minutos y
+                                    reúne {totalQuestions} preguntas para detectar señales tempranas.
+                                </p>
+                                <p className="questionnaire-intro-text-body">
+                                    Tu participación ayuda a construir una alerta inicial, no un diagnóstico. Las respuestas son anónimas
+                                    y se enfocan únicamente en el comportamiento observado.
+                                </p>
+                            </div>
+                            <div className="questionnaire-intro-image">
+                                <img src={questionnaireImage} alt="Vista previa del cuestionario" />
+                            </div>
                         </div>
-                        <div className="questionnaire-actions">
-                            <button type="button" className="questionnaire-btn ghost" onClick={handleBack}>
-                                Volver
-                            </button>
+                        <div className="questionnaire-intro-actions">
                             <button
                                 type="button"
-                                className="questionnaire-btn primary"
+                                className="questionnaire-btn primary questionnaire-start"
                                 onClick={() => setStarted(true)}
                             >
                                 Comenzar
