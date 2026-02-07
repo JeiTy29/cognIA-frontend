@@ -1,17 +1,16 @@
-﻿.plataforma-view {
+.plataforma-view {
     display: flex;
     justify-content: center;
-    padding: 32px 20px;
+    padding: 32px 24px 60px;
 }
 
 .questionnaire-shell {
     width: 100%;
-    max-width: 980px;
-    background: #ffffff;
-    border-radius: 18px;
-    border: 1px solid rgba(33, 95, 143, 0.1);
-    box-shadow: 0 18px 40px rgba(33, 95, 143, 0.12);
-    padding: 32px 40px;
+    max-width: 1100px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
 }
 
 .questionnaire-shell.is-intro {
@@ -47,6 +46,16 @@
     color: #2A2D34;
     margin: 0 0 12px;
     line-height: 1.6;
+}
+
+.questionnaire-heading {
+    max-width: 640px;
+}
+
+.questionnaire-disclaimer {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(33, 95, 143, 0.7);
 }
 
 .questionnaire-intro-text-body {
@@ -218,44 +227,34 @@
     cursor: pointer;
 }
 
-.questionnaire-panel {
+.questionnaire-workspace {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 28px;
 }
 
-.questionnaire-header {
+.questionnaire-top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-
-.questionnaire-description {
-    margin: 0;
-    color: #4a5f73;
-}
-
-.questionnaire-version {
-    font-size: 13px;
-    color: #215F8F;
-    background: #F0F7FF;
-    border-radius: 999px;
-    padding: 6px 12px;
-    border: 1px solid rgba(33, 95, 143, 0.15);
+    flex-direction: column;
+    gap: 14px;
 }
 
 .questionnaire-progress {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    font-size: 14px;
+    margin-top: 8px;
+    max-width: 420px;
+}
+
+.questionnaire-progress-text {
+    font-size: 13px;
     color: #215F8F;
 }
 
 .progress-bar {
     width: 100%;
-    height: 8px;
+    height: 6px;
     border-radius: 999px;
     background: #E4EFF9;
     overflow: hidden;
@@ -265,15 +264,14 @@
     height: 100%;
     background: #1790E9;
     border-radius: 999px;
-    transition: width 0.3s ease;
+    transition: width 0.4s ease;
 }
 
-.questionnaire-card {
-    background: #F9FBFF;
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid rgba(33, 95, 143, 0.12);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+.questionnaire-question {
+    background: rgba(23, 144, 233, 0.05);
+    border-left: 4px solid #1790E9;
+    border-radius: 12px;
+    padding: 22px 24px;
 }
 
 .question-text {
@@ -284,30 +282,58 @@
 
 .question-options {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.option-pill {
+.answer-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.2);
-    border-radius: 999px;
-    padding: 8px 16px;
     background: #ffffff;
-    color: #215F8F;
-    font-size: 14px;
+    color: #1f2a37;
+    font-size: 15px;
+    text-align: left;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.option-pill.is-selected {
+.answer-option:hover {
+    border-color: rgba(33, 95, 143, 0.4);
+    background: rgba(23, 144, 233, 0.05);
+}
+
+.answer-option.is-selected {
+    border-color: rgba(23, 144, 233, 0.9);
+    background: rgba(23, 144, 233, 0.12);
+    box-shadow: 0 10px 18px rgba(23, 144, 233, 0.16);
+}
+
+.answer-indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(33, 95, 143, 0.4);
+    flex-shrink: 0;
+    background: #ffffff;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.answer-option.is-selected .answer-indicator {
+    border-color: #1790E9;
     background: #1790E9;
-    color: #ffffff;
-    border-color: transparent;
-    box-shadow: 0 6px 14px rgba(23, 144, 233, 0.22);
+    transform: scale(1.05);
 }
 
-.question-input,
-.question-textarea {
+.answer-label {
+    flex: 1;
+}
+
+.question-input {
     width: 100%;
     border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.2);
@@ -318,17 +344,29 @@
 }
 
 .question-textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    padding: 12px 14px;
+    font-size: 15px;
+    color: #1f2a37;
+    background: #ffffff;
     resize: vertical;
+    min-height: 120px;
 }
 
 .question-warning {
     margin-top: 12px;
-    color: #b85c00;
-    background: rgba(255, 193, 7, 0.1);
-    border-left: 3px solid #f4b400;
-    padding: 8px 12px;
-    border-radius: 10px;
+    color: #b26a00;
     font-size: 13px;
+}
+
+.questionnaire-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 4px;
 }
 
 .questionnaire-modal {
@@ -356,14 +394,13 @@
     color: #215F8F;
 }
 
-@media (max-width: 900px) {
-    .questionnaire-shell {
-        padding: 28px;
-    }
+.question-animate {
+    animation: questionFade 0.4s ease;
+}
 
-    .questionnaire-header {
-        flex-direction: column;
-        align-items: flex-start;
+@media (max-width: 900px) {
+    .questionnaire-progress {
+        max-width: 100%;
     }
 
     .questionnaire-intro {
@@ -380,10 +417,6 @@
 }
 
 @media (max-width: 640px) {
-    .questionnaire-shell {
-        padding: 24px 20px;
-    }
-
     .questionnaire-actions {
         flex-direction: column;
         align-items: stretch;
@@ -442,6 +475,17 @@
     }
 }
 
+@keyframes questionFade {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .intro-animate .questionnaire-title,
     .intro-animate .questionnaire-subtitle,
@@ -460,5 +504,18 @@
 
     .questionnaire-intro-image img {
         animation: none !important;
+    }
+
+    .question-animate {
+        animation: none !important;
+    }
+
+    .progress-fill {
+        transition: none;
+    }
+
+    .answer-option,
+    .answer-indicator {
+        transition: none;
     }
 }
