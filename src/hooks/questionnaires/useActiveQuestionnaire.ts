@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { getActiveQuestionnaire } from '../../services/questionnaires/questionnaires.api';
 import type { ActiveQuestionnaireResponseDTO, QuestionDTO } from '../../services/questionnaires/questionnaires.types';
 
@@ -12,6 +12,9 @@ function sortQuestionsByPosition(questions: QuestionDTO[]) {
     return [...questions].sort((a, b) => a.position - b.position);
 }
 
+const useMockQuestionnaire =
+    import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_QUESTIONNAIRE === 'true';
+
 export function useActiveQuestionnaire() {
     const [state, setState] = useState<UseActiveQuestionnaireState>({
         data: null,
@@ -22,7 +25,9 @@ export function useActiveQuestionnaire() {
     const fetchActive = useCallback(async () => {
         setState(prev => ({ ...prev, loading: true, error: null }));
         try {
-            const response = await getActiveQuestionnaire();
+            const response = useMockQuestionnaire
+                ? (await import('../../services/questionnaires/mockQuestionnaire')).mockActiveQuestionnaire
+                : await getActiveQuestionnaire();
             const questions = response.questions || [];
             const ordered = sortQuestionsByPosition(questions);
             setState({

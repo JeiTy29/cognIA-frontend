@@ -12,11 +12,10 @@ import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida
 import MFA from './pages/Autenticacion/MFA/MFA';
 import RestablecerContraseña from './pages/Autenticacion/RestablecerContraseña/RestablecerContraseña';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
-import CuestionarioPadre from './pages/Plataforma/CuestionarioPadre/CuestionarioPadre';
+import Cuestionario from './pages/Plataforma/Cuestionario/Cuestionario';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
 import MiCuenta from './pages/Plataforma/MiCuenta/MiCuenta';
 import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
-import CuestionarioPsicologo from './pages/Plataforma/CuestionarioPsicologo/CuestionarioPsicologo';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
@@ -65,7 +64,7 @@ export default function App() {
                         <Route element={<ProtectedRoute allowedRoles={['padre']} />}>
                             <Route path="/padre">
                                 <Route index element={<Navigate to="/padre/cuestionario" replace />} />
-                                <Route path="cuestionario" element={<CuestionarioPadre />} />
+                                <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPadre />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="padre" />} />
@@ -74,7 +73,7 @@ export default function App() {
                         <Route element={<ProtectedRoute allowedRoles={['psicologo']} />}>
                             <Route path="/psicologo">
                                 <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
-                                <Route path="cuestionario" element={<CuestionarioPsicologo />} />
+                                <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPsicologo />} />
                                 <Route path="sugerencias" element={<SugerenciasPsicologo />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
