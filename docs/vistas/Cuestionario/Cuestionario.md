@@ -1,60 +1,78 @@
-# Vista: Cuestionario
+﻿# Cuestionario
 
-## Proposito
+## Objetivo y estructura general
 
-Mostrar el cuestionario activo desde la API y permitir completar respuestas de forma local (sin envio al backend).
+La vista del cuestionario es única para ambos roles (Padre/Tutor y Psicólogo). Las rutas existentes renderizan el mismo componente para evitar duplicación de UI y mantener consistencia visual.
 
-## Ubicacion
+- Vista unificada: `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- Estilos: `src/pages/Plataforma/Cuestionario/Cuestionario.css`
+- Rutas activas:
+  - Padre/Tutor: `/padre/cuestionario`
+  - Psicólogo: `/psicologo/cuestionario`
 
-- Padre/Tutor: `src/pages/Plataforma/CuestionarioPadre/CuestionarioPadre.tsx`
-- Psicologo: `src/pages/Plataforma/CuestionarioPsicologo/CuestionarioPsicologo.tsx`
-- Estilos: `CuestionarioPadre.css` y `CuestionarioPsicologo.css`
+## Pantalla inicial (antes de responder)
+
+Al entrar, se muestra una pantalla de contexto:
+- Título: **Cuestionario de observación**.
+- Subtítulo: “Responde según lo observado en las últimas 4 semanas.”
+- Texto breve con dos ideas clave:
+  - No diagnostica, solo alerta temprana.
+  - No se solicitan datos que identifiquen al niño.
+- Chips informativas:
+  - “Duración estimada”
+  - “N preguntas” (se calcula con el total de preguntas)
+  - “Respuestas anónimas”
+- Botones:
+  - **Comenzar** (muestra la primera pregunta)
+  - **Volver** (navega atrás o a la ruta principal del rol)
+
+## Flujo guiado (una pregunta a la vez)
+
+El cuestionario se presenta en modo guiado:
+- Encabezado con título, descripción y versión del template.
+- Progreso:
+  - “Pregunta X de N”
+  - Barra con porcentaje de avance.
+- Se renderiza **una sola pregunta** por pantalla.
+- Navegación:
+  - **Anterior** (deshabilitado en la primera).
+  - **Siguiente** (hasta la última).
+  - **Finalizar** en la última pregunta.
+- Si la respuesta está vacía se muestra un aviso discreto: “Respuesta pendiente.”
+
+## Tipos de respuesta
+
+- **likert**: selector horizontal (Nunca → Casi siempre).
+- **boolean**: botones “Sí” / “No” tipo segmented control.
+- **integer**: input numérico con min/max/step cuando existen.
+- **text**: textarea con altura suficiente.
+
+## Finalización
+
+- En la última pregunta, el botón **Finalizar** muestra un mensaje de éxito:
+  - “Respuestas guardadas correctamente.”
+- No se envían respuestas al backend por ahora.
+
+## Mock de cuestionario (solo desarrollo)
+
+Para trabajar estilos en local sin depender de la API:
+
+- Se activa con:
+  - `import.meta.env.DEV === true`
+  - y `VITE_USE_MOCK_QUESTIONNAIRE=true` en `.env.local`
+- En producción/Vercel **siempre** se usa la API real.
+- Mock ubicado en: `src/services/questionnaires/mockQuestionnaire.ts`
+- El hook usa import dinámico para evitar incluir el mock en builds de producción.
+
+## Hook y datos
+
 - Hook: `src/hooks/questionnaires/useActiveQuestionnaire.ts`
-- API: `src/services/questionnaires/questionnaires.api.ts`
-
-## Endpoint usado y proposito
-
-- Base: `VITE_API_BASE_URL` (definido en `.env`).
-- Endpoint: `GET /api/v1/questionnaires/active`.
-- Proposito: obtener el cuestionario activo (plantilla + preguntas) sin autenticacion.
-
-## Estructura de datos
-
-- `questionnaire_template`: `{ id, name, version, description, is_active }`
-- `questions[]`: `{ id, code, text, response_type, position, response_min/max/step, response_options }`
-- `response_type`: `likert | boolean | integer | text` (puede venir otro string).
-
-## Estados y manejo de errores
-
-- `loading`: muestra "Cargando cuestionario...".
-- Error 404: muestra "No hay un cuestionario activo en este momento." + boton Reintentar.
-- Otros errores: mensaje generico + boton Reintentar.
-
-## Render y UI
-
-- Encabezado con:
-  - Titulo: `questionnaire_template.name`
-  - Descripcion: `questionnaire_template.description` (si existe)
-  - Version: `questionnaire_template.version`
-- Lista vertical de preguntas, cada una con numero + texto.
-- Inputs por tipo:
-  - `likert`: 5 opciones (Nunca / Rara vez / A veces / Frecuentemente / Casi siempre).
-  - `boolean`: radios Si / No.
-  - `integer`: input number, min/max/step solo si existen.
-  - `text`: textarea de 3 filas.
-
-## Estado local de respuestas
-
-- `answers: Record<string, unknown>` con key = `question.id`.
-- Se actualiza en cada cambio de input.
-- No se envia al backend aun.
-
-## Refetch
-
-- `refetch()` vuelve a solicitar el cuestionario (boton Reintentar).
+- Ordena preguntas por `position` ascendente.
+- Maneja estados: loading, error y refetch.
 
 ## Estilos clave
 
-- Panel principal `.questionnaire-panel` con fondo blanco y borde azul tenue.
-- Preguntas en bloques limpios `.question-item` sin exceso de tarjetas.
-- Opciones tipo chip `.option-pill`.
+- Panel principal: `.questionnaire-shell` (card sobria con sombra ligera).
+- Progreso: `.questionnaire-progress`, `.progress-bar`, `.progress-fill`.
+- Opciones de respuesta: `.option-pill` con estado `.is-selected`.
+- Mensaje de éxito: `.questionnaire-modal`.
