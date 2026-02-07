@@ -1,53 +1,68 @@
-﻿# Cuestionario
+# Cuestionario
 
 ## Objetivo y estructura general
 
-La vista del cuestionario es única para ambos roles (Padre/Tutor y Psicólogo). Las rutas existentes renderizan el mismo componente para evitar duplicación de UI y mantener consistencia visual.
+La vista del cuestionario es ?nica para ambos roles (Padre/Tutor y Psic?logo). Las rutas existentes renderizan el mismo componente para evitar duplicaci?n de UI y mantener consistencia visual.
 
 - Vista unificada: `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
 - Estilos: `src/pages/Plataforma/Cuestionario/Cuestionario.css`
 - Rutas activas:
   - Padre/Tutor: `/padre/cuestionario`
-  - Psicólogo: `/psicologo/cuestionario`
+  - Psic?logo: `/psicologo/cuestionario`
 
 ## Pantalla inicial (antes de responder)
 
-Al entrar, se muestra una pantalla de contexto centrada verticalmente, con el contenido alineado a la izquierda y una imagen a la derecha.
+La introducci?n se presenta sin cards, centrada verticalmente y con layout en dos columnas.
 
-- Título: **Cuestionario de observación**.
-- Texto conversacional con duración estimada (5–8 min) y número total de preguntas.
-- Mensaje de apoyo: no diagnostica, solo alerta temprana; respuestas anónimas.
+- T?tulo: **Cuestionario de observaci?n**.
+- Texto conversacional con duraci?n estimada (5?8 min) y n?mero total de preguntas.
+- Mensaje de apoyo: no diagnostica, solo alerta temprana; respuestas an?nimas.
 - Imagen a la derecha:
-  - Ruta prevista: `src/assets/Imagenes/Cuestionario.png`
-  - Se renderiza con `object-fit: contain` y ocupa casi el alto del bloque de texto.
-- Botón principal: **Comenzar** (más grande y ubicado debajo del texto y la imagen).
+  - Ruta: `src/assets/Imagenes/Cuestionario.svg`
+  - `object-fit: contain` y altura similar al bloque de texto.
+- Bot?n principal: **Comenzar** (m?s grande y ubicado debajo del texto y la imagen).
 
 ## Flujo guiado (una pregunta a la vez)
 
-El cuestionario se presenta en modo guiado:
-- Encabezado con título, descripción y versión del template.
-- Progreso:
-  - “Pregunta X de N”
-  - Barra con porcentaje de avance.
+El cuestionario se presenta en modo guiado para evitar scroll excesivo:
+- Encabezado superior con:
+  - T?tulo y subt?tulo.
+  - Disclaimer breve: ?Este cuestionario no diagnostica, solo genera una alerta temprana.?
+- Bloque de progreso bajo el subt?tulo:
+  - ?Pregunta X / N?
+  - Barra de progreso (animada suavemente)
 - Se renderiza **una sola pregunta** por pantalla.
-- Navegación:
+- Navegaci?n:
   - **Anterior** (deshabilitado en la primera).
-  - **Siguiente** (hasta la última).
-  - **Finalizar** en la última pregunta.
-- Si la respuesta está vacía se muestra un aviso discreto: “Respuesta pendiente.”
+  - **Siguiente** (hasta la ?ltima).
+  - **Guardar** en la ?ltima pregunta.
 
-## Tipos de respuesta
+## Validaci?n obligatoria por tipo
 
-- **likert**: selector horizontal (Nunca → Casi siempre).
-- **boolean**: botones “Sí” / “No” tipo segmented control.
-- **integer**: input numérico con min/max/step cuando existen.
+No se permite avanzar si la pregunta actual no tiene una respuesta v?lida. El bot?n **Siguiente** permanece deshabilitado y, si se intenta avanzar por teclado, se muestra el aviso inline:
+**?Selecciona una respuesta para continuar.?**
+
+Reglas de validaci?n:
+- **likert**: obligatorio. Si no hay `response_options`, se usa set fijo (Nunca ? Casi siempre).
+- **boolean**: obligatorio (S?/No).
+- **integer**: obligatorio; debe ser entero y respetar `response_min/response_max` si existen.
+- **text**: obligatorio con m?nimo 3 caracteres.
+
+Las respuestas se guardan en `answersMap` por `question.id`. Al volver con **Anterior**, la respuesta se restaura.
+
+## Tipos de respuesta (UI)
+
+- **likert**: opciones verticales como bloques seleccionables, full width.
+- **boolean**: S?/No con el mismo patr?n de opciones verticales.
+- **integer**: input num?rico con l?mites cuando existen.
 - **text**: textarea con altura suficiente.
 
-## Finalización
+## Finalizaci?n
 
-- En la última pregunta, el botón **Finalizar** muestra un mensaje de éxito:
-  - “Respuestas guardadas correctamente.”
-- No se envían respuestas al backend por ahora.
+- En la ?ltima pregunta, el bot?n **Guardar** muestra un mensaje de ?xito:
+  - ?Cuestionario guardado correctamente.?
+- Tras confirmar el mensaje, la vista vuelve a la bienvenida del cuestionario.
+- Por ahora no se env?an respuestas al backend.
 
 ## Mock de cuestionario (solo desarrollo)
 
@@ -56,9 +71,9 @@ Para trabajar estilos en local sin depender de la API:
 - Se activa con:
   - `import.meta.env.DEV === true`
   - y `VITE_USE_MOCK_QUESTIONNAIRE=true` en `.env.local`
-- En producción/Vercel **siempre** se usa la API real.
+- En producci?n/Vercel **siempre** se usa la API real.
 - Mock ubicado en: `src/services/questionnaires/mockQuestionnaire.ts`
-- El hook usa import dinámico para evitar incluir el mock en builds de producción.
+- El hook usa import din?mico para evitar incluir el mock en builds de producci?n.
 
 ## Hook y datos
 
@@ -66,18 +81,10 @@ Para trabajar estilos en local sin depender de la API:
 - Ordena preguntas por `position` ascendente.
 - Maneja estados: loading, error y refetch.
 
-## Estilos clave
+## Animaciones
 
-- Panel principal: `.questionnaire-shell`.
-- Pantalla inicial sin card: `.questionnaire-shell.is-intro`.
-- Bloque introductorio en dos columnas: `.questionnaire-intro`.
-- Progreso: `.questionnaire-progress`, `.progress-bar`, `.progress-fill`.
-- Opciones de respuesta: `.option-pill` con estado `.is-selected`.
-- Mensaje de éxito: `.questionnaire-modal`.
-
-## Animaciones (pantalla intro)
-
-- Entrada por capas: título, subtítulo, texto, imagen y botón con fade + desplazamiento suave.
-- Acento del título: línea animada que crece de 0% a 100%.
-- SVG: flotación sutil (6px) con ciclo largo y hover ligero.
-- Respeta `prefers-reduced-motion` desactivando animaciones.
+- Pantalla intro: entrada por capas (t?tulo, subt?tulo, texto, imagen, bot?n).
+- Acento del t?tulo: l?nea animada que crece de 0% a 100%.
+- SVG: flotaci?n sutil con hover ligero.
+- Cambios de pregunta: fade + desplazamiento suave (`.question-animate`).
+- Respetan `prefers-reduced-motion`.
