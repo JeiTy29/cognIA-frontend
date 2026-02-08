@@ -348,6 +348,38 @@
     box-shadow: 0 8px 16px rgba(33, 95, 143, 0.2);
 }
 
+.mi-cuenta-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 520px;
+}
+
+.mi-cuenta-segmented {
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.mi-cuenta-segment {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #215F8F;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.mi-cuenta-segment.is-active {
+    background: #1790E9;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(23, 144, 233, 0.2);
+}
+
 @media (max-width: 900px) {
     .mi-cuenta-grid {
         grid-template-columns: 1fr;

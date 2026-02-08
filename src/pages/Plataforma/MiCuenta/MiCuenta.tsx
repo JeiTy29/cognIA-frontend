@@ -3,9 +3,12 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
-import { logout } from '../../../services/auth/auth.api';
+import { logout, mfaDisable } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
+import { Modal } from '../../../components/Modal/Modal';
+import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
+import { ApiError } from '../../../services/api/httpClient';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordRules = [
@@ -22,7 +25,7 @@ const passwordRules = [
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout } = useAuth();
+    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile } = useAuth();
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
@@ -39,6 +42,14 @@ export default function MiCuenta() {
     const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
     const [logoutError, setLogoutError] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
+    const [showMfaSetup, setShowMfaSetup] = useState(false);
+    const [showMfaDisable, setShowMfaDisable] = useState(false);
+    const [disablePassword, setDisablePassword] = useState('');
+    const [disableCode, setDisableCode] = useState('');
+    const [disableMode, setDisableMode] = useState<'totp' | 'recovery'>('totp');
+    const [disableLoading, setDisableLoading] = useState(false);
+    const [disableError, setDisableError] = useState<string | null>(null);
+    const [disableSuccess, setDisableSuccess] = useState<string | null>(null);
     const passwordChecks = useMemo(() => (
         passwordRules.map(rule => ({
             id: rule.id,
@@ -435,12 +446,28 @@ export default function MiCuenta() {
                         {mfaEnabled ? (
                             <>
                                 <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                                <button type="button" className="mi-cuenta-btn primary">Desactivar MFA</button>
+                                <button
+                                    type="button"
+                                    className="mi-cuenta-btn primary"
+                                    onClick={() => {
+                                        setDisableError(null);
+                                        setDisableSuccess(null);
+                                        setShowMfaDisable(true);
+                                    }}
+                                >
+                                    Desactivar MFA
+                                </button>
                             </>
                         ) : (
                             <>
                                 <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
-                                <button type="button" className="mi-cuenta-btn primary">Activar MFA</button>
+                                <button
+                                    type="button"
+                                    className="mi-cuenta-btn primary"
+                                    onClick={() => setShowMfaSetup(true)}
+                                >
+                                    Activar MFA
+                                </button>
                             </>
                         )}
                     </section>
@@ -465,6 +492,111 @@ export default function MiCuenta() {
                     {logoutMessage}
                 </div>
             ) : null}
+
+            <Modal isOpen={showMfaSetup} onClose={() => setShowMfaSetup(false)}>
+                <div className="mi-cuenta-modal">
+                    <MfaSetupView
+                        mode="setup"
+                        accessToken={accessToken}
+                        onComplete={() => {
+                            setShowMfaSetup(false);
+                            void reloadProfile();
+                        }}
+                    />
+                </div>
+            </Modal>
+
+            <Modal isOpen={showMfaDisable} onClose={() => setShowMfaDisable(false)}>
+                <div className="mi-cuenta-modal">
+                    <h2 className="mi-cuenta-section-title">Desactivar MFA</h2>
+                    <p className="mi-cuenta-section-note">
+                        Esta acción cerrará tu sesión actual. Necesitarás iniciar sesión nuevamente.
+                    </p>
+                    {disableError ? <div className="mi-cuenta-error">{disableError}</div> : null}
+                    {disableSuccess ? <div className="mi-cuenta-success">{disableSuccess}</div> : null}
+                    <label className="mi-cuenta-input-group">
+                        <span className="mi-cuenta-input-label">Contraseña</span>
+                        <input
+                            type="password"
+                            className="mi-cuenta-input"
+                            value={disablePassword}
+                            onChange={(e) => setDisablePassword(e.target.value)}
+                        />
+                    </label>
+
+                    <div className="mi-cuenta-segmented">
+                        <button
+                            type="button"
+                            className={`mi-cuenta-segment ${disableMode === 'totp' ? 'is-active' : ''}`}
+                            onClick={() => setDisableMode('totp')}
+                        >
+                            Código TOTP
+                        </button>
+                        <button
+                            type="button"
+                            className={`mi-cuenta-segment ${disableMode === 'recovery' ? 'is-active' : ''}`}
+                            onClick={() => setDisableMode('recovery')}
+                        >
+                            Recovery code
+                        </button>
+                    </div>
+
+                    <label className="mi-cuenta-input-group">
+                        <span className="mi-cuenta-input-label">{disableMode === 'totp' ? 'Código TOTP' : 'Recovery code'}</span>
+                        <input
+                            type="text"
+                            className="mi-cuenta-input"
+                            value={disableCode}
+                            onChange={(e) => setDisableCode(e.target.value)}
+                        />
+                    </label>
+
+                    <div className="mi-cuenta-actions">
+                        <button type="button" className="mi-cuenta-btn ghost" onClick={() => setShowMfaDisable(false)}>
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="mi-cuenta-btn primary"
+                            disabled={disableLoading}
+                            onClick={async () => {
+                                if (!accessToken) {
+                                    setDisableError('Inicia sesión para continuar.');
+                                    return;
+                                }
+                                if (!disablePassword.trim() || !disableCode.trim()) {
+                                    setDisableError('Completa los datos requeridos.');
+                                    return;
+                                }
+                                setDisableLoading(true);
+                                setDisableError(null);
+                                try {
+                                    const payload = disableMode === 'totp'
+                                        ? { password: disablePassword, code: disableCode }
+                                        : { password: disablePassword, recovery_code: disableCode };
+                                    await mfaDisable(accessToken, payload);
+                                    setDisableSuccess('MFA deshabilitado. Cerrando sesión...');
+                                    window.setTimeout(() => {
+                                        setShowMfaDisable(false);
+                                        clearSession('manual');
+                                        navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+                                    }, 600);
+                                } catch (error) {
+                                    if (error instanceof ApiError) {
+                                        setDisableError('No fue posible desactivar MFA. Verifica los datos.');
+                                    } else {
+                                        setDisableError('No fue posible desactivar MFA. Intenta nuevamente.');
+                                    }
+                                } finally {
+                                    setDisableLoading(false);
+                                }
+                            }}
+                        >
+                            {disableLoading ? 'Procesando...' : 'Confirmar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
         </div>
     );
