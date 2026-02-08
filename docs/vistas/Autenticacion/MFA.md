@@ -2,53 +2,56 @@
 
 ## Descripción general
 
-Pantalla reutilizable de verificación en dos pasos con dos modos: **setup** (configuración inicial) y **challenge** (verificación durante login).
+La verificación MFA se divide en dos contextos:
+
+1) **Challenge** durante login (ruta `/mfa/challenge`).
+2) **Setup/Enrollment** en línea dentro del login o dentro de modales en Mi Cuenta.
+
+El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 
 ## Ubicación
 
-- Componente: `src/pages/Autenticacion/MFA/MFA.tsx`
-- Estilos: `src/pages/Autenticacion/MFA/MFA.css`
-- Rutas: `/mfa/setup` y `/mfa/challenge`
+- Challenge: `src/pages/Autenticacion/MFA/MFA.tsx`
+- Setup reutilizable: `src/components/MFA/MfaSetupView.tsx`
+- Estilos setup: `src/components/MFA/MfaSetupView.css`
+- Estilos challenge: `src/pages/Autenticacion/MFA/MFA.css`
 
 ## Endpoints relacionados
 
 - `POST /api/auth/login/mfa` (verificación MFA durante login)
 - `POST /api/mfa/setup` (genera `otpauth_uri` para QR)
-- `POST /api/mfa/confirm` (confirma el código)
+- `POST /api/mfa/confirm` (confirma el código y retorna recovery codes)
 - `POST /api/mfa/disable` (deshabilita MFA)
 
 ## Authorization (Bearer)
 
-- Todos los endpoints protegidos usan **esquema Bearer**:
-  - `Authorization: Bearer <access_token>`.
+- Todos los endpoints protegidos usan **Bearer**:
+  - `Authorization: Bearer <access_token>`
 
-## Modos de la vista
+## Setup MFA (enrollment / setup)
 
-### Modo setup
+### Login (psicólogo)
 
-- Título: “Configurar verificación en dos pasos”.
-- Muestra QR generado desde `otpauth_uri`.
-- El usuario ingresa el código de 6 dígitos.
-- Al confirmar, se redirige a `/inicio-sesion` con mensaje de MFA configurado.
+- Si el login responde `mfa_enrollment_required`, se muestra **MfaSetupView** inline.
+- Se usa `enrollment_token` **solo en memoria** (no storage).
+- El usuario escanea el QR, ingresa el código de 6 dígitos y confirma.
+- Se muestran **recovery codes** en un modal bloqueante una sola vez.
+- Tras guardar los códigos, se limpia la memoria y se muestra el mensaje para iniciar sesión nuevamente.
 
-### Modo challenge
+### Mi Cuenta (padre/tutor)
 
-- Título: “Verificación requerida”.
-- No muestra QR.
-- El usuario ingresa el código de 6 dígitos o un código de recuperación.
-- Si valida, se guarda el `access_token` y se redirige según rol.
+- Botón **Activar MFA** abre un modal con **MfaSetupView**.
+- Se usa `access_token` actual (Authorization header).
+- Recovery codes se muestran en modal bloqueante, se pueden copiar y luego se limpian de memoria.
 
-## Flujo de navegación
+## Challenge MFA
 
-- El modo se determina por `state` en `navigate` (`mode`, `challengeId`, `enrollmentToken`).
-- Si se entra sin `state` válido, la vista redirige a `/inicio-sesion`.
+- Ruta: `/mfa/challenge`.
+- El usuario ingresa el código TOTP o un recovery code.
+- Si es válido, se guarda el `access_token` y se redirige según rol.
 
 ## Seguridad de tokens
 
-- `challenge_id` y `enrollment_token` **no** se guardan en storage; se mantienen solo en memoria.
-- El token de acceso se guarda en `sessionStorage` (clave `cognia_access_token`).
-
-## Mensajes de estado
-
-- Errores de código muestran mensaje inline (sin logs de tokens).
-- Feedback de éxito en confirmación de MFA.
+- `enrollment_token` y `challenge_id` **no** se guardan en storage.
+- Recovery codes se muestran una sola vez y no se persisten.
+- El access token se guarda en `sessionStorage` (`cognia_access_token`).

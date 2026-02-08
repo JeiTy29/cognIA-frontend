@@ -1,4 +1,4 @@
-﻿# Vista: Mi cuenta
+# Vista: Mi cuenta
 
 ## Propósito
 
@@ -44,7 +44,7 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Solo un formulario abierto a la vez.
   - Animación tipo collapse (altura + opacidad) al abrir/cerrar.
   - Botón **Cancelar** cierra el panel con animación.
-  - Ícono del encabezado indica acción de edición (no es “+”).
+  - Ícono del encabezado indica acción de edición.
 - Formularios:
   - **Cambiar correo**: correo actual (solo lectura), nuevo correo, confirmar correo, contraseña.
   - **Cambiar contraseña**: contraseña actual, nueva contraseña, confirmar nueva contraseña.
@@ -66,7 +66,9 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
 - Estados:
   - Si `mfa_enabled` es **false**: CTA **Activar MFA** + texto informativo.
   - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
-- UI/estructura: sin llamadas a backend por ahora.
+- **Activar MFA** abre un modal con QR (MfaSetupView) y confirmación de código.
+- **Desactivar MFA** abre un modal con contraseña + código TOTP o recovery code.
+- En éxito al desactivar MFA se cierra sesión (el backend revoca refresh tokens).
 - Para **Psicólogo** no se muestran CTAs de MFA.
 
 ### D) Cerrar sesión
