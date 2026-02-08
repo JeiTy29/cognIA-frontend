@@ -76,7 +76,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 ## Interacciones
 
 - Enlace “Regístrate” → `/registro`.
-- Enlace “¿Olvidaste tu contraseña?” → `/recuperar-contrasena`.
+- Enlace “¿Olvidaste tu contraseña?” → abre el modal de recuperación (no navega).
 
 ## Flujo de usuario
 
