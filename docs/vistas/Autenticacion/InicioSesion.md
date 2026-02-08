@@ -1,4 +1,4 @@
-# Vista: Inicio de Sesión
+# Vista: Inicio de sesión
 
 ## Descripción general
 
@@ -28,7 +28,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 3) **MFA enrollment requerido**
 - Respuesta: `{ mfa_enrollment_required: true, enrollment_token, token_type, expires_in, msg, error }`
-- Acción: navega a `/mfa/setup` usando `state` con `enrollmentToken` (no se persiste).
+- Acción: muestra el setup de MFA **inline** (MfaSetupView) usando `enrollment_token` en memoria.
 
 ## Manejo de errores
 
@@ -44,7 +44,7 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 ### Validación rápida de usuario
 
 - Validación local con regex: `^[A-Za-z0-9._-]{3,32}$`.
-- Diferencia mayúsculas/minúsculas.
+- Distingue mayúsculas/minúsculas.
 
 ## Almacenamiento de sesión
 
@@ -82,8 +82,9 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 1. Ingresa usuario y contraseña.
 2. Presiona **Ingresar**.
-3. Si hay MFA, navega a `/mfa/challenge` o `/mfa/setup`.
-4. Si no hay MFA, entra directo a la plataforma según rol.
+3. Si hay MFA requerido (challenge), navega a `/mfa/challenge`.
+4. Si hay enrollment requerido, se muestra MfaSetupView inline.
+5. Si no hay MFA, entra directo a la plataforma según rol.
 
 ## Estilos clave
 
