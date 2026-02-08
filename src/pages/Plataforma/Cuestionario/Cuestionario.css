@@ -49,13 +49,41 @@
 }
 
 .questionnaire-heading {
-    max-width: 640px;
+    max-width: 680px;
 }
 
 .questionnaire-disclaimer {
     margin: 0;
     font-size: 13px;
     color: rgba(33, 95, 143, 0.7);
+}
+
+.questionnaire-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    max-width: 420px;
+}
+
+.questionnaire-progress-text {
+    font-size: 13px;
+    color: #215F8F;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #E4EFF9;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #1790E9;
+    border-radius: 999px;
+    transition: width 0.4s ease;
 }
 
 .questionnaire-intro-text-body {
@@ -231,6 +259,7 @@
     display: flex;
     flex-direction: column;
     gap: 28px;
+    font-family: 'Segoe UI', sans-serif;
 }
 
 .questionnaire-top {
@@ -239,39 +268,91 @@
     gap: 14px;
 }
 
-.questionnaire-progress {
+.questionnaire-stack {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-    max-width: 420px;
+    gap: 16px;
+    font-family: 'Segoe UI', sans-serif;
 }
 
-.questionnaire-progress-text {
-    font-size: 13px;
-    color: #215F8F;
-}
-
-.progress-bar {
+.stack-item {
     width: 100%;
-    height: 6px;
-    border-radius: 999px;
-    background: #E4EFF9;
-    overflow: hidden;
+    text-align: left;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    background: #ffffff;
+    padding: 18px 20px;
+    transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-.progress-fill {
-    height: 100%;
-    background: #1790E9;
-    border-radius: 999px;
-    transition: width 0.4s ease;
+.stack-item.is-answered {
+    opacity: 0.9;
+    transform: scale(0.98);
+    background: #E3F1FF;
+    border-color: rgba(23, 144, 233, 0.35);
+    cursor: pointer;
 }
 
-.questionnaire-question {
+.stack-item.is-answered:hover {
+    opacity: 1;
+}
+
+.stack-item.is-after {
+    margin-top: 6px;
+}
+
+.stack-item.is-unanswered {
+    opacity: 0.55;
+    transform: scale(0.97);
+    background: rgba(23, 144, 233, 0.02);
+    border-color: rgba(33, 95, 143, 0.16);
+    cursor: pointer;
+}
+
+.stack-item.is-unanswered:hover {
+    opacity: 0.7;
+}
+
+.stack-item.is-active {
+    opacity: 1;
+    transform: scale(1);
     background: rgba(23, 144, 233, 0.05);
     border-left: 4px solid #1790E9;
-    border-radius: 12px;
-    padding: 22px 24px;
+    border-color: rgba(33, 95, 143, 0.25);
+}
+
+.stack-item.is-active.from-next {
+    animation: stackInNext 0.35s ease;
+}
+
+.stack-item.is-active.from-prev {
+    animation: stackInPrev 0.35s ease;
+}
+
+.stack-question {
+    display: block;
+    font-size: 15px;
+    color: #1f2a37;
+    margin-bottom: 8px;
+}
+
+.stack-answer {
+    font-size: 13px;
+    color: rgba(33, 95, 143, 0.8);
+}
+
+.stack-active {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 18px;
+    align-items: center;
+}
+
+.stack-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-self: center;
 }
 
 .question-text {
@@ -333,6 +414,20 @@
     flex: 1;
 }
 
+.question-input-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.question-input-label {
+    font-size: 13px;
+    color: #215F8F;
+    font-weight: 600;
+    font-family: 'Segoe UI', sans-serif;
+}
+
 .question-input {
     width: 100%;
     border-radius: 12px;
@@ -341,6 +436,24 @@
     font-size: 15px;
     color: #1f2a37;
     background: #ffffff;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.question-input:focus {
+    border-color: rgba(23, 144, 233, 0.7);
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.15);
+}
+
+.question-input::-webkit-outer-spin-button,
+.question-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.question-input[type=number] {
+    -moz-appearance: textfield;
 }
 
 .question-textarea {
@@ -353,20 +466,32 @@
     background: #ffffff;
     resize: vertical;
     min-height: 120px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.question-textarea:focus {
+    border-color: rgba(23, 144, 233, 0.7);
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.15);
+}
+
+.question-input-hint {
+    font-size: 12px;
+    color: rgba(33, 95, 143, 0.7);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.question-input-note {
+    font-size: 12px;
+    color: rgba(33, 95, 143, 0.75);
+    font-family: 'Segoe UI', sans-serif;
 }
 
 .question-warning {
     margin-top: 12px;
     color: #b26a00;
     font-size: 13px;
-}
-
-.questionnaire-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding-top: 4px;
 }
 
 .questionnaire-modal {
@@ -394,8 +519,19 @@
     color: #215F8F;
 }
 
-.question-animate {
-    animation: questionFade 0.4s ease;
+@media (max-width: 980px) {
+    .stack-active {
+        grid-template-columns: 1fr;
+    }
+
+    .stack-controls {
+        position: sticky;
+        bottom: 0;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 12px 0 0;
+        background: #ffffff;
+    }
 }
 
 @media (max-width: 900px) {
@@ -475,14 +611,25 @@
     }
 }
 
-@keyframes questionFade {
+@keyframes stackInNext {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(14px) scale(0.98);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes stackInPrev {
+    from {
+        opacity: 0;
+        transform: translateY(-14px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
@@ -506,16 +653,20 @@
         animation: none !important;
     }
 
-    .question-animate {
-        animation: none !important;
-    }
-
     .progress-fill {
         transition: none;
     }
 
+    .stack-item,
     .answer-option,
-    .answer-indicator {
+    .answer-indicator,
+    .question-input,
+    .question-textarea {
         transition: none;
+    }
+
+    .stack-item.is-active.from-next,
+    .stack-item.is-active.from-prev {
+        animation: none !important;
     }
 }

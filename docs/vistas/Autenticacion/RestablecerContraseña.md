@@ -49,6 +49,6 @@ Permite al usuario definir una nueva contraseña y volver a iniciar sesión, man
 - Enlace: **Volver a inicio de sesión**.
 
 ## Rutas
-- `GET /restablecer-contraseña` → Vista RestablecerContraseña.
-- Modal desde Login no navega automáticamente; el botón **Entendido** redirige a `/restablecer-contraseña`.
+- `GET /restablecer-contrasena` → Vista RestablecerContraseña.
+- Modal desde Login no navega automáticamente; el botón **Entendido** redirige a `/restablecer-contrasena`.
 - El modal de éxito redirige a `/inicio-sesion`.

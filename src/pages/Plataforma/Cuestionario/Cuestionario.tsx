@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import '../Plataforma.css';
 import './Cuestionario.css';
 import { useActiveQuestionnaire } from '../../../hooks/questionnaires/useActiveQuestionnaire';
@@ -23,7 +23,8 @@ function isValidAnswer(question: QuestionDTO, value: unknown) {
             return value !== null && value !== undefined && value !== '';
         case 'integer': {
             if (typeof value !== 'number' || Number.isNaN(value) || !Number.isInteger(value)) return false;
-            if (question.response_min !== null && value < question.response_min) return false;
+            const minValue = Math.max(0, question.response_min ?? 0);
+            if (value < minValue) return false;
             if (question.response_max !== null && value > question.response_max) return false;
             return true;
         }
@@ -31,6 +32,29 @@ function isValidAnswer(question: QuestionDTO, value: unknown) {
         default: {
             if (typeof value !== 'string') return false;
             return value.trim().length >= MIN_TEXT_LENGTH;
+        }
+    }
+}
+
+function formatAnswer(question: QuestionDTO, value: unknown) {
+    if (value === null || value === undefined || value === '') return '';
+    switch (question.response_type) {
+        case 'boolean':
+            return value === true ? 'Sí' : value === false ? 'No' : String(value);
+        case 'likert': {
+            const options = Array.isArray(question.response_options) && question.response_options.length > 0
+                ? question.response_options.map(option => ({ value: option, label: String(option) }))
+                : likertOptions;
+            const match = options.find(option => option.value === value);
+            return match ? match.label : String(value);
+        }
+        case 'integer':
+            return String(value);
+        case 'text':
+        default: {
+            if (typeof value !== 'string') return String(value);
+            const trimmed = value.trim();
+            return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
         }
     }
 }
@@ -81,35 +105,50 @@ function renderQuestionInput(
                 </div>
             );
         case 'integer': {
-            const min = question.response_min ?? undefined;
+            const min = Math.max(0, question.response_min ?? 0);
             const max = question.response_max ?? undefined;
             const step = question.response_step ?? 1;
             return (
-                <input
-                    type="number"
-                    className="question-input"
-                    placeholder="Escribe un número"
-                    value={typeof value === 'number' ? value : ''}
-                    onChange={(event) => {
-                        const nextValue = event.target.value === '' ? '' : Number(event.target.value);
-                        onChange(nextValue === '' ? null : nextValue);
-                    }}
-                    min={min}
-                    max={max}
-                    step={step}
-                />
+                <div className="question-input-block">
+                    <label className="question-input-label">Ingresa un número</label>
+                    <input
+                        type="number"
+                        className="question-input"
+                        placeholder="0"
+                        value={typeof value === 'number' ? value : ''}
+                        onChange={(event) => {
+                            const raw = event.target.value;
+                            if (raw.startsWith('-')) return;
+                            const nextValue = raw === '' ? '' : Number(raw);
+                            if (nextValue !== '' && Number.isNaN(nextValue)) return;
+                            onChange(nextValue === '' ? null : nextValue);
+                        }}
+                        min={min}
+                        max={max}
+                        step={step}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                    />
+                    <span className="question-input-hint">Solo números (0 o mayor).</span>
+                </div>
             );
         }
         case 'text':
         default:
             return (
-                <textarea
-                    className="question-textarea"
-                    rows={4}
-                    placeholder="Escribe tu respuesta"
-                    value={typeof value === 'string' ? value : ''}
-                    onChange={(event) => onChange(event.target.value)}
-                />
+                <div className="question-input-block">
+                    <label className="question-input-label">Respuesta</label>
+                    <textarea
+                        className="question-textarea"
+                        rows={5}
+                        placeholder="Escribe una respuesta breve"
+                        value={typeof value === 'string' ? value : ''}
+                        onChange={(event) => onChange(event.target.value)}
+                    />
+                    <span className="question-input-note">
+                        Estas respuestas no afectan el resultado de Random Forest; ayudan al psicólogo a interpretar mejor la situación del niño.
+                    </span>
+                </div>
             );
     }
 }
@@ -121,6 +160,8 @@ export default function Cuestionario() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showValidation, setShowValidation] = useState(false);
+    const [navDirection, setNavDirection] = useState<'next' | 'prev'>('next');
+    const activeRef = useRef<HTMLDivElement | null>(null);
 
     const errorStatus = useMemo(() => {
         if (error && error instanceof ApiError) {
@@ -141,6 +182,14 @@ export default function Cuestionario() {
     const progress = totalQuestions > 0
         ? Math.round(((currentIndex + 1) / totalQuestions) * 100)
         : 0;
+
+    useEffect(() => {
+        if (!started) return;
+        if (!activeRef.current) return;
+        requestAnimationFrame(() => {
+            activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }, [currentIndex, started]);
 
     const handleAnswerChange = (questionId: string | number, value: unknown) => {
         const key = String(questionId);
@@ -164,6 +213,7 @@ export default function Cuestionario() {
         }
         setShowValidation(false);
         if (currentIndex < totalQuestions - 1) {
+            setNavDirection('next');
             setCurrentIndex(prev => prev + 1);
         }
     };
@@ -171,6 +221,7 @@ export default function Cuestionario() {
     const goPrevious = () => {
         setShowValidation(false);
         if (currentIndex > 0) {
+            setNavDirection('prev');
             setCurrentIndex(prev => prev - 1);
         }
     };
@@ -262,59 +313,120 @@ export default function Cuestionario() {
                                 <p className="questionnaire-disclaimer">
                                     Este cuestionario no diagnostica, solo genera una alerta temprana.
                                 </p>
-                                <div className="questionnaire-progress">
-                                    <span className="questionnaire-progress-text">
-                                        Pregunta {currentIndex + 1}/{totalQuestions}
-                                    </span>
-                                    <div className="progress-bar">
-                                        <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        {currentQuestion ? (
-                            <div key={currentQuestion.id} className="questionnaire-question question-animate">
-                                <h2 className="question-text">{currentQuestion.text}</h2>
-                                {renderQuestionInput(
-                                    currentQuestion,
-                                    currentAnswer,
-                                    (value) => handleAnswerChange(currentQuestion.id, value)
-                                )}
-                                {showValidation && !currentValid ? (
-                                    <div className="question-warning">Selecciona una respuesta para continuar.</div>
-                                ) : null}
-                            </div>
-                        ) : null}
+                        <div className="questionnaire-stack">
+                            {questions.map((question, index) => {
+                                if (index >= currentIndex) return null;
+                                const key = String(question.id);
+                                const answerValue = answers[key];
+                                if (!isValidAnswer(question, answerValue)) {
+                                    return null;
+                                }
+                                return (
+                                    <button
+                                        key={question.id}
+                                        type="button"
+                                        className="stack-item is-answered"
+                                        onClick={() => {
+                                            if (index === currentIndex) return;
+                                            setNavDirection(index < currentIndex ? 'prev' : 'next');
+                                            setCurrentIndex(index);
+                                            setShowValidation(false);
+                                        }}
+                                    >
+                                        <span className="stack-question">{question.text}</span>
+                                        <span className="stack-answer">
+                                            Respuesta: {formatAnswer(question, answerValue)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
 
-                        <div className="questionnaire-controls">
-                            <button
-                                type="button"
-                                className="questionnaire-btn ghost"
-                                onClick={goPrevious}
-                                disabled={currentIndex === 0}
-                            >
-                                Anterior
-                            </button>
-                            {currentIndex === totalQuestions - 1 ? (
-                                <button
-                                    type="button"
-                                    className="questionnaire-btn primary"
-                                    onClick={handleFinish}
-                                    disabled={!currentValid}
-                                >
-                                    Guardar
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    className="questionnaire-btn primary"
-                                    onClick={goNext}
-                                    disabled={!currentValid}
-                                >
-                                    Siguiente
-                                </button>
-                            )}
+                            {currentQuestion ? (
+                                <div className="stack-active">
+                                    <div
+                                        key={currentQuestion.id}
+                                        className={`stack-item is-active ${navDirection === 'next' ? 'from-next' : 'from-prev'}`}
+                                        ref={activeRef}
+                                    >
+                                        <h2 className="question-text">{currentQuestion.text}</h2>
+                                        {renderQuestionInput(
+                                            currentQuestion,
+                                            currentAnswer,
+                                            (value) => handleAnswerChange(currentQuestion.id, value)
+                                        )}
+                                        {showValidation && !currentValid ? (
+                                            <div className="question-warning">Selecciona una respuesta para continuar.</div>
+                                        ) : null}
+                                        <div className="questionnaire-progress">
+                                            <span className="questionnaire-progress-text">
+                                                Pregunta {currentIndex + 1}/{totalQuestions}
+                                            </span>
+                                            <div className="progress-bar">
+                                                <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="stack-controls">
+                                        <button
+                                            type="button"
+                                            className="questionnaire-btn ghost"
+                                            onClick={goPrevious}
+                                            disabled={currentIndex === 0}
+                                        >
+                                            Anterior
+                                        </button>
+                                        {currentIndex === totalQuestions - 1 ? (
+                                            <button
+                                                type="button"
+                                                className="questionnaire-btn primary"
+                                                onClick={handleFinish}
+                                                disabled={!currentValid}
+                                            >
+                                                Guardar
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="questionnaire-btn primary"
+                                                onClick={goNext}
+                                                disabled={!currentValid}
+                                            >
+                                                Siguiente
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {questions.map((question, index) => {
+                                if (index <= currentIndex) return null;
+                                const key = String(question.id);
+                                const answerValue = answers[key];
+                                if (!isValidAnswer(question, answerValue)) {
+                                    return null;
+                                }
+                                return (
+                                    <button
+                                        key={question.id}
+                                        type="button"
+                                        className="stack-item is-answered is-after"
+                                        onClick={() => {
+                                            if (index === currentIndex) return;
+                                            setNavDirection(index < currentIndex ? 'prev' : 'next');
+                                            setCurrentIndex(index);
+                                            setShowValidation(false);
+                                        }}
+                                    >
+                                        <span className="stack-question">{question.text}</span>
+                                        <span className="stack-answer">
+                                            Respuesta: {formatAnswer(question, answerValue)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

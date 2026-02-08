@@ -111,7 +111,7 @@ export default function InicioSesion() {
     const handleForgotConfirm = () => {
         setShowForgotModal(false);
         resetForgotState();
-        navigate('/restablecer-contraseña');
+        navigate('/restablecer-contrasena');
     };
 
     return (
