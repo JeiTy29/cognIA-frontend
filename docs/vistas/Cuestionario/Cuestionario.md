@@ -22,20 +22,29 @@ La introducci?n se presenta sin cards, centrada verticalmente y con layout en do
   - `object-fit: contain` y altura similar al bloque de texto.
 - Bot?n principal: **Comenzar** (m?s grande y ubicado debajo del texto y la imagen).
 
-## Flujo guiado (una pregunta a la vez)
+## Layout tipo ?stack? (pila de preguntas)
 
-El cuestionario se presenta en modo guiado para evitar scroll excesivo:
-- Encabezado superior con:
-  - T?tulo y subt?tulo.
-  - Disclaimer breve: ?Este cuestionario no diagnostica, solo genera una alerta temprana.?
-- Bloque de progreso bajo el subt?tulo:
-  - ?Pregunta X / N?
-  - Barra de progreso (animada suavemente)
-- Se renderiza **una sola pregunta** por pantalla.
-- Navegaci?n:
-  - **Anterior** (deshabilitado en la primera).
-  - **Siguiente** (hasta la ?ltima).
-  - **Guardar** en la ?ltima pregunta.
+La vista principal muestra un flujo guiado, manteniendo el contexto:
+- La pregunta actual aparece en estado activo (interactiva).
+- Todas las dem?s preguntas (anteriores o posteriores) quedan arriba en formato compacto:
+  - **Respondidas**: fondo azul claro con resumen de respuesta.
+  - **Pendientes**: opacas y con resumen ?Respuesta: Pendiente?.
+- No se previsualiza ninguna pregunta futura en estado activo.
+- Las preguntas compactas son clicables para volver a ellas.
+
+### Animaciones de avance/retroceso
+
+- Al avanzar: la pregunta activa sube, reduce tama?o/opacidad y pasa a ?respondida?.
+- La nueva pregunta aparece desde abajo con fade + translateY/scale suave.
+- Al retroceder: la pregunta activa pierde protagonismo y la anterior vuelve a estado activo.
+- Se respeta `prefers-reduced-motion`.
+
+## Encabezado y progreso
+
+- Encabezado con t?tulo, subt?tulo y disclaimer breve.
+- La barra de progreso aparece **debajo de la pregunta activa**, con:
+  - **?Pregunta X / N?**
+  - Barra de progreso (transici?n suave en width).
 
 ## Validaci?n obligatoria por tipo
 
@@ -45,17 +54,30 @@ No se permite avanzar si la pregunta actual no tiene una respuesta v?lida. El bo
 Reglas de validaci?n:
 - **likert**: obligatorio. Si no hay `response_options`, se usa set fijo (Nunca ? Casi siempre).
 - **boolean**: obligatorio (S?/No).
-- **integer**: obligatorio; debe ser entero y respetar `response_min/response_max` si existen.
+- **integer**: obligatorio; entero >= 0 y respeta `response_min/response_max` si existen.
 - **text**: obligatorio con m?nimo 3 caracteres.
 
-Las respuestas se guardan en `answersMap` por `question.id`. Al volver con **Anterior**, la respuesta se restaura.
+Las respuestas se guardan en `answersMap` por `question.id`. Al volver con **Anterior** o al seleccionar una pregunta compacta, la respuesta se restaura.
 
-## Tipos de respuesta (UI)
+## UI de respuestas
 
-- **likert**: opciones verticales como bloques seleccionables, full width.
-- **boolean**: S?/No con el mismo patr?n de opciones verticales.
-- **integer**: input num?rico con l?mites cuando existen.
-- **text**: textarea con altura suficiente.
+- Opciones verticales full width, con estados hover/selected.
+- Preguntas respondidas muestran solo resumen (sin opciones completas).
+
+### Numeric (integer)
+- Input sin flechas (spinner oculto).
+- No permite negativos.
+- Label visible arriba del input.
+
+### Text (text)
+- Textarea con altura c?moda.
+- Label ?Respuesta? y hint de longitud m?nima.
+
+## Botones de navegaci?n flotantes
+
+- **Anterior** y **Siguiente/Guardar** se ubican a la derecha del bloque activo.
+- Se reserva espacio lateral para no tapar contenido.
+- En pantallas peque?as, los controles pasan a una barra inferior sticky.
 
 ## Finalizaci?n
 
@@ -80,11 +102,3 @@ Para trabajar estilos en local sin depender de la API:
 - Hook: `src/hooks/questionnaires/useActiveQuestionnaire.ts`
 - Ordena preguntas por `position` ascendente.
 - Maneja estados: loading, error y refetch.
-
-## Animaciones
-
-- Pantalla intro: entrada por capas (t?tulo, subt?tulo, texto, imagen, bot?n).
-- Acento del t?tulo: l?nea animada que crece de 0% a 100%.
-- SVG: flotaci?n sutil con hover ligero.
-- Cambios de pregunta: fade + desplazamiento suave (`.question-animate`).
-- Respetan `prefers-reduced-motion`.

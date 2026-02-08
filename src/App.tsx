@@ -54,7 +54,7 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
-                <Route path="/restablecer-contraseña" element={<RestablecerContraseña />} />
+                <Route path="/restablecer-contrasena" element={<RestablecerContraseña />} />
                 <Route path="/mfa" element={<Navigate to="/mfa/challenge" replace />} />
                 <Route path="/mfa/:mode" element={<MFA />} />
 
