@@ -5,7 +5,6 @@ import { getStoredToken } from '../../../utils/auth/storage';
 import type { RefreshResponse } from '../../../services/auth/auth.types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const METRICS_TOKEN = import.meta.env.VITE_METRICS_TOKEN;
 
 export type ServerState = {
     status: 'loading' | 'ok' | 'error';
@@ -163,17 +162,13 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         }
     }, []);
 
-    const fetchMetrics = useCallback(async (token: string, allowRefresh: boolean, hasMetricsToken: boolean) => {
+    const fetchMetrics = useCallback(async (token: string, allowRefresh: boolean) => {
         const headers: Record<string, string> = {
             Accept: 'application/json'
         };
         const authHeader = buildAuthorizationHeader(token);
         if (authHeader) {
             headers.Authorization = authHeader;
-        }
-        const metricsToken = METRICS_TOKEN?.trim();
-        if (metricsToken) {
-            headers['X-Metrics-Token'] = metricsToken;
         }
 
         const response = await fetch(`${BASE_URL}/metrics`, {
@@ -188,14 +183,10 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
                 if ('access_token' in refreshed) {
                     const refreshedToken = refreshed as RefreshResponse;
                     setSession(refreshedToken.access_token, refreshedToken.expires_in);
-                    return fetchMetrics(refreshedToken.access_token, false, hasMetricsToken);
+                    return fetchMetrics(refreshedToken.access_token, false);
                 }
             }
-            if (!hasMetricsToken) {
-                setErrorMessage('Falta configurar el token de métricas.');
-            } else {
-                setErrorMessage('No estás autorizado para ver las métricas.');
-            }
+            setErrorMessage('No estás autorizado para ver las métricas.');
             return null;
         }
 
@@ -230,14 +221,8 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
             return;
         }
 
-        const metricsToken = METRICS_TOKEN?.trim();
-        const hasMetricsToken = !!metricsToken;
-        if (!hasMetricsToken) {
-            setErrorMessage('Falta configurar el token de métricas.');
-        }
-
         try {
-            const result = await fetchMetrics(effectiveToken, true, hasMetricsToken);
+            const result = await fetchMetrics(effectiveToken, true);
             if (result) {
                 setSnapshot(result);
                 pushHistory(setRequestHistory, result.requests_total);

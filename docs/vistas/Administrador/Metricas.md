@@ -14,7 +14,6 @@ Vista de administrador para revisar el estado del servidor, base de datos y metr
 
 `/metrics` exige:
 - `Authorization: Bearer <access_token>`
-- `X-Metrics-Token: <VITE_METRICS_TOKEN>`
 
 ## Polling y estado
 
@@ -31,10 +30,6 @@ Si `/metrics` retorna 401:
 - Si falla, se mantiene la sesion activa y se muestra un mensaje: “No estas autorizado para ver las metricas”.
 - No se redirige automaticamente a login desde esta vista.
 
-## Configuracion requerida
-
-- `VITE_METRICS_TOKEN` debe estar configurado para que `/metrics` responda 200.
-- Si falta, la vista muestra “Falta configurar el token de metricas”.
 
 ## Widgets y mapeo
 
