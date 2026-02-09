@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import * as QRCode from 'qrcode';
 import './MfaSetupView.css';
 import { mfaConfirm, mfaSetup } from '../../services/auth/auth.api';
@@ -92,11 +92,21 @@ export function MfaSetupView({
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
     const [setupDate, setSetupDate] = useState<Date | null>(null);
-    const [showManual, setShowManual] = useState(false);
     const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
     const [copySuccess, setCopySuccess] = useState(false);
     const [deviceLabel, setDeviceLabel] = useState(initialDeviceLabel || detectDeviceLabel());
-    const devicePreset = useMemo(() => (detectDeviceLabel() === 'Dispositivo' ? 'Dispositivo' : 'Detectado'), []);
+    const [selectOpen, setSelectOpen] = useState(false);
+    const selectRef = useRef<HTMLDivElement | null>(null);
+
+    const deviceOptions = useMemo(
+        () => [
+            { value: 'Android', label: 'Android' },
+            { value: 'iPhone', label: 'iPhone' },
+            { value: 'Otro', label: 'Otro' },
+            { value: 'Dispositivo', label: 'Dispositivo' }
+        ],
+        []
+    );
 
     const token = mode === 'enrollment' ? enrollmentToken : accessToken;
     const isTokenMissing = !token;
@@ -162,6 +172,17 @@ export function MfaSetupView({
         };
         void generateQr();
     }, [computedOtpAuthUri]);
+
+    useEffect(() => {
+        if (!selectOpen) return;
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+                setSelectOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [selectOpen]);
 
     const handleConfirm = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -231,45 +252,38 @@ export function MfaSetupView({
                     </div>
 
                     <div className="mfa-device-input">
-                        <label className="mfa-input-label" htmlFor="deviceLabel">Dispositivo</label>
-                        <input
-                            id="deviceLabel"
-                            type="text"
-                            className="mfa-input mfa-input-text"
-                            value={deviceLabel}
-                            onChange={(event) => setDeviceLabel(event.target.value)}
-                            placeholder="Android, iPhone u otro"
-                        />
-                        {devicePreset === 'Dispositivo' ? (
-                            <select
-                                className="mfa-input mfa-input-text"
-                                value={deviceLabel}
-                                onChange={(event) => setDeviceLabel(event.target.value)}
+                        <label className="mfa-input-label">Dispositivo</label>
+                        <div className="mfa-select" ref={selectRef}>
+                            <button
+                                type="button"
+                                className="mfa-select-trigger"
+                                onClick={() => setSelectOpen((prev) => !prev)}
+                                aria-expanded={selectOpen}
                             >
-                                <option value="Android">Android</option>
-                                <option value="iPhone">iPhone</option>
-                                <option value="Otro">Otro</option>
-                                <option value="Dispositivo">Dispositivo</option>
-                            </select>
-                        ) : null}
+                                <span>{deviceLabel || 'Selecciona una opción'}</span>
+                                <span className={`mfa-select-icon ${selectOpen ? 'open' : ''}`}><ChevronIcon /></span>
+                            </button>
+                            <div className={`mfa-select-menu ${selectOpen ? 'is-open' : ''}`}>
+                                {deviceOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        className="mfa-select-option"
+                                        onClick={() => {
+                                            setDeviceLabel(option.value);
+                                            setSelectOpen(false);
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    <button
-                        type="button"
-                        className="mfa-manual-toggle"
-                        onClick={() => setShowManual((prev) => !prev)}
-                    >
-                        {showManual ? 'Ocultar código manual' : 'Mostrar código manual'}
-                    </button>
-                    {showManual && otpauthUri ? (
-                        <div className="mfa-manual-code">
-                            <code>{otpauthUri}</code>
-                        </div>
-                    ) : null}
-
                     <div className="mfa-setup-note">
-                        Se ha generado un nuevo código. Elimina cualquier entrada antigua y usa la entrada con la fecha {displayDate}.
-                        Si ya tenías MFA activado, el código anterior ya no es válido.
+                        Si ya tenías MFA activado, tu app podría seguir mostrando códigos anteriores. Usa solo la entrada con la
+                        fecha más reciente ({displayDate}) o elimina las anteriores para evitar confusiones.
                     </div>
 
                     <form className="mfa-form" onSubmit={handleConfirm}>
@@ -325,5 +339,13 @@ export function MfaSetupView({
                 </div>
             ) : null}
         </div>
+    );
+}
+
+function ChevronIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m7 10 5 5 5-5" />
+        </svg>
     );
 }
