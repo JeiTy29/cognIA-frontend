@@ -163,7 +163,7 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         }
     }, []);
 
-    const fetchMetrics = useCallback(async (token: string, allowRefresh: boolean) => {
+    const fetchMetrics = useCallback(async (token: string, allowRefresh: boolean, hasMetricsToken: boolean) => {
         const headers: Record<string, string> = {
             Accept: 'application/json'
         };
@@ -188,10 +188,14 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
                 if ('access_token' in refreshed) {
                     const refreshedToken = refreshed as RefreshResponse;
                     setSession(refreshedToken.access_token, refreshedToken.expires_in);
-                    return fetchMetrics(refreshedToken.access_token, false);
+                    return fetchMetrics(refreshedToken.access_token, false, hasMetricsToken);
                 }
             }
-            setErrorMessage('No estás autorizado para ver las métricas.');
+            if (!hasMetricsToken) {
+                setErrorMessage('Falta configurar el token de métricas.');
+            } else {
+                setErrorMessage('No estás autorizado para ver las métricas.');
+            }
             return null;
         }
 
@@ -226,16 +230,14 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
             return;
         }
 
-        if (!METRICS_TOKEN || METRICS_TOKEN.trim().length === 0) {
+        const metricsToken = METRICS_TOKEN?.trim();
+        const hasMetricsToken = !!metricsToken;
+        if (!hasMetricsToken) {
             setErrorMessage('Falta configurar el token de métricas.');
-            setIsRefreshing(false);
-            setIsLoading(false);
-            scheduleNext(5000);
-            return;
         }
 
         try {
-            const result = await fetchMetrics(effectiveToken, true);
+            const result = await fetchMetrics(effectiveToken, true, hasMetricsToken);
             if (result) {
                 setSnapshot(result);
                 pushHistory(setRequestHistory, result.requests_total);
