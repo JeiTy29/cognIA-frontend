@@ -55,8 +55,7 @@ export default function App() {
                 <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
                 <Route path="/restablecer-contrasena" element={<RestablecerContraseña />} />
-                <Route path="/mfa" element={<Navigate to="/mfa/challenge" replace />} />
-                <Route path="/mfa/:mode" element={<MFA />} />
+                <Route path="/mfa" element={<MFA />} />
 
                 {/* Rutas de plataforma con Sidebar */}
                 <Route element={<ProtectedRoute />}>

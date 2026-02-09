@@ -21,7 +21,7 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
 
 ## Estructura visual
 
-- Título principal: **“Mi cuenta”** fuera de tarjetas.
+- Título principal: **"Mi cuenta"** fuera de tarjetas.
 - Título centrado y separado visualmente del bloque de cards.
 - Layout en **2 columnas** en desktop y **1 columna** en mobile.
 - Secciones en cards con fondo azul claro (mismo tono de la sidebar), borde y sombra para separar del fondo.
@@ -67,6 +67,7 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Si `mfa_enabled` es **false**: CTA **Activar MFA** + texto informativo.
   - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
 - **Activar MFA** abre un modal con QR (MfaSetupView) y confirmación de código.
+- El modal requiere `access_token` válido; si no hay sesión, no se habilita.
 - **Desactivar MFA** abre un modal con contraseña + código TOTP o recovery code.
 - En éxito al desactivar MFA se cierra sesión (el backend revoca refresh tokens).
 - Para **Psicólogo** no se muestran CTAs de MFA.
@@ -86,9 +87,9 @@ Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
 ## Manejo de errores de perfil (/me)
 
 - **401**: se limpia sesión local y se redirige a login.
-- **403**: mensaje “No tienes permisos para ver tu perfil.”
-- **404**: mensaje “No se encontró tu perfil.”
-- **5xx/red**: “No fue posible cargar tu información. Intenta más tarde.”
+- **403**: mensaje "No tienes permisos para ver tu perfil.".
+- **404**: mensaje "No se encontró tu perfil.".
+- **5xx/red**: "No fue posible cargar tu información. Intenta más tarde.".
 
 ## Estilo de campos visibles
 
@@ -98,7 +99,7 @@ Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
 
 ## Navegación
 
-- Sidebar → **Cuenta**.
+- Sidebar -> **Cuenta**.
 - Rutas:
   - Padre/Tutor: `/padre/cuenta`
   - Psicólogo: `/psicologo/cuenta`

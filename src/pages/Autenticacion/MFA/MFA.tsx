@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './MFA.css';
 import { loginMfa } from '../../../services/auth/auth.api';
 import { ApiError } from '../../../services/api/httpClient';
@@ -23,26 +23,30 @@ export default function MFA() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-    const { mode: modeParam } = useParams();
     const location = useLocation();
     const { setSession } = useAuth();
     const state = location.state as MFANavigationState | null;
     const mode: MFAMode = useMemo(() => {
         if (state?.mode) return state.mode;
-        return modeParam === 'setup' ? 'setup' : 'challenge';
-    }, [modeParam, state]);
+        return 'challenge';
+    }, [state]);
     const challengeId = state?.challengeId;
     const enrollmentToken = state?.enrollmentToken;
     const navigate = useNavigate();
 
     useEffect(() => {
+        if (!state?.mode) {
+            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            return;
+        }
         if (mode === 'challenge' && !challengeId) {
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            return;
         }
         if (mode === 'setup' && !enrollmentToken) {
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
-    }, [mode, challengeId, enrollmentToken, navigate]);
+    }, [mode, challengeId, enrollmentToken, navigate, state]);
 
     const handleVerify = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -56,12 +60,12 @@ export default function MFA() {
         }
         if (useRecovery) {
             if (!recoveryCode.trim()) {
-                setSubmitError('Ingresa el c?digo de recuperaci?n.');
+                setSubmitError('Ingresa el código de recuperación.');
                 setSubmitting(false);
                 return;
             }
         } else if (codigo.length !== 6) {
-            setSubmitError('Ingresa un c?digo de 6 d?gitos.');
+            setSubmitError('Ingresa un código de 6 dígitos.');
             setSubmitting(false);
             return;
         }
@@ -75,9 +79,9 @@ export default function MFA() {
             navigate(getDefaultRouteForRoles(jwtPayload?.roles), { replace: true });
         } catch (error) {
             if (error instanceof ApiError && error.status === 403) {
-                setSubmitError('Debes configurar MFA antes de verificar. Inicia sesi?n nuevamente.');
+                setSubmitError('Debes configurar MFA antes de verificar. Inicia sesión nuevamente.');
             } else {
-                setSubmitError('El c?digo ingresado no es v?lido. Intenta nuevamente.');
+                setSubmitError('El código ingresado no es válido. Intenta nuevamente.');
             }
         } finally {
             setSubmitting(false);
@@ -98,7 +102,7 @@ export default function MFA() {
                     </div>
 
                     <h1 className="auth-title">
-                        {mode === 'setup' ? 'Configurar verificaci?n en dos pasos' : 'Verificaci?n requerida'}
+                        {mode === 'setup' ? 'Configurar verificación en dos pasos' : 'Verificación requerida'}
                     </h1>
 
                     {mode === 'setup' ? (
@@ -112,7 +116,7 @@ export default function MFA() {
                     ) : (
                         <>
                             <p className="auth-subtitle">
-                                Ingresa el c?digo de 6 d?gitos de tu aplicaci?n de autenticaci?n.
+                                Ingresa el código de 6 dígitos de tu aplicación de autenticación.
                             </p>
                             <form className="auth-form" onSubmit={handleVerify}>
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
@@ -121,7 +125,7 @@ export default function MFA() {
                                     <input
                                         type="text"
                                         className="form-input auth-code-input"
-                                        placeholder="C?digo de 6 d?gitos"
+                                        placeholder="Código de 6 dígitos"
                                         inputMode="numeric"
                                         maxLength={6}
                                         value={codigo}
@@ -136,13 +140,13 @@ export default function MFA() {
                                             checked={useRecovery}
                                             onChange={(e) => setUseRecovery(e.target.checked)}
                                         />
-                                        Usar c?digo de recuperaci?n
+                                        Usar código de recuperación
                                     </label>
                                     {useRecovery ? (
                                         <input
                                             type="text"
                                             className="form-input"
-                                            placeholder="C?digo de recuperaci?n"
+                                            placeholder="Código de recuperación"
                                             value={recoveryCode}
                                             onChange={(e) => setRecoveryCode(e.target.value.trim())}
                                             required
@@ -159,7 +163,7 @@ export default function MFA() {
 
                     {mode === 'setup' ? (
                         <p className="auth-mfa-note">
-                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el c?digo.
+                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el código.
                         </p>
                     ) : null}
 
