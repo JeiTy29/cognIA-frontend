@@ -494,10 +494,11 @@ export default function MiCuenta() {
             ) : null}
 
             <Modal isOpen={showMfaSetup} onClose={() => setShowMfaSetup(false)}>
-                <div className="mi-cuenta-modal">
+                <div className="mi-cuenta-modal" role="dialog" aria-modal="true" aria-labelledby="mfa-setup-title">
                     <MfaSetupView
                         mode="setup"
                         accessToken={accessToken}
+                        username={profile?.username}
                         onComplete={() => {
                             setShowMfaSetup(false);
                             void reloadProfile();
@@ -507,10 +508,19 @@ export default function MiCuenta() {
             </Modal>
 
             <Modal isOpen={showMfaDisable} onClose={() => setShowMfaDisable(false)}>
-                <div className="mi-cuenta-modal">
-                    <h2 className="mi-cuenta-section-title">Desactivar MFA</h2>
-                    <p className="mi-cuenta-section-note">
+                <div
+                    className="mi-cuenta-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="mfa-disable-title"
+                    aria-describedby="mfa-disable-desc"
+                >
+                    <h2 className="mi-cuenta-section-title" id="mfa-disable-title">Desactivar MFA</h2>
+                    <p className="mi-cuenta-section-note mi-cuenta-modal-note" id="mfa-disable-desc">
                         Esta acción cerrará tu sesión actual. Necesitarás iniciar sesión nuevamente.
+                    </p>
+                    <p className="mi-cuenta-section-note mi-cuenta-modal-note">
+                        Al desactivar MFA, elimina la entrada correspondiente en tu app de autenticación.
                     </p>
                     {disableError ? <div className="mi-cuenta-error">{disableError}</div> : null}
                     {disableSuccess ? <div className="mi-cuenta-success">{disableSuccess}</div> : null}
@@ -575,7 +585,7 @@ export default function MiCuenta() {
                                         ? { password: disablePassword, code: disableCode }
                                         : { password: disablePassword, recovery_code: disableCode };
                                     await mfaDisable(accessToken, payload);
-                                    setDisableSuccess('MFA deshabilitado. Cerrando sesión...');
+                                    setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
                                     window.setTimeout(() => {
                                         setShowMfaDisable(false);
                                         clearSession('manual');
