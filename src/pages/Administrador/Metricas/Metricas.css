@@ -83,6 +83,7 @@
 .metricas-block.accent-green::before { background: #1f9d55; }
 .metricas-block.accent-blue::before { background: #1790E9; }
 .metricas-block.accent-slate::before { background: #0b3a68; }
+.metricas-block.accent-red::before { background: #dc3545; }
 
 .metricas-block-title {
     font-size: 14px;
@@ -264,8 +265,8 @@
 
 .metricas-table-row {
     display: grid;
-    grid-template-columns: 24px minmax(140px, 1.3fr) minmax(120px, 1fr) minmax(180px, 2fr);
-    gap: 16px;
+    grid-template-columns: 32px minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(220px, 2fr);
+    gap: 20px;
     padding: 12px 0;
     border-bottom: 1px solid rgba(15, 37, 64, 0.08);
     align-items: center;
@@ -276,6 +277,10 @@
     font-weight: 600;
     color: #0b3a68;
     border-bottom: 2px solid rgba(15, 37, 64, 0.12);
+}
+
+.metricas-table-row.header span {
+    white-space: nowrap;
 }
 
 .metricas-table-row span {
