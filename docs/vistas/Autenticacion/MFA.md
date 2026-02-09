@@ -2,16 +2,16 @@
 
 ## Descripción general
 
-La verificación MFA se divide en dos contextos:
+La verificación MFA se divide en dos contextos, usando **una sola vista** y un setup reutilizable:
 
-1) **Challenge** durante login (ruta `/mfa/challenge`).
-2) **Setup/Enrollment** en línea dentro del login o dentro de modales en Mi Cuenta.
+1) **Challenge** durante login (ruta `/mfa`).
+2) **Setup/Enrollment** usando el mismo `/mfa` con `state` y el componente **MfaSetupView**.
 
 El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 
 ## Ubicación
 
-- Challenge: `src/pages/Autenticacion/MFA/MFA.tsx`
+- Challenge / Setup: `src/pages/Autenticacion/MFA/MFA.tsx`
 - Setup reutilizable: `src/components/MFA/MfaSetupView.tsx`
 - Estilos setup: `src/components/MFA/MfaSetupView.css`
 - Estilos challenge: `src/pages/Autenticacion/MFA/MFA.css`
@@ -32,7 +32,8 @@ El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 
 ### Login (psicólogo)
 
-- Si el login responde `mfa_enrollment_required`, se muestra **MfaSetupView** inline.
+- Si el login responde `mfa_enrollment_required`, la app navega a `/mfa` con `state`:
+  - `{ mode: "setup", enrollmentToken, expiresIn }`.
 - Se usa `enrollment_token` **solo en memoria** (no storage).
 - El usuario escanea el QR, ingresa el código de 6 dígitos y confirma.
 - Se muestran **recovery codes** en un modal bloqueante una sola vez.
@@ -46,12 +47,14 @@ El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 
 ## Challenge MFA
 
-- Ruta: `/mfa/challenge`.
+- Ruta: `/mfa` con `state` `{ mode: "challenge", challengeId, expiresIn }`.
 - El usuario ingresa el código TOTP o un recovery code.
 - Si es válido, se guarda el `access_token` y se redirige según rol.
+- Si no llega `challengeId`, se redirige a `/inicio-sesion`.
 
 ## Seguridad de tokens
 
 - `enrollment_token` y `challenge_id` **no** se guardan en storage.
+- Se pasan por `navigate(..., { state })` o se mantienen en memoria durante el flujo.
 - Recovery codes se muestran una sola vez y no se persisten.
 - El access token se guarda en `sessionStorage` (`cognia_access_token`).

@@ -24,11 +24,11 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 2) **MFA requerido (challenge)**
 - Respuesta: `{ mfa_required: true, challenge_id, expires_in, msg, error }`
-- Acción: navega a `/mfa/challenge` usando `state` con `challengeId` (no se persiste).
+- Acción: navega a `/mfa` usando `state` con `{ mode: "challenge", challengeId, expiresIn }` (no se persiste).
 
 3) **MFA enrollment requerido**
 - Respuesta: `{ mfa_enrollment_required: true, enrollment_token, token_type, expires_in, msg, error }`
-- Acción: muestra el setup de MFA **inline** (MfaSetupView) usando `enrollment_token` en memoria.
+- Acción: navega a `/mfa` usando `state` con `{ mode: "setup", enrollmentToken, expiresIn }` (no se persiste).
 
 ## Manejo de errores
 
@@ -65,8 +65,8 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ## Redirección por rol
 
-- `GUARDIAN` → `/padre/cuestionario`
-- `PSYCHOLOGIST` → `/psicologo/cuestionario`
+- `GUARDIAN` -> `/padre/cuestionario`
+- `PSYCHOLOGIST` -> `/psicologo/cuestionario`
 
 ## Rutas protegidas
 
@@ -75,15 +75,15 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ## Interacciones
 
-- Enlace “Regístrate” → `/registro`.
-- Enlace “¿Olvidaste tu contraseña?” → abre el modal de recuperación (no navega).
+- Enlace “Regístrate” -> `/registro`.
+- Enlace “¿Olvidaste tu contraseña?” -> abre el modal de recuperación (no navega).
 
 ## Flujo de usuario
 
 1. Ingresa usuario y contraseña.
 2. Presiona **Ingresar**.
-3. Si hay MFA requerido (challenge), navega a `/mfa/challenge`.
-4. Si hay enrollment requerido, se muestra MfaSetupView inline.
+3. Si hay MFA requerido (challenge), navega a `/mfa` con state `mode: "challenge"`.
+4. Si hay enrollment requerido, navega a `/mfa` con state `mode: "setup"`.
 5. Si no hay MFA, entra directo a la plataforma según rol.
 
 ## Estilos clave
