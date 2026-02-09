@@ -64,21 +64,13 @@ export default function InicioSesion() {
                 return;
             }
             const response = await login({ username, password });
-            if ('error' in response) {
-                if (response.error === 'invalid_credentials') {
-                    setErrorMessage('Usuario o contraseña incorrectos.');
-                } else {
-                    setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
-                }
-                return;
-            }
             if ('access_token' in response) {
                 setSession(response.access_token, response.expires_in);
                 const payload = decodeJwtPayload(response.access_token);
                 navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
                 return;
             }
-            if ('mfa_required' in response) {
+            if ('mfa_required' in response && response.mfa_required) {
                 navigate('/mfa', {
                     state: {
                         mode: 'challenge',
@@ -88,7 +80,7 @@ export default function InicioSesion() {
                 });
                 return;
             }
-            if ('mfa_enrollment_required' in response) {
+            if ('mfa_enrollment_required' in response && response.mfa_enrollment_required) {
                 navigate('/mfa', {
                     state: {
                         mode: 'setup',
@@ -96,6 +88,14 @@ export default function InicioSesion() {
                         expiresIn: response.expires_in,
                     },
                 });
+                return;
+            }
+            if ('error' in response) {
+                if (response.error === 'invalid_credentials') {
+                    setErrorMessage('Usuario o contraseña incorrectos.');
+                } else {
+                    setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
+                }
                 return;
             }
             setErrorMessage('No se pudo iniciar sesión. Intenta nuevamente.');
