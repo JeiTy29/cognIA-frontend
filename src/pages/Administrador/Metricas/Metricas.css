@@ -281,6 +281,8 @@
 
 .metricas-table-row.header span {
     white-space: nowrap;
+    display: block;
+    text-align: left;
 }
 
 .metricas-table-row span {

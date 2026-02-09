@@ -76,13 +76,15 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
     const errorCountRef = useRef<number>(0);
     const visibilityRef = useRef<boolean>(typeof document !== 'undefined' ? document.visibilityState === 'visible' : true);
 
+    const fetchAllRef = useRef<() => Promise<void>>(async () => {});
+
     const scheduleNext = useCallback((delay: number) => {
         if (!visibilityRef.current) return;
         if (pollingRef.current) {
             window.clearTimeout(pollingRef.current);
         }
         pollingRef.current = window.setTimeout(() => {
-            void fetchAll();
+            void fetchAllRef.current();
         }, delay);
     }, []);
 
@@ -258,13 +260,17 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
     }, [fetchAll]);
 
     useEffect(() => {
+        fetchAllRef.current = fetchAll;
+    }, [fetchAll]);
+
+    useEffect(() => {
         void fetchAll();
         return () => {
             if (pollingRef.current) {
                 window.clearTimeout(pollingRef.current);
             }
         };
-    }, []);
+    }, [fetchAll]);
 
     useEffect(() => {
         const handleVisibility = () => {
