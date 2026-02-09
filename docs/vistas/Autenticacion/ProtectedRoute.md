@@ -38,6 +38,10 @@ Asegura que las rutas privadas solo se muestren cuando el usuario está autentic
 - `PSYCHOLOGIST` → `/psicologo/cuestionario`
 - `ADMIN` → `/admin/metricas`
 
+## Fallback de rutas
+- Si no existe una ruta válida, se redirige a `/` (Bienvenida).
+- Si hay sesión válida, se intenta enviar a la ruta principal de su rol.
+
 ## Notas de UX
 - Se muestra loader si la sesión o el perfil aún están cargando para evitar falsos negativos.
 - No se ejecuta logout automático por falta de rol.

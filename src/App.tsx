@@ -64,17 +64,14 @@ export default function App() {
                 {/* Rutas de plataforma con Sidebar */}
                 <Route element={<ProtectedRoute />}>
                     <Route element={<SidebarLayout />}>
-                        <Route element={<ProtectedRoute allowedRoles={['padre']} />}>
-                            <Route path="/padre">
+                        <Route path="/padre" element={<ProtectedRoute allowedRoles={['padre']} />}>
                                 <Route index element={<Navigate to="/padre/cuestionario" replace />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPadre />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="padre" />} />
                             </Route>
-                        </Route>
-                        <Route element={<ProtectedRoute allowedRoles={['psicologo']} />}>
-                            <Route path="/psicologo">
+                        <Route path="/psicologo" element={<ProtectedRoute allowedRoles={['psicologo']} />}>
                                 <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPsicologo />} />
@@ -82,18 +79,16 @@ export default function App() {
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
                             </Route>
-                        </Route>
                         {devAdminEnabled ? (
-                            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                                <Route path="/admin">
+                            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
                                     <Route index element={<Navigate to="/admin/metricas" replace />} />
                                     <Route path="metricas" element={<Metricas />} />
                                     <Route path="cuenta" element={<MiCuenta />} />
                                 </Route>
-                            </Route>
                         ) : null}
                     </Route>
                 </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <DevAuthBadge />
             <DevAuthToggle />

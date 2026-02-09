@@ -92,7 +92,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
                     <button
                         type="button"
                         className="no-auth-primary"
-                        onClick={() => navigate(destination)}
+                        onClick={() => navigate(destination || '/')}
                     >
                         Ir a mi área
                     </button>
