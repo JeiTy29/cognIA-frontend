@@ -57,11 +57,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     const shouldShowLoader = isAuthLoading || (isAuthenticated && profileStatus === 'loading');
 
     if (shouldShowLoader) {
-        return (
-            <div className="auth-guard">
-                <p>Cargando sesión...</p>
-            </div>
-        );
+        return null;
     }
 
     if (!isAuthenticated) {
@@ -76,7 +72,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
     const isAllowed = hasAnyRole(roles, allowedRoles);
     if (!isAllowed) {
-        const destination = getDefaultRouteForRoles(roles);
+        const destination = getDefaultRouteForRoles(roles) || '/';
         const roleLabel = getRoleLabel(roles);
         return (
             <div className="no-auth">
@@ -92,7 +88,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
                     <button
                         type="button"
                         className="no-auth-primary"
-                        onClick={() => navigate(destination || '/')}
+                        onClick={() => navigate(destination)}
                     >
                         Ir a mi área
                     </button>
