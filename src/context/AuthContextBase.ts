@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { AppRole } from '../utils/auth/roles';
+import type { DevRole } from '../utils/auth/devBypass';
 import type { AuthMeResponse } from '../services/auth/auth.types';
 
 export interface AuthContextValue {
@@ -16,7 +17,9 @@ export interface AuthContextValue {
     devBypassEnabled: boolean;
     devAuthActive: boolean;
     devBypassLabel: string | null;
+    devRole: DevRole | null;
     setDevAuthActive: (active: boolean) => void;
+    setDevRole: (role: DevRole) => void;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
     devLogout: () => void;

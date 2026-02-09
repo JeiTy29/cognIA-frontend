@@ -1,4 +1,5 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom';
+﻿import { devAuthBypassEnabled } from './utils/auth/devBypass';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
@@ -18,11 +19,14 @@ import MiCuenta from './pages/Plataforma/MiCuenta/MiCuenta';
 import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
+import Metricas from './pages/Administrador/Metricas/Metricas';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
 
 export default function App() {
+    const devAdminEnabled = devAuthBypassEnabled;
+
     return (
         <>
             <Routes>
@@ -79,6 +83,15 @@ export default function App() {
                                 <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
                             </Route>
                         </Route>
+                        {devAdminEnabled ? (
+                            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                                <Route path="/admin">
+                                    <Route index element={<Navigate to="/admin/metricas" replace />} />
+                                    <Route path="metricas" element={<Metricas />} />
+                                    <Route path="cuenta" element={<MiCuenta />} />
+                                </Route>
+                            </Route>
+                        ) : null}
                     </Route>
                 </Route>
             </Routes>

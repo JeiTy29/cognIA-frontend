@@ -41,26 +41,6 @@
     letter-spacing: 1px;
 }
 
-.mfa-manual-toggle {
-    background: none;
-    border: none;
-    color: #1790E9;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: left;
-    padding: 0;
-}
-
-.mfa-manual-code {
-    background: #f1f6fb;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(33, 95, 143, 0.15);
-    word-break: break-all;
-    color: #215F8F;
-    font-size: 12px;
-}
-
 .mfa-form {
     display: flex;
     flex-direction: column;
@@ -126,6 +106,93 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.mfa-select {
+    position: relative;
+}
+
+.mfa-select-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mfa-select-trigger:hover {
+    border-color: rgba(33, 95, 143, 0.45);
+}
+
+.mfa-select-trigger:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+}
+
+.mfa-select-icon {
+    font-size: 14px;
+    transition: transform 0.2s ease;
+    color: #215F8F;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mfa-select-icon.open {
+    transform: rotate(180deg);
+}
+
+.mfa-select-menu {
+    position: relative;
+    margin-top: 8px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.18);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+    z-index: 5;
+}
+
+.mfa-select-menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 240px;
+    pointer-events: auto;
+}
+
+.mfa-select-option {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.mfa-select-option:hover {
+    background: rgba(81, 194, 244, 0.2);
 }
 
 .mfa-setup-note {

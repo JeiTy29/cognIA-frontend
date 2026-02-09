@@ -1,7 +1,8 @@
-﻿export type AppRole = 'padre' | 'psicologo';
+﻿export type AppRole = 'padre' | 'psicologo' | 'admin';
 
 export function getPrimaryRole(roles?: string[]): AppRole | null {
     if (!roles || roles.length === 0) return null;
+    if (roles.includes('ADMIN')) return 'admin';
     if (roles.includes('PSYCHOLOGIST')) return 'psicologo';
     if (roles.includes('GUARDIAN')) return 'padre';
     return null;
@@ -9,6 +10,7 @@ export function getPrimaryRole(roles?: string[]): AppRole | null {
 
 export function getDefaultRouteForRoles(roles?: string[]) {
     const primary = getPrimaryRole(roles);
+    if (primary === 'admin') return '/admin/metricas';
     if (primary === 'psicologo') return '/psicologo/cuestionario';
     return '/padre/cuestionario';
 }

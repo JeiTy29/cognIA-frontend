@@ -1,13 +1,14 @@
-import type { ReactNode } from 'react';
+﻿import type { ReactNode } from 'react';
+import { devAuthBypassEnabled } from '../../utils/auth/devBypass';
 
-export type Role = 'padre' | 'psicologo';
+export type Role = 'padre' | 'psicologo' | 'admin';
 
 interface SidebarItem {
     id: string;
     label: string;
     icon: ReactNode;
     roles: Role[];
-    paths: Record<Role, string>;
+    paths: Partial<Record<Role, string>>;
 }
 
 const IconClipboard = (
@@ -40,6 +41,12 @@ const IconSupport = (
     </svg>
 );
 
+const IconMetrics = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19h16v2H2V3h2v16Zm4-6h3v5H8v-5Zm5-5h3v10h-3V8Zm5-3h3v13h-3V5Z" />
+    </svg>
+);
+
 export const sidebarItems: SidebarItem[] = [
     {
         id: 'cuestionario',
@@ -67,7 +74,6 @@ export const sidebarItems: SidebarItem[] = [
         icon: IconLightbulb,
         roles: ['psicologo'],
         paths: {
-            padre: '/padre/cuestionario',
             psicologo: '/psicologo/sugerencias'
         }
     },
@@ -93,11 +99,35 @@ export const sidebarItems: SidebarItem[] = [
     }
 ];
 
+const adminItems: SidebarItem[] = devAuthBypassEnabled
+    ? [
+          {
+              id: 'metricas',
+              label: 'Métricas',
+              icon: IconMetrics,
+              roles: ['admin'],
+              paths: {
+                  admin: '/admin/metricas'
+              }
+          },
+          {
+              id: 'cuenta-admin',
+              label: 'Cuenta',
+              icon: IconUser,
+              roles: ['admin'],
+              paths: {
+                  admin: '/admin/cuenta'
+              }
+          }
+      ]
+    : [];
+
 export function getItemsForRole(role: Role) {
-    return sidebarItems.filter((item) => item.roles.includes(role));
+    const source = role === 'admin' ? adminItems : sidebarItems;
+    return source.filter((item) => item.roles.includes(role) && item.paths[role]);
 }
 
 export function getDefaultPath(role: Role) {
     const items = getItemsForRole(role);
-    return items.length > 0 ? items[0].paths[role] : '/';
+    return items.length > 0 ? (items[0].paths[role] ?? '/') : '/';
 }

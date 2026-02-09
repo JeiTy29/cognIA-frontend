@@ -1,7 +1,8 @@
-import type { AuthMeResponse } from '../../services/auth/auth.types';
+﻿import type { AuthMeResponse } from '../../services/auth/auth.types';
 
 const guardianKeys = ['guardian', 'padre', 'tutor'];
 const psychologistKeys = ['psychologist', 'psicologo', 'psicólogo'];
+const adminKeys = ['admin', 'administrador'];
 
 function normalize(value?: string) {
     return value?.trim().toLowerCase() ?? '';
@@ -24,7 +25,14 @@ export function isPsychologistProfile(profile: AuthMeResponse | null) {
     return hasRole(profile.roles, psychologistKeys);
 }
 
+export function isAdminProfile(profile: AuthMeResponse | null) {
+    if (!profile) return false;
+    if (normalize(profile.user_type) === 'admin') return true;
+    return hasRole(profile.roles, adminKeys) || hasRole(profile.roles, ['admin']);
+}
+
 export function getAccountTypeLabel(profile: AuthMeResponse | null) {
+    if (isAdminProfile(profile)) return 'Administrador';
     if (isGuardianProfile(profile)) return 'Padre o tutor';
     if (isPsychologistProfile(profile)) return 'Psicólogo';
     return 'Cuenta';
