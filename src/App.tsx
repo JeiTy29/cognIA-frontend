@@ -1,5 +1,4 @@
-﻿import { devAuthBypassEnabled } from './utils/auth/devBypass';
-import { Routes, Route, Navigate } from 'react-router-dom';
+﻿import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
@@ -23,10 +22,16 @@ import Metricas from './pages/Administrador/Metricas/Metricas';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
+import { useAuth } from './hooks/auth/useAuth';
+import { getDefaultRouteForRoles } from './utils/auth/roles';
+
+function FallbackRedirect() {
+    const { isAuthenticated, roles } = useAuth();
+    if (!isAuthenticated) return <Navigate to="/" replace />;
+    return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
+}
 
 export default function App() {
-    const devAdminEnabled = devAuthBypassEnabled;
-
     return (
         <>
             <Routes>
@@ -65,30 +70,28 @@ export default function App() {
                 <Route element={<ProtectedRoute />}>
                     <Route element={<SidebarLayout />}>
                         <Route path="/padre" element={<ProtectedRoute allowedRoles={['padre']} />}>
-                                <Route index element={<Navigate to="/padre/cuestionario" replace />} />
-                                <Route path="cuestionario" element={<Cuestionario />} />
-                                <Route path="historial" element={<HistorialPadre />} />
-                                <Route path="cuenta" element={<MiCuenta />} />
-                                <Route path="ayuda" element={<AyudaBase role="padre" />} />
-                            </Route>
+                            <Route index element={<Navigate to="/padre/cuestionario" replace />} />
+                            <Route path="cuestionario" element={<Cuestionario />} />
+                            <Route path="historial" element={<HistorialPadre />} />
+                            <Route path="cuenta" element={<MiCuenta />} />
+                            <Route path="ayuda" element={<AyudaBase role="padre" />} />
+                        </Route>
                         <Route path="/psicologo" element={<ProtectedRoute allowedRoles={['psicologo']} />}>
-                                <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
-                                <Route path="cuestionario" element={<Cuestionario />} />
-                                <Route path="historial" element={<HistorialPsicologo />} />
-                                <Route path="sugerencias" element={<SugerenciasPsicologo />} />
-                                <Route path="cuenta" element={<MiCuenta />} />
-                                <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
-                            </Route>
-                        {devAdminEnabled ? (
-                            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
-                                    <Route index element={<Navigate to="/admin/metricas" replace />} />
-                                    <Route path="metricas" element={<Metricas />} />
-                                    <Route path="cuenta" element={<MiCuenta />} />
-                                </Route>
-                        ) : null}
+                            <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
+                            <Route path="cuestionario" element={<Cuestionario />} />
+                            <Route path="historial" element={<HistorialPsicologo />} />
+                            <Route path="sugerencias" element={<SugerenciasPsicologo />} />
+                            <Route path="cuenta" element={<MiCuenta />} />
+                            <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
+                        </Route>
+                        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
+                            <Route index element={<Navigate to="/admin/metricas" replace />} />
+                            <Route path="metricas" element={<Metricas />} />
+                            <Route path="cuenta" element={<MiCuenta />} />
+                        </Route>
                     </Route>
                 </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<FallbackRedirect />} />
             </Routes>
             <DevAuthBadge />
             <DevAuthToggle />
