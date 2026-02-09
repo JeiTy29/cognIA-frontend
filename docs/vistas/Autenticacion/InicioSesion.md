@@ -1,4 +1,4 @@
-# Vista: Inicio de sesión
+﻿# Vista: Inicio de sesión
 
 ## Descripción general
 
@@ -65,18 +65,20 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 
 ## Redirección por rol
 
-- `GUARDIAN` -> `/padre/cuestionario`
-- `PSYCHOLOGIST` -> `/psicologo/cuestionario`
+- `GUARDIAN` → `/padre/cuestionario`
+- `PSYCHOLOGIST` → `/psicologo/cuestionario`
+- `ADMIN` → `/admin/metricas`
 
 ## Rutas protegidas
 
 - Las rutas de plataforma están envueltas por `ProtectedRoute`.
-- Si no hay sesión válida, se redirige a `/inicio-sesion` con aviso breve.
+- Si no hay sesión válida, se redirige a `/inicio-sesion` con el mensaje: “Debes iniciar sesión para acceder a esta sección.”
+- Si el rol no corresponde, se muestra “Acceso denegado” con opción de volver al área principal y botones de soporte.
 
 ## Interacciones
 
-- Enlace “Regístrate” -> `/registro`.
-- Enlace “¿Olvidaste tu contraseña?” -> abre el modal de recuperación (no navega).
+- Enlace “Regístrate” → `/registro`.
+- Enlace “¿Olvidaste tu contraseña?” → abre el modal de recuperación (no navega).
 
 ## Flujo de usuario
 

@@ -47,7 +47,7 @@ export default function Sidebar({ role }: SidebarProps) {
                     {items.map((item) => (
                         <li key={item.id} className="sidebar-item-wrapper">
                             <NavLink
-                                to={item.paths[role]}
+                                to={item.paths[role] ?? '/'}
                                 className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
                                 aria-label={item.label}
                             >
