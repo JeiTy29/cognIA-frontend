@@ -30,8 +30,6 @@ export type MetricsSnapshot = {
 interface UseMetricsOptions {
     accessToken: string | null;
     setSession: (token: string, expiresIn?: number) => void;
-    logout: (reason?: 'expired' | 'manual') => void;
-    onSessionExpired: () => void;
 }
 
 interface UseMetricsResult {
@@ -53,7 +51,7 @@ async function safeJson(response: Response) {
     return { response, data };
 }
 
-export function useMetrics({ accessToken, setSession, logout, onSessionExpired }: UseMetricsOptions): UseMetricsResult {
+export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseMetricsResult {
     const [serverState, setServerState] = useState<ServerState>({
         status: 'loading',
         message: 'Cargando',
@@ -170,8 +168,9 @@ export function useMetrics({ accessToken, setSession, logout, onSessionExpired }
         if (authHeader) {
             headers.Authorization = authHeader;
         }
-        if (METRICS_TOKEN) {
-            headers['X-Metrics-Token'] = METRICS_TOKEN;
+        const metricsToken = METRICS_TOKEN?.trim();
+        if (metricsToken) {
+            headers['X-Metrics-Token'] = metricsToken;
         }
 
         const response = await fetch(`${BASE_URL}/metrics`, {
@@ -180,15 +179,16 @@ export function useMetrics({ accessToken, setSession, logout, onSessionExpired }
         });
         const { response: res, data } = await safeJson(response);
 
-        if (res.status === 401 && allowRefresh) {
-            const refreshed = await refreshAccessToken();
-            if ('access_token' in refreshed) {
-                const refreshedToken = refreshed as RefreshResponse;
-                setSession(refreshedToken.access_token, refreshedToken.expires_in);
-                return fetchMetrics(refreshedToken.access_token, false);
+        if (res.status === 401) {
+            if (allowRefresh) {
+                const refreshed = await refreshAccessToken();
+                if ('access_token' in refreshed) {
+                    const refreshedToken = refreshed as RefreshResponse;
+                    setSession(refreshedToken.access_token, refreshedToken.expires_in);
+                    return fetchMetrics(refreshedToken.access_token, false);
+                }
             }
-            logout('expired');
-            onSessionExpired();
+            setErrorMessage('No estás autorizado para ver las métricas.');
             return null;
         }
 
@@ -201,12 +201,13 @@ export function useMetrics({ accessToken, setSession, logout, onSessionExpired }
             if (res.status >= 500) {
                 throw new Error('Server error');
             }
+            setErrorMessage('No se pudieron cargar las métricas.');
             return null;
         }
 
         setMetricsDisabled(false);
         return data as MetricsSnapshot;
-    }, [logout, onSessionExpired, setSession]);
+    }, [setSession]);
 
     const fetchAll = useCallback(async () => {
         setIsRefreshing(true);
@@ -214,6 +215,14 @@ export function useMetrics({ accessToken, setSession, logout, onSessionExpired }
 
         if (!accessToken) {
             setErrorMessage('Necesitas iniciar sesión para ver métricas protegidas.');
+            setIsRefreshing(false);
+            setIsLoading(false);
+            scheduleNext(5000);
+            return;
+        }
+
+        if (!METRICS_TOKEN || METRICS_TOKEN.trim().length === 0) {
+            setErrorMessage('Falta configurar el token de métricas.');
             setIsRefreshing(false);
             setIsLoading(false);
             scheduleNext(5000);

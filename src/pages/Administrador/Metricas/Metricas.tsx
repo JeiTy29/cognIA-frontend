@@ -2,7 +2,6 @@
 import './Metricas.css';
 import { useMetrics } from '../hooks/useMetrics';
 import { useAuth } from '../../../hooks/auth/useAuth';
-import { useNavigate } from 'react-router-dom';
 
 function formatUptime(seconds: number) {
     if (seconds < 60) return `${seconds} s`;
@@ -64,8 +63,7 @@ function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number>
 }
 
 export default function Metricas() {
-    const navigate = useNavigate();
-    const { accessToken, setSession, logout } = useAuth();
+    const { accessToken, setSession } = useAuth();
     const {
         serverState,
         dbState,
@@ -80,9 +78,7 @@ export default function Metricas() {
         isRefreshing
     } = useMetrics({
         accessToken,
-        setSession,
-        logout,
-        onSessionExpired: () => navigate('/inicio-sesion', { replace: true, state: { message: 'Tu sesión expiró. Inicia sesión nuevamente para ver métricas.' } })
+        setSession
     });
 
     const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
