@@ -108,6 +108,11 @@ export default function Metricas() {
             : dbState.status === 'error'
                 ? 'No disponible'
                 : 'Cargando';
+    const dbStatusDot = dbState.status === 'ready'
+        ? 'status-ok'
+        : dbState.status === 'not_ready' || dbState.status === 'error'
+            ? 'status-error'
+            : 'status-warn';
 
     return (
         <div className="metricas">
@@ -148,7 +153,10 @@ export default function Metricas() {
 
                 <div className="metricas-block accent-blue">
                     <div className="metricas-block-title">Base de datos</div>
-                    <div className="metricas-badge">{dbBadgeLabel}</div>
+                    <div className="metricas-status">
+                        <span className={`status-dot ${dbStatusDot}`} aria-hidden="true" />
+                        <span className="status-label">{dbBadgeLabel}</span>
+                    </div>
                     <div className="metricas-small">
                         Latencia: {dbState.latency_ms !== null ? `${dbState.latency_ms.toFixed(1)} ms` : '--'}
                     </div>
@@ -157,6 +165,9 @@ export default function Metricas() {
                         <div className="metricas-latency-bar">
                             <span style={{ width: `${latencyBarPercent}%` }} />
                         </div>
+                    </div>
+                    <div className="metricas-micro">
+                        {dbState.status === 'ready' ? 'Base de datos lista' : 'Revisa la conectividad del servicio'}
                     </div>
                 </div>
 

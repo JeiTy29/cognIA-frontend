@@ -264,8 +264,8 @@
 
 .metricas-table-row {
     display: grid;
-    grid-template-columns: 24px 1.2fr 1fr 2fr;
-    gap: 12px;
+    grid-template-columns: 24px minmax(140px, 1.3fr) minmax(120px, 1fr) minmax(180px, 2fr);
+    gap: 16px;
     padding: 12px 0;
     border-bottom: 1px solid rgba(15, 37, 64, 0.08);
     align-items: center;
@@ -276,6 +276,10 @@
     font-weight: 600;
     color: #0b3a68;
     border-bottom: 2px solid rgba(15, 37, 64, 0.12);
+}
+
+.metricas-table-row span {
+    min-width: 0;
 }
 
 .indicator {
