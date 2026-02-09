@@ -6,47 +6,55 @@ Vista de administrador para revisar el estado del servidor, base de datos y metr
 - `VITE_DEV_AUTH_BYPASS=true`
 - `import.meta.env.DEV === true`
 
-## Control de acceso
-- Solo rol **ADMIN** puede acceder a `/admin/*`.
-- Si el rol no corresponde, `ProtectedRoute` muestra “Acceso denegado” y redirige al area principal del rol.
+## Endpoints
 
-## Estructura de la vista
+- `GET /healthz` (sin auth)
+- `GET /readyz` (sin auth)
+- `GET /metrics` (auth requerida)
 
-### Encabezado
-- Titulo: **Metricas del sistema**
-- Subtitulo: “Vision general del estado del servidor, base de datos y metricas de trafico”.
-- Boton **Actualizar**: simula recarga de fixtures y refresca valores con una ligera variacion.
-- Linea de acento horizontal debajo del encabezado.
+`/metrics` exige:
+- `Authorization: Bearer <access_token>`
+- `X-Metrics-Token: <VITE_METRICS_TOKEN>`
 
-### Estados rapidos (fila superior)
-Bloques planos con barra de acento a la izquierda:
-- **Servidor**: estado OK, texto “Servidor operativo” y microtexto “Sin interrupciones registradas”.
-- **Base de datos**: estado “Lista”, latencia en ms y mini barra proporcional a `database.latency_ms`.
-- **Uptime + Solicitudes**: uptime formateado y numero total de solicitudes.
+## Polling y estado
 
-### Snapshot de metricas
-- Grid con valores grandes:
-  - Latencia promedio (`latency_ms_avg`)
-  - Latencia maxima (`latency_ms_max`)
-  - Solicitudes totales (`requests_total`)
-  - Uptime formateado
-- Grafico donut para `status_counts` con leyenda y porcentajes.
-- Texto interpretativo: “La latencia promedio se mantiene en X ms, con maximo de Y ms en picos.”
+- Polling cada 5s.
+- Pausa cuando la pestaña no esta visible (Page Visibility API).
+- Buffer de 30 puntos para sparklines (requests_total y latency_ms_avg).
+- Backoff exponencial ante errores 5xx: 2s, 4s, 8s (se reinicia al recuperar).
 
-### Tabla de detalle
-Tabla compacta sin cards:
-- Uptime, solicitudes, latencias y conteo de estados HTTP.
-- Separadores horizontales finos y un indicador de color por fila.
+## Manejo de 401
 
-## Conversion de datos (JSON -> UI)
-- `server_status: ok` -> badge “OK” + textos “Servidor operativo”.
-- `database.status: ready` -> “Base de datos: Lista”.
-- `database.latency_ms` -> “Latencia: X ms” + barra proporcional.
-- `snapshot_metrics.uptime_seconds` -> formato legible:
-  - < 60: X s
-  - < 3600: Y min
-  - >= 3600: HH:MM:SS
-- `status_counts` -> porcentajes: `valor / total * 100` con 0 decimales.
+Si `/metrics` retorna 401:
+- Se intenta `refreshAccessToken()`.
+- Si el refresh funciona, se reintenta `/metrics` una vez.
+- Si falla, se hace logout y se redirige a `/inicio-sesion` con mensaje.
 
-## Fixture
-Fuente de datos local: `src/pages/Administrador/Metricas/metricas.json`.
+## Widgets y mapeo
+
+### Estado del servidor
+- `/healthz.status = ok` -> badge **OK** (verde) + “Servidor operativo”.
+- Error/timeout -> “No disponible” (rojo) + “No se pudo obtener el estado”.
+
+### Estado de base de datos
+- `/readyz.status = ready` -> “Base de datos: Lista”.
+- `/readyz.status = not_ready` -> “No disponible”.
+- `latency_ms` -> “Latencia: X ms” + barra proporcional (referencia 2000ms).
+
+### Snapshot
+- `latency_ms_avg`, `latency_ms_max`, `requests_total`, `uptime_seconds`.
+- Donut para `status_counts` con porcentajes.
+- Texto: “La latencia promedio se mantiene en X ms, con máximo de Y ms en picos.”
+
+### Tabla inferior
+- Uptime, solicitudes, latencias y conteos HTTP con separadores.
+
+## Estados especiales
+
+- `/metrics` 404 -> mostrar “Métricas deshabilitadas” con botón Recargar.
+- Errores 5xx -> banner de error con reintentos automáticos.
+
+## Formato de uptime
+- < 60s -> `X s`
+- < 3600s -> `Y min`
+- >= 3600s -> `HH:MM:SS`
