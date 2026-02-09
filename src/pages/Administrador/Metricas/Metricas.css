@@ -265,8 +265,8 @@
 
 .metricas-table-row {
     display: grid;
-    grid-template-columns: 32px minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(220px, 2fr);
-    gap: 20px;
+    grid-template-columns: 32px minmax(220px, 1.6fr) minmax(160px, 1fr) minmax(240px, 2fr);
+    gap: 24px;
     padding: 12px 0;
     border-bottom: 1px solid rgba(15, 37, 64, 0.08);
     align-items: center;
@@ -277,10 +277,12 @@
     font-weight: 600;
     color: #0b3a68;
     border-bottom: 2px solid rgba(15, 37, 64, 0.12);
+    align-items: flex-end;
+    line-height: 1.3;
 }
 
 .metricas-table-row.header span {
-    white-space: nowrap;
+    white-space: normal;
     display: block;
     text-align: left;
 }
