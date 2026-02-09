@@ -3,13 +3,15 @@
 export const devAuthBypassEnabled =
     import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
-type DevRole = 'guardian' | 'psychologist';
+export type DevRole = 'guardian' | 'psychologist' | 'admin';
 const DEV_AUTH_ACTIVE_KEY = 'cognia_dev_auth_active';
+const DEV_ROLE_KEY = 'cognia_dev_role';
 
 function normalizeRole(value?: string | null) {
     const cleaned = value?.trim().toLowerCase();
     if (cleaned === 'psychologist') return 'psychologist';
     if (cleaned === 'guardian') return 'guardian';
+    if (cleaned === 'admin') return 'admin';
     return null;
 }
 
@@ -35,14 +37,26 @@ function readStoredDevAuthActive() {
     return sessionStorage.getItem(DEV_AUTH_ACTIVE_KEY) === 'true';
 }
 
+function readStoredDevRole() {
+    if (typeof window === 'undefined') return null;
+    return normalizeRole(sessionStorage.getItem(DEV_ROLE_KEY));
+}
+
 function writeStoredDevAuthActive(active: boolean) {
     if (typeof window === 'undefined') return;
     sessionStorage.setItem(DEV_AUTH_ACTIVE_KEY, active ? 'true' : 'false');
 }
 
+function writeStoredDevRole(role: DevRole) {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem(DEV_ROLE_KEY, role);
+}
+
 export function resolveDevRole(): DevRole {
     const fromQuery = devAuthBypassEnabled ? resolveRoleFromQuery() : null;
     if (fromQuery) return fromQuery;
+    const fromStorage = readStoredDevRole();
+    if (fromStorage) return fromStorage;
     const fromEnv = normalizeRole(import.meta.env.VITE_DEV_ROLE);
     return fromEnv ?? 'guardian';
 }
@@ -62,12 +76,34 @@ export function setDevAuthActive(active: boolean) {
     writeStoredDevAuthActive(active);
 }
 
+export function setDevRole(role: DevRole) {
+    if (!devAuthBypassEnabled) return;
+    writeStoredDevRole(role);
+}
+
 export function clearDevAuthActive() {
     if (typeof window === 'undefined') return;
     sessionStorage.removeItem(DEV_AUTH_ACTIVE_KEY);
 }
 
 export function getDevProfile(role: DevRole): AuthMeResponse {
+    if (role === 'admin') {
+        return {
+            id: 'dev-admin',
+            username: 'dev_admin',
+            email: 'dev_admin@example.com',
+            full_name: null,
+            user_type: 'admin',
+            professional_card_number: null,
+            roles: ['ADMIN'],
+            is_active: true,
+            mfa_enabled: false,
+            mfa_confirmed_at: null,
+            mfa_method: null,
+            created_at: null,
+            updated_at: null
+        };
+    }
     if (role === 'psychologist') {
         return {
             id: 'dev-psychologist',
@@ -103,5 +139,7 @@ export function getDevProfile(role: DevRole): AuthMeResponse {
 }
 
 export function getDevRoleLabel(role: DevRole) {
-    return role === 'psychologist' ? 'Psicólogo' : 'Guardian';
+    if (role === 'psychologist') return 'Psicólogo';
+    if (role === 'admin') return 'Administrador';
+    return 'Guardian';
 }

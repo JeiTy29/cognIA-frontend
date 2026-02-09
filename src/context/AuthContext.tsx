@@ -12,9 +12,11 @@ import {
     resolveDevAuthActive,
     resolveDevRole,
     setDevAuthActive as persistDevAuthActive,
+    setDevRole as persistDevRole,
     clearDevAuthActive
 } from '../utils/auth/devBypass';
 import { AuthContext, type AuthContextValue, type LogoutReason } from './AuthContextBase';
+import type { DevRole } from '../utils/auth/devBypass';
 import {
     getStoredToken,
     getStoredExpiresAt,
@@ -43,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [devAuthActive, setDevAuthActive] = useState(() => (
         devAuthBypassEnabled ? resolveDevAuthActive() : false
     ));
-    const devRole = useMemo(() => (devAuthBypassEnabled ? resolveDevRole() : null), []);
+    const [devRole, setDevRole] = useState<DevRole | null>(() => (
+        devAuthBypassEnabled ? resolveDevRole() : null
+    ));
     const devProfile = useMemo(
         () => (devAuthActive && devRole ? getDevProfile(devRole) : null),
         [devAuthActive, devRole]
@@ -66,6 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
             clearDevAuthActive();
         }
+    }, []);
+
+    const updateDevRole = useCallback((role: DevRole) => {
+        if (!devAuthBypassEnabled) return;
+        setDevRole(role);
+        persistDevRole(role);
     }, []);
 
     const devLogout = useCallback(() => {
@@ -282,7 +292,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         devBypassEnabled: devAuthBypassEnabled,
         devAuthActive,
         devBypassLabel,
+        devRole,
         setDevAuthActive: updateDevAuthActive,
+        setDevRole: updateDevRole,
         setSession,
         logout,
         devLogout,
@@ -301,7 +313,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileErrorStatus,
         devAuthActive,
         devBypassLabel,
+        devRole,
         updateDevAuthActive,
+        updateDevRole,
         setSession,
         logout,
         devLogout,

@@ -473,6 +473,7 @@ export default function MiCuenta() {
                     </section>
                 )}
 
+
             </div>
 
             <div className="mi-cuenta-logout">
