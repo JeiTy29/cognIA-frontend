@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { refreshAccessToken } from '../../../services/auth/auth.refresh';
 import { buildAuthorizationHeader } from '../../../utils/auth/authorization';
+import { getStoredToken } from '../../../utils/auth/storage';
 import type { RefreshResponse } from '../../../services/auth/auth.types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -213,7 +214,9 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         setIsRefreshing(true);
         await Promise.all([fetchHealth(), fetchReady()]);
 
-        if (!accessToken) {
+        const effectiveToken = accessToken ?? getStoredToken();
+
+        if (!effectiveToken) {
             setErrorMessage('Necesitas iniciar sesión para ver métricas protegidas.');
             setIsRefreshing(false);
             setIsLoading(false);
@@ -230,7 +233,7 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         }
 
         try {
-            const result = await fetchMetrics(accessToken, true);
+            const result = await fetchMetrics(effectiveToken, true);
             if (result) {
                 setSnapshot(result);
                 pushHistory(setRequestHistory, result.requests_total);
