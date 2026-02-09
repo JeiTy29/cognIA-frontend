@@ -102,7 +102,7 @@ export default function Metricas() {
     }, [latencyMax]);
 
     const dbBadgeLabel = dbState.status === 'ready'
-        ? 'Lista'
+        ? 'OK'
         : dbState.status === 'not_ready'
             ? 'No disponible'
             : dbState.status === 'error'
@@ -113,6 +113,11 @@ export default function Metricas() {
         : dbState.status === 'not_ready' || dbState.status === 'error'
             ? 'status-error'
             : 'status-warn';
+    const dbAccentClass = dbState.status === 'ready'
+        ? 'accent-green'
+        : dbState.status === 'not_ready' || dbState.status === 'error'
+            ? 'accent-red'
+            : 'accent-blue';
 
     return (
         <div className="metricas">
@@ -151,7 +156,7 @@ export default function Metricas() {
                     <div className="metricas-micro">{serverState.detail || 'Sin interrupciones registradas'}</div>
                 </div>
 
-                <div className="metricas-block accent-blue">
+                <div className={`metricas-block ${dbAccentClass}`}>
                     <div className="metricas-block-title">Base de datos</div>
                     <div className="metricas-status">
                         <span className={`status-dot ${dbStatusDot}`} aria-hidden="true" />
