@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import * as QRCode from 'qrcode';
 import './MfaSetupView.css';
 import { mfaConfirm, mfaSetup } from '../../services/auth/auth.api';
@@ -189,8 +189,8 @@ export function MfaSetupView({
     const handleCopyCodes = async () => {
         if (!recoveryCodes) return;
         try {
-            await navigator.clipboard.writeText(recoveryCodes.join('
-'));
+            const payload = recoveryCodes.join('\n');
+            await navigator.clipboard.writeText(payload);
             setCopySuccess(true);
         } catch {
             setCopySuccess(false);
@@ -257,7 +257,7 @@ export function MfaSetupView({
                     <button
                         type="button"
                         className="mfa-manual-toggle"
-                        onClick={() => setShowManual(prev => !prev)}
+                        onClick={() => setShowManual((prev) => !prev)}
                     >
                         {showManual ? 'Ocultar código manual' : 'Mostrar código manual'}
                     </button>
@@ -306,7 +306,7 @@ export function MfaSetupView({
                             Guárdalos en un lugar seguro. Se mostrarán solo una vez.
                         </p>
                         <div className="mfa-recovery-list">
-                            {recoveryCodes.map(code => (
+                            {recoveryCodes.map((code) => (
                                 <span key={code} className="mfa-recovery-code">{code}</span>
                             ))}
                         </div>
