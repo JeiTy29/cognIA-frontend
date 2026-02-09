@@ -32,6 +32,10 @@ function FallbackRedirect() {
 }
 
 export default function App() {
+    const { isAuthLoading } = useAuth();
+    if (isAuthLoading) {
+        return null;
+    }
     return (
         <>
             <Routes>
