@@ -84,13 +84,58 @@
     border: 1px solid rgba(33, 95, 143, 0.2);
     padding: 10px 12px;
     font-size: 16px;
+    text-align: left;
+}
+
+.mfa-input-code {
     text-align: center;
     letter-spacing: 4px;
+}
+
+.mfa-input-text {
+    letter-spacing: 0;
 }
 
 .mfa-setup-error {
     color: #dc3545;
     font-size: 13px;
+}
+
+.mfa-label-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #215F8F;
+}
+
+.mfa-label-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #3b5b77;
+}
+
+.mfa-label-value {
+    font-size: 14px;
+    color: #0b3a68;
+    word-break: break-word;
+}
+
+.mfa-device-input {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mfa-setup-note {
+    font-size: 13px;
+    color: #0b3a68;
+    background: #eef6ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(11, 58, 104, 0.12);
+    line-height: 1.45;
 }
 
 .mfa-recovery-overlay {

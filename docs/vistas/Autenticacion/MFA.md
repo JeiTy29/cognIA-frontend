@@ -28,6 +28,14 @@ El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 - Todos los endpoints protegidos usan **Bearer**:
   - `Authorization: Bearer <access_token>`
 
+## Etiqueta visible en la app autenticadora
+
+- Formato: `CogniaApp: <usuario> (<dispositivo> - DD/MM/YYYY)`
+- Ejemplo: `CogniaApp: JeiTy (iPhone - 09/02/2026)`
+- El frontend muestra esta etiqueta debajo del QR y genera el QR con la misma etiqueta (URL-encodeada).
+- El dispositivo se detecta por user agent (Android/iPhone) o se permite seleccionar/editar.
+- La fecha se toma de `created_at` si el backend la entrega; si no, se usa la fecha actual.
+
 ## Setup MFA (enrollment / setup)
 
 ### Login (psicólogo)
@@ -44,6 +52,7 @@ El setup se renderiza con un componente reutilizable: **MfaSetupView**.
 - Botón **Activar MFA** abre un modal con **MfaSetupView**.
 - Se usa `access_token` actual (Authorization header).
 - Recovery codes se muestran en modal bloqueante, se pueden copiar y luego se limpian de memoria.
+- Nota visible: se indica eliminar entradas antiguas y usar la entrada con la fecha más reciente.
 
 ## Challenge MFA
 

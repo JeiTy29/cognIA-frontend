@@ -14,6 +14,8 @@ type MFANavigationState = {
     mode?: MFAMode;
     challengeId?: string;
     enrollmentToken?: string;
+    username?: string;
+    expiresIn?: number;
 };
 
 export default function MFA() {
@@ -32,6 +34,7 @@ export default function MFA() {
     }, [state]);
     const challengeId = state?.challengeId;
     const enrollmentToken = state?.enrollmentToken;
+    const username = state?.username;
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -109,6 +112,7 @@ export default function MFA() {
                         <MfaSetupView
                             mode="enrollment"
                             enrollmentToken={enrollmentToken}
+                            username={username}
                             onComplete={() => {
                                 navigate('/inicio-sesion', { replace: true, state: { mfaConfigured: true } });
                             }}
@@ -116,7 +120,7 @@ export default function MFA() {
                     ) : (
                         <>
                             <p className="auth-subtitle">
-                                Ingresa el código de 6 dígitos de tu aplicación de autenticación.
+                                Abre tu aplicación de autenticación y escribe el código de 6 dígitos que se muestra allí.
                             </p>
                             <form className="auth-form" onSubmit={handleVerify}>
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
