@@ -31,9 +31,12 @@ export default function InicioSesion() {
         if (storedNotice === 'expired') {
             setInfoMessage('Tu sesión ha expirado. Inicia sesión nuevamente.');
         }
-        const state = location.state as { reason?: string; mfaConfigured?: boolean } | null;
+        const state = location.state as { reason?: string; mfaConfigured?: boolean; message?: string } | null;
         if (state?.reason === 'unauthenticated') {
             setInfoMessage('Debes iniciar sesión para acceder a la plataforma.');
+        }
+        if (state?.message) {
+            setInfoMessage(state.message);
         }
         if (state?.reason === 'expired') {
             setInfoMessage('Tu sesión ha expirado. Inicia sesión nuevamente.');

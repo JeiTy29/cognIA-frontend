@@ -1,10 +1,14 @@
 ﻿# Metricas
 
 ## Proposito
-Vista de administrador para revisar el estado del servidor, base de datos y metricas de trafico. Esta pagina es solo de desarrollo y se habilita con:
+Vista de administrador para revisar el estado del servidor, base de datos y metricas de trafico. Esta pagina se habilita en desarrollo con:
 
-- `VITE_ENABLE_ADMIN=true` en `.env.local`
+- `VITE_DEV_AUTH_BYPASS=true`
 - `import.meta.env.DEV === true`
+
+## Control de acceso
+- Solo rol **ADMIN** puede acceder a `/admin/*`.
+- Si el rol no corresponde, `ProtectedRoute` muestra “Acceso denegado” y redirige al area principal del rol.
 
 ## Estructura de la vista
 
@@ -43,10 +47,6 @@ Tabla compacta sin cards:
   - < 3600: Y min
   - >= 3600: HH:MM:SS
 - `status_counts` -> porcentajes: `valor / total * 100` con 0 decimales.
-
-## Acceso en desarrollo
-- Entrada de sidebar y acceso a `/admin/metricas` solo en DEV y con `VITE_ENABLE_ADMIN=true`.
-- En produccion no existe la entrada ni la ruta.
 
 ## Fixture
 Fuente de datos local: `src/pages/Administrador/Metricas/metricas.json`.
