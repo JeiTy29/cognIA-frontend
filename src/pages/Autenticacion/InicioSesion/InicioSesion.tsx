@@ -76,6 +76,7 @@ export default function InicioSesion() {
                         mode: 'challenge',
                         challengeId: response.challenge_id,
                         expiresIn: response.expires_in,
+                        username
                     },
                 });
                 return;
@@ -86,6 +87,7 @@ export default function InicioSesion() {
                         mode: 'setup',
                         enrollmentToken: response.enrollment_token,
                         expiresIn: response.expires_in,
+                        username
                     },
                 });
                 return;

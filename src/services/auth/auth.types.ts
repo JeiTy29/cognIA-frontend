@@ -64,6 +64,7 @@ export interface MFALoginResponse {
 export interface MFASetupResponse {
     otpauth_uri: string;
     secret?: string;
+    created_at?: string | null;
 }
 
 export interface MFAConfirmRequest {

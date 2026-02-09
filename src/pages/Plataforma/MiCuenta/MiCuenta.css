@@ -355,6 +355,12 @@
     max-width: 520px;
 }
 
+.mi-cuenta-modal-note {
+    color: #0b2540;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
 .mi-cuenta-segmented {
     display: flex;
     gap: 8px;

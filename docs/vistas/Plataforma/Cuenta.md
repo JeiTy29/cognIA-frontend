@@ -67,8 +67,13 @@ Centralizar la gestión de datos del perfil y seguridad en una sola vista para a
   - Si `mfa_enabled` es **false**: CTA **Activar MFA** + texto informativo.
   - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
 - **Activar MFA** abre un modal con QR (MfaSetupView) y confirmación de código.
+  - Muestra la etiqueta visible de la app: `CogniaApp: <usuario> (<dispositivo> - DD/MM/YYYY)`.
+  - Incluye nota para eliminar entradas antiguas y usar la entrada con la fecha más reciente.
+  - Permite editar el dispositivo (Android/iPhone/Otro).
 - El modal requiere `access_token` válido; si no hay sesión, no se habilita.
 - **Desactivar MFA** abre un modal con contraseña + código TOTP o recovery code.
+  - Texto con contraste alto para legibilidad.
+  - Al desactivar, se instruye a eliminar la entrada antigua en la app autenticadora.
 - En éxito al desactivar MFA se cierra sesión (el backend revoca refresh tokens).
 - Para **Psicólogo** no se muestran CTAs de MFA.
 
