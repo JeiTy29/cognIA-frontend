@@ -1,8 +1,8 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react';
-import { refreshAccessToken } from '../../../services/auth/auth.refresh';
-import { buildAuthorizationHeader } from '../../../utils/auth/authorization';
-import { getStoredToken } from '../../../utils/auth/storage';
-import type { RefreshResponse } from '../../../services/auth/auth.types';
+import { refreshAccessToken } from '../../services/auth/auth.refresh';
+import { buildAuthorizationHeader } from '../../utils/auth/authorization';
+import { getStoredToken } from '../../utils/auth/storage';
+import type { RefreshResponse } from '../../services/auth/auth.types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
