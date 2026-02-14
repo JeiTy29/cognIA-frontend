@@ -1,0 +1,51 @@
+# Usuarios
+
+## Ruta y rol
+- Ruta: `/admin/usuarios`
+- Requiere rol: **ADMIN** (protegida por `ProtectedRoute`).
+
+## Estructura visual
+1) **Encabezado**
+   - Titulo: “Usuarios” con icono de seccion.
+   - Acciones: boton “Nuevo” y boton “Exportar”.
+
+2) **Barra de controles**
+   - Busqueda con icono.
+   - Select de estado (Todos / Activos / Inactivos).
+   - Select de rol (Todos / Admin / Psicologo / Docente / Padre/Tutor).
+   - Boton “Limpiar”.
+
+3) **Tabla**
+   - Columnas: Usuario, Correo, Tipo, Roles, Estado, Creado, Acciones.
+   - Usuario: muestra `full_name` y debajo el `username`.
+   - Tipo: muestra `user_type` y, si existe, `professional_card_number` como “TP: XXXX”.
+   - Roles: texto separado por “ / ” con icono pequeno. Si no hay roles, muestra “Sin rol”.
+   - Estado: indicador con punto + texto Activo/Inactivo (sin chips).
+   - Acciones: icon-only (Ver / Editar / Desactivar).
+
+4) **Estados**
+   - Loading: skeleton de 6-8 filas (sin texto “Loading”).
+   - Empty: estado vacio con icono, titulo “Sin usuarios” y boton “Nuevo”.
+
+5) **Paginacion (solo visual)**
+   - “Mostrando X–Y de TOTAL”.
+   - Botones anterior/siguiente con iconos.
+   - Select de tamano de pagina.
+
+## Datos mock
+El archivo `Usuarios.tsx` contiene un mock con estructura del endpoint:
+```
+{
+  items: [{ id, username, email, full_name, user_type, professional_card_number, is_active, roles, created_at, updated_at }],
+  page, page_size, total
+}
+```
+Incluye usuarios activos/inactivos, roles variados y valores opcionales.
+
+## Archivos
+- `src/pages/Administrador/Usuarios/Usuarios.tsx`
+- `src/pages/Administrador/Usuarios/Usuarios.css`
+- `docs/vistas/Administrador/Usuarios.md`
+
+## Sidebar
+Se agrega un item “Usuarios” en el sidebar Admin apuntando a `/admin/usuarios`.

@@ -1,0 +1,351 @@
+.usuarios {
+    padding: 32px 40px 40px;
+    color: #0b2540;
+    background: #ffffff;
+    min-height: 100vh;
+}
+
+.usuarios-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.usuarios-title {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.usuarios-title-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(23, 144, 233, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1790E9;
+}
+
+.usuarios-title-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.usuarios-title h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+}
+
+.usuarios-title p {
+    margin: 0;
+    color: #526476;
+    font-size: 14px;
+}
+
+.usuarios-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.usuarios-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    padding: 10px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.usuarios-btn.primary {
+    background: #1790E9;
+    color: #ffffff;
+}
+
+.usuarios-btn.secondary {
+    background: #eef5fb;
+    color: #1b4f72;
+}
+
+.usuarios-btn.ghost {
+    background: transparent;
+    border: 1px solid rgba(11, 37, 64, 0.15);
+    color: #0b2540;
+}
+
+.usuarios-btn span svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.usuarios-divider {
+    height: 2px;
+    background: rgba(23, 144, 233, 0.15);
+    margin: 18px 0 24px;
+}
+
+.usuarios-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 20px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+
+.usuarios-search {
+    flex: 1 1 280px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.usuarios-search input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+    color: #0b2540;
+    background: transparent;
+}
+
+.usuarios-search-icon svg {
+    width: 18px;
+    height: 18px;
+    fill: #7c8a9a;
+}
+
+.usuarios-filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.usuarios-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #526476;
+}
+
+.usuarios-filters select {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    background: #ffffff;
+    font-size: 13px;
+    color: #0b2540;
+}
+
+.usuarios-table {
+    border-top: 1px solid rgba(11, 37, 64, 0.08);
+}
+
+.usuarios-table-head {
+    display: grid;
+    grid-template-columns: 2.2fr 1.6fr 1.6fr 1fr 1fr 0.8fr;
+    gap: 16px;
+    padding: 12px 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #526476;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.08);
+}
+
+.usuarios-table-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.usuarios-row {
+    display: grid;
+    grid-template-columns: 2.2fr 1.6fr 1.6fr 1fr 1fr 0.8fr;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.06);
+    align-items: center;
+    font-size: 14px;
+    color: #0b2540;
+    transition: background 0.2s ease;
+}
+
+.usuarios-row:hover {
+    background: rgba(23, 144, 233, 0.04);
+}
+
+.usuarios-name {
+    font-weight: 600;
+}
+
+.usuarios-sub {
+    font-size: 12px;
+    color: #7c8a9a;
+    margin-top: 2px;
+}
+
+.usuarios-type {
+    font-weight: 600;
+}
+
+.usuarios-cell.status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-dot.active { background: #1f9d55; }
+.status-dot.inactive { background: #dc3545; }
+
+.icon-btn {
+    border: none;
+    background: transparent;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #4b5f71;
+}
+
+.icon-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.usuarios-cell.actions {
+    display: flex;
+    gap: 6px;
+}
+
+.usuarios-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 0;
+}
+
+.usuarios-skeleton-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+}
+
+.usuarios-skeleton-row span {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(23,144,233,0.08), rgba(23,144,233,0.2), rgba(23,144,233,0.08));
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+}
+
+.usuarios-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: #526476;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.usuarios-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    background: rgba(23, 144, 233, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1790E9;
+}
+
+.usuarios-empty-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+}
+
+.usuarios-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 0 0;
+    font-size: 13px;
+    color: #526476;
+}
+
+.usuarios-page {
+    font-weight: 600;
+    color: #0b2540;
+}
+
+.usuarios-page-size label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usuarios-page-size select {
+    border-radius: 8px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+@keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+@media (max-width: 1024px) {
+    .usuarios-table-head,
+    .usuarios-row {
+        grid-template-columns: 2fr 1.4fr 1.4fr 0.9fr 0.9fr 0.8fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .usuarios {
+        padding: 24px;
+    }
+
+    .usuarios-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .usuarios-table {
+        overflow-x: auto;
+    }
+
+    .usuarios-table-head,
+    .usuarios-row {
+        min-width: 760px;
+    }
+
+    .usuarios-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
