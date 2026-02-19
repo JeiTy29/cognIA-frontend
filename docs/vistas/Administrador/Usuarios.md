@@ -40,16 +40,24 @@
 
 ## Flujo UI
 1. Al entrar a la vista se carga `GET /users`.
-2. Boton `Nuevo` abre modal y envia `POST /users`.
+2. Boton `Crear nuevo usuario` abre modal y envia `POST /users`.
 3. Boton `Ver/Editar` abre modal con `GET /users/{id}` y guarda con `PUT /users/{id}`.
 4. Boton `Desactivar` abre confirmacion y ejecuta `DELETE /users/{id}`.
 5. Al exito en crear/editar/desactivar se refresca el listado.
+6. Filtros de `Estado`, `Rol` y busqueda por `ID/username` se aplican sobre el listado visible.
 
 ## Estados de la vista
 - `loading`: skeleton de tabla.
 - `error`: banner de error + boton `Reintentar`.
-- `empty`: estado vacio con CTA `Nuevo`.
+- `empty`: estado vacio con CTA `Crear nuevo usuario`.
 - `success`: feedback discreto tras operaciones exitosas.
+
+## Filtros y busqueda
+- `Estado`: filtra por activos/inactivos.
+- `Rol`: filtra por Administrador, Psicologo o Padre/Tutor.
+- `Busqueda`: usa `ID` o `username`.
+- `Limpiar`: reinicia estado, rol y busqueda.
+- La paginacion deshabilita avance cuando no hay mas registros disponibles.
 
 ## Validaciones en frontend
 - `user_type` permitido:
@@ -73,3 +81,17 @@
 
 ## Sidebar
 - Se agrego item `Usuarios` en sidebar admin con ruta `/admin/usuarios`.
+
+## Ajustes visuales actuales
+- Se retiro el icono del titulo de la vista para mantener cabecera limpia.
+- Se elimino el boton `Exportar` porque no tiene accion implementada.
+- El boton principal ahora usa texto completo `Crear nuevo usuario`.
+- La tabla incluye columna `ID`.
+- El rol `teacher` se muestra como `Padre/Tutor` para evitar duplicidad.
+- El selector de tamano de pagina se muestra como `Tamaño`.
+
+## Select global reutilizable
+- Se definio estilo global para menus desplegables con clases:
+  - `app-select-wrap`
+  - `app-select`
+- Este estilo se aplica en filtros, modales y selector de tamaño de pagina.
