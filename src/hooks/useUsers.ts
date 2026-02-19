@@ -64,7 +64,7 @@ export function useUsers() {
         });
     }, [logout, navigate]);
 
-    const loadUsers = useCallback(async (nextPage = page, nextPageSize = pageSize) => {
+    const loadUsers = useCallback(async (nextPage: number, nextPageSize: number) => {
         setLoading(true);
         setError(null);
         try {
@@ -82,7 +82,7 @@ export function useUsers() {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, handleUnauthorized]);
+    }, [handleUnauthorized]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {

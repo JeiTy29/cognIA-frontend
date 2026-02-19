@@ -1,0 +1,106 @@
+.global-select {
+    position: relative;
+    width: 100%;
+}
+
+.global-select-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    background: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    color: #215F8F;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.global-select-trigger:hover {
+    border-color: rgba(33, 95, 143, 0.45);
+}
+
+.global-select-trigger:focus-visible {
+    outline: none;
+    border-color: #1790E9;
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.2);
+}
+
+.global-select-trigger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.global-select-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #215F8F;
+    transition: transform 0.2s ease;
+}
+
+.global-select-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.global-select-icon.open {
+    transform: rotate(180deg);
+}
+
+.global-select-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.18);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.global-select-menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 240px;
+    pointer-events: auto;
+}
+
+.global-select-option {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    color: #215F8F;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.global-select-option:hover,
+.global-select-option.is-selected {
+    background: rgba(81, 194, 244, 0.2);
+}
