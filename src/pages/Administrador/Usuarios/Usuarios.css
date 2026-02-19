@@ -165,7 +165,7 @@
     color: #526476;
 }
 
-.usuarios-filters .app-select-wrap {
+.usuarios-filters .global-select {
     min-width: 166px;
 }
 
@@ -224,9 +224,45 @@
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 12px;
     color: #526476;
+}
+
+.usuarios-id-wrap {
+    position: relative;
+    overflow: hidden;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+}
+
+.usuarios-id-value {
+    display: block;
+    width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: transform 0.22s ease;
+}
+
+.usuarios-id-copy {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translate(-8px, -50%);
+    opacity: 0;
+    pointer-events: none;
+    background: #eaf4fc;
+}
+
+.usuarios-id-wrap:hover .usuarios-id-value,
+.usuarios-id-wrap:focus-within .usuarios-id-value {
+    transform: translateX(26px);
+}
+
+.usuarios-id-wrap:hover .usuarios-id-copy,
+.usuarios-id-wrap:focus-within .usuarios-id-copy {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(0, -50%);
 }
 
 .usuarios-cell.status {
@@ -257,6 +293,35 @@
     width: 16px;
     height: 16px;
     fill: currentColor;
+}
+
+.has-tooltip {
+    position: relative;
+}
+
+.has-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translate(-50%, 6px);
+    opacity: 0;
+    pointer-events: none;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(11, 37, 64, 0.92);
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 1.1;
+    white-space: nowrap;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 10;
+}
+
+.has-tooltip:hover::after,
+.has-tooltip:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 .icon-btn:disabled {
@@ -360,7 +425,7 @@
     color: #0b2540;
 }
 
-.usuarios-modal .app-select-wrap {
+.usuarios-modal .global-select {
     width: 100%;
 }
 
@@ -394,7 +459,7 @@
     gap: 8px;
 }
 
-.usuarios-page-size .app-select-wrap {
+.usuarios-page-size .global-select {
     min-width: 92px;
 }
 

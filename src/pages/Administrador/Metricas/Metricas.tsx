@@ -1,4 +1,5 @@
 ﻿import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import './Metricas.css';
 import { useMetrics } from '../../../hooks/metrics/useMetrics';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -64,6 +65,8 @@ function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number>
 
 export default function Metricas() {
     const { accessToken, setSession } = useAuth();
+    const location = useLocation();
+    const metricsViewEnabled = location.pathname === '/admin/metricas';
     const {
         serverState,
         dbState,
@@ -78,7 +81,8 @@ export default function Metricas() {
         isRefreshing
     } = useMetrics({
         accessToken,
-        setSession
+        setSession,
+        enabled: metricsViewEnabled
     });
 
     const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
