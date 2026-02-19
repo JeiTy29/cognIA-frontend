@@ -551,7 +551,7 @@ export default function Usuarios() {
                 <div className="usuarios-pagination-controls">
                     <button
                         type="button"
-                        className="icon-btn"
+                        className="icon-btn usuarios-page-nav-btn"
                         aria-label="Pagina anterior"
                         onClick={() => void goToPage(Math.max(1, page - 1))}
                         disabled={loading || page <= 1}
@@ -561,7 +561,7 @@ export default function Usuarios() {
                     <span className="usuarios-page">Pagina {page}</span>
                     <button
                         type="button"
-                        className="icon-btn"
+                        className="icon-btn usuarios-page-nav-btn"
                         aria-label="Pagina siguiente"
                         onClick={() => void goToPage(page + 1)}
                         disabled={nextDisabled}
