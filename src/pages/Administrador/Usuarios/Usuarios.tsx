@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState } from 'react';
 import { Modal } from '../../../components/Modal/Modal';
+import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
 import type { CreateUserRequest, UpdateUserRequest, User } from '../../../services/admin/users';
 import './Usuarios.css';
@@ -41,6 +42,43 @@ const initialCreateForm: CreateFormState = {
 type StatusFilter = 'Todos' | 'Activos' | 'Inactivos';
 type RoleFilter = 'Todos' | 'Admin' | 'Psicologo' | 'Padre/Tutor';
 type UserRoleKey = 'ADMIN' | 'PSYCHOLOGIST' | 'GUARDIAN';
+
+const statusFilterOptions = [
+    { value: 'Todos', label: 'Todos' },
+    { value: 'Activos', label: 'Activos' },
+    { value: 'Inactivos', label: 'Inactivos' }
+];
+
+const roleFilterOptions = [
+    { value: 'Todos', label: 'Todos' },
+    { value: 'Admin', label: 'Admin' },
+    { value: 'Psicologo', label: 'Psicologo' },
+    { value: 'Padre/Tutor', label: 'Padre/Tutor' }
+];
+
+const userTypeCreateOptions = [
+    { value: 'guardian', label: 'Padre/Tutor' },
+    { value: 'psychologist', label: 'Psicologo' },
+    { value: 'admin', label: 'Administrador' }
+];
+
+const userTypeEditOptions = [
+    { value: 'guardian', label: 'Padre/Tutor' },
+    { value: 'psychologist', label: 'Psicologo' },
+    { value: 'teacher', label: 'Docente' }
+];
+
+const userRoleOptions = [
+    { value: 'GUARDIAN', label: 'Padre/Tutor' },
+    { value: 'PSYCHOLOGIST', label: 'Psicologo' },
+    { value: 'ADMIN', label: 'Administrador' }
+];
+
+const pageSizeOptions = [
+    { value: '10', label: '10' },
+    { value: '25', label: '25' },
+    { value: '50', label: '50' }
+];
 
 function formatDate(value: string) {
     const date = new Date(value);
@@ -138,6 +176,7 @@ export default function Usuarios() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
     const [roleFilter, setRoleFilter] = useState<RoleFilter>('Todos');
+    const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
 
     const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
     const showingTo = Math.min(page * pageSize, total);
@@ -316,6 +355,18 @@ export default function Usuarios() {
         setRoleFilter('Todos');
     };
 
+    const handleCopyUserId = async (userId: string) => {
+        try {
+            await navigator.clipboard.writeText(userId);
+            setCopiedUserId(userId);
+            window.setTimeout(() => {
+                setCopiedUserId((prev) => (prev === userId ? null : prev));
+            }, 1500);
+        } catch {
+            setCopiedUserId(null);
+        }
+    };
+
     return (
         <div className="usuarios">
             <header className="usuarios-header">
@@ -363,34 +414,21 @@ export default function Usuarios() {
                 <div className="usuarios-filters">
                     <label>
                         <span>Estado</span>
-                        <span className="app-select-wrap">
-                            <select
-                                className="app-select"
-                                aria-label="Estado"
-                                value={statusFilter}
-                                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                            >
-                                <option>Todos</option>
-                                <option>Activos</option>
-                                <option>Inactivos</option>
-                            </select>
-                        </span>
+                        <CustomSelect
+                            ariaLabel="Estado"
+                            value={statusFilter}
+                            options={statusFilterOptions}
+                            onChange={(value) => setStatusFilter(value as StatusFilter)}
+                        />
                     </label>
                     <label>
                         <span>Rol</span>
-                        <span className="app-select-wrap">
-                            <select
-                                className="app-select"
-                                aria-label="Rol"
-                                value={roleFilter}
-                                onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
-                            >
-                                <option>Todos</option>
-                                <option>Admin</option>
-                                <option>Psicologo</option>
-                                <option>Padre/Tutor</option>
-                            </select>
-                        </span>
+                        <CustomSelect
+                            ariaLabel="Rol"
+                            value={roleFilter}
+                            options={roleFilterOptions}
+                            onChange={(value) => setRoleFilter(value as RoleFilter)}
+                        />
                     </label>
                     <button type="button" className="usuarios-btn ghost" aria-label="Limpiar filtros" onClick={clearFilters}>
                         <span aria-hidden="true">
@@ -448,7 +486,22 @@ export default function Usuarios() {
                     <div className="usuarios-table-body">
                         {filteredRows.map((user) => (
                             <div key={user.id} className="usuarios-row">
-                                <div className="usuarios-cell id">{user.id}</div>
+                                <div className="usuarios-cell id">
+                                    <div className="usuarios-id-wrap">
+                                        <span className="usuarios-id-value">{user.id}</span>
+                                        <button
+                                            type="button"
+                                            className="icon-btn usuarios-id-copy has-tooltip"
+                                            data-tooltip={copiedUserId === user.id ? 'ID copiado' : 'Copiar ID al portapapeles'}
+                                            aria-label="Copiar ID al portapapeles"
+                                            onClick={() => void handleCopyUserId(user.id)}
+                                        >
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H10V7h9v14Z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="usuarios-cell user">
                                     <div className="usuarios-name">{user.fullName}</div>
                                     <div className="usuarios-sub">{user.username}</div>
@@ -466,13 +519,22 @@ export default function Usuarios() {
                                 </div>
                                 <div className="usuarios-cell">{formatDate(user.created_at)}</div>
                                 <div className="usuarios-cell actions">
-                                    <button type="button" className="icon-btn" aria-label="Ver usuario" onClick={() => void openEditModal(user)}>
-                                        <svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5 9 7s-4 7-9 7-9-5-9-7 4-7 9-7Zm0 2c-3.4 0-6.4 3.2-6.8 5 .4 1.8 3.4 5 6.8 5s6.4-3.2 6.8-5c-.4-1.8-3.4-5-6.8-5Zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" /></svg>
-                                    </button>
-                                    <button type="button" className="icon-btn" aria-label="Editar usuario" onClick={() => void openEditModal(user)}>
+                                    <button
+                                        type="button"
+                                        className="icon-btn has-tooltip"
+                                        data-tooltip="Editar usuario"
+                                        aria-label="Editar usuario"
+                                        onClick={() => void openEditModal(user)}
+                                    >
                                         <svg viewBox="0 0 24 24"><path d="m3 17 1 4 4-1 10-10-4-4L3 17Zm14-12 4 4 1-1-4-4Z" /></svg>
                                     </button>
-                                    <button type="button" className="icon-btn" aria-label="Desactivar usuario" onClick={() => openDeactivateModal(user)}>
+                                    <button
+                                        type="button"
+                                        className="icon-btn has-tooltip"
+                                        data-tooltip="Borrar usuario"
+                                        aria-label="Borrar usuario"
+                                        onClick={() => openDeactivateModal(user)}
+                                    >
                                         <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm6.4 10a6.4 6.4 0 0 1-1.2 3.6L8.4 6.8A6.4 6.4 0 0 1 18.4 12Zm-12.8 0a6.4 6.4 0 0 1 1.2-3.6l8.8 8.8A6.4 6.4 0 0 1 5.6 12Z" /></svg>
                                     </button>
                                 </div>
@@ -510,18 +572,12 @@ export default function Usuarios() {
                 <div className="usuarios-page-size">
                     <label>
                         <span>Tamaño</span>
-                        <span className="app-select-wrap">
-                            <select
-                                className="app-select"
-                                aria-label="Tamaño de pagina"
-                                value={String(pageSize)}
-                                onChange={(event) => void changePageSize(Number(event.target.value))}
-                            >
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                            </select>
-                        </span>
+                        <CustomSelect
+                            ariaLabel="Tamaño de pagina"
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) => void changePageSize(Number(value))}
+                        />
                     </label>
                 </div>
             </footer>
@@ -558,41 +614,31 @@ export default function Usuarios() {
                     </label>
                     <label>
                         <span>Tipo</span>
-                        <span className="app-select-wrap">
-                            <select
-                                className="app-select"
-                                value={createForm.user_type}
-                                onChange={(event) =>
-                                    setCreateForm((prev) => ({
-                                        ...prev,
-                                        user_type: event.target.value as CreateFormState['user_type']
-                                    }))
-                                }
-                            >
-                                <option value="guardian">Padre/Tutor</option>
-                                <option value="psychologist">Psicologo</option>
-                                <option value="admin">Administrador</option>
-                            </select>
-                        </span>
+                        <CustomSelect
+                            ariaLabel="Tipo de usuario"
+                            value={createForm.user_type}
+                            options={userTypeCreateOptions}
+                            onChange={(value) =>
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    user_type: value as CreateFormState['user_type']
+                                }))
+                            }
+                        />
                     </label>
                     <label>
                         <span>Rol</span>
-                        <span className="app-select-wrap">
-                            <select
-                                className="app-select"
-                                value={createForm.role}
-                                onChange={(event) =>
-                                    setCreateForm((prev) => ({
-                                        ...prev,
-                                        role: event.target.value as CreateFormState['role']
-                                    }))
-                                }
-                            >
-                                <option value="GUARDIAN">Padre/Tutor</option>
-                                <option value="PSYCHOLOGIST">Psicologo</option>
-                                <option value="ADMIN">Administrador</option>
-                            </select>
-                        </span>
+                        <CustomSelect
+                            ariaLabel="Rol del usuario"
+                            value={createForm.role}
+                            options={userRoleOptions}
+                            onChange={(value) =>
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    role: value as CreateFormState['role']
+                                }))
+                            }
+                        />
                     </label>
                     <label>
                         <span>Nombre completo</span>
@@ -650,49 +696,39 @@ export default function Usuarios() {
                             </label>
                             <label>
                                 <span>Tipo</span>
-                                <span className="app-select-wrap">
-                                    <select
-                                        className="app-select"
-                                        value={editForm.user_type}
-                                        onChange={(event) =>
-                                            setEditForm((prev) =>
-                                                prev
-                                                    ? {
-                                                          ...prev,
-                                                          user_type: event.target.value as EditFormState['user_type']
-                                                      }
-                                                    : prev
-                                            )
-                                        }
-                                    >
-                                        <option value="guardian">Padre/Tutor</option>
-                                        <option value="psychologist">Psicologo</option>
-                                        <option value="teacher">Docente</option>
-                                    </select>
-                                </span>
+                                <CustomSelect
+                                    ariaLabel="Tipo de usuario"
+                                    value={editForm.user_type}
+                                    options={userTypeEditOptions}
+                                    onChange={(value) =>
+                                        setEditForm((prev) =>
+                                            prev
+                                                ? {
+                                                      ...prev,
+                                                      user_type: value as EditFormState['user_type']
+                                                  }
+                                                : prev
+                                        )
+                                    }
+                                />
                             </label>
                             <label>
                                 <span>Rol</span>
-                                <span className="app-select-wrap">
-                                    <select
-                                        className="app-select"
-                                        value={editForm.role}
-                                        onChange={(event) =>
-                                            setEditForm((prev) =>
-                                                prev
-                                                    ? {
-                                                          ...prev,
-                                                          role: event.target.value as EditFormState['role']
-                                                      }
-                                                    : prev
-                                            )
-                                        }
-                                    >
-                                        <option value="GUARDIAN">Padre/Tutor</option>
-                                        <option value="PSYCHOLOGIST">Psicologo</option>
-                                        <option value="ADMIN">Administrador</option>
-                                    </select>
-                                </span>
+                                <CustomSelect
+                                    ariaLabel="Rol del usuario"
+                                    value={editForm.role}
+                                    options={userRoleOptions}
+                                    onChange={(value) =>
+                                        setEditForm((prev) =>
+                                            prev
+                                                ? {
+                                                      ...prev,
+                                                      role: value as EditFormState['role']
+                                                  }
+                                                : prev
+                                        )
+                                    }
+                                />
                             </label>
                             <label>
                                 <span>Nombre completo</span>

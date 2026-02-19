@@ -30,6 +30,7 @@ export type MetricsSnapshot = {
 interface UseMetricsOptions {
     accessToken: string | null;
     setSession: (token: string, expiresIn?: number) => void;
+    enabled?: boolean;
 }
 
 interface UseMetricsResult {
@@ -51,7 +52,7 @@ async function safeJson(response: Response) {
     return { response, data };
 }
 
-export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseMetricsResult {
+export function useMetrics({ accessToken, setSession, enabled = true }: UseMetricsOptions): UseMetricsResult {
     const [serverState, setServerState] = useState<ServerState>({
         status: 'loading',
         message: 'Cargando',
@@ -74,10 +75,12 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
     const backoffRef = useRef<number>(0);
     const errorCountRef = useRef<number>(0);
     const visibilityRef = useRef<boolean>(typeof document !== 'undefined' ? document.visibilityState === 'visible' : true);
+    const isMountedRef = useRef(true);
 
     const fetchAllRef = useRef<() => Promise<void>>(async () => {});
 
     const scheduleNext = useCallback((delay: number) => {
+        if (!enabled || !isMountedRef.current) return;
         if (!visibilityRef.current) return;
         if (pollingRef.current) {
             window.clearTimeout(pollingRef.current);
@@ -85,7 +88,7 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         pollingRef.current = window.setTimeout(() => {
             void fetchAllRef.current();
         }, delay);
-    }, []);
+    }, [enabled]);
 
     const pushHistory = useCallback((setter: React.Dispatch<React.SetStateAction<number[]>>, value: number) => {
         setter((prev) => {
@@ -208,6 +211,7 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
     }, [setSession]);
 
     const fetchAll = useCallback(async () => {
+        if (!enabled || !isMountedRef.current) return;
         setIsRefreshing(true);
         await Promise.all([fetchHealth(), fetchReady()]);
 
@@ -235,12 +239,13 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
             handleBackoff();
             setErrorMessage('No fue posible cargar métricas. Reintentando...');
         } finally {
+            if (!isMountedRef.current || !enabled) return;
             setIsRefreshing(false);
             setIsLoading(false);
             const delay = backoffRef.current > 0 ? backoffRef.current : 5000;
             scheduleNext(delay);
         }
-    }, [accessToken, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
+    }, [accessToken, enabled, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
 
     const reload = useCallback(() => {
         void fetchAll();
@@ -251,15 +256,17 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
     }, [fetchAll]);
 
     useEffect(() => {
+        if (!enabled) return;
         void fetchAll();
         return () => {
             if (pollingRef.current) {
                 window.clearTimeout(pollingRef.current);
             }
         };
-    }, [fetchAll]);
+    }, [enabled, fetchAll]);
 
     useEffect(() => {
+        if (!enabled) return;
         const handleVisibility = () => {
             visibilityRef.current = document.visibilityState === 'visible';
             if (visibilityRef.current) {
@@ -270,7 +277,16 @@ export function useMetrics({ accessToken, setSession }: UseMetricsOptions): UseM
         };
         document.addEventListener('visibilitychange', handleVisibility);
         return () => document.removeEventListener('visibilitychange', handleVisibility);
-    }, [scheduleNext]);
+    }, [enabled, scheduleNext]);
+
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            if (pollingRef.current) {
+                window.clearTimeout(pollingRef.current);
+            }
+        };
+    }, []);
 
     return {
         serverState,

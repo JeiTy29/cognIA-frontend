@@ -89,9 +89,13 @@
 - La tabla incluye columna `ID`.
 - El rol `teacher` se muestra como `Padre/Tutor` para evitar duplicidad.
 - El selector de tamano de pagina se muestra como `Tamaño`.
+- Se retiro el boton de `Ver` (ojo) para evitar duplicidad con `Editar`.
+- Los botones de accion muestran tooltip: `Editar usuario` y `Borrar usuario`.
+- En la columna `ID`, al pasar el mouse se habilita boton para copiar al portapapeles con tooltip.
 
 ## Select global reutilizable
-- Se definio estilo global para menus desplegables con clases:
-  - `app-select-wrap`
-  - `app-select`
-- Este estilo se aplica en filtros, modales y selector de tamaño de pagina.
+- Se utiliza el componente global `CustomSelect` con el mismo estilo visual de Soporte (selector de tipo de problema).
+- Archivos:
+  - `src/components/CustomSelect/CustomSelect.tsx`
+  - `src/components/CustomSelect/CustomSelect.css`
+- Este selector se aplica en filtros, modales y selector de tamaño de pagina.

@@ -21,6 +21,8 @@ Vista de administrador para revisar el estado del servidor, base de datos y metr
 - Pausa cuando la pestaña no esta visible (Page Visibility API).
 - Buffer de 30 puntos para sparklines (requests_total y latency_ms_avg).
 - Backoff exponencial ante errores 5xx: 2s, 4s, 8s (se reinicia al recuperar).
+- Las llamadas solo se ejecutan cuando la ruta activa es `/admin/metricas`.
+- Al salir de la vista, se detienen timers/reintentos para evitar llamadas en segundo plano.
 
 ## Manejo de 401
 
