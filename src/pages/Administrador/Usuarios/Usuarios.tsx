@@ -38,27 +38,39 @@ const initialCreateForm: CreateFormState = {
     is_active: true
 };
 
+type StatusFilter = 'Todos' | 'Activos' | 'Inactivos';
+type RoleFilter = 'Todos' | 'Admin' | 'Psicologo' | 'Padre/Tutor';
+type UserRoleKey = 'ADMIN' | 'PSYCHOLOGIST' | 'GUARDIAN';
+
 function formatDate(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
     return date.toLocaleDateString('es-CO');
 }
 
-function normalizeRoleLabel(role: string) {
+function normalizeRoleKey(role: string): UserRoleKey {
     const normalized = role.trim().toUpperCase();
-    if (normalized === 'ADMIN') return 'Administrador';
-    if (normalized === 'PSYCHOLOGIST') return 'Psicologo';
-    if (normalized === 'GUARDIAN') return 'Padre/Tutor';
-    return role;
+    if (normalized === 'ADMIN') return 'ADMIN';
+    if (normalized === 'PSYCHOLOGIST') return 'PSYCHOLOGIST';
+    if (normalized === 'GUARDIAN' || normalized === 'TEACHER') return 'GUARDIAN';
+    return 'GUARDIAN';
+}
+
+function roleLabelFromKey(role: UserRoleKey) {
+    if (role === 'ADMIN') return 'Administrador';
+    if (role === 'PSYCHOLOGIST') return 'Psicologo';
+    return 'Padre/Tutor';
+}
+
+function resolveUserRoleKey(user: User): UserRoleKey {
+    if (user.roles && user.roles.length > 0) {
+        return normalizeRoleKey(user.roles[0]);
+    }
+    return normalizeRoleKey(user.user_type);
 }
 
 function resolveUserLabel(user: User) {
-    if (user.roles && user.roles.length > 0) {
-        return normalizeRoleLabel(user.roles[0]);
-    }
-    if (user.user_type === 'admin') return 'Administrador';
-    if (user.user_type === 'psychologist') return 'Psicologo';
-    return 'Padre/Tutor';
+    return roleLabelFromKey(resolveUserRoleKey(user));
 }
 
 function validateUserForm(params: {
@@ -123,6 +135,9 @@ export default function Usuarios() {
     const [editForm, setEditForm] = useState<EditFormState | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
+    const [roleFilter, setRoleFilter] = useState<RoleFilter>('Todos');
 
     const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
     const showingTo = Math.min(page * pageSize, total);
@@ -136,6 +151,33 @@ export default function Usuarios() {
             })),
         [items]
     );
+
+    const filteredRows = useMemo(() => {
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+        return rows.filter((user) => {
+            const matchesSearch =
+                normalizedSearch.length === 0
+                    ? true
+                    : user.username.toLowerCase().includes(normalizedSearch) ||
+                      user.id.toLowerCase().includes(normalizedSearch);
+            const matchesStatus =
+                statusFilter === 'Todos' ||
+                (statusFilter === 'Activos' ? user.is_active : !user.is_active);
+            const userRoleKey = resolveUserRoleKey(user);
+            const matchesRole =
+                roleFilter === 'Todos' ||
+                (roleFilter === 'Admin' && userRoleKey === 'ADMIN') ||
+                (roleFilter === 'Psicologo' && userRoleKey === 'PSYCHOLOGIST') ||
+                (roleFilter === 'Padre/Tutor' && userRoleKey === 'GUARDIAN');
+            return matchesSearch && matchesStatus && matchesRole;
+        });
+    }, [rows, searchTerm, statusFilter, roleFilter]);
+
+    const hasActiveFilters = searchTerm.trim().length > 0 || statusFilter !== 'Todos' || roleFilter !== 'Todos';
+    const displayTotal = hasActiveFilters ? filteredRows.length : total;
+    const displayFrom = displayTotal === 0 ? 0 : hasActiveFilters ? 1 : showingFrom;
+    const displayTo = hasActiveFilters ? filteredRows.length : showingTo;
+    const nextDisabled = loading || showingTo >= total;
 
     const openCreateModal = () => {
         clearMessages();
@@ -268,30 +310,27 @@ export default function Usuarios() {
         }
     };
 
+    const clearFilters = () => {
+        setSearchTerm('');
+        setStatusFilter('Todos');
+        setRoleFilter('Todos');
+    };
+
     return (
         <div className="usuarios">
             <header className="usuarios-header">
                 <div className="usuarios-title">
-                    <span className="usuarios-title-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M7 13a4 4 0 1 1 4-4 4 4 0 0 1-4 4Zm10 0a3 3 0 1 1 3-3 3 3 0 0 1-3 3ZM2 20a6 6 0 0 1 12 0v1H2Zm13 1v-1a6 6 0 0 0-2-4.47 5 5 0 0 1 8 4.47v1Z" /></svg>
-                    </span>
                     <div>
                         <h1>Usuarios</h1>
                         <p>Gestiona cuentas registradas, roles y estados en la plataforma.</p>
                     </div>
                 </div>
                 <div className="usuarios-actions">
-                    <button type="button" className="usuarios-btn primary" aria-label="Crear usuario" onClick={openCreateModal}>
-                        <span aria-hidden="true">
+                    <button type="button" className="usuarios-btn primary usuarios-btn-create" aria-label="Crear nuevo usuario" onClick={openCreateModal}>
+                        <span className="usuarios-btn-create-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M11 4h2v6h6v2h-6v6h-2v-6H5v-2h6Z" /></svg>
                         </span>
-                        Nuevo
-                    </button>
-                    <button type="button" className="usuarios-btn secondary" aria-label="Exportar usuarios">
-                        <span aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M12 3v10m0 0 4-4m-4 4-4-4M5 19h14v2H5z" /></svg>
-                        </span>
-                        Exportar
+                        Crear nuevo usuario
                     </button>
                 </div>
             </header>
@@ -313,28 +352,47 @@ export default function Usuarios() {
                     <span className="usuarios-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
                     </span>
-                    <input type="search" placeholder="Buscar usuario..." aria-label="Buscar usuario" />
+                    <input
+                        type="search"
+                        placeholder="Buscar por ID o usuario..."
+                        aria-label="Buscar por ID o usuario"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                    />
                 </div>
                 <div className="usuarios-filters">
                     <label>
                         <span>Estado</span>
-                        <select aria-label="Estado" defaultValue="Todos">
-                            <option>Todos</option>
-                            <option>Activos</option>
-                            <option>Inactivos</option>
-                        </select>
+                        <span className="app-select-wrap">
+                            <select
+                                className="app-select"
+                                aria-label="Estado"
+                                value={statusFilter}
+                                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                            >
+                                <option>Todos</option>
+                                <option>Activos</option>
+                                <option>Inactivos</option>
+                            </select>
+                        </span>
                     </label>
                     <label>
                         <span>Rol</span>
-                        <select aria-label="Rol" defaultValue="Todos">
-                            <option>Todos</option>
-                            <option>Admin</option>
-                            <option>Psicologo</option>
-                            <option>Docente</option>
-                            <option>Padre/Tutor</option>
-                        </select>
+                        <span className="app-select-wrap">
+                            <select
+                                className="app-select"
+                                aria-label="Rol"
+                                value={roleFilter}
+                                onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+                            >
+                                <option>Todos</option>
+                                <option>Admin</option>
+                                <option>Psicologo</option>
+                                <option>Padre/Tutor</option>
+                            </select>
+                        </span>
                     </label>
-                    <button type="button" className="usuarios-btn ghost" aria-label="Limpiar filtros">
+                    <button type="button" className="usuarios-btn ghost" aria-label="Limpiar filtros" onClick={clearFilters}>
                         <span aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M6 6h12v2H6zm3 5h6v2H9zm-2 5h10v2H7z" /></svg>
                         </span>
@@ -345,9 +403,10 @@ export default function Usuarios() {
 
             <section className="usuarios-table" aria-label="Listado de usuarios">
                 <div className="usuarios-table-head">
+                    <span>ID</span>
                     <span>Usuario</span>
                     <span>Correo</span>
-                    <span>Tipo / Rol</span>
+                    <span>Rol</span>
                     <span>Estado</span>
                     <span>Creado</span>
                     <span>Acciones</span>
@@ -363,26 +422,33 @@ export default function Usuarios() {
                                 <span />
                                 <span />
                                 <span />
+                                <span />
                             </div>
                         ))}
                     </div>
                 ) : null}
 
-                {!loading && rows.length === 0 ? (
+                {!loading && filteredRows.length === 0 ? (
                     <div className="usuarios-empty" role="status">
                         <div className="usuarios-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" /></svg>
                         </div>
                         <h3>Sin usuarios</h3>
                         <p>No hay registros disponibles con los filtros actuales.</p>
-                        <button type="button" className="usuarios-btn primary" onClick={openCreateModal}>Nuevo</button>
+                        <button type="button" className="usuarios-btn primary usuarios-btn-create" onClick={openCreateModal}>
+                            <span className="usuarios-btn-create-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M11 4h2v6h6v2h-6v6h-2v-6H5v-2h6Z" /></svg>
+                            </span>
+                            Crear nuevo usuario
+                        </button>
                     </div>
                 ) : null}
 
-                {!loading && rows.length > 0 ? (
+                {!loading && filteredRows.length > 0 ? (
                     <div className="usuarios-table-body">
-                        {rows.map((user) => (
+                        {filteredRows.map((user) => (
                             <div key={user.id} className="usuarios-row">
+                                <div className="usuarios-cell id">{user.id}</div>
                                 <div className="usuarios-cell user">
                                     <div className="usuarios-name">{user.fullName}</div>
                                     <div className="usuarios-sub">{user.username}</div>
@@ -418,7 +484,7 @@ export default function Usuarios() {
 
             <footer className="usuarios-pagination" aria-label="Paginacion">
                 <div className="usuarios-pagination-info">
-                    Mostrando {showingFrom}-{showingTo} de {total}
+                    Mostrando {displayFrom}-{displayTo} de {displayTotal}
                 </div>
                 <div className="usuarios-pagination-controls">
                     <button
@@ -436,23 +502,26 @@ export default function Usuarios() {
                         className="icon-btn"
                         aria-label="Pagina siguiente"
                         onClick={() => void goToPage(page + 1)}
-                        disabled={loading || showingTo >= total}
+                        disabled={nextDisabled}
                     >
                         <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
                     </button>
                 </div>
                 <div className="usuarios-page-size">
                     <label>
-                        <span>Tamano</span>
-                        <select
-                            aria-label="Tamano de pagina"
-                            value={String(pageSize)}
-                            onChange={(event) => void changePageSize(Number(event.target.value))}
-                        >
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
+                        <span>Tamaño</span>
+                        <span className="app-select-wrap">
+                            <select
+                                className="app-select"
+                                aria-label="Tamaño de pagina"
+                                value={String(pageSize)}
+                                onChange={(event) => void changePageSize(Number(event.target.value))}
+                            >
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                        </span>
                     </label>
                 </div>
             </footer>
@@ -489,35 +558,41 @@ export default function Usuarios() {
                     </label>
                     <label>
                         <span>Tipo</span>
-                        <select
-                            value={createForm.user_type}
-                            onChange={(event) =>
-                                setCreateForm((prev) => ({
-                                    ...prev,
-                                    user_type: event.target.value as CreateFormState['user_type']
-                                }))
-                            }
-                        >
-                            <option value="guardian">Padre/Tutor</option>
-                            <option value="psychologist">Psicologo</option>
-                            <option value="admin">Administrador</option>
-                        </select>
+                        <span className="app-select-wrap">
+                            <select
+                                className="app-select"
+                                value={createForm.user_type}
+                                onChange={(event) =>
+                                    setCreateForm((prev) => ({
+                                        ...prev,
+                                        user_type: event.target.value as CreateFormState['user_type']
+                                    }))
+                                }
+                            >
+                                <option value="guardian">Padre/Tutor</option>
+                                <option value="psychologist">Psicologo</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </span>
                     </label>
                     <label>
                         <span>Rol</span>
-                        <select
-                            value={createForm.role}
-                            onChange={(event) =>
-                                setCreateForm((prev) => ({
-                                    ...prev,
-                                    role: event.target.value as CreateFormState['role']
-                                }))
-                            }
-                        >
-                            <option value="GUARDIAN">Padre/Tutor</option>
-                            <option value="PSYCHOLOGIST">Psicologo</option>
-                            <option value="ADMIN">Administrador</option>
-                        </select>
+                        <span className="app-select-wrap">
+                            <select
+                                className="app-select"
+                                value={createForm.role}
+                                onChange={(event) =>
+                                    setCreateForm((prev) => ({
+                                        ...prev,
+                                        role: event.target.value as CreateFormState['role']
+                                    }))
+                                }
+                            >
+                                <option value="GUARDIAN">Padre/Tutor</option>
+                                <option value="PSYCHOLOGIST">Psicologo</option>
+                                <option value="ADMIN">Administrador</option>
+                            </select>
+                        </span>
                     </label>
                     <label>
                         <span>Nombre completo</span>
@@ -575,43 +650,49 @@ export default function Usuarios() {
                             </label>
                             <label>
                                 <span>Tipo</span>
-                                <select
-                                    value={editForm.user_type}
-                                    onChange={(event) =>
-                                        setEditForm((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      user_type: event.target.value as EditFormState['user_type']
-                                                  }
-                                                : prev
-                                        )
-                                    }
-                                >
-                                    <option value="guardian">Padre/Tutor</option>
-                                    <option value="psychologist">Psicologo</option>
-                                    <option value="teacher">Docente</option>
-                                </select>
+                                <span className="app-select-wrap">
+                                    <select
+                                        className="app-select"
+                                        value={editForm.user_type}
+                                        onChange={(event) =>
+                                            setEditForm((prev) =>
+                                                prev
+                                                    ? {
+                                                          ...prev,
+                                                          user_type: event.target.value as EditFormState['user_type']
+                                                      }
+                                                    : prev
+                                            )
+                                        }
+                                    >
+                                        <option value="guardian">Padre/Tutor</option>
+                                        <option value="psychologist">Psicologo</option>
+                                        <option value="teacher">Docente</option>
+                                    </select>
+                                </span>
                             </label>
                             <label>
                                 <span>Rol</span>
-                                <select
-                                    value={editForm.role}
-                                    onChange={(event) =>
-                                        setEditForm((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      role: event.target.value as EditFormState['role']
-                                                  }
-                                                : prev
-                                        )
-                                    }
-                                >
-                                    <option value="GUARDIAN">Padre/Tutor</option>
-                                    <option value="PSYCHOLOGIST">Psicologo</option>
-                                    <option value="ADMIN">Administrador</option>
-                                </select>
+                                <span className="app-select-wrap">
+                                    <select
+                                        className="app-select"
+                                        value={editForm.role}
+                                        onChange={(event) =>
+                                            setEditForm((prev) =>
+                                                prev
+                                                    ? {
+                                                          ...prev,
+                                                          role: event.target.value as EditFormState['role']
+                                                      }
+                                                    : prev
+                                            )
+                                        }
+                                    >
+                                        <option value="GUARDIAN">Padre/Tutor</option>
+                                        <option value="PSYCHOLOGIST">Psicologo</option>
+                                        <option value="ADMIN">Administrador</option>
+                                    </select>
+                                </span>
                             </label>
                             <label>
                                 <span>Nombre completo</span>
