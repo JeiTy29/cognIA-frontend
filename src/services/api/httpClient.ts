@@ -123,3 +123,54 @@ export async function apiPost<T, B = unknown>(
 
     return response.json() as Promise<T>;
 }
+
+export async function apiPut<T, B = unknown>(
+    path: string,
+    body: B,
+    options?: ApiRequestOptions
+): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'PUT',
+        headers: buildHeaders(options, true),
+        body: JSON.stringify(body),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiPut<T, B>(path, body, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return response.json() as Promise<T>;
+}
+
+export async function apiDelete<T>(
+    path: string,
+    options?: ApiRequestOptions
+): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'DELETE',
+        headers: buildHeaders(options, false),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiDelete<T>(path, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    const payload = await parseJsonSafe(response);
+    return (payload ?? {}) as T;
+}
