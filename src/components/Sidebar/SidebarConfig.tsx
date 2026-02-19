@@ -47,6 +47,12 @@ const IconMetrics = (
     </svg>
 );
 
+const IconUsers = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 12a4 4 0 1 1 4-4 4 4 0 0 1-4 4Zm8 0a3 3 0 1 1 3-3 3 3 0 0 1-3 3ZM4 20a6 6 0 0 1 12 0v1H4Zm12 1v-1a6 6 0 0 0-2-4.47 5 5 0 0 1 8 4.47v1Z" />
+    </svg>
+);
+
 export const sidebarItems: SidebarItem[] = [
     {
         id: 'cuestionario',
@@ -108,6 +114,15 @@ const adminItems: SidebarItem[] = devAuthBypassEnabled
               roles: ['admin'],
               paths: {
                   admin: '/admin/metricas'
+              }
+          },
+          {
+              id: 'usuarios',
+              label: 'Usuarios',
+              icon: IconUsers,
+              roles: ['admin'],
+              paths: {
+                  admin: '/admin/usuarios'
               }
           },
           {
