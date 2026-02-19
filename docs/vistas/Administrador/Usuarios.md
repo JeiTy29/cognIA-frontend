@@ -92,6 +92,9 @@
 - Se retiro el boton de `Ver` (ojo) para evitar duplicidad con `Editar`.
 - Los botones de accion muestran tooltip: `Editar usuario` y `Borrar usuario`.
 - En la columna `ID`, al pasar el mouse se habilita boton para copiar al portapapeles con tooltip.
+- El boton de copiar ID aparece a la izquierda del identificador al hacer hover.
+- Se corrigio el estado visual para que el ID vuelva a su posicion normal al salir del hover.
+- Se mejoro el control de paginacion: flechas mas grandes y alineadas con el texto de pagina.
 
 ## Select global reutilizable
 - Se utiliza el componente global `CustomSelect` con el mismo estilo visual de Soporte (selector de tipo de problema).
@@ -99,3 +102,4 @@
   - `src/components/CustomSelect/CustomSelect.tsx`
   - `src/components/CustomSelect/CustomSelect.css`
 - Este selector se aplica en filtros, modales y selector de tamaño de pagina.
+- El menu desplegable abre en flujo de documento para evitar cortes de fondo al hacer scroll en vistas admin.

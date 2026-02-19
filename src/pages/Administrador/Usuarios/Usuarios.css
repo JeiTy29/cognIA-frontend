@@ -232,6 +232,7 @@
     min-height: 30px;
     display: flex;
     align-items: center;
+    padding-left: 0;
 }
 
 .usuarios-id-value {
@@ -247,22 +248,24 @@
     position: absolute;
     left: 0;
     top: 50%;
-    transform: translate(-8px, -50%);
+    transform: translateY(-50%);
     opacity: 0;
     pointer-events: none;
     background: #eaf4fc;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.usuarios-id-wrap:hover .usuarios-id-value,
-.usuarios-id-wrap:focus-within .usuarios-id-value {
-    transform: translateX(26px);
+.usuarios-id-wrap:hover .usuarios-id-value {
+    transform: translateX(32px);
 }
 
-.usuarios-id-wrap:hover .usuarios-id-copy,
-.usuarios-id-wrap:focus-within .usuarios-id-copy {
+.usuarios-id-wrap:hover .usuarios-id-copy {
     opacity: 1;
     pointer-events: auto;
-    transform: translate(0, -50%);
 }
 
 .usuarios-cell.status {
@@ -390,6 +393,30 @@
     padding: 18px 0 0;
     font-size: 13px;
     color: #526476;
+}
+
+.usuarios-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.usuarios-page-nav-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    background: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.usuarios-page-nav-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
 }
 
 .usuarios-modal {
