@@ -1,6 +1,6 @@
 ﻿import { useMemo } from 'react';
 import './Metricas.css';
-import { useMetrics } from '../hooks/useMetrics';
+import { useMetrics } from '../../../hooks/metrics/useMetrics';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
 function formatUptime(seconds: number) {

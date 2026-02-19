@@ -19,6 +19,7 @@ import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import Metricas from './pages/Administrador/Metricas/Metricas';
+import Usuarios from './pages/Administrador/Usuarios/Usuarios';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
@@ -87,6 +88,7 @@ export default function App() {
                         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
                             <Route index element={<Navigate to="/admin/metricas" replace />} />
                             <Route path="metricas" element={<Metricas />} />
+                            <Route path="usuarios" element={<Usuarios />} />
                             <Route path="cuenta" element={<MiCuenta />} />
                         </Route>
                     </Route>
