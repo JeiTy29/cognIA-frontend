@@ -1,5 +1,4 @@
 ﻿import type { ReactNode } from 'react';
-import { devAuthBypassEnabled } from '../../utils/auth/devBypass';
 
 export type Role = 'padre' | 'psicologo' | 'admin';
 
@@ -105,37 +104,35 @@ export const sidebarItems: SidebarItem[] = [
     }
 ];
 
-const adminItems: SidebarItem[] = devAuthBypassEnabled
-    ? [
-          {
-              id: 'metricas',
-              label: 'Métricas',
-              icon: IconMetrics,
-              roles: ['admin'],
-              paths: {
-                  admin: '/admin/metricas'
-              }
-          },
-          {
-              id: 'usuarios',
-              label: 'Usuarios',
-              icon: IconUsers,
-              roles: ['admin'],
-              paths: {
-                  admin: '/admin/usuarios'
-              }
-          },
-          {
-              id: 'cuenta-admin',
-              label: 'Cuenta',
-              icon: IconUser,
-              roles: ['admin'],
-              paths: {
-                  admin: '/admin/cuenta'
-              }
-          }
-      ]
-    : [];
+const adminItems: SidebarItem[] = [
+    {
+        id: 'metricas',
+        label: 'Métricas',
+        icon: IconMetrics,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/metricas'
+        }
+    },
+    {
+        id: 'usuarios',
+        label: 'Usuarios',
+        icon: IconUsers,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/usuarios'
+        }
+    },
+    {
+        id: 'cuenta-admin',
+        label: 'Cuenta',
+        icon: IconUser,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/cuenta'
+        }
+    }
+];
 
 export function getItemsForRole(role: Role) {
     const source = role === 'admin' ? adminItems : sidebarItems;
