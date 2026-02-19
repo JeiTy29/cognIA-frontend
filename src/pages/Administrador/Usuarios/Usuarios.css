@@ -13,26 +13,7 @@
 }
 
 .usuarios-title {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-}
-
-.usuarios-title-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: rgba(23, 144, 233, 0.12);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #1790E9;
-}
-
-.usuarios-title-icon svg {
-    width: 22px;
-    height: 22px;
-    fill: currentColor;
+    display: block;
 }
 
 .usuarios-title h1 {
@@ -55,11 +36,12 @@
 .usuarios-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 10px;
     border-radius: 10px;
     font-weight: 600;
     border: 1px solid transparent;
-    padding: 10px 16px;
+    padding: 11px 18px;
     font-size: 13px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -85,6 +67,26 @@
     width: 16px;
     height: 16px;
     fill: currentColor;
+}
+
+.usuarios-btn-create {
+    min-height: 44px;
+    padding-inline: 18px 20px;
+}
+
+.usuarios-btn-create-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.usuarios-btn-create-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .usuarios-divider {
@@ -163,13 +165,8 @@
     color: #526476;
 }
 
-.usuarios-filters select {
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(11, 37, 64, 0.16);
-    background: #ffffff;
-    font-size: 13px;
-    color: #0b2540;
+.usuarios-filters .app-select-wrap {
+    min-width: 166px;
 }
 
 .usuarios-table {
@@ -178,7 +175,7 @@
 
 .usuarios-table-head {
     display: grid;
-    grid-template-columns: 2.2fr 1.6fr 1.6fr 1fr 1fr 0.8fr;
+    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 0.9fr;
     gap: 16px;
     padding: 12px 0;
     font-size: 12px;
@@ -195,7 +192,7 @@
 
 .usuarios-row {
     display: grid;
-    grid-template-columns: 2.2fr 1.6fr 1.6fr 1fr 1fr 0.8fr;
+    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 0.9fr;
     gap: 16px;
     padding: 14px 0;
     border-bottom: 1px solid rgba(11, 37, 64, 0.06);
@@ -221,6 +218,15 @@
 
 .usuarios-type {
     font-weight: 600;
+}
+
+.usuarios-cell.id {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: #526476;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .usuarios-cell.status {
@@ -272,7 +278,7 @@
 
 .usuarios-skeleton-row {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 16px;
 }
 
@@ -346,13 +352,16 @@
     color: #526476;
 }
 
-.usuarios-modal input,
-.usuarios-modal select {
+.usuarios-modal input {
     padding: 9px 10px;
     border: 1px solid rgba(11, 37, 64, 0.16);
     border-radius: 10px;
     font-size: 13px;
     color: #0b2540;
+}
+
+.usuarios-modal .app-select-wrap {
+    width: 100%;
 }
 
 .usuarios-modal-loading {
@@ -385,11 +394,8 @@
     gap: 8px;
 }
 
-.usuarios-page-size select {
-    border-radius: 8px;
-    border: 1px solid rgba(11, 37, 64, 0.16);
-    padding: 6px 8px;
-    font-size: 12px;
+.usuarios-page-size .app-select-wrap {
+    min-width: 92px;
 }
 
 @keyframes shimmer {
@@ -400,7 +406,7 @@
 @media (max-width: 1024px) {
     .usuarios-table-head,
     .usuarios-row {
-        grid-template-columns: 2fr 1.4fr 1.4fr 0.9fr 0.9fr 0.8fr;
+        grid-template-columns: 1.3fr 1.3fr 1.4fr 1.2fr 0.9fr 0.9fr 0.9fr;
     }
 }
 
@@ -420,7 +426,7 @@
 
     .usuarios-table-head,
     .usuarios-row {
-        min-width: 760px;
+        min-width: 980px;
     }
 
     .usuarios-pagination {
