@@ -87,6 +87,16 @@ export interface MFADisableResponse {
     msg: string;
 }
 
+export interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
+}
+
+export interface ChangePasswordResponse {
+    msg: 'ok' | string;
+}
+
 export interface LogoutResponse {
     message: string;
 }

@@ -121,3 +121,52 @@ Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
 - Los campos de contrasena (incluyendo los que tienen boton de visibilidad) ocupan el mismo ancho que el resto de inputs para mantener alineacion.
 - El bloque **Requisitos de contrasena** ahora se muestra en blanco sin negrita para mejorar contraste sobre el fondo.
 - Los botones **Cancelar** dentro de los paneles de cambio (correo/contrasena) usan fondo blanco para diferenciarse claramente de la tarjeta.
+
+## Cambio de contrasena (integrado con API)
+
+### Requisito de autenticacion
+- La accion solo se permite con sesion activa (`isAuthenticated = true`).
+- Si no hay sesion valida al enviar, se bloquea el envio y se muestra: `Debes iniciar sesion.`
+
+### Endpoint
+- `POST /api/auth/password/change`
+
+Request body:
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "string",
+  "confirmNewPassword": "string"
+}
+```
+
+Response de exito:
+```json
+{ "msg": "ok" }
+```
+
+### Validaciones frontend
+- Ningun campo puede estar vacio.
+- `newPassword` y `confirmNewPassword` deben coincidir.
+- `newPassword` debe ser diferente de `currentPassword`.
+- Se reutiliza `validatePassword` del proyecto para reglas de seguridad.
+- Los errores se muestran inline por campo y error general en el bloque cuando aplica.
+
+### Mapeo de errores por status
+- `400`: `Datos invalidos. Verifica la contrasena actual y la nueva contrasena.`
+- `401`: `Sesion expirada o no autenticado. Inicia sesion nuevamente.`
+- `403`: `No tienes permisos para realizar esta accion.`
+- `429`: `Demasiados intentos. Espera un momento e intentalo de nuevo.`
+- Otro: `Ocurrio un error inesperado. Intenta mas tarde.`
+
+Notas:
+- En `400` se resalta el campo de contrasena actual y se muestra sugerencia de revision.
+- En `429` no se limpian campos.
+- En `200` se limpian campos y validaciones, y se muestra `Contrasena actualizada`.
+
+### Flujo
+1. Usuario completa formulario.
+2. Front valida campos.
+3. Si valida, envia al endpoint con `httpClient` y `Authorization: Bearer`.
+4. Si responde `200`, muestra exito y limpia el formulario.
+5. Si responde error, muestra mensaje mapeado por status.

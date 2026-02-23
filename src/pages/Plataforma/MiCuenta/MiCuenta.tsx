@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
-import { logout, mfaDisable } from '../../../services/auth/auth.api';
+import { changePassword, logout, mfaDisable } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 import { Modal } from '../../../components/Modal/Modal';
@@ -25,7 +25,7 @@ const passwordRules = [
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile } = useAuth();
+    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
     const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
     const [nuevoCorreo, setNuevoCorreo] = useState('');
     const [confirmarCorreo, setConfirmarCorreo] = useState('');
@@ -39,6 +39,10 @@ export default function MiCuenta() {
     const [mostrarNueva, setMostrarNueva] = useState(false);
     const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
     const [passwordSaved, setPasswordSaved] = useState(false);
+    const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+    const [passwordSubmitAttempted, setPasswordSubmitAttempted] = useState(false);
+    const [passwordGeneralError, setPasswordGeneralError] = useState('');
+    const [highlightCurrentPassword, setHighlightCurrentPassword] = useState(false);
     const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
     const [logoutError, setLogoutError] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
@@ -86,6 +90,9 @@ export default function MiCuenta() {
         }
         if (openPanel !== 'contrasena') {
             setPasswordSaved(false);
+            setPasswordSubmitAttempted(false);
+            setPasswordGeneralError('');
+            setHighlightCurrentPassword(false);
         }
     }, [openPanel]);
 
@@ -113,26 +120,38 @@ export default function MiCuenta() {
         passwordCorreo.trim().length > 0;
 
     const nuevaContrasenaError = useMemo(() => {
-        if (!nuevaContrasena) return '';
-        return validatePassword(nuevaContrasena);
-    }, [nuevaContrasena]);
-
-    const confirmarContrasenaError = useMemo(() => {
-        if (!confirmarNueva) return '';
-        return nuevaContrasena === confirmarNueva ? '' : 'Las contraseñas no coinciden.';
-    }, [nuevaContrasena, confirmarNueva]);
-
-    const contrasenaActualError = useMemo(() => {
-        if (!contrasenaActual && (nuevaContrasena || confirmarNueva)) {
-            return 'Ingresa tu contraseña actual.';
+        if (!nuevaContrasena) {
+            return passwordSubmitAttempted ? 'Ingresa una nueva contraseña.' : '';
+        }
+        const validationError = validatePassword(nuevaContrasena);
+        if (validationError) return validationError;
+        if (contrasenaActual && nuevaContrasena === contrasenaActual) {
+            return 'La nueva contraseña debe ser diferente de la actual.';
         }
         return '';
-    }, [contrasenaActual, nuevaContrasena, confirmarNueva]);
+    }, [nuevaContrasena, contrasenaActual, passwordSubmitAttempted]);
+
+    const confirmarContrasenaError = useMemo(() => {
+        if (!confirmarNueva) {
+            return passwordSubmitAttempted ? 'Confirma la nueva contraseña.' : '';
+        }
+        return nuevaContrasena === confirmarNueva ? '' : 'Las contraseñas no coinciden.';
+    }, [nuevaContrasena, confirmarNueva, passwordSubmitAttempted]);
+
+    const contrasenaActualError = useMemo(() => {
+        if (!contrasenaActual) {
+            return passwordSubmitAttempted ? 'Ingresa tu contraseña actual.' : '';
+        }
+        return '';
+    }, [contrasenaActual, passwordSubmitAttempted]);
 
     const canSavePassword =
+        isAuthenticated &&
+        !passwordSubmitting &&
         !!contrasenaActual &&
         !!nuevaContrasena &&
         !!confirmarNueva &&
+        !contrasenaActualError &&
         !nuevaContrasenaError &&
         !confirmarContrasenaError &&
         nuevaContrasena === confirmarNueva;
@@ -149,8 +168,63 @@ export default function MiCuenta() {
 
     const handlePasswordSubmit = (event: FormEvent) => {
         event.preventDefault();
+        setPasswordSubmitAttempted(true);
+        setPasswordSaved(false);
+        setPasswordGeneralError('');
+        setHighlightCurrentPassword(false);
+
+        if (!isAuthenticated) {
+            setPasswordGeneralError('Debes iniciar sesión.');
+            return;
+        }
+
         if (!canSavePassword) return;
-        setPasswordSaved(true);
+
+        setPasswordSubmitting(true);
+        void changePassword({
+            currentPassword: contrasenaActual,
+            newPassword: nuevaContrasena,
+            confirmNewPassword: confirmarNueva
+        })
+            .then(() => {
+                setPasswordSaved(true);
+                setContrasenaActual('');
+                setNuevaContrasena('');
+                setConfirmarNueva('');
+                setPasswordSubmitAttempted(false);
+                setMostrarActual(false);
+                setMostrarNueva(false);
+                setMostrarConfirmar(false);
+            })
+            .catch((error: unknown) => {
+                if (error instanceof ApiError) {
+                    if (error.status === 400) {
+                        setHighlightCurrentPassword(true);
+                        setPasswordGeneralError('Datos inválidos. Verifica la contraseña actual y la nueva contraseña.');
+                        return;
+                    }
+                    if (error.status === 401) {
+                        clearSession('expired');
+                        navigate('/inicio-sesion', {
+                            replace: true,
+                            state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
+                        });
+                        return;
+                    }
+                    if (error.status === 403) {
+                        setPasswordGeneralError('No tienes permisos para realizar esta acción.');
+                        return;
+                    }
+                    if (error.status === 429) {
+                        setPasswordGeneralError('Demasiados intentos. Espera un momento e inténtalo de nuevo.');
+                        return;
+                    }
+                }
+                setPasswordGeneralError('Ocurrió un error inesperado. Intenta más tarde.');
+            })
+            .finally(() => {
+                setPasswordSubmitting(false);
+            });
     };
 
     const handleLogout = async () => {
@@ -329,21 +403,31 @@ export default function MiCuenta() {
                     >
                         <div className="mi-cuenta-panel-inner">
                             <form className="mi-cuenta-form" onSubmit={handlePasswordSubmit}>
+                                {!isAuthenticated && (
+                                    <div className="mi-cuenta-error">Debes iniciar sesión.</div>
+                                )}
+                                {passwordGeneralError && (
+                                    <div className="mi-cuenta-error">{passwordGeneralError}</div>
+                                )}
                                 <label className="mi-cuenta-input-group">
                                     <span className="mi-cuenta-input-label">Contraseña actual</span>
                                     <div className="mi-cuenta-input-wrapper">
                                         <input
-                                            className="mi-cuenta-input"
+                                            className={`mi-cuenta-input ${highlightCurrentPassword ? 'is-invalid' : ''}`}
                                             type={mostrarActual ? 'text' : 'password'}
                                             value={contrasenaActual}
+                                            disabled={passwordSubmitting}
                                             onChange={(event) => {
                                                 setContrasenaActual(event.target.value);
                                                 setPasswordSaved(false);
+                                                setPasswordGeneralError('');
+                                                setHighlightCurrentPassword(false);
                                             }}
                                         />
                                         <button
                                             type="button"
                                             className="mi-cuenta-toggle-visibility"
+                                            disabled={passwordSubmitting}
                                             onClick={() => setMostrarActual((prev) => !prev)}
                                             aria-label={mostrarActual ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
                                         >
@@ -351,6 +435,9 @@ export default function MiCuenta() {
                                         </button>
                                     </div>
                                     {contrasenaActualError && <span className="mi-cuenta-error">{contrasenaActualError}</span>}
+                                    {highlightCurrentPassword && (
+                                        <span className="mi-cuenta-error">Revisa la contraseña actual antes de intentar nuevamente.</span>
+                                    )}
                                 </label>
                                 <label className="mi-cuenta-input-group">
                                     <span className="mi-cuenta-input-label">Nueva contraseña</span>
@@ -359,14 +446,17 @@ export default function MiCuenta() {
                                             className="mi-cuenta-input"
                                             type={mostrarNueva ? 'text' : 'password'}
                                             value={nuevaContrasena}
+                                            disabled={passwordSubmitting}
                                             onChange={(event) => {
                                                 setNuevaContrasena(event.target.value);
                                                 setPasswordSaved(false);
+                                                setPasswordGeneralError('');
                                             }}
                                         />
                                         <button
                                             type="button"
                                             className="mi-cuenta-toggle-visibility"
+                                            disabled={passwordSubmitting}
                                             onClick={() => setMostrarNueva((prev) => !prev)}
                                             aria-label={mostrarNueva ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
                                         >
@@ -398,14 +488,17 @@ export default function MiCuenta() {
                                             className="mi-cuenta-input"
                                             type={mostrarConfirmar ? 'text' : 'password'}
                                             value={confirmarNueva}
+                                            disabled={passwordSubmitting}
                                             onChange={(event) => {
                                                 setConfirmarNueva(event.target.value);
                                                 setPasswordSaved(false);
+                                                setPasswordGeneralError('');
                                             }}
                                         />
                                         <button
                                             type="button"
                                             className="mi-cuenta-toggle-visibility"
+                                            disabled={passwordSubmitting}
                                             onClick={() => setMostrarConfirmar((prev) => !prev)}
                                             aria-label={mostrarConfirmar ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
                                         >
@@ -416,13 +509,14 @@ export default function MiCuenta() {
                                 </label>
 
                                 {passwordSaved && (
-                                    <div className="mi-cuenta-success">Cambios guardados correctamente.</div>
+                                    <div className="mi-cuenta-success">Contraseña actualizada.</div>
                                 )}
 
                                 <div className="mi-cuenta-actions">
                                     <button
                                         type="button"
                                         className="mi-cuenta-btn ghost"
+                                        disabled={passwordSubmitting}
                                         onClick={() => setOpenPanel(null)}
                                     >
                                         Cancelar
@@ -432,7 +526,7 @@ export default function MiCuenta() {
                                         className="mi-cuenta-btn primary"
                                         disabled={!canSavePassword}
                                     >
-                                        Guardar cambios
+                                        {passwordSubmitting ? 'Actualizando...' : 'Actualizar contraseña'}
                                     </button>
                                 </div>
                             </form>

@@ -215,6 +215,11 @@
     box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.12);
 }
 
+.mi-cuenta-input.is-invalid {
+    border-color: #c0392b;
+    box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.12);
+}
+
 .mi-cuenta-input.is-readonly {
     background: #f4f8fb;
     color: #687386;
