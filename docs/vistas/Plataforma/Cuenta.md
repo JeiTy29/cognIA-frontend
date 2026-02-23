@@ -114,3 +114,10 @@ Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
 - Vista compartida (ambos roles): `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
 - Estilos de la vista: `src/pages/Plataforma/MiCuenta/MiCuenta.css`
 - Validación de contraseña: `src/utils/passwordValidation.ts`
+
+## Ajustes visuales recientes en Seguridad
+
+- En los formularios de **Cambiar correo** y **Cambiar contrasena**, los textos sobre los campos ahora usan color blanco con mayor peso visual.
+- Los campos de contrasena (incluyendo los que tienen boton de visibilidad) ocupan el mismo ancho que el resto de inputs para mantener alineacion.
+- El bloque **Requisitos de contrasena** ahora se muestra en blanco sin negrita para mejorar contraste sobre el fondo.
+- Los botones **Cancelar** dentro de los paneles de cambio (correo/contrasena) usan fondo blanco para diferenciarse claramente de la tarjeta.

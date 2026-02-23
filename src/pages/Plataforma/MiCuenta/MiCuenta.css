@@ -185,6 +185,11 @@
     color: #5b677a;
 }
 
+.mi-cuenta-panel .mi-cuenta-input-label {
+    color: #ffffff;
+    font-weight: 700;
+}
+
 .mi-cuenta-input {
     border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.2);
@@ -193,6 +198,15 @@
     color: #1f2a37;
     background: #ffffff;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mi-cuenta-panel .mi-cuenta-input-wrapper,
+.mi-cuenta-panel .mi-cuenta-input {
+    width: 100%;
+}
+
+.mi-cuenta-panel .mi-cuenta-input {
+    padding-right: 46px;
 }
 
 .mi-cuenta-input:focus {
@@ -318,6 +332,17 @@
     border-color: rgba(33, 95, 143, 0.4);
 }
 
+.mi-cuenta-panel .mi-cuenta-actions .mi-cuenta-btn.ghost {
+    background: #ffffff;
+    color: #215F8F;
+    border-color: rgba(33, 95, 143, 0.25);
+}
+
+.mi-cuenta-panel .mi-cuenta-actions .mi-cuenta-btn.ghost:hover {
+    border-color: rgba(33, 95, 143, 0.4);
+    box-shadow: 0 6px 14px rgba(33, 95, 143, 0.16);
+}
+
 .mi-cuenta-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -384,6 +409,25 @@
     background: #1790E9;
     color: #ffffff;
     box-shadow: 0 6px 14px rgba(23, 144, 233, 0.2);
+}
+
+.mi-cuenta-panel .password-checklist-title {
+    color: #ffffff;
+    font-weight: 400;
+}
+
+.mi-cuenta-panel .password-check {
+    color: #ffffff;
+    font-weight: 400;
+}
+
+.mi-cuenta-panel .password-check.is-valid {
+    color: #ffffff;
+}
+
+.mi-cuenta-panel .password-check.is-valid .password-check-indicator {
+    background: rgba(31, 143, 78, 0.28);
+    border-color: #ffffff;
 }
 
 @media (max-width: 900px) {
