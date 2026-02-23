@@ -10,6 +10,8 @@ import type {
     MFAConfirmResponse,
     MFADisableRequest,
     MFADisableResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
     LogoutResponse,
     LogoutErrorResponse,
     RegisterPayload,
@@ -83,6 +85,13 @@ export function mfaDisable(accessToken: string, payload: MFADisableRequest): Pro
         headers: {
             ...(authorization ? { Authorization: authorization } : {})
         }
+    });
+}
+
+export function changePassword(payload: ChangePasswordRequest): Promise<ChangePasswordResponse> {
+    return apiPost<ChangePasswordResponse, ChangePasswordRequest>('/api/auth/password/change', payload, {
+        auth: true,
+        credentials: 'include'
     });
 }
 
