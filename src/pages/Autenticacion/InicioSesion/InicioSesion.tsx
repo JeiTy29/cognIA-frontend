@@ -1,12 +1,13 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
-import { login } from '../../../services/auth/auth.api';
+import { login, requestPasswordReset } from '../../../services/auth/auth.api';
 import { consumeAuthNotice } from '../../../context/authNotice';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { Modal } from '../../../components/Modal/Modal';
+import { ApiError } from '../../../services/api/httpClient';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,6 +22,8 @@ export default function InicioSesion() {
     const [forgotEmail, setForgotEmail] = useState('');
     const [forgotError, setForgotError] = useState('');
     const [forgotSuccess, setForgotSuccess] = useState(false);
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotGeneralError, setForgotGeneralError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated, roles, setSession, devAuthActive } = useAuth();
@@ -31,7 +34,13 @@ export default function InicioSesion() {
         if (storedNotice === 'expired') {
             setInfoMessage('Tu sesión ha expirado. Inicia sesión nuevamente.');
         }
-        const state = location.state as { reason?: string; mfaConfigured?: boolean; message?: string } | null;
+        const state = location.state as {
+            reason?: string;
+            mfaConfigured?: boolean;
+            message?: string;
+            openForgot?: boolean;
+            forgotEmail?: string;
+        } | null;
         if (state?.reason === 'unauthenticated') {
             setInfoMessage('Debes iniciar sesión para acceder a la plataforma.');
         }
@@ -44,7 +53,21 @@ export default function InicioSesion() {
         if (state?.mfaConfigured) {
             setInfoMessage('MFA configurado. Inicia sesión para continuar.');
         }
-    }, [location.state]);
+        const searchParams = new URLSearchParams(location.search);
+        const resetStatus = searchParams.get('reset');
+        if (resetStatus === 'missing') {
+            setInfoMessage('Acceso inválido: falta el token de restablecimiento.');
+        } else if (resetStatus === 'invalid' || resetStatus === 'expired') {
+            setInfoMessage('El enlace de restablecimiento es inválido o ha expirado.');
+        }
+        if (state?.openForgot) {
+            setShowForgotModal(true);
+            setForgotSuccess(false);
+            setForgotError('');
+            setForgotGeneralError('');
+            setForgotEmail(state.forgotEmail ?? '');
+        }
+    }, [location.search, location.state]);
 
     if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
@@ -54,6 +77,8 @@ export default function InicioSesion() {
         setForgotEmail('');
         setForgotError('');
         setForgotSuccess(false);
+        setForgotLoading(false);
+        setForgotGeneralError('');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -111,13 +136,26 @@ export default function InicioSesion() {
         }
     };
 
-    const handleForgotSubmit = () => {
+    const handleForgotSubmit = async () => {
         setForgotError('');
+        setForgotGeneralError('');
         if (!emailPattern.test(forgotEmail)) {
             setForgotError('Ingresa un correo válido.');
             return;
         }
-        setForgotSuccess(true);
+        setForgotLoading(true);
+        try {
+            await requestPasswordReset(forgotEmail.trim());
+            setForgotSuccess(true);
+        } catch (error) {
+            if (error instanceof ApiError && error.status === 429) {
+                setForgotGeneralError('Demasiados intentos. Espera un momento e inténtalo de nuevo.');
+            } else {
+                setForgotGeneralError('No se pudo procesar la solicitud. Intenta más tarde.');
+            }
+        } finally {
+            setForgotLoading(false);
+        }
     };
 
     const handleForgotClose = () => {
@@ -128,7 +166,6 @@ export default function InicioSesion() {
     const handleForgotConfirm = () => {
         setShowForgotModal(false);
         resetForgotState();
-        navigate('/restablecer-contrasena');
     };
 
     return (
@@ -232,10 +269,10 @@ export default function InicioSesion() {
                     {forgotSuccess ? (
                         <>
                             <p className="auth-modal-text">
-                                Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.
+                                Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.
                             </p>
                             <button type="button" className="btn-primary" onClick={handleForgotConfirm}>
-                                Entendido
+                                Volver a iniciar sesión
                             </button>
                         </>
                     ) : (
@@ -249,19 +286,22 @@ export default function InicioSesion() {
                                     className="form-input"
                                     placeholder="correo@ejemplo.com"
                                     value={forgotEmail}
+                                    disabled={forgotLoading}
                                     onChange={(event) => {
                                         setForgotEmail(event.target.value);
                                         setForgotError('');
+                                        setForgotGeneralError('');
                                     }}
                                 />
                                 {forgotError ? <div className="validation-error">{forgotError}</div> : null}
+                                {forgotGeneralError ? <div className="validation-error">{forgotGeneralError}</div> : null}
                             </div>
                             <div className="auth-modal-actions">
-                                <button type="button" className="btn-secondary" onClick={handleForgotClose}>
+                                <button type="button" className="btn-secondary" onClick={handleForgotClose} disabled={forgotLoading}>
                                     Cancelar
                                 </button>
-                                <button type="button" className="btn-primary" onClick={handleForgotSubmit}>
-                                    Enviar
+                                <button type="button" className="btn-primary" onClick={() => void handleForgotSubmit()} disabled={forgotLoading}>
+                                    {forgotLoading ? 'Enviando...' : 'Enviar instrucciones'}
                                 </button>
                             </div>
                         </>
