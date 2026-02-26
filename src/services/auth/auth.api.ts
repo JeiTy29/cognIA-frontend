@@ -12,6 +12,11 @@ import type {
     MFADisableResponse,
     ChangePasswordRequest,
     ChangePasswordResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    VerifyResetTokenResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     LogoutResponse,
     LogoutErrorResponse,
     RegisterPayload,
@@ -91,6 +96,26 @@ export function mfaDisable(accessToken: string, payload: MFADisableRequest): Pro
 export function changePassword(payload: ChangePasswordRequest): Promise<ChangePasswordResponse> {
     return apiPost<ChangePasswordResponse, ChangePasswordRequest>('/api/auth/password/change', payload, {
         auth: true,
+        credentials: 'include'
+    });
+}
+
+export function requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
+    const payload: ForgotPasswordRequest = { email };
+    return apiPost<ForgotPasswordResponse, ForgotPasswordRequest>('/api/auth/password/forgot', payload, {
+        credentials: 'include'
+    });
+}
+
+export function verifyResetToken(token: string): Promise<VerifyResetTokenResponse> {
+    const encodedToken = encodeURIComponent(token);
+    return apiGet<VerifyResetTokenResponse>(`/api/auth/password/reset/verify?token=${encodedToken}`, {
+        credentials: 'include'
+    });
+}
+
+export function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+    return apiPost<ResetPasswordResponse, ResetPasswordRequest>('/api/auth/password/reset', payload, {
         credentials: 'include'
     });
 }
