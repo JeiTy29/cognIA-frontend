@@ -97,6 +97,28 @@ export interface ChangePasswordResponse {
     msg: 'ok' | string;
 }
 
+export interface ForgotPasswordRequest {
+    email: string;
+}
+
+export interface ForgotPasswordResponse {
+    msg: 'ok' | string;
+}
+
+export interface VerifyResetTokenResponse {
+    valid: boolean;
+}
+
+export interface ResetPasswordRequest {
+    token: string;
+    newPassword: string;
+    confirmNewPassword: string;
+}
+
+export interface ResetPasswordResponse {
+    msg: 'ok' | string;
+}
+
 export interface LogoutResponse {
     message: string;
 }

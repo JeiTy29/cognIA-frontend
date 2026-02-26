@@ -1,54 +1,113 @@
-﻿# RestablecerContraseña
+# RestablecerContrasena
 
-## Propósito
+## Objetivo
 
-Permite al usuario definir una nueva contraseña y volver a iniciar sesión, manteniendo el layout de autenticación del proyecto.
+Implementar el flujo completo de recuperacion de contrasena desde Login hasta reset final, usando endpoints reales y sin depender de sesion autenticada.
 
-## Modal “Recuperar contraseña” (desde Inicio de sesión)
+## Endpoints
 
-- Se abre al hacer clic en “¿Olvidaste tu contraseña?” en la vista de inicio de sesión.
-- Contenido del modal:
-  - Título: **Recuperar contraseña**.
-  - Texto guía: “Ingresa el correo con el que te registraste y te enviaremos un enlace para restablecerla.”
-  - Campo de correo con placeholder `correo@ejemplo.com`.
-  - Botones: **Enviar** (primario) y **Cancelar** (secundario).
-- Validación:
-  - Si el correo es inválido, se muestra el mensaje “Ingresa un correo válido.”
-- Estado de confirmación:
-  - Mensaje: “Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.”
-  - Botón único: **Entendido** (redirige a la ruta de restablecimiento).
+### 1) Solicitar enlace de restablecimiento
+- `POST /api/auth/password/forgot`
+- Body:
+```json
+{ "email": "string" }
+```
+- Respuestas relevantes:
+  - `200` -> `{ "msg": "ok" }`
+  - `429` -> demasiados intentos
 
-## Vista RestablecerContraseña
+### 2) Verificar token
+- `GET /api/auth/password/reset/verify?token=STRING`
+- Respuestas relevantes:
+  - `200` -> `{ "valid": true }`
+  - `400` -> token invalido o expirado
 
-### Layout
-- Panel izquierdo (~40%): área visual vacía (placeholder para imagen).
-- Panel derecho: contenido principal del formulario.
+### 3) Reset de contrasena
+- `POST /api/auth/password/reset`
+- Body:
+```json
+{
+  "token": "string",
+  "newPassword": "string",
+  "confirmNewPassword": "string"
+}
+```
+- Respuestas relevantes:
+  - `200` -> `{ "msg": "ok" }`
+  - `400` -> solicitud invalida/token invalido o expirado
+  - `429` -> demasiados intentos
 
-### Encabezado
-- Título: **Restablecer contraseña**.
-- Subtítulo: “Crea una nueva contraseña para volver a ingresar.”
+## Login: modal "Olvidaste tu contrasena"
 
-### Formulario
-- **Nueva contraseña** con toggle mostrar/ocultar.
-- **Requisitos de contraseña** (checklist visual, sin viñetas):
-  - Mínimo 8 caracteres.
-  - Al menos una mayúscula.
-  - Al menos una minúscula.
-  - Al menos un número.
-  - Al menos un carácter especial.
-- **Confirmar nueva contraseña** con toggle mostrar/ocultar.
-- Feedback en vivo para coincidencia de contraseñas.
+Ubicacion: `src/pages/Autenticacion/InicioSesion/InicioSesion.tsx`
 
-### Acción principal
-- Botón: **Guardar contraseña**.
-- Si la validación es correcta, se muestra un **modal bloqueante** con el mensaje:
-  - “Contraseña actualizada. Ya puedes iniciar sesión.”
-  - Botón único: **Ir a inicio de sesión**.
+Flujo:
+1. Click en `�Olvidaste tu contrase�a?` abre modal.
+2. Se valida email (requerido + formato).
+3. Click en `Enviar instrucciones` consume `POST /api/auth/password/forgot`.
+4. En `200`, muestra confirmacion generica:
+   - `Si el correo est� registrado, recibir�s instrucciones para restablecer tu contrase�a.`
+5. Boton final: `Volver a iniciar sesi�n` (cierra modal).
 
-### Navegación secundaria
-- Enlace: **Volver a inicio de sesión**.
+Estados:
+- Loading: bloquea input y botones.
+- Error `429`: `Demasiados intentos. Espera un momento e int�ntalo de nuevo.`
+- Error inesperado: `No se pudo procesar la solicitud. Intenta m�s tarde.`
 
-## Rutas
-- `GET /restablecer-contrasena` → Vista RestablecerContraseña.
-- Modal desde Login no navega automáticamente; el botón **Entendido** redirige a `/restablecer-contrasena`.
-- El modal de éxito redirige a `/inicio-sesion`.
+Regla de privacidad:
+- Nunca se expone si el correo existe o no.
+
+## Vista de reset con token
+
+Ubicacion: `src/pages/Autenticacion/RestablecerContrase�a/RestablecerContrase�a.tsx`
+
+Ruta publica activa:
+- `/restablecer-contrasena?token=...`
+
+### Verificacion al montar
+1. Si no existe `token` en query:
+   - redirige a `/inicio-sesion`
+   - mensaje contextual: `Acceso inv�lido: falta el token de restablecimiento.`
+2. Si existe token:
+   - consume `GET /api/auth/password/reset/verify?token=...`
+   - si `400` o `{ valid: false }`, redirige a login con:
+     - `El enlace de restablecimiento es inv�lido o ha expirado.`
+3. Solo con token valido se habilita el formulario.
+
+### Submit del reset
+- Boton principal: `Actualizar contrase�a`.
+- Envio real a `POST /api/auth/password/reset`.
+
+Validaciones frontend:
+- Campos requeridos.
+- Coincidencia entre nueva y confirmacion.
+- Reglas de contrasena del proyecto (checklist visual).
+
+Manejo de errores por status:
+- `400`: `No se pudo actualizar la contrase�a. Verifica el enlace e int�ntalo de nuevo.`
+- `429`: `Demasiados intentos. Espera un momento e int�ntalo de nuevo.`
+- Otro: `Ocurri� un error inesperado. Intenta m�s tarde.`
+
+Comportamiento adicional:
+- En error `400`, se muestra accion `Solicitar nuevo enlace` que redirige a Login y abre el modal de recuperacion.
+
+Exito:
+- Mensaje de confirmacion: `Contrase�a actualizada.`
+- CTA: `Iniciar sesi�n`.
+
+## Integracion tecnica
+
+Servicios agregados en `src/services/auth/auth.api.ts`:
+- `requestPasswordReset(email)`
+- `verifyResetToken(token)`
+- `resetPassword({ token, newPassword, confirmNewPassword })`
+
+Tipos agregados en `src/services/auth/auth.types.ts`:
+- `ForgotPasswordRequest`, `ForgotPasswordResponse`
+- `VerifyResetTokenResponse`
+- `ResetPasswordRequest`, `ResetPasswordResponse`
+
+Notas:
+- Estos endpoints no fuerzan `Authorization`.
+- Se usa `httpClient` central con `VITE_API_BASE_URL`.
+- No se usan `alert()` nativos.

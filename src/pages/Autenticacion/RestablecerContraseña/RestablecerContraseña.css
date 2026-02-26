@@ -81,6 +81,11 @@
     margin: 0;
 }
 
+.reset-request-link {
+    width: 100%;
+    margin-bottom: 12px;
+}
+
 @media (max-width: 640px) {
     .password-checklist-grid {
         grid-template-columns: 1fr;
