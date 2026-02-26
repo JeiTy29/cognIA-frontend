@@ -239,11 +239,13 @@ export function useMetrics({ accessToken, setSession, enabled = true }: UseMetri
             handleBackoff();
             setErrorMessage('No fue posible cargar métricas. Reintentando...');
         } finally {
-            if (!isMountedRef.current || !enabled) return;
-            setIsRefreshing(false);
-            setIsLoading(false);
-            const delay = backoffRef.current > 0 ? backoffRef.current : 5000;
-            scheduleNext(delay);
+            const canScheduleNext = isMountedRef.current && enabled;
+            if (canScheduleNext) {
+                setIsRefreshing(false);
+                setIsLoading(false);
+                const delay = backoffRef.current > 0 ? backoffRef.current : 5000;
+                scheduleNext(delay);
+            }
         }
     }, [accessToken, enabled, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
 
