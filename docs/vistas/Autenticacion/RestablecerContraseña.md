@@ -44,7 +44,7 @@ Ubicacion: `src/pages/Autenticacion/InicioSesion/InicioSesion.tsx`
 Flujo:
 1. Click en `¿Olvidaste tu contraseña?` abre modal.
 2. Se valida email (requerido + formato).
-3. Click en `Enviar instrucciones` consume `POST /api/auth/password/forgot`.
+3. Click en `Enviar` consume `POST /api/auth/password/forgot`.
 4. En `200`, muestra confirmacion generica:
    - `Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.`
 5. Boton final: `Volver a iniciar sesión` (cierra modal).
