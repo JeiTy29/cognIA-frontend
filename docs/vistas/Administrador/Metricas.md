@@ -1,19 +1,13 @@
 ﻿# Metricas
 
 ## Proposito
-Vista de administrador para revisar el estado del servidor, base de datos y metricas de trafico. Esta pagina se habilita en desarrollo con:
-
-- `VITE_DEV_AUTH_BYPASS=true`
-- `import.meta.env.DEV === true`
+Vista de administrador para revisar el estado del servidor, base de datos y metricas de trafico sin cambiar la UI existente.
 
 ## Endpoints
 
 - `GET /healthz` (sin auth)
 - `GET /readyz` (sin auth)
-- `GET /metrics` (auth requerida)
-
-`/metrics` exige:
-- `Authorization: Bearer <access_token>`
+- `GET /api/admin/metrics` (auth admin)
 
 ## Polling y estado
 
@@ -24,13 +18,11 @@ Vista de administrador para revisar el estado del servidor, base de datos y metr
 - Las llamadas solo se ejecutan cuando la ruta activa es `/admin/metricas`.
 - Al salir de la vista, se detienen timers/reintentos para evitar llamadas en segundo plano.
 
-## Manejo de 401
+## Integracion tecnica
 
-Si `/metrics` retorna 401:
-- Se intenta `refreshAccessToken()`.
-- Si el refresh funciona, se reintenta `/metrics` una vez.
-- Si falla, se mantiene la sesion activa y se muestra un mensaje: “No estas autorizado para ver las metricas”.
-- No se redirige automaticamente a login desde esta vista.
+- `GET /api/admin/metrics` usa `httpClient` central via `apiGet`, con refresh automatico si la sesion expiro.
+- La vista sigue reutilizando `/healthz` y `/readyz` para los bloques superiores de servidor y base de datos.
+- Si la respuesta de `/api/admin/metrics` no trae el snapshot esperado, se muestra error en la vista sin redisenarla.
 
 
 ## Widgets y mapeo
@@ -54,8 +46,18 @@ Si `/metrics` retorna 401:
 
 ## Estados especiales
 
-- `/metrics` 404 -> mostrar “Métricas deshabilitadas” con botón Recargar.
+- `/api/admin/metrics` 404 -> mostrar “Métricas deshabilitadas” con botón Recargar.
 - Errores 5xx -> banner de error con reintentos automáticos.
+
+## Archivos tocados
+- `src/pages/Administrador/Metricas/Metricas.tsx`
+- `src/hooks/metrics/useMetrics.ts`
+- `src/services/admin/metrics.ts`
+
+## Restricciones visuales respetadas
+- No se rediseño la pantalla.
+- No se agregaron cards nuevas.
+- Se mantuvo la estructura actual de bloques, snapshot y tabla inferior.
 
 ## Formato de uptime
 - < 60s -> `X s`

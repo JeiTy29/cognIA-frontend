@@ -2,7 +2,6 @@
 import { useLocation } from 'react-router-dom';
 import './Metricas.css';
 import { useMetrics } from '../../../hooks/metrics/useMetrics';
-import { useAuth } from '../../../hooks/auth/useAuth';
 
 function formatUptime(seconds: number) {
     if (seconds < 60) return `${seconds} s`;
@@ -64,7 +63,6 @@ function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number>
 }
 
 export default function Metricas() {
-    const { accessToken, setSession } = useAuth();
     const location = useLocation();
     const metricsViewEnabled = location.pathname === '/admin/metricas';
     const {
@@ -79,11 +77,7 @@ export default function Metricas() {
         latencyHistory,
         reload,
         isRefreshing
-    } = useMetrics({
-        accessToken,
-        setSession,
-        enabled: metricsViewEnabled
-    });
+    } = useMetrics({ enabled: metricsViewEnabled });
 
     const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
     const totalStatus = statusCounts['200'] + statusCounts['401'] + statusCounts['500'];

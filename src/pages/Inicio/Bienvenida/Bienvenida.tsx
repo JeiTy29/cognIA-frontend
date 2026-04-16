@@ -20,7 +20,7 @@ export default function BienvenidaInicio() {
                 <p className="bienvenida-description">
                     CognIA es un aplicativo web que, a partir de un cuestionario sobre el comportamiento de ni&ntilde;os de 6 a 11 a&ntilde;os,
                     utiliza Random Forest para generar una alerta temprana sobre la posible presencia de cinco trastornos frecuentes. La herramienta
-                    no diagnostica: busca apoyar a padres, docentes y profesionales en la identificaci&oacute;n oportuna de se&ntilde;ales para una evaluaci&oacute;n adecuada.
+                    no diagnostica: busca apoyar a padres, tutores y profesionales en la identificaci&oacute;n oportuna de se&ntilde;ales para una evaluaci&oacute;n adecuada.
                 </p>
 
                 <div className="cta-grid">

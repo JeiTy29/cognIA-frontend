@@ -10,7 +10,7 @@ type CreateFormState = {
     email: string;
     password: string;
     full_name: string;
-    user_type: 'guardian' | 'psychologist' | 'admin';
+    user_type: 'guardian' | 'psychologist';
     professional_card_number: string;
     role: 'GUARDIAN' | 'PSYCHOLOGIST' | 'ADMIN';
     is_active: boolean;
@@ -22,7 +22,7 @@ type EditFormState = {
     email: string;
     password: string;
     full_name: string;
-    user_type: 'guardian' | 'teacher' | 'psychologist';
+    user_type: 'guardian' | 'psychologist';
     professional_card_number: string;
     role: 'GUARDIAN' | 'PSYCHOLOGIST' | 'ADMIN';
     is_active: boolean;
@@ -58,14 +58,12 @@ const roleFilterOptions = [
 
 const userTypeCreateOptions = [
     { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'psychologist', label: 'Psicologo' },
-    { value: 'admin', label: 'Administrador' }
+    { value: 'psychologist', label: 'Psicologo' }
 ];
 
 const userTypeEditOptions = [
     { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'psychologist', label: 'Psicologo' },
-    { value: 'teacher', label: 'Docente' }
+    { value: 'psychologist', label: 'Psicologo' }
 ];
 
 const userRoleOptions = [
@@ -90,7 +88,7 @@ function normalizeRoleKey(role: string): UserRoleKey {
     const normalized = role.trim().toUpperCase();
     if (normalized === 'ADMIN') return 'ADMIN';
     if (normalized === 'PSYCHOLOGIST') return 'PSYCHOLOGIST';
-    if (normalized === 'GUARDIAN' || normalized === 'TEACHER') return 'GUARDIAN';
+    if (normalized === 'GUARDIAN') return 'GUARDIAN';
     return 'GUARDIAN';
 }
 
@@ -117,17 +115,14 @@ function validateUserForm(params: {
     professionalCardNumber: string;
     password?: string;
     isCreate: boolean;
-    roles: string[];
 }) {
-    const { userType, fullName, professionalCardNumber, password, isCreate, roles } = params;
+    const { userType, fullName, professionalCardNumber, password, isCreate } = params;
 
-    if (!['guardian', 'admin', 'psychologist', 'teacher'].includes(userType)) {
+    if (!['guardian', 'psychologist'].includes(userType)) {
         return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
     }
 
-    const hasAdminRole = roles.map((role) => role.toUpperCase()).includes('ADMIN');
-
-    if ((userType === 'psychologist' || hasAdminRole) && fullName.trim().length === 0) {
+    if (userType === 'psychologist' && fullName.trim().length === 0) {
         return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
     }
 
@@ -243,7 +238,7 @@ export default function Usuarios() {
             email: detail.email,
             password: '',
             full_name: detail.full_name ?? '',
-            user_type: (detail.user_type === 'teacher' ? 'teacher' : detail.user_type === 'psychologist' ? 'psychologist' : 'guardian'),
+            user_type: detail.user_type === 'psychologist' ? 'psychologist' : 'guardian',
             professional_card_number: detail.professional_card_number ?? '',
             role: (detail.roles?.[0]?.toUpperCase() === 'ADMIN'
                 ? 'ADMIN'
@@ -279,8 +274,7 @@ export default function Usuarios() {
             fullName: createForm.full_name,
             professionalCardNumber: createForm.professional_card_number,
             password: createForm.password,
-            isCreate: true,
-            roles: [createForm.role]
+            isCreate: true
         });
         if (validationError) {
             setFormError(validationError);
@@ -315,7 +309,6 @@ export default function Usuarios() {
             fullName: editForm.full_name,
             professionalCardNumber: editForm.professional_card_number,
             isCreate: false,
-            roles: [editForm.role],
             password: editForm.password
         });
         if (validationError) {
@@ -531,8 +524,8 @@ export default function Usuarios() {
                                     <button
                                         type="button"
                                         className="icon-btn has-tooltip"
-                                        data-tooltip="Borrar usuario"
-                                        aria-label="Borrar usuario"
+                                        data-tooltip="Desactivar usuario"
+                                        aria-label="Desactivar usuario"
                                         onClick={() => openDeactivateModal(user)}
                                     >
                                         <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm6.4 10a6.4 6.4 0 0 1-1.2 3.6L8.4 6.8A6.4 6.4 0 0 1 18.4 12Zm-12.8 0a6.4 6.4 0 0 1 1.2-3.6l8.8 8.8A6.4 6.4 0 0 1 5.6 12Z" /></svg>
