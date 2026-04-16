@@ -1,41 +1,77 @@
 # Auditoria
 
-## Ruta y acceso
-- Ruta: `/admin/auditoria`
-- Rol requerido: `ADMIN`
+## Objetivo
+- Corregir la usabilidad del modulo sin convertirlo en otra plantilla de metricas.
 
-## Archivos involucrados
+## Archivos modificados
 - `src/pages/Administrador/Auditoria/Auditoria.tsx`
 - `src/pages/Administrador/Auditoria/Auditoria.css`
-- `src/pages/Administrador/AdminShared.css`
 - `src/hooks/useAuditLogs.ts`
 - `src/services/admin/audit.ts`
+- `src/services/admin/users.ts`
+- `src/components/CustomSelect/CustomSelect.tsx`
+- `src/components/CustomSelect/CustomSelect.css`
 
-## Endpoint usado
+## Endpoints usados
 - `GET /api/admin/audit-logs`
+- `GET /api/v1/users?page=<int>&page_size=<int>`
 
-## Objetivo funcional
-- Separar auditoria del modulo de metricas.
-- Exponer registros operativos en una tabla con filtros, paginacion local y detalle por modal.
+## Cambios
+- Se limpio la cabecera:
+  - sin subtitulo largo
+  - sin "ultima actualizacion"
+  - sin boton `Actualizar`
+- La columna `Fecha` ahora permite alternar orden:
+  - mas reciente primero
+  - mas antigua primero
+- El filtro `Accion` usa etiquetas legibles en espanol.
+- El detalle del registro sigue en modal.
 
-## Flujo UI
-1. La vista carga el endpoint de auditoria.
-2. Se normaliza la respuesta para soportar array directo o colecciones tipo `items`, `logs`, `audit_logs`, `results` o `data`.
-3. Los filtros funcionan por accion y busqueda libre.
-4. El detalle abre un modal con el payload crudo del registro.
+## Actor
+- El backend documenta `user_id` en auditoria, no nombre de usuario.
+- El frontend cruza `user_id` con el listado admin de usuarios para mostrar nombre o username cuando puede.
+- Si no encuentra coincidencia, deja:
+  - el valor textual ya entregado por auditoria
+  - o el `user_id` si no hay mas informacion
 
-## Decisiones visuales
-- Se mantuvo el lenguaje visual del admin actual.
-- Se uso tabla + filtros + modal.
-- No se introdujeron dashboards ni cards nuevas.
+## Mapping de acciones
+- Mapping exacto verificado por OpenAPI:
+  - `USER_CREATED` -> `Usuario creado`
+- Como OpenAPI no publica un enum completo de acciones de auditoria, el frontend aplica un fallback por tokens para volver legibles acciones no documentadas.
+- Tokens traducidos en el fallback:
+  - `register` -> `Registro`
+  - `login` -> `Inicio de sesion`
+  - `logout` -> `Cierre de sesion`
+  - `user` -> `Usuario`
+  - `create` / `created` -> `Crear` / `Creado`
+  - `update` / `updated` -> `Actualizar` / `Actualizado`
+  - `delete` / `deleted` -> `Eliminar` / `Eliminado`
+  - `password` -> `Contrasena`
+  - `reset` -> `Restablecimiento`
+  - `mfa` -> `MFA`
+  - `approve` / `approved` -> `Aprobar` / `Aprobado`
+  - `reject` / `rejected` -> `Rechazar` / `Rechazado`
+  - `psychologist` -> `Psicologo`
+  - `questionnaire` -> `Cuestionario`
+  - `evaluation` -> `Evaluacion`
+  - `session` -> `Sesion`
+  - `profile` -> `Perfil`
+  - `account` -> `Cuenta`
+  - `email` -> `Correo`
 
-## Limitaciones y riesgos
-- No hay contrato local de respuesta para auditoria.
-- La vista mapea de forma tolerante campos comunes como `action`, `event`, `actor`, `target`, `description`, `message` y `metadata`.
-- Si el backend cambia la forma del payload, puede reducirse el detalle visible aunque el JSON siga cargando.
+## Limitaciones
+- La API publica el endpoint y el schema de auditoria, pero no un catalogo cerrado de `action`.
+- Por eso el mapping implementado es:
+  - exacto para acciones documentadas
+  - parcial y generico para acciones nuevas o no documentadas
+
+## Select compartido
+- Se toco `CustomSelect` para que el menu del filtro de accion no empuje la tabla y muestre bien listas largas.
+- No se redisenaron colores ni trigger.
 
 ## Pruebas manuales
-- Entrar a `/admin/auditoria`.
-- Buscar por accion, actor o ID.
-- Filtrar por una accion concreta.
-- Abrir el modal de detalle y revisar campos del registro.
+1. Entrar a `/admin/auditoria`.
+2. Abrir el filtro `Accion` y confirmar que el menu se superpone.
+3. Alternar el orden en `Fecha`.
+4. Verificar que acciones como `USER_CREATED` se vean en lenguaje natural.
+5. Confirmar que actor muestre nombre/username cuando exista cruce con usuarios.

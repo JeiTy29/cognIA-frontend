@@ -129,10 +129,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 42px;
     padding: 10px 14px;
     border: 1px solid rgba(11, 37, 64, 0.16);
     border-radius: 12px;
     background: #ffffff;
+    box-sizing: border-box;
 }
 
 .usuarios-search input {
@@ -163,6 +165,7 @@
     gap: 6px;
     font-size: 12px;
     color: #526476;
+    justify-content: flex-end;
 }
 
 .usuarios-filters .global-select {
@@ -175,7 +178,7 @@
 
 .usuarios-table-head {
     display: grid;
-    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 0.9fr;
+    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 1.2fr;
     gap: 16px;
     padding: 12px 0;
     font-size: 12px;
@@ -192,7 +195,7 @@
 
 .usuarios-row {
     display: grid;
-    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 0.9fr;
+    grid-template-columns: 1.35fr 1.45fr 1.6fr 1.3fr 0.9fr 0.9fr 1.2fr;
     gap: 16px;
     padding: 14px 0;
     border-bottom: 1px solid rgba(11, 37, 64, 0.06);
@@ -335,6 +338,7 @@
 .usuarios-cell.actions {
     display: flex;
     gap: 6px;
+    justify-content: flex-start;
 }
 
 .usuarios-skeleton {
@@ -498,7 +502,7 @@
 @media (max-width: 1024px) {
     .usuarios-table-head,
     .usuarios-row {
-        grid-template-columns: 1.3fr 1.3fr 1.4fr 1.2fr 0.9fr 0.9fr 0.9fr;
+        grid-template-columns: 1.3fr 1.3fr 1.4fr 1.2fr 0.9fr 0.9fr 1.1fr;
     }
 }
 

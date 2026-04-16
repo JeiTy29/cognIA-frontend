@@ -14,20 +14,7 @@
 
 .metricas-header h1 {
     font-size: 30px;
-    margin: 0 0 8px;
-}
-
-.metricas-header p {
     margin: 0;
-    color: #526476;
-    font-size: 14px;
-}
-
-.metricas-updated {
-    display: inline-block;
-    margin-top: 6px;
-    font-size: 12px;
-    color: #7c8a9a;
 }
 
 .metricas-refresh {
@@ -265,11 +252,11 @@
 
 .metricas-table-row {
     display: grid;
-    grid-template-columns: 32px minmax(220px, 1.6fr) minmax(160px, 1fr) minmax(240px, 2fr);
-    gap: 24px;
-    padding: 12px 0;
+    grid-template-columns: 28px minmax(160px, 1.25fr) minmax(120px, 0.85fr) minmax(220px, 1.5fr);
+    gap: 20px;
+    padding: 12px 8px;
     border-bottom: 1px solid rgba(15, 37, 64, 0.08);
-    align-items: center;
+    align-items: start;
     font-size: 14px;
 }
 
@@ -289,6 +276,7 @@
 
 .metricas-table-row span {
     min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .indicator {
@@ -371,6 +359,7 @@
             'indicator value'
             'indicator comment';
         row-gap: 6px;
+        padding-inline: 0;
     }
 
     .metricas-table-row span:nth-child(2) { grid-area: metric; }

@@ -1,5 +1,5 @@
 import { apiPost } from '../api/httpClient';
-import { getUsers, type User } from './users';
+import type { User } from './users';
 
 const requestOptions = {
     auth: true,
@@ -48,28 +48,6 @@ export function resolvePsychologistReviewState(user: User): PsychologistReviewSt
 export function getPsychologistRejectionReason(user: User) {
     const record = user as UserRecord;
     return getStringField(record, ['rejection_reason', 'review_reason']);
-}
-
-export async function getAllUsers() {
-    const pageSize = 100;
-    let page = 1;
-    let total = Number.POSITIVE_INFINITY;
-    const collected: User[] = [];
-
-    while (collected.length < total) {
-        const response = await getUsers({ page, page_size: pageSize });
-        const items = response.items ?? [];
-        total = response.total ?? items.length;
-        collected.push(...items);
-
-        if (items.length === 0 || collected.length >= total) {
-            break;
-        }
-
-        page += 1;
-    }
-
-    return collected;
 }
 
 export function approvePsychologist(userId: string) {

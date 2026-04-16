@@ -1,65 +1,58 @@
-﻿# Metricas
+# Metricas
 
-## Proposito
-Vista de administrador para revisar el estado del servidor, base de datos y metricas de trafico sin cambiar la UI existente.
+## Objetivo
+- Mantener la vista de metricas existente con el menor cambio visual posible.
+- Integrar la salud de correo dentro de esta misma vista.
 
-## Endpoints
-
-- `GET /healthz` (sin auth)
-- `GET /readyz` (sin auth)
-- `GET /api/admin/metrics` (auth admin)
-
-## Polling y estado
-
-- Polling cada 5s.
-- Pausa cuando la pestaña no esta visible (Page Visibility API).
-- Buffer de 30 puntos para sparklines (requests_total y latency_ms_avg).
-- Backoff exponencial ante errores 5xx: 2s, 4s, 8s (se reinicia al recuperar).
-- Las llamadas solo se ejecutan cuando la ruta activa es `/admin/metricas`.
-- Al salir de la vista, se detienen timers/reintentos para evitar llamadas en segundo plano.
-
-## Integracion tecnica
-
-- `GET /api/admin/metrics` usa `httpClient` central via `apiGet`, con refresh automatico si la sesion expiro.
-- La vista sigue reutilizando `/healthz` y `/readyz` para los bloques superiores de servidor y base de datos.
-- Si la respuesta de `/api/admin/metrics` no trae el snapshot esperado, se muestra error en la vista sin redisenarla.
-
-
-## Widgets y mapeo
-
-### Estado del servidor
-- `/healthz.status = ok` -> badge **OK** (verde) + “Servidor operativo”.
-- Error/timeout -> “No disponible” (rojo) + “No se pudo obtener el estado”.
-
-### Estado de base de datos
-- `/readyz.status = ready` -> “Base de datos: Lista”.
-- `/readyz.status = not_ready` -> “No disponible”.
-- `latency_ms` -> “Latencia: X ms” + barra proporcional (referencia 2000ms).
-
-### Snapshot
-- `latency_ms_avg`, `latency_ms_max`, `requests_total`, `uptime_seconds`.
-- Donut para `status_counts` con porcentajes.
-- Texto: “La latencia promedio se mantiene en X ms, con máximo de Y ms en picos.”
-
-### Tabla inferior
-- Uptime, solicitudes, latencias y conteos HTTP con separadores.
-
-## Estados especiales
-
-- `/api/admin/metrics` 404 -> mostrar “Métricas deshabilitadas” con botón Recargar.
-- Errores 5xx -> banner de error con reintentos automáticos.
-
-## Archivos tocados
+## Archivos modificados
 - `src/pages/Administrador/Metricas/Metricas.tsx`
+- `src/pages/Administrador/Metricas/Metricas.css`
 - `src/hooks/metrics/useMetrics.ts`
-- `src/services/admin/metrics.ts`
+- `src/services/admin/emailHealth.ts`
+- `src/App.tsx`
+- `src/components/Sidebar/SidebarConfig.tsx`
+
+## Endpoints usados
+- `GET /healthz`
+- `GET /readyz`
+- `GET /api/admin/metrics`
+- `GET /api/admin/email/health`
+
+## Cambios
+- Se retiro ruido visual del encabezado de metricas:
+  - sin subtitulo adicional
+  - sin "ultima actualizacion"
+  - sin boton de actualizar en cabecera
+- Se mantuvo la estructura general de bloques superiores, snapshot y tabla inferior.
+- El bloque superior de `Uptime` fue reemplazado por `Servicio de correo`.
+- `Servicio de correo` muestra:
+  - estado
+  - color lateral segun estado
+  - detalle corto
+  - razon si el backend la expone o si la configuracion esta incompleta
+- La tabla inferior se ajusto en columnas, separacion y wrap para evitar encabezados pegados o superpuestos.
+
+## Salud de correo
+- La vista separada `/admin/correo` dejo de usarse.
+- La ruta y la entrada del sidebar se eliminaron.
+- La informacion de correo ahora vive solo dentro de `/admin/metricas`.
 
 ## Restricciones visuales respetadas
-- No se rediseño la pantalla.
 - No se agregaron cards nuevas.
-- Se mantuvo la estructura actual de bloques, snapshot y tabla inferior.
+- No se convirtio la vista en dashboard nuevo.
+- No se clonaron subtitulos, textos aclarativos ni "ultima actualizacion".
 
-## Formato de uptime
-- < 60s -> `X s`
-- < 3600s -> `Y min`
-- >= 3600s -> `HH:MM:SS`
+## Limitaciones
+- El schema OpenAPI de `GET /api/admin/email/health` solo documenta banderas de configuracion:
+  - `email_enabled`
+  - `smtp_host_configured`
+  - `smtp_user_configured`
+  - `smtp_use_tls`
+  - `smtp_use_ssl`
+- Si el backend no envia `error`, `message`, `detail` o `reason`, la vista muestra una razon derivada de esas banderas.
+
+## Pruebas manuales
+1. Entrar a `/admin/metricas`.
+2. Verificar que el bloque `Servicio de correo` aparezca junto a servidor y base de datos.
+3. Confirmar que la tabla inferior ya no superponga encabezados.
+4. Confirmar que ya no exista la ruta visible de correo en el sidebar admin.

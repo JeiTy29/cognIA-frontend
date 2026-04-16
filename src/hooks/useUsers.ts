@@ -1,6 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+    adminResetUserMfa,
+    adminResetUserPassword,
     createUser,
     deactivateUser,
     getUserById,
@@ -14,7 +16,7 @@ import {
 import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';
 
-type ActionType = 'list' | 'create' | 'detail' | 'update' | 'delete';
+type ActionType = 'list' | 'create' | 'detail' | 'update' | 'delete' | 'passwordReset' | 'mfaReset';
 
 function mapErrorMessage(status: number, action: ActionType) {
     if (status === 400) return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
@@ -55,6 +57,8 @@ export function useUsers() {
     const [submittingCreate, setSubmittingCreate] = useState(false);
     const [submittingUpdate, setSubmittingUpdate] = useState(false);
     const [submittingDeactivate, setSubmittingDeactivate] = useState(false);
+    const [submittingPasswordReset, setSubmittingPasswordReset] = useState(false);
+    const [submittingMfaReset, setSubmittingMfaReset] = useState(false);
 
     const handleUnauthorized = useCallback(() => {
         logout('expired');
@@ -184,6 +188,50 @@ export function useUsers() {
         setNotice(null);
     }, []);
 
+    const resetPasswordAction = useCallback(async (userId: string) => {
+        setSubmittingPasswordReset(true);
+        setError(null);
+        setNotice(null);
+        try {
+            const response = await adminResetUserPassword(userId);
+            setNotice(
+                response.email_sent === false
+                    ? 'Restablecimiento de contrasena emitido.'
+                    : 'Restablecimiento de contrasena enviado.'
+            );
+            return true;
+        } catch (actionError) {
+            const status = extractStatus(actionError);
+            setError(mapErrorMessage(status, 'passwordReset'));
+            if (status === 401) {
+                handleUnauthorized();
+            }
+            return false;
+        } finally {
+            setSubmittingPasswordReset(false);
+        }
+    }, [handleUnauthorized]);
+
+    const resetMfaAction = useCallback(async (userId: string) => {
+        setSubmittingMfaReset(true);
+        setError(null);
+        setNotice(null);
+        try {
+            await adminResetUserMfa(userId);
+            setNotice('MFA restablecido correctamente.');
+            return true;
+        } catch (actionError) {
+            const status = extractStatus(actionError);
+            setError(mapErrorMessage(status, 'mfaReset'));
+            if (status === 401) {
+                handleUnauthorized();
+            }
+            return false;
+        } finally {
+            setSubmittingMfaReset(false);
+        }
+    }, [handleUnauthorized]);
+
     return {
         items,
         page,
@@ -196,6 +244,8 @@ export function useUsers() {
         submittingCreate,
         submittingUpdate,
         submittingDeactivate,
+        submittingPasswordReset,
+        submittingMfaReset,
         loadUsers,
         goToPage,
         changePageSize,
@@ -203,6 +253,8 @@ export function useUsers() {
         createUser: createUserAction,
         updateUser: updateUserAction,
         deactivateUser: deactivateUserAction,
+        resetUserPassword: resetPasswordAction,
+        resetUserMfa: resetMfaAction,
         clearMessages
     };
 }

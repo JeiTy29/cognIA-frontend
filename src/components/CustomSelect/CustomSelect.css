@@ -1,6 +1,11 @@
 .global-select {
     position: relative;
     width: 100%;
+    z-index: 1;
+}
+
+.global-select.is-open {
+    z-index: 30;
 }
 
 .global-select-trigger {
@@ -9,7 +14,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 40px;
+    min-height: 42px;
     padding: 9px 12px;
     border-radius: 10px;
     border: 1px solid rgba(33, 95, 143, 0.25);
@@ -58,9 +63,11 @@
 }
 
 .global-select-menu {
-    position: relative;
-    margin-top: 8px;
-    z-index: 6;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 40;
     background: #ffffff;
     border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.25);
@@ -72,9 +79,10 @@
     opacity: 0;
     transform: translateY(-6px);
     max-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     pointer-events: none;
-    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+    transition: max-height 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .global-select-menu.is-open {

@@ -9,10 +9,19 @@ export interface AuditLogItem {
     id: string;
     timestamp: string | null;
     action: string;
+    userId: string | null;
+    section: string | null;
     actor: string;
     target: string;
     summary: string;
     raw: Record<string, unknown>;
+}
+
+interface AuditPagination {
+    page: number;
+    pageSize: number;
+    total: number;
+    pages: number;
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {
@@ -53,8 +62,11 @@ function describeValue(value: unknown): string {
 }
 
 function resolveActor(record: Record<string, unknown>): string {
-    const direct = pickString(record, ['actor_username', 'username', 'actor', 'user', 'email', 'actor_id', 'user_id']);
+    const direct = pickString(record, ['actor_username', 'username', 'actor', 'user', 'email', 'actor_id']);
     if (direct) return direct;
+
+    const userId = pickString(record, ['user_id']);
+    if (userId) return userId;
 
     const actorObject = asObject(record.actor_info) ?? asObject(record.actor_user);
     if (!actorObject) return '--';
@@ -73,8 +85,14 @@ function resolveTarget(record: Record<string, unknown>): string {
 }
 
 function resolveSummary(record: Record<string, unknown>): string {
-    const direct = pickString(record, ['description', 'message', 'detail', 'details']);
+    const direct = pickString(record, ['description', 'message', 'detail']);
     if (direct) return direct;
+
+    const details = record.details;
+    if (details !== undefined) {
+        const describedDetails = describeValue(details);
+        if (describedDetails) return describedDetails;
+    }
 
     const metadata = asObject(record.metadata) ?? asObject(record.context) ?? asObject(record.extra);
     if (metadata) {
@@ -108,6 +126,28 @@ function findLogsCollection(payload: unknown): unknown[] {
     return [];
 }
 
+function resolvePagination(payload: unknown): AuditPagination | null {
+    const root = asObject(payload);
+    if (!root) return null;
+
+    const pagination = asObject(root.pagination);
+    if (!pagination) return null;
+
+    const page = typeof pagination.page === 'number' ? pagination.page : 1;
+    const pageSize = typeof pagination.page_size === 'number' ? pagination.page_size : 100;
+    const total = typeof pagination.total === 'number' ? pagination.total : 0;
+    const pages = typeof pagination.pages === 'number'
+        ? pagination.pages
+        : Math.max(1, Math.ceil(total / Math.max(pageSize, 1)));
+
+    return {
+        page,
+        pageSize,
+        total,
+        pages
+    };
+}
+
 export function normalizeAuditLogs(payload: unknown) {
     const logs = findLogsCollection(payload);
 
@@ -118,7 +158,9 @@ export function normalizeAuditLogs(payload: unknown) {
 
             const id = pickString(record, ['id', 'event_id', 'audit_id']) ?? `audit-${index + 1}`;
             const timestamp = pickString(record, ['created_at', 'timestamp', 'occurred_at', 'logged_at', 'date']);
-            const action = pickString(record, ['action', 'event', 'event_type', 'operation']) ?? 'Sin acción';
+            const action = pickString(record, ['action', 'event', 'event_type', 'operation']) ?? 'Sin accion';
+            const userId = pickString(record, ['user_id', 'actor_id']);
+            const section = pickString(record, ['section']);
             const actor = resolveActor(record);
             const target = resolveTarget(record);
             const summary = resolveSummary(record);
@@ -127,6 +169,8 @@ export function normalizeAuditLogs(payload: unknown) {
                 id,
                 timestamp,
                 action,
+                userId,
+                section,
                 actor,
                 target,
                 summary,
@@ -136,6 +180,36 @@ export function normalizeAuditLogs(payload: unknown) {
         .filter((item): item is AuditLogItem => item !== null);
 }
 
-export function getAuditLogs() {
-    return apiGet<unknown>('/api/admin/audit-logs', requestOptions);
+export function getAuditLogs(page: number, pageSize: number) {
+    const search = new URLSearchParams({
+        page: String(page),
+        page_size: String(pageSize)
+    });
+    return apiGet<unknown>(`/api/admin/audit-logs?${search.toString()}`, requestOptions);
+}
+
+export async function getAllAuditLogs() {
+    const pageSize = 100;
+    let page = 1;
+    let pages = 1;
+    const collected: AuditLogItem[] = [];
+
+    while (page <= pages) {
+        const payload = await getAuditLogs(page, pageSize);
+        collected.push(...normalizeAuditLogs(payload));
+
+        const pagination = resolvePagination(payload);
+        if (!pagination) {
+            break;
+        }
+
+        pages = pagination.pages;
+        if (page >= pages) {
+            break;
+        }
+
+        page += 1;
+    }
+
+    return collected;
 }
