@@ -36,7 +36,6 @@ export default function Psicologos() {
         loading,
         error,
         notice,
-        statusUnavailable,
         submittingApprove,
         submittingReject,
         approvePsychologist,
@@ -120,11 +119,6 @@ export default function Psicologos() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
-            {statusUnavailable ? (
-                <div className="admin-alert info">
-                    El backend no expone de forma reconocible el estado de revision para los psicologos listados.
-                </div>
-            ) : null}
 
             <section className="admin-controls" aria-label="Controles de psicologos">
                 <div className="admin-search">
