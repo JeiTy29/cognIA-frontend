@@ -1,0 +1,26 @@
+.auditoria-grid {
+    grid-template-columns: 1fr 1fr 1fr 1fr 1.6fr 0.8fr;
+}
+
+.auditoria-action {
+    font-weight: 600;
+}
+
+.auditoria-summary {
+    color: #526476;
+}
+
+.auditoria-detail-btn {
+    min-width: 86px;
+    padding: 9px 12px;
+}
+
+@media (max-width: 1040px) {
+    .auditoria-grid {
+        min-width: 1080px;
+    }
+
+    .admin-table {
+        overflow-x: auto;
+    }
+}

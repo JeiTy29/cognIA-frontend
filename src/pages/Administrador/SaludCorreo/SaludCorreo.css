@@ -1,0 +1,22 @@
+.correo-grid {
+    grid-template-columns: 1.15fr 1.15fr 1.7fr;
+}
+
+.correo-key {
+    font-weight: 600;
+}
+
+.correo-value,
+.correo-comment {
+    color: #526476;
+}
+
+@media (max-width: 900px) {
+    .correo-grid {
+        min-width: 860px;
+    }
+
+    .admin-table {
+        overflow-x: auto;
+    }
+}

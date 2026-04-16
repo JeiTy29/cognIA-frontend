@@ -120,7 +120,7 @@ export default function NuestroSistema() {
     psicologos: {
       items: [
         {
-          text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o docente alla dado los permisos necesarios.',
+          text: 'Pueden consultar el historial de multiples cuestionarios, siempre y cuando el padre o tutor haya dado los permisos necesarios.',
           icon: frasePsico1
         },
         {
@@ -269,7 +269,7 @@ export default function NuestroSistema() {
                 role="tab"
                 aria-selected={rolActivo === 'padres'}
               >
-                Padres y docentes
+                Padres y tutores
               </button>
               <button
                 type="button"

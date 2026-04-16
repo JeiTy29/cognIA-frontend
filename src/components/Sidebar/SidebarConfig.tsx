@@ -52,6 +52,24 @@ const IconUsers = (
     </svg>
 );
 
+const IconPsychologists = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h10v-1c0-1.38.64-2.64 1.72-3.66A9.68 9.68 0 0 0 12 14Zm8.71 1.29-1-1-2.12 2.12-1.29-1.29-1 1 2.29 2.29 3.12-3.12Z" />
+    </svg>
+);
+
+const IconAudit = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 3h10a2 2 0 0 1 2 2v2h2v14H5Zm2 4h10V5H7Zm0 4h10v2H7Zm0 4h7v2H7Z" />
+    </svg>
+);
+
+const IconMail = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2v.51l9 5.4 9-5.4V7l-9 5.4L3 7.01Z" />
+    </svg>
+);
+
 export const sidebarItems: SidebarItem[] = [
     {
         id: 'cuestionario',
@@ -121,6 +139,33 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/usuarios'
+        }
+    },
+    {
+        id: 'psicologos',
+        label: 'Psicólogos',
+        icon: IconPsychologists,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/psicologos'
+        }
+    },
+    {
+        id: 'auditoria',
+        label: 'Auditoría',
+        icon: IconAudit,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/auditoria'
+        }
+    },
+    {
+        id: 'correo',
+        label: 'Correo',
+        icon: IconMail,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/correo'
         }
     },
     {
