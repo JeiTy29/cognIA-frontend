@@ -11,6 +11,11 @@ export interface User {
     roles: string[];
     created_at: string;
     updated_at: string;
+    review_status?: string | null;
+    approval_status?: string | null;
+    psychologist_status?: string | null;
+    rejection_reason?: string | null;
+    review_reason?: string | null;
 }
 
 export interface PaginatedUsersResponse {
@@ -25,7 +30,7 @@ export interface CreateUserRequest {
     email: string;
     password: string;
     full_name?: string;
-    user_type: 'guardian' | 'psychologist' | 'admin';
+    user_type: 'guardian' | 'psychologist';
     professional_card_number?: string;
     roles?: string[];
     is_active?: boolean;
@@ -35,7 +40,7 @@ export interface UpdateUserRequest {
     email?: string;
     password?: string;
     full_name?: string;
-    user_type?: 'guardian' | 'teacher' | 'psychologist';
+    user_type?: 'guardian' | 'psychologist';
     professional_card_number?: string;
     roles?: string[];
     is_active?: boolean;

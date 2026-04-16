@@ -61,11 +61,9 @@
 
 ## Validaciones en frontend
 - `user_type` permitido:
-  - crear: `guardian | psychologist | admin`
-  - editar: `guardian | psychologist | teacher`
-- `full_name` requerido si:
-  - `user_type = psychologist`, o
-  - roles contiene `ADMIN`.
+  - crear: `guardian | psychologist`
+  - editar: `guardian | psychologist`
+- `full_name` requerido si `user_type = psychologist`.
 - `professional_card_number` requerido si `user_type = psychologist`.
 - `password` requerido solo en creacion.
 - `username` en editar se muestra `readOnly`.
@@ -79,22 +77,27 @@
 - `500`: Error del servidor. Intenta mas tarde.
 - Otro: Ocurrio un error inesperado.
 
-## Sidebar
-- Se agrego item `Usuarios` en sidebar admin con ruta `/admin/usuarios`.
-
 ## Ajustes visuales actuales
 - Se retiro el icono del titulo de la vista para mantener cabecera limpia.
 - Se elimino el boton `Exportar` porque no tiene accion implementada.
 - El boton principal ahora usa texto completo `Crear nuevo usuario`.
 - La tabla incluye columna `ID`.
-- El rol `teacher` se muestra como `Padre/Tutor` para evitar duplicidad.
 - El selector de tamano de pagina se muestra como `Tamaño`.
 - Se retiro el boton de `Ver` (ojo) para evitar duplicidad con `Editar`.
-- Los botones de accion muestran tooltip: `Editar usuario` y `Borrar usuario`.
+- Los botones de accion muestran tooltip: `Editar usuario` y `Desactivar usuario`.
 - En la columna `ID`, al pasar el mouse se habilita boton para copiar al portapapeles con tooltip.
 - El boton de copiar ID aparece a la izquierda del identificador al hacer hover.
 - Se corrigio el estado visual para que el ID vuelva a su posicion normal al salir del hover.
 - Se mejoro el control de paginacion: flechas mas grandes y alineadas con el texto de pagina.
+
+## Decisiones funcionales recientes
+- Se eliminaron referencias a `teacher/docente` del modulo.
+- La creacion de admins se resuelve por `roles: ['ADMIN']`, sin asumir `user_type = admin`.
+- El formulario mantiene `Tipo` y `Rol`, pero no abre un modulo general de gestion de roles.
+- El reset de contraseña admin sigue disponible mediante el campo opcional `Nueva contrasena` en editar usuario.
+
+## Limitaciones actuales
+- No se conecto reset de MFA por admin porque en este workspace no existe una ruta verificada ni especificacion local del contrato para esa accion.
 
 ## Select global reutilizable
 - Se utiliza el componente global `CustomSelect` con el mismo estilo visual de Soporte (selector de tipo de problema).

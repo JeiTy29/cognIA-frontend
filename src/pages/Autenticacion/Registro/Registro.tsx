@@ -221,7 +221,7 @@ export default function Registro() {
                                 onClick={() => handleRolSelect('padre')}
                             >
                                 <div className="role-image-placeholder"></div>
-                                <h3 className="role-text">Soy padre o docente</h3>
+                                <h3 className="role-text">Soy padre, tutor o guardian</h3>
                             </div>
 
                             <div
@@ -240,7 +240,7 @@ export default function Registro() {
                                 onClick={handleRolTagClick}
                                 title="Click para cambiar rol"
                             >
-                                {rolSeleccionado === 'padre' ? 'Soy padre o docente' : 'Soy psicólogo'}
+                                {rolSeleccionado === 'padre' ? 'Soy padre, tutor o guardian' : 'Soy psicólogo'}
                                 <span className="change-hint">cambiar rol</span>
                             </button>
 

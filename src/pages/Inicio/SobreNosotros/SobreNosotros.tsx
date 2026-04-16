@@ -8,7 +8,7 @@ export default function SobreNosotros() {
                 <h2 className="section-title">Equipo de desarrollo</h2>
                 <div className="team-description">
                     <p>
-                        Somos un equipo académico de la Universidad de Cundinamarca (Extensión Facatativá), integrado por dos estudiantes de Ingeniería de Software y nuestro director de tesis. Nuestro objetivo es desarrollar una herramienta web que, a partir de un cuestionario y un modelo de aprendizaje automático, genere alertas tempranas que apoyen a padres, docentes y profesionales en la toma de decisiones.
+                        Somos un equipo académico de la Universidad de Cundinamarca (Extensión Facatativá), integrado por dos estudiantes de Ingeniería de Software y nuestro director de tesis. Nuestro objetivo es desarrollar una herramienta web que, a partir de un cuestionario y un modelo de aprendizaje automático, genere alertas tempranas que apoyen a padres, tutores y profesionales en la toma de decisiones.
                    </p>
                 </div>
 

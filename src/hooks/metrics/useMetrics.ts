@@ -1,8 +1,6 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
-import { refreshAccessToken } from '../../services/auth/auth.refresh';
-import { buildAuthorizationHeader } from '../../utils/auth/authorization';
-import { getStoredToken } from '../../utils/auth/storage';
-import type { RefreshResponse } from '../../services/auth/auth.types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAdminMetrics } from '../../services/admin/metrics';
+import { ApiError } from '../../services/api/httpClient';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -28,8 +26,6 @@ export type MetricsSnapshot = {
 };
 
 interface UseMetricsOptions {
-    accessToken: string | null;
-    setSession: (token: string, expiresIn?: number) => void;
     enabled?: boolean;
 }
 
@@ -52,7 +48,65 @@ async function safeJson(response: Response) {
     return { response, data };
 }
 
-export function useMetrics({ accessToken, setSession, enabled = true }: UseMetricsOptions): UseMetricsResult {
+function asObject(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    return value as Record<string, unknown>;
+}
+
+function asNumber(value: unknown) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function asStatusCounts(value: unknown): StatusCounts | null {
+    const record = asObject(value);
+    if (!record) return null;
+
+    return {
+        '200': asNumber(record['200']) ?? 0,
+        '401': asNumber(record['401']) ?? 0,
+        '500': asNumber(record['500']) ?? 0
+    };
+}
+
+function resolveSnapshot(payload: unknown): MetricsSnapshot | null {
+    const root = asObject(payload);
+    if (!root) return null;
+
+    const candidates = [
+        root,
+        asObject(root.snapshot),
+        asObject(root.metrics),
+        asObject(root.data)
+    ].filter((candidate): candidate is Record<string, unknown> => candidate !== null);
+
+    for (const candidate of candidates) {
+        const uptimeSeconds = asNumber(candidate.uptime_seconds);
+        const requestsTotal = asNumber(candidate.requests_total);
+        const latencyAvg = asNumber(candidate.latency_ms_avg);
+        const latencyMax = asNumber(candidate.latency_ms_max);
+        const statusCounts = asStatusCounts(candidate.status_counts);
+
+        if (
+            uptimeSeconds !== null &&
+            requestsTotal !== null &&
+            latencyAvg !== null &&
+            latencyMax !== null &&
+            statusCounts
+        ) {
+            return {
+                uptime_seconds: uptimeSeconds,
+                requests_total: requestsTotal,
+                latency_ms_avg: latencyAvg,
+                latency_ms_max: latencyMax,
+                status_counts: statusCounts
+            };
+        }
+    }
+
+    return null;
+}
+
+export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsResult {
     const [serverState, setServerState] = useState<ServerState>({
         status: 'loading',
         message: 'Cargando',
@@ -165,68 +219,42 @@ export function useMetrics({ accessToken, setSession, enabled = true }: UseMetri
         }
     }, []);
 
-    const fetchMetrics = useCallback(async (token: string, allowRefresh: boolean) => {
-        const headers: Record<string, string> = {
-            Accept: 'application/json'
-        };
-        const authHeader = buildAuthorizationHeader(token);
-        if (authHeader) {
-            headers.Authorization = authHeader;
-        }
-
-        const response = await fetch(`${BASE_URL}/metrics`, {
-            headers,
-            credentials: 'include'
-        });
-        const { response: res, data } = await safeJson(response);
-
-        if (res.status === 401) {
-            if (allowRefresh) {
-                const refreshed = await refreshAccessToken();
-                if ('access_token' in refreshed) {
-                    const refreshedToken = refreshed as RefreshResponse;
-                    setSession(refreshedToken.access_token, refreshedToken.expires_in);
-                    return fetchMetrics(refreshedToken.access_token, false);
-                }
+    const fetchMetrics = useCallback(async () => {
+        try {
+            const response = await getAdminMetrics();
+            setMetricsDisabled(false);
+            const resolved = resolveSnapshot(response);
+            if (!resolved) {
+                setErrorMessage('La respuesta de métricas no tiene el formato esperado.');
+                return null;
             }
-            setErrorMessage('No estás autorizado para ver las métricas.');
-            return null;
-        }
-
-        if (res.status === 404) {
-            setMetricsDisabled(true);
-            return null;
-        }
-
-        if (!res.ok) {
-            if (res.status >= 500) {
-                throw new Error('Server error');
+            return resolved;
+        } catch (error) {
+            if (error instanceof ApiError) {
+                if (error.status === 401 || error.status === 403) {
+                    setErrorMessage('No estás autorizado para ver las métricas.');
+                    return null;
+                }
+                if (error.status === 404) {
+                    setMetricsDisabled(true);
+                    return null;
+                }
+                if (error.status >= 500) {
+                    throw error;
+                }
             }
             setErrorMessage('No se pudieron cargar las métricas.');
             return null;
         }
-
-        setMetricsDisabled(false);
-        return data as MetricsSnapshot;
-    }, [setSession]);
+    }, []);
 
     const fetchAll = useCallback(async () => {
         if (!enabled || !isMountedRef.current) return;
         setIsRefreshing(true);
         await Promise.all([fetchHealth(), fetchReady()]);
 
-        const effectiveToken = accessToken ?? getStoredToken();
-
-        if (!effectiveToken) {
-            setErrorMessage('Necesitas iniciar sesión para ver métricas protegidas.');
-            setIsRefreshing(false);
-            setIsLoading(false);
-            scheduleNext(5000);
-            return;
-        }
-
         try {
-            const result = await fetchMetrics(effectiveToken, true);
+            const result = await fetchMetrics();
             if (result) {
                 setSnapshot(result);
                 pushHistory(setRequestHistory, result.requests_total);
@@ -247,7 +275,7 @@ export function useMetrics({ accessToken, setSession, enabled = true }: UseMetri
                 scheduleNext(delay);
             }
         }
-    }, [accessToken, enabled, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
+    }, [enabled, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
 
     const reload = useCallback(() => {
         void fetchAll();
