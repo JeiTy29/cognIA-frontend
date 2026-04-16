@@ -51,7 +51,7 @@ export function CustomSelect({
     };
 
     return (
-        <div className={`global-select ${className}`.trim()} ref={containerRef}>
+        <div className={`global-select ${open ? 'is-open' : ''} ${className}`.trim()} ref={containerRef}>
             <button
                 type="button"
                 className="global-select-trigger"

@@ -42,6 +42,7 @@ const initialCreateForm: CreateFormState = {
 type StatusFilter = 'Todos' | 'Activos' | 'Inactivos';
 type RoleFilter = 'Todos' | 'Admin' | 'Psicologo' | 'Padre/Tutor';
 type UserRoleKey = 'ADMIN' | 'PSYCHOLOGIST' | 'GUARDIAN';
+type PendingAdminAction = 'passwordReset' | 'mfaReset';
 
 const statusFilterOptions = [
     { value: 'Todos', label: 'Todos' },
@@ -150,6 +151,8 @@ export default function Usuarios() {
         submittingCreate,
         submittingUpdate,
         submittingDeactivate,
+        submittingPasswordReset,
+        submittingMfaReset,
         loadUsers,
         goToPage,
         changePageSize,
@@ -157,12 +160,15 @@ export default function Usuarios() {
         createUser,
         updateUser,
         deactivateUser,
+        resetUserPassword,
+        resetUserMfa,
         clearMessages
     } = useUsers();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
+    const [pendingAdminAction, setPendingAdminAction] = useState<PendingAdminAction | null>(null);
 
     const [createForm, setCreateForm] = useState<CreateFormState>(initialCreateForm);
     const [editForm, setEditForm] = useState<EditFormState | null>(null);
@@ -267,6 +273,17 @@ export default function Usuarios() {
         setIsDeactivateOpen(false);
     };
 
+    const openAdminActionModal = (user: User, action: PendingAdminAction) => {
+        clearMessages();
+        setSelectedUser(user);
+        setPendingAdminAction(action);
+    };
+
+    const closeAdminActionModal = () => {
+        setSelectedUser(null);
+        setPendingAdminAction(null);
+    };
+
     const handleCreateSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         const validationError = validateUserForm({
@@ -342,6 +359,18 @@ export default function Usuarios() {
         }
     };
 
+    const handleAdminActionConfirm = async () => {
+        if (!selectedUser || !pendingAdminAction) return;
+
+        const success = pendingAdminAction === 'passwordReset'
+            ? await resetUserPassword(selectedUser.id)
+            : await resetUserMfa(selectedUser.id);
+
+        if (success) {
+            closeAdminActionModal();
+        }
+    };
+
     const clearFilters = () => {
         setSearchTerm('');
         setStatusFilter('Todos');
@@ -359,6 +388,16 @@ export default function Usuarios() {
             setCopiedUserId(null);
         }
     };
+
+    const adminActionTitle = pendingAdminAction === 'passwordReset'
+        ? 'Restablecer contrasena'
+        : 'Resetear MFA';
+    const adminActionLoading = pendingAdminAction === 'passwordReset'
+        ? submittingPasswordReset
+        : submittingMfaReset;
+    const adminActionMessage = pendingAdminAction === 'passwordReset'
+        ? `Confirma si deseas emitir el restablecimiento de contrasena para ${selectedUser?.username ?? ''}.`
+        : `Confirma si deseas resetear MFA para ${selectedUser?.username ?? ''}.`;
 
     return (
         <div className="usuarios">
@@ -520,6 +559,28 @@ export default function Usuarios() {
                                         onClick={() => void openEditModal(user)}
                                     >
                                         <svg viewBox="0 0 24 24"><path d="m3 17 1 4 4-1 10-10-4-4L3 17Zm14-12 4 4 1-1-4-4Z" /></svg>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="icon-btn has-tooltip"
+                                        data-tooltip="Restablecer contrasena"
+                                        aria-label="Restablecer contrasena"
+                                        onClick={() => openAdminActionModal(user, 'passwordReset')}
+                                    >
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M7 10a5 5 0 1 1 9.9 1H19a1 1 0 0 1 .8 1.6l-2.5 3.33a1 1 0 0 1-1.6 0l-2.5-3.33A1 1 0 0 1 14 11h1a3 3 0 1 0-5.92.75l-1.96.41A5.11 5.11 0 0 1 7 10Zm5 3a2 2 0 0 1 2 2v3h-2v-3h-2v3H8v-3a2 2 0 0 1 2-2Z" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="icon-btn has-tooltip"
+                                        data-tooltip="Resetear MFA"
+                                        aria-label="Resetear MFA"
+                                        onClick={() => openAdminActionModal(user, 'mfaReset')}
+                                    >
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 2 4 5v6c0 5 3.4 9.74 8 11 4.6-1.26 8-6 8-11V5Zm0 2.13 6 2.25V11c0 3.87-2.5 7.66-6 8.86C8.5 18.66 6 14.87 6 11V6.38ZM11 7h2v5h-2Zm0 7h2v2h-2Z" />
+                                        </svg>
                                     </button>
                                     <button
                                         type="button"
@@ -784,6 +845,24 @@ export default function Usuarios() {
                             disabled={submittingDeactivate}
                         >
                             {submittingDeactivate ? 'Desactivando...' : 'Desactivar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={pendingAdminAction !== null} onClose={closeAdminActionModal}>
+                <div className="usuarios-modal">
+                    <h2>{adminActionTitle}</h2>
+                    <p>{adminActionMessage}</p>
+                    <div className="usuarios-modal-actions">
+                        <button type="button" className="usuarios-btn ghost" onClick={closeAdminActionModal}>Cancelar</button>
+                        <button
+                            type="button"
+                            className="usuarios-btn primary"
+                            onClick={() => void handleAdminActionConfirm()}
+                            disabled={adminActionLoading}
+                        >
+                            {adminActionLoading ? 'Procesando...' : 'Confirmar'}
                         </button>
                     </div>
                 </div>

@@ -22,7 +22,6 @@ import Metricas from './pages/Administrador/Metricas/Metricas';
 import Usuarios from './pages/Administrador/Usuarios/Usuarios';
 import Psicologos from './pages/Administrador/Psicologos/Psicologos';
 import Auditoria from './pages/Administrador/Auditoria/Auditoria';
-import SaludCorreo from './pages/Administrador/SaludCorreo/SaludCorreo';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
@@ -94,7 +93,6 @@ export default function App() {
                             <Route path="usuarios" element={<Usuarios />} />
                             <Route path="psicologos" element={<Psicologos />} />
                             <Route path="auditoria" element={<Auditoria />} />
-                            <Route path="correo" element={<SaludCorreo />} />
                             <Route path="cuenta" element={<MiCuenta />} />
                         </Route>
                     </Route>

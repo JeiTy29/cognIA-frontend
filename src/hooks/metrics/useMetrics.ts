@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getEmailHealth, resolveEmailHealthBlockState, type EmailHealthBlockState } from '../../services/admin/emailHealth';
 import { getAdminMetrics } from '../../services/admin/metrics';
 import { ApiError } from '../../services/api/httpClient';
 
@@ -32,6 +33,7 @@ interface UseMetricsOptions {
 interface UseMetricsResult {
     serverState: ServerState;
     dbState: DbState;
+    emailState: EmailHealthBlockState;
     snapshot: MetricsSnapshot | null;
     metricsDisabled: boolean;
     errorMessage: string | null;
@@ -115,6 +117,12 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const [dbState, setDbState] = useState<DbState>({
         status: 'loading',
         latency_ms: null
+    });
+    const [emailState, setEmailState] = useState<EmailHealthBlockState>({
+        status: 'loading',
+        label: 'Cargando',
+        detail: 'Consultando servicio',
+        reason: null
     });
     const [snapshot, setSnapshot] = useState<MetricsSnapshot | null>(null);
     const [metricsDisabled, setMetricsDisabled] = useState(false);
@@ -248,10 +256,45 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
         }
     }, []);
 
+    const fetchEmail = useCallback(async () => {
+        try {
+            const response = await getEmailHealth();
+            setEmailState(resolveEmailHealthBlockState(response));
+        } catch (error) {
+            if (error instanceof ApiError) {
+                if (error.status === 404) {
+                    setEmailState({
+                        status: 'error',
+                        label: 'No disponible',
+                        detail: 'Servicio no expuesto',
+                        reason: 'El endpoint de correo no esta disponible en este entorno.'
+                    });
+                    return;
+                }
+                if (error.status === 401 || error.status === 403) {
+                    setEmailState({
+                        status: 'error',
+                        label: 'Sin acceso',
+                        detail: 'Sin permisos',
+                        reason: 'No tienes permisos para consultar el servicio de correo.'
+                    });
+                    return;
+                }
+            }
+
+            setEmailState({
+                status: 'error',
+                label: 'No disponible',
+                detail: 'Error de consulta',
+                reason: 'No fue posible consultar la salud de correo.'
+            });
+        }
+    }, []);
+
     const fetchAll = useCallback(async () => {
         if (!enabled || !isMountedRef.current) return;
         setIsRefreshing(true);
-        await Promise.all([fetchHealth(), fetchReady()]);
+        await Promise.all([fetchHealth(), fetchReady(), fetchEmail()]);
 
         try {
             const result = await fetchMetrics();
@@ -275,7 +318,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                 scheduleNext(delay);
             }
         }
-    }, [enabled, fetchHealth, fetchReady, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
+    }, [enabled, fetchHealth, fetchReady, fetchEmail, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
 
     const reload = useCallback(() => {
         void fetchAll();
@@ -321,6 +364,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     return {
         serverState,
         dbState,
+        emailState,
         snapshot,
         metricsDisabled,
         errorMessage,

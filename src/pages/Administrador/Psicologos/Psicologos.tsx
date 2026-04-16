@@ -39,7 +39,6 @@ export default function Psicologos() {
         statusUnavailable,
         submittingApprove,
         submittingReject,
-        loadPsychologists,
         approvePsychologist,
         rejectPsychologist,
         clearMessages
@@ -113,13 +112,7 @@ export default function Psicologos() {
         <div className="admin-page psicologos-page">
             <header className="admin-header">
                 <div className="admin-title">
-                    <h1>Psicólogos</h1>
-                    <p>Revisa solicitudes pendientes y rechazos sin duplicar psicólogos ya aprobados.</p>
-                </div>
-                <div className="admin-actions">
-                    <button type="button" className="admin-btn ghost" onClick={() => void loadPsychologists()}>
-                        Actualizar
-                    </button>
+                    <h1>Psicologos</h1>
                 </div>
             </header>
 
@@ -129,12 +122,11 @@ export default function Psicologos() {
             {error ? <div className="admin-alert error">{error}</div> : null}
             {statusUnavailable ? (
                 <div className="admin-alert info">
-                    El backend no expone de forma reconocible el estado de revisión para los psicólogos listados. Solo se muestran
-                    registros con estado pendiente o rechazado identificable.
+                    El backend no expone de forma reconocible el estado de revision para los psicologos listados.
                 </div>
             ) : null}
 
-            <section className="admin-controls" aria-label="Controles de psicólogos">
+            <section className="admin-controls" aria-label="Controles de psicologos">
                 <div className="admin-search">
                     <span className="admin-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
@@ -142,7 +134,7 @@ export default function Psicologos() {
                     <input
                         type="search"
                         placeholder="Buscar por ID, usuario o correo..."
-                        aria-label="Buscar psicólogos"
+                        aria-label="Buscar psicologos"
                         value={searchTerm}
                         onChange={(event) => setSearchTerm(event.target.value)}
                     />
@@ -151,7 +143,7 @@ export default function Psicologos() {
                     <label>
                         <span>Estado</span>
                         <CustomSelect
-                            ariaLabel="Estado de revisión"
+                            ariaLabel="Estado de revision"
                             value={reviewFilter}
                             options={reviewOptions}
                             onChange={(value) => setReviewFilter(value as ReviewFilter)}
@@ -160,7 +152,7 @@ export default function Psicologos() {
                 </div>
             </section>
 
-            <section className="admin-table" aria-label="Listado de psicólogos">
+            <section className="admin-table" aria-label="Listado de psicologos">
                 <div className="admin-table-head psicologos-grid">
                     <span>Usuario</span>
                     <span>Correo</span>
@@ -170,15 +162,15 @@ export default function Psicologos() {
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando psicólogos...</div> : null}
+                {loading ? <div className="admin-loading">Cargando psicologos...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
                     <div className="admin-empty" role="status">
                         <div className="admin-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" /></svg>
                         </div>
-                        <h3>Sin psicólogos por revisar</h3>
-                        <p>No hay psicólogos pendientes o rechazados con los filtros actuales.</p>
+                        <h3>Sin psicologos por revisar</h3>
+                        <p>No hay psicologos pendientes o rechazados con los filtros actuales.</p>
                     </div>
                 ) : null}
 
@@ -221,7 +213,7 @@ export default function Psicologos() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginación de psicólogos">
+            <footer className="admin-pagination" aria-label="Paginacion de psicologos">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -229,17 +221,17 @@ export default function Psicologos() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página anterior"
+                        aria-label="Pagina anterior"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Página {currentPage}</span>
+                    <span className="admin-page-current">Pagina {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página siguiente"
+                        aria-label="Pagina siguiente"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage >= totalPages}
                     >
@@ -248,9 +240,9 @@ export default function Psicologos() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tamaño</span>
+                        <span>Tamano</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de página"
+                            ariaLabel="Tamano de pagina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => setPageSize(Number(value))}
@@ -261,16 +253,16 @@ export default function Psicologos() {
 
             <Modal isOpen={isRejectOpen} onClose={closeRejectModal}>
                 <div className="admin-modal">
-                    <h2>Rechazar psicólogo</h2>
+                    <h2>Rechazar psicologo</h2>
                     <p>
-                        Indica la razón del rechazo para <strong>{selectedPsychologist?.username ?? ''}</strong>.
+                        Indica la razon del rechazo para <strong>{selectedPsychologist?.username ?? ''}</strong>.
                     </p>
                     <label>
-                        <span>Razón</span>
+                        <span>Razon</span>
                         <textarea
                             value={rejectReason}
                             onChange={(event) => setRejectReason(event.target.value)}
-                            placeholder="Escribe la razón del rechazo"
+                            placeholder="Escribe la razon del rechazo"
                         />
                     </label>
                     <div className="admin-modal-actions">

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     approvePsychologist,
-    getAllUsers,
     getPsychologistRejectionReason,
     isPsychologistUser,
     rejectPsychologist,
     resolvePsychologistReviewState
 } from '../services/admin/psychologists';
+import { getAllUsers } from '../services/admin/users';
 import type { User } from '../services/admin/users';
 import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';

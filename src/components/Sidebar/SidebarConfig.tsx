@@ -64,12 +64,6 @@ const IconAudit = (
     </svg>
 );
 
-const IconMail = (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2v.51l9 5.4 9-5.4V7l-9 5.4L3 7.01Z" />
-    </svg>
-);
-
 export const sidebarItems: SidebarItem[] = [
     {
         id: 'cuestionario',
@@ -157,15 +151,6 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/auditoria'
-        }
-    },
-    {
-        id: 'correo',
-        label: 'Correo',
-        icon: IconMail,
-        roles: ['admin'],
-        paths: {
-            admin: '/admin/correo'
         }
     },
     {

@@ -68,15 +68,14 @@ export default function Metricas() {
     const {
         serverState,
         dbState,
+        emailState,
         snapshot,
         metricsDisabled,
         errorMessage,
         isLoading,
-        lastUpdated,
         requestHistory,
         latencyHistory,
-        reload,
-        isRefreshing
+        reload
     } = useMetrics({ enabled: metricsViewEnabled });
 
     const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
@@ -116,31 +115,33 @@ export default function Metricas() {
         : dbState.status === 'not_ready' || dbState.status === 'error'
             ? 'accent-red'
             : 'accent-blue';
+    const serverAccentClass = serverState.status === 'ok'
+        ? 'accent-green'
+        : serverState.status === 'error'
+            ? 'accent-red'
+            : 'accent-blue';
+    const emailAccentClass = emailState.status === 'ok'
+        ? 'accent-green'
+        : emailState.status === 'error'
+            ? 'accent-red'
+            : 'accent-blue';
+    const emailStatusDot = emailState.status === 'ok'
+        ? 'status-ok'
+        : emailState.status === 'error'
+            ? 'status-error'
+            : 'status-warn';
 
     return (
         <div className="metricas">
             <header className="metricas-header">
                 <div>
-                    <h1>Métricas del sistema</h1>
-                    <p>Visión general del estado del servidor, base de datos y métricas de tráfico.</p>
-                    {lastUpdated && (
-                        <span className="metricas-updated">Última actualización: {lastUpdated.toLocaleTimeString()}</span>
-                    )}
+                    <h1>Metricas del sistema</h1>
                 </div>
-                <button
-                    type="button"
-                    className="metricas-refresh"
-                    onClick={reload}
-                    disabled={isRefreshing}
-                    aria-label="Actualizar métricas"
-                >
-                    {isRefreshing ? 'Actualizando...' : 'Actualizar'}
-                </button>
             </header>
             <div className="metricas-divider" aria-hidden="true" />
 
             <section className="metricas-row">
-                <div className="metricas-block accent-green">
+                <div className={`metricas-block ${serverAccentClass}`}>
                     <div className="metricas-block-title">Estado del servidor</div>
                     <div className="metricas-status">
                         <span className={`status-dot ${serverState.status === 'ok' ? 'status-ok' : 'status-error'}`} aria-hidden="true" />
@@ -149,7 +150,7 @@ export default function Metricas() {
                         </span>
                     </div>
                     <div className="metricas-small">
-                        {serverState.status === 'ok' ? 'Servidor operativo' : 'No disponible — ver logs'}
+                        {serverState.status === 'ok' ? 'Servidor operativo' : 'No disponible'}
                     </div>
                     <div className="metricas-micro">{serverState.detail || 'Sin interrupciones registradas'}</div>
                 </div>
@@ -174,11 +175,14 @@ export default function Metricas() {
                     </div>
                 </div>
 
-                <div className="metricas-block accent-slate">
-                    <div className="metricas-block-title">Uptime</div>
-                    <div className="metricas-value">{uptimeLabel}</div>
-                    <div className="metricas-small">Solicitudes totales</div>
-                    <div className="metricas-value">{requestsTotal ?? '--'}</div>
+                <div className={`metricas-block ${emailAccentClass}`}>
+                    <div className="metricas-block-title">Servicio de correo</div>
+                    <div className="metricas-status">
+                        <span className={`status-dot ${emailStatusDot}`} aria-hidden="true" />
+                        <span className="status-label">{emailState.label}</span>
+                    </div>
+                    <div className="metricas-small">{emailState.detail}</div>
+                    <div className="metricas-micro">{emailState.reason ?? 'Sin detalle adicional'}</div>
                 </div>
             </section>
 
@@ -246,19 +250,16 @@ export default function Metricas() {
                                 500 — {statusCounts['500']} ({totalStatus ? Math.round((statusCounts['500'] / totalStatus) * 100) : 0}%)
                             </div>
                         </div>
-                        <p className="metricas-note">
-                            La latencia promedio se mantiene en {latencyAvg !== null ? latencyAvg.toFixed(1) : '--'} ms, con máximo de {latencyMax !== null ? latencyMax.toFixed(1) : '--'} ms en picos.
-                        </p>
                     </div>
                 </section>
             )}
 
-            <section className="metricas-table" aria-label="Detalle de métricas">
+            <section className="metricas-table" aria-label="Detalle de metricas">
                 <div className="metricas-table-row header">
+                    <span aria-hidden="true" />
                     <span>Indicador</span>
-                    <span>Métrica</span>
                     <span>Valor</span>
-                    <span>Comentario</span>
+                    <span>Detalle</span>
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator green" aria-hidden="true" />
@@ -268,9 +269,9 @@ export default function Metricas() {
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator blue" aria-hidden="true" />
-                    <span>Solicitudes totales</span>
+                    <span>Solicitudes</span>
                     <span>{requestsTotal ?? '--'}</span>
-                    <span>Tráfico acumulado desde el arranque.</span>
+                    <span>Trafico acumulado desde el arranque.</span>
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator teal" aria-hidden="true" />
@@ -280,7 +281,7 @@ export default function Metricas() {
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator orange" aria-hidden="true" />
-                    <span>Latencia máxima</span>
+                    <span>Latencia maxima</span>
                     <span>{latencyMax !== null ? `${latencyMax.toFixed(1)} ms` : '--'}</span>
                     <span>Picos de carga recientes.</span>
                 </div>
@@ -311,7 +312,7 @@ export default function Metricas() {
             ) : null}
 
             {isLoading ? (
-                <div className="metricas-loading">Cargando métricas...</div>
+                <div className="metricas-loading">Cargando metricas...</div>
             ) : null}
         </div>
     );

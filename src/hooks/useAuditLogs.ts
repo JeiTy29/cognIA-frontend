@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuditLogs, normalizeAuditLogs, type AuditLogItem } from '../services/admin/audit';
+import { getAllAuditLogs, type AuditLogItem } from '../services/admin/audit';
 import { ApiError } from '../services/api/httpClient';
+import { getAllUsers } from '../services/admin/users';
 import { useAuth } from './auth/useAuth';
 
 function extractStatus(error: unknown) {
@@ -40,8 +41,34 @@ export function useAuditLogs() {
         setLoading(true);
         setError(null);
         try {
-            const response = await getAuditLogs();
-            setItems(normalizeAuditLogs(response));
+            const [logsResult, usersResult] = await Promise.allSettled([
+                getAllAuditLogs(),
+                getAllUsers()
+            ]);
+
+            if (logsResult.status !== 'fulfilled') {
+                throw logsResult.reason;
+            }
+
+            const userDirectory = new Map<string, string>();
+            if (usersResult.status === 'fulfilled') {
+                for (const user of usersResult.value) {
+                    const displayName = user.full_name?.trim() || user.username || user.email || user.id;
+                    userDirectory.set(user.id, displayName);
+                }
+            }
+
+            const resolvedLogs = logsResult.value.map((item) => {
+                if (!item.userId) return item;
+                if (item.actor !== '--' && item.actor !== item.userId) return item;
+
+                return {
+                    ...item,
+                    actor: userDirectory.get(item.userId) ?? item.userId
+                } satisfies AuditLogItem;
+            });
+
+            setItems(resolvedLogs);
             setLastUpdated(new Date());
         } catch (loadError) {
             const status = extractStatus(loadError);

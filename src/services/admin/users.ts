@@ -55,6 +55,16 @@ interface DeleteUserResponse {
     msg: string;
 }
 
+export interface AdminPasswordResetResponse {
+    msg?: string;
+    email_sent?: boolean;
+}
+
+export interface AdminMfaResetResponse {
+    msg?: string;
+    user_id?: string;
+}
+
 const requestOptions = {
     auth: true,
     credentials: 'include' as const
@@ -66,6 +76,28 @@ export function getUsers(params: UsersListParams) {
         page_size: String(params.page_size)
     });
     return apiGet<PaginatedUsersResponse>(`/api/v1/users?${search.toString()}`, requestOptions);
+}
+
+export async function getAllUsers() {
+    const pageSize = 100;
+    let page = 1;
+    let total = Number.POSITIVE_INFINITY;
+    const collected: User[] = [];
+
+    while (collected.length < total) {
+        const response = await getUsers({ page, page_size: pageSize });
+        const items = response.items ?? [];
+        total = response.total ?? items.length;
+        collected.push(...items);
+
+        if (items.length === 0 || collected.length >= total) {
+            break;
+        }
+
+        page += 1;
+    }
+
+    return collected;
 }
 
 export function createUser(payload: CreateUserRequest) {
@@ -82,4 +114,20 @@ export function updateUser(userId: string, payload: UpdateUserRequest) {
 
 export function deactivateUser(userId: string) {
     return apiDelete<DeleteUserResponse>(`/api/v1/users/${userId}`, requestOptions);
+}
+
+export function adminResetUserPassword(userId: string) {
+    return apiPost<AdminPasswordResetResponse, Record<string, never>>(
+        `/api/admin/users/${userId}/password-reset`,
+        {},
+        requestOptions
+    );
+}
+
+export function adminResetUserMfa(userId: string) {
+    return apiPost<AdminMfaResetResponse, Record<string, never>>(
+        `/api/admin/users/${userId}/mfa/reset`,
+        {},
+        requestOptions
+    );
 }

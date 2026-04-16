@@ -2,12 +2,30 @@
     grid-template-columns: 1fr 1fr 1fr 1fr 1.6fr 0.8fr;
 }
 
+.auditoria-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
 .auditoria-action {
     font-weight: 600;
 }
 
 .auditoria-summary {
     color: #526476;
+}
+
+.auditoria-filter-select {
+    min-width: 220px;
 }
 
 .auditoria-detail-btn {

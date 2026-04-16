@@ -12,6 +12,13 @@ export interface EmailHealthRow {
     comment: string;
 }
 
+export interface EmailHealthBlockState {
+    status: 'loading' | 'ok' | 'error';
+    label: string;
+    detail: string;
+    reason: string | null;
+}
+
 function asObject(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     return value as Record<string, unknown>;
@@ -85,6 +92,75 @@ export function normalizeEmailHealth(payload: unknown) {
     const record = asObject(payload);
     if (!record) return [];
     return flattenObject(record);
+}
+
+function pickFirstString(record: Record<string, unknown>, keys: string[]) {
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return value.trim();
+        }
+    }
+    return null;
+}
+
+export function resolveEmailHealthBlockState(payload: unknown): EmailHealthBlockState {
+    const record = asObject(payload);
+    if (!record) {
+        return {
+            status: 'error',
+            label: 'No disponible',
+            detail: 'Sin respuesta',
+            reason: 'El backend no devolvio datos de correo.'
+        };
+    }
+
+    const explicitReason = pickFirstString(record, ['error', 'message', 'detail', 'reason']);
+    const explicitStatus = pickFirstString(record, ['status', 'health', 'state']);
+    const normalizedStatus = explicitStatus?.toLowerCase() ?? '';
+
+    if (normalizedStatus.includes('ok') || normalizedStatus.includes('healthy')) {
+        return {
+            status: 'ok',
+            label: 'OK',
+            detail: 'Servicio operativo',
+            reason: explicitReason
+        };
+    }
+
+    if (normalizedStatus.includes('error') || normalizedStatus.includes('fail') || normalizedStatus.includes('down')) {
+        return {
+            status: 'error',
+            label: 'No disponible',
+            detail: 'Servicio con errores',
+            reason: explicitReason
+        };
+    }
+
+    const emailEnabled = record.email_enabled;
+    const smtpHostConfigured = record.smtp_host_configured;
+    const smtpUserConfigured = record.smtp_user_configured;
+
+    if (emailEnabled === true && smtpHostConfigured === true && smtpUserConfigured === true) {
+        return {
+            status: 'ok',
+            label: 'OK',
+            detail: 'Configuracion valida',
+            reason: explicitReason
+        };
+    }
+
+    const reasons: string[] = [];
+    if (emailEnabled === false) reasons.push('Correo deshabilitado');
+    if (smtpHostConfigured === false) reasons.push('Host SMTP no configurado');
+    if (smtpUserConfigured === false) reasons.push('Usuario SMTP no configurado');
+
+    return {
+        status: 'error',
+        label: 'Revisar',
+        detail: 'Configuracion incompleta',
+        reason: explicitReason ?? (reasons.length > 0 ? reasons.join('. ') : null)
+    };
 }
 
 export function getEmailHealth() {
