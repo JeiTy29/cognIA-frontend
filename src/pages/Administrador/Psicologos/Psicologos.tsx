@@ -20,7 +20,8 @@ const pageSizeOptions = [
     { value: '50', label: '50' }
 ];
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+    if (!value) return '--';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
     return date.toLocaleDateString('es-CO');
@@ -36,7 +37,6 @@ export default function Psicologos() {
         loading,
         error,
         notice,
-        statusUnavailable,
         submittingApprove,
         submittingReject,
         approvePsychologist,
@@ -120,11 +120,6 @@ export default function Psicologos() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
-            {statusUnavailable ? (
-                <div className="admin-alert info">
-                    El backend no expone de forma reconocible el estado de revision para los psicologos listados.
-                </div>
-            ) : null}
 
             <section className="admin-controls" aria-label="Controles de psicologos">
                 <div className="admin-search">

@@ -73,10 +73,11 @@ export function useUsers() {
         setError(null);
         try {
             const response: PaginatedUsersResponse = await getUsers({ page: nextPage, page_size: nextPageSize });
+            const pagination = response.pagination;
             setItems(response.items ?? []);
-            setPage(response.page ?? nextPage);
-            setPageSize(response.page_size ?? nextPageSize);
-            setTotal(response.total ?? 0);
+            setPage(pagination?.page ?? nextPage);
+            setPageSize(pagination?.page_size ?? nextPageSize);
+            setTotal(pagination?.total ?? 0);
         } catch (loadError) {
             const status = extractStatus(loadError);
             setError(mapErrorMessage(status, 'list'));
