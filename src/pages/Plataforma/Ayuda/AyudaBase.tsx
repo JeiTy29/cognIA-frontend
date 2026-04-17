@@ -4,6 +4,15 @@ import { useLocation } from 'react-router-dom';
 import { Modal } from '../../../components/Modal/Modal';
 import { TermsContent } from '../../../components/Legal/TermsContent';
 import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
+import { ApiError } from '../../../services/api/httpClient';
+import { createProblemReport } from '../../../services/problemReports/problemReports.api';
+import {
+    PROBLEM_REPORT_ALLOWED_ATTACHMENT_MIMES,
+    PROBLEM_REPORT_ATTACHMENTS_MAX_SIZE_BYTES,
+    PROBLEM_REPORT_ISSUE_TYPES,
+    getProblemReportIssueTypeLabel,
+    type ProblemReportIssueType
+} from '../../../services/problemReports/problemReports.types';
 import '../Plataforma.css';
 import './Ayuda.css';
 
@@ -22,12 +31,53 @@ const WHATSAPP_NUMBER = '0000000000';
 const SUPPORT_EMAIL = 'soportecognia@gmail.com';
 
 const issueOptions: IssueOption[] = [
-    { value: 'Acceso', label: 'Acceso' },
-    { value: 'Cuestionario', label: 'Cuestionario' },
-    { value: 'Resultados', label: 'Resultados' },
-    { value: 'Interfaz', label: 'Interfaz' },
-    { value: 'Otro', label: 'Otro' }
+    ...PROBLEM_REPORT_ISSUE_TYPES.map((value) => ({
+        value,
+        label: getProblemReportIssueTypeLabel(value)
+    }))
 ];
+
+function extractPayloadField(payload: unknown, keys: string[]) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return null;
+    }
+
+    const record = payload as Record<string, unknown>;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return value.trim();
+        }
+    }
+    return null;
+}
+
+function mapCreateProblemReportError(error: unknown) {
+    if (!(error instanceof ApiError)) {
+        return 'No fue posible enviar el reporte.';
+    }
+
+    const status = error.status;
+    const candidates = [
+        extractPayloadField(error.payload, ['error', 'code', 'type']),
+        extractPayloadField(error.payload, ['msg', 'message', 'detail'])
+    ].filter((value): value is string => Boolean(value));
+
+    const normalized = candidates.map((value) => value.toLowerCase()).join(' ');
+
+    if (normalized.includes('invalid_user') || status === 401) return 'Tu sesión no es válida. Inicia sesión nuevamente.';
+    if (normalized.includes('inactive_account') || status === 403) return 'Tu cuenta está inactiva.';
+    if (normalized.includes('attachment_missing')) return 'No se pudo procesar el archivo adjunto.';
+    if (normalized.includes('attachment_filename_missing')) return 'El archivo adjunto debe conservar un nombre válido.';
+    if (normalized.includes('attachment_mime_not_allowed')) return 'Solo se permiten archivos PNG, JPG o WEBP.';
+    if (normalized.includes('attachment_empty')) return 'El archivo adjunto está vacío.';
+    if (normalized.includes('attachment_too_large')) return 'El archivo adjunto supera el máximo de 5 MB.';
+    if (normalized.includes('attachment_content_mismatch')) return 'El contenido del archivo no coincide con el tipo permitido.';
+    if (normalized.includes('problem_report_create_failed')) return 'No fue posible crear el reporte. Intenta nuevamente.';
+    if (normalized.includes('validation_error') || status === 400) return 'Revisa los datos del reporte e intenta de nuevo.';
+    if (status >= 500) return 'Error del servidor. Intenta más tarde.';
+    return 'No fue posible enviar el reporte.';
+}
 
 const faqsPadre = [
     {
@@ -85,13 +135,16 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
 
     const [openFaqId, setOpenFaqId] = useState<string | null>(null);
     const [showReportForm, setShowReportForm] = useState(false);
-    const [reportSent, setReportSent] = useState(false);
+    const [reportSuccess, setReportSuccess] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [submittingReport, setSubmittingReport] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
     const [showPrivacy, setShowPrivacy] = useState(false);
 
     const [issueType, setIssueType] = useState('');
     const [description, setDescription] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [selectOpen, setSelectOpen] = useState(false);
 
@@ -100,6 +153,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
 
     const faqs = resolvedRole === 'psicologo' ? faqsPsicologo : faqsPadre;
     const roleLabel = resolvedRole === 'psicologo' ? 'Psicólogo' : 'Padre/Tutor';
+    const selectedIssueOption = issueOptions.find((option) => option.value === issueType) ?? null;
 
     const whatsappMessage = `Hola, necesito ayuda con CognIA. Mi tipo de cuenta es: ${roleLabel}.`;
     const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
@@ -133,22 +187,64 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
         setOpenFaqId((prev) => (prev === id ? null : id));
     };
 
+    const resetReportForm = () => {
+        setIssueType('');
+        setDescription('');
+        setReportError(null);
+        setReportSuccess(null);
+        handleFileClear();
+    };
+
     const handleReportToggle = () => {
         setShowReportForm((prev) => !prev);
-        setReportSent(false);
+        setReportError(null);
+        setReportSuccess(null);
     };
 
     const handleReportCancel = () => {
         setShowReportForm(false);
-        setReportSent(false);
-        setIssueType('');
-        setDescription('');
-        handleFileClear();
+        resetReportForm();
     };
 
-    const handleReportSubmit = (event: FormEvent) => {
+    const handleReportSubmit = async (event: FormEvent) => {
         event.preventDefault();
-        setReportSent(true);
+        setReportError(null);
+        setReportSuccess(null);
+
+        if (!issueType) {
+            setReportError('Selecciona el tipo de problema.');
+            return;
+        }
+
+        const trimmedDescription = description.trim();
+        if (trimmedDescription.length < 10) {
+            setReportError('La descripción debe tener al menos 10 caracteres.');
+            return;
+        }
+
+        if (trimmedDescription.length > 4000) {
+            setReportError('La descripción no puede superar los 4000 caracteres.');
+            return;
+        }
+
+        setSubmittingReport(true);
+        try {
+            const response = await createProblemReport({
+                issue_type: issueType as ProblemReportIssueType,
+                description: trimmedDescription,
+                source_path: location.pathname,
+                attachment: selectedFile
+            });
+            const reportCode = response.report.report_code;
+            resetReportForm();
+            setReportSuccess(reportCode
+                ? `Reporte enviado correctamente. Código: ${reportCode}.`
+                : 'Reporte enviado correctamente.');
+        } catch (submitError) {
+            setReportError(mapCreateProblemReportError(submitError));
+        } finally {
+            setSubmittingReport(false);
+        }
     };
 
     const handleCopyEmail = async () => {
@@ -166,9 +262,33 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
             URL.revokeObjectURL(previewUrl);
         }
         if (!file) {
+            setSelectedFile(null);
             setPreviewUrl(null);
             return;
         }
+
+        if (!PROBLEM_REPORT_ALLOWED_ATTACHMENT_MIMES.includes(file.type as (typeof PROBLEM_REPORT_ALLOWED_ATTACHMENT_MIMES)[number])) {
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setReportError('Solo se permiten archivos PNG, JPG o WEBP.');
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            return;
+        }
+
+        if (file.size > PROBLEM_REPORT_ATTACHMENTS_MAX_SIZE_BYTES) {
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setReportError('El archivo adjunto supera el máximo de 5 MB.');
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            return;
+        }
+
+        setReportError(null);
+        setSelectedFile(file);
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
     };
@@ -177,6 +297,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
         if (previewUrl) {
             URL.revokeObjectURL(previewUrl);
         }
+        setSelectedFile(null);
         setPreviewUrl(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
@@ -189,6 +310,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
 
     const handleSelectOption = (value: string) => {
         setIssueType(value);
+        setReportError(null);
         setSelectOpen(false);
     };
 
@@ -239,7 +361,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                             onClick={handleSelectToggle}
                                             aria-expanded={selectOpen}
                                         >
-                                            <span>{issueType || 'Selecciona una opción'}</span>
+                                            <span>{selectedIssueOption?.label ?? 'Selecciona una opción'}</span>
                                             <span className={`ayuda-select-icon ${selectOpen ? 'open' : ''}`}><ChevronIcon /></span>
                                         </button>
                                         <div className={`ayuda-select-menu ${selectOpen ? 'is-open' : ''}`}>
@@ -262,7 +384,10 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                         className="ayuda-input ayuda-textarea"
                                         placeholder="Describe el problema de forma breve."
                                         value={description}
-                                        onChange={(event) => setDescription(event.target.value)}
+                                        onChange={(event) => {
+                                            setDescription(event.target.value);
+                                            setReportError(null);
+                                        }}
                                     />
                                 </label>
                                 <label className="ayuda-input-group">
@@ -273,7 +398,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                             className="ayuda-input ayuda-file-input"
                                             type="file"
                                             id="ayuda-file"
-                                            accept="image/*"
+                                            accept="image/png,image/jpeg,image/webp"
                                             onChange={(event) => handleFileChange(event.target.files?.[0] || null)}
                                         />
                                         <label htmlFor="ayuda-file" className="ayuda-upload-btn">
@@ -294,9 +419,8 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                     </div>
                                 </label>
 
-                                {reportSent && (
-                                    <div className="ayuda-success">Reporte enviado correctamente.</div>
-                                )}
+                                {reportError ? <div className="ayuda-error">{reportError}</div> : null}
+                                {reportSuccess ? <div className="ayuda-success">{reportSuccess}</div> : null}
 
                                 <div className="ayuda-actions inline">
                                     <button type="button" className="ayuda-btn cancel" onClick={handleReportCancel}>
@@ -305,9 +429,9 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                     <button
                                         type="submit"
                                         className="ayuda-btn primary"
-                                        disabled={!issueType || !description.trim()}
+                                        disabled={!issueType || description.trim().length < 10 || submittingReport}
                                     >
-                                        Enviar
+                                        {submittingReport ? 'Enviando...' : 'Enviar'}
                                     </button>
                                 </div>
                             </form>

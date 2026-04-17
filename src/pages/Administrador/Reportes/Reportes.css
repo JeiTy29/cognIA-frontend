@@ -1,0 +1,69 @@
+.reportes-admin-page .admin-filters .global-select {
+    min-width: 170px;
+}
+
+.reportes-admin-filter-input {
+    min-width: 128px;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #0b2540;
+    background: #ffffff;
+    font-family: inherit;
+}
+
+.reportes-admin-grid {
+    grid-template-columns: 1.35fr 1fr 1fr 1fr 1fr 1.1fr 0.9fr;
+}
+
+.reportes-admin-code {
+    font-weight: 600;
+}
+
+.reportes-admin-action-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+.reportes-admin-detail textarea[readonly] {
+    background: #f8fbfd;
+    color: #526476;
+}
+
+.reportes-admin-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: #526476;
+}
+
+.reportes-admin-attachments strong {
+    color: #0b2540;
+}
+
+.reportes-admin-attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.reportes-admin-attachment-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.8fr;
+    gap: 10px;
+    font-size: 12px;
+}
+
+@media (max-width: 1180px) {
+    .reportes-admin-page .admin-table {
+        overflow-x: auto;
+    }
+
+    .reportes-admin-grid {
+        min-width: 1040px;
+    }
+}

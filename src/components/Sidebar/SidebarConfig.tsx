@@ -76,6 +76,12 @@ const IconAudit = (
     </svg>
 );
 
+const IconReports = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" />
+    </svg>
+);
+
 export const sidebarItems: SidebarItem[] = [
     {
         id: 'cuestionario',
@@ -114,6 +120,16 @@ export const sidebarItems: SidebarItem[] = [
         paths: {
             padre: '/padre/ayuda',
             psicologo: '/psicologo/ayuda'
+        }
+    },
+    {
+        id: 'reportes',
+        label: 'Reportes',
+        icon: IconReports,
+        roles: ['padre', 'psicologo'],
+        paths: {
+            padre: '/padre/reportes',
+            psicologo: '/psicologo/reportes'
         }
     },
     {
@@ -181,6 +197,15 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/auditoria'
+        }
+    },
+    {
+        id: 'reportes-admin',
+        label: 'Reportes',
+        icon: IconReports,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/reportes'
         }
     },
     {
