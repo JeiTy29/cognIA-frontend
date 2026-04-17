@@ -46,6 +46,12 @@ const IconMetrics = (
     </svg>
 );
 
+const IconAdminQuestionnaires = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h12V5H6Zm2 3h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
+    </svg>
+);
+
 const IconUsers = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M9 12a4 4 0 1 1 4-4 4 4 0 0 1-4 4Zm8 0a3 3 0 1 1 3-3 3 3 0 0 1-3 3ZM4 20a6 6 0 0 1 12 0v1H4Zm12 1v-1a6 6 0 0 0-2-4.47 5 5 0 0 1 8 4.47v1Z" />
@@ -124,6 +130,15 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/metricas'
+        }
+    },
+    {
+        id: 'cuestionarios-admin',
+        label: 'Cuestionarios',
+        icon: IconAdminQuestionnaires,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/cuestionarios'
         }
     },
     {
