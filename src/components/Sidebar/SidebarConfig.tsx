@@ -52,6 +52,12 @@ const IconAdminQuestionnaires = (
     </svg>
 );
 
+const IconEvaluations = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" />
+    </svg>
+);
+
 const IconUsers = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M9 12a4 4 0 1 1 4-4 4 4 0 0 1-4 4Zm8 0a3 3 0 1 1 3-3 3 3 0 0 1-3 3ZM4 20a6 6 0 0 1 12 0v1H4Zm12 1v-1a6 6 0 0 0-2-4.47 5 5 0 0 1 8 4.47v1Z" />
@@ -139,6 +145,15 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/cuestionarios'
+        }
+    },
+    {
+        id: 'evaluaciones-admin',
+        label: 'Evaluaciones',
+        icon: IconEvaluations,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/evaluaciones'
         }
     },
     {
