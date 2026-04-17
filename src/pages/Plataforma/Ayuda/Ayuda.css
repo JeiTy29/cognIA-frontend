@@ -8,126 +8,71 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
 }
 
 .ayuda-header {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin-bottom: 4px;
 }
 
 .ayuda-title {
+    margin: 0;
     font-size: 32px;
     font-weight: 700;
     color: #215F8F;
 }
 
-.ayuda-subtitle {
-    font-size: 15px;
-    color: #5b677a;
-}
-
-.info-card.ayuda-panel {
-    background: #51C2F4;
-    border: 1px solid rgba(33, 95, 143, 0.25);
-    box-shadow: 0 8px 18px rgba(33, 95, 143, 0.18);
-}
-
-.ayuda-faq {
+.ayuda-section {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
+    padding: 24px 0;
+    border-top: 1px solid rgba(33, 95, 143, 0.16);
 }
 
-.ayuda-lower {
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    gap: 24px;
-    align-items: start;
-}
-
-.ayuda-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.ayuda-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #f3fbff;
-    align-self: flex-start;
-}
-
-.ayuda-input {
-    border-radius: 12px;
-    border: 1px solid rgba(33, 95, 143, 0.2);
-    padding: 12px 14px;
-    font-size: 14px;
-    color: #1f2a37;
-    background: #ffffff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.ayuda-input:focus {
-    outline: none;
-    border-color: rgba(23, 144, 233, 0.7);
-    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.12);
-}
-
-.ayuda-textarea {
-    min-height: 180px;
-    resize: vertical;
-}
-
-.ayuda-input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.ayuda-section:first-of-type {
+    border-top: none;
+    padding-top: 0;
 }
 
 .ayuda-section-title {
-    font-size: 18px;
+    margin: 0;
+    font-size: 20px;
     font-weight: 700;
-    color: #ffffff;
+    color: #215F8F;
 }
 
 .ayuda-faq-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
 }
 
 .ayuda-faq-item {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
-    background: transparent;
-    padding: 4px 0;
-}
-
-.ayuda-faq-item:last-child {
-    border-bottom: none;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.08);
 }
 
 .ayuda-faq-question {
     width: 100%;
     background: transparent;
     border: none;
-    padding: 12px 8px;
+    padding: 16px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     text-align: left;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    color: #ffffff;
+    color: #0b2540;
     cursor: pointer;
 }
 
 .ayuda-faq-icon {
     font-size: 18px;
-    color: #ffffff;
+    color: #215F8F;
 }
 
 .ayuda-faq-icon svg,
@@ -142,157 +87,34 @@
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    padding: 0 8px;
     transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease;
 }
 
 .ayuda-faq-answer.is-open {
-    max-height: 160px;
+    max-height: 180px;
     opacity: 1;
-    padding: 0 8px 12px;
+    padding-bottom: 16px;
 }
 
 .ayuda-faq-answer p {
-    font-size: 14px;
-    color: #e9f6ff;
-    line-height: 1.5;
-}
-
-.ayuda-block {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.ayuda-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.ayuda-actions.inline {
-    flex-direction: row;
-    justify-content: flex-end;
-    gap: 12px;
-}
-
-.ayuda-btn {
-    border-radius: 12px;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    border: 1px solid transparent;
-    cursor: pointer;
-    text-align: center;
-    text-decoration: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.ayuda-btn.primary {
-    background: #1790E9;
-    color: #ffffff;
-    box-shadow: 0 6px 14px rgba(23, 144, 233, 0.18);
-}
-
-.ayuda-btn.primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(23, 144, 233, 0.22);
-}
-
-.ayuda-btn.whatsapp {
-    background: #2EBF73;
-    color: #ffffff;
-    box-shadow: 0 6px 12px rgba(46, 191, 115, 0.2);
-}
-
-.ayuda-btn.gmail {
-    background: #E05A52;
-    color: #ffffff;
-    box-shadow: 0 6px 12px rgba(224, 90, 82, 0.2);
-}
-
-.ayuda-btn.outlook {
-    background: #2F74A9;
-    color: #ffffff;
-    box-shadow: 0 6px 12px rgba(47, 116, 169, 0.2);
-}
-
-.ayuda-btn.copy {
-    background: #ffffff;
-    color: #215F8F;
-    border-color: rgba(33, 95, 143, 0.25);
-}
-
-.ayuda-btn.cancel {
-    background: #eaf6ff;
-    color: #215F8F;
-    border-color: rgba(33, 95, 143, 0.35);
-}
-
-.ayuda-btn.cancel:hover {
-    background: #dff0ff;
-    border-color: rgba(33, 95, 143, 0.5);
-}
-
-.ayuda-btn.copy:hover {
-    border-color: rgba(33, 95, 143, 0.45);
-}
-
-.ayuda-btn.ghost {
-    background: transparent;
-    border-color: rgba(255, 255, 255, 0.55);
-    color: #ffffff;
-}
-
-.ayuda-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
-.ayuda-copy {
-    font-size: 12px;
-    color: #ffffff;
-}
-
-.ayuda-divider {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.35);
+    margin: 0;
+    color: #526476;
+    line-height: 1.55;
 }
 
 .ayuda-toggle {
     width: 100%;
-    border: 1px solid rgba(81, 194, 244, 0.25);
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 12px 14px;
+    border: none;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.08);
+    background: transparent;
+    padding: 0 0 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     color: #215F8F;
     cursor: pointer;
-}
-
-.ayuda-toggle-icon {
-    font-size: 18px;
-    color: #1790E9;
-}
-
-.ayuda-report {
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transform: translateY(-6px);
-    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
-}
-
-.ayuda-report.is-open {
-    max-height: 760px;
-    opacity: 1;
-    transform: translateY(0);
-    margin-top: 12px;
 }
 
 .ayuda-toggle-icon {
@@ -307,51 +129,58 @@
     transform: rotate(180deg);
 }
 
+.ayuda-report {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-6px);
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease, margin-top 0.25s ease;
+}
+
+.ayuda-report.is-open {
+    max-height: 1800px;
+    opacity: 1;
+    transform: translateY(0);
+    margin-top: 2px;
+}
+
 .ayuda-report-form {
     display: grid;
     gap: 18px;
+    padding-top: 4px;
 }
 
-.ayuda-attachment {
-    font-size: 12px;
-    color: #e9f6ff;
-    margin-top: 4px;
-}
-
-.ayuda-success {
-    background: rgba(255, 255, 255, 0.18);
-    border-left: 3px solid #ffffff;
-    padding: 10px 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    color: #ffffff;
-}
-
-.ayuda-error {
-    background: rgba(220, 53, 69, 0.18);
-    border-left: 3px solid rgba(255, 255, 255, 0.8);
-    padding: 10px 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    color: #ffffff;
-}
-
-.ayuda-legal {
+.ayuda-input-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.ayuda-link {
-    border: none;
-    background: transparent;
-    padding: 0;
-    font-size: 14px;
+.ayuda-label {
+    font-size: 13px;
     font-weight: 600;
-    color: #ffffff;
-    text-align: left;
-    cursor: pointer;
-    text-decoration: underline;
+    color: #526476;
+}
+
+.ayuda-input {
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    padding: 12px 14px;
+    font-size: 14px;
+    color: #1f2a37;
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ayuda-input:focus {
+    outline: none;
+    border-color: rgba(23, 144, 233, 0.7);
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.12);
+}
+
+.ayuda-textarea {
+    min-height: 180px;
+    resize: vertical;
 }
 
 .ayuda-select {
@@ -366,44 +195,27 @@
     gap: 12px;
     padding: 12px 14px;
     border-radius: 12px;
-    border: 1px solid rgba(33, 95, 143, 0.25);
+    border: 1px solid rgba(33, 95, 143, 0.18);
     background: #ffffff;
     font-size: 14px;
     font-weight: 600;
     color: #215F8F;
     cursor: pointer;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .ayuda-select-trigger:hover {
-    border-color: rgba(33, 95, 143, 0.45);
-}
-
-.ayuda-select-trigger:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.7);
-    outline-offset: 2px;
-}
-
-.ayuda-select-icon {
-    font-size: 14px;
-    transition: transform 0.2s ease;
-    color: #215F8F;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.ayuda-select-icon.open {
-    transform: rotate(180deg);
+    border-color: rgba(33, 95, 143, 0.35);
 }
 
 .ayuda-select-menu {
-    position: relative;
-    margin-top: 8px;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
     background: #ffffff;
     border-radius: 12px;
-    border: 1px solid rgba(33, 95, 143, 0.25);
-    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.18);
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.12);
     padding: 6px;
     display: flex;
     flex-direction: column;
@@ -414,98 +226,450 @@
     overflow: hidden;
     pointer-events: none;
     transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
-    z-index: 5;
+    z-index: 12;
 }
 
 .ayuda-select-menu.is-open {
     opacity: 1;
     transform: translateY(0);
-    max-height: 240px;
+    max-height: 260px;
+    overflow-y: auto;
     pointer-events: auto;
 }
 
 .ayuda-select-option {
     border: none;
     background: transparent;
-    text-align: left;
-    padding: 10px 12px;
     border-radius: 10px;
+    padding: 10px 12px;
+    text-align: left;
     font-size: 14px;
-    font-weight: 600;
-    color: #215F8F;
+    color: #0b2540;
     cursor: pointer;
-    transition: background 0.2s ease;
 }
 
 .ayuda-select-option:hover {
-    background: rgba(81, 194, 244, 0.2);
+    background: rgba(23, 144, 233, 0.08);
 }
 
 .ayuda-upload {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    align-items: flex-start;
 }
 
 .ayuda-file-input {
     display: none;
 }
 
-.ayuda-upload-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 16px;
+.ayuda-upload-btn,
+.ayuda-btn {
     border-radius: 12px;
-    background: #ffffff;
-    border: 1px solid rgba(33, 95, 143, 0.3);
-    color: #215F8F;
+    padding: 10px 16px;
+    font-size: 14px;
     font-weight: 600;
+    border: 1px solid transparent;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.ayuda-upload-btn:hover {
-    border-color: rgba(33, 95, 143, 0.5);
-    box-shadow: 0 6px 12px rgba(33, 95, 143, 0.15);
+.ayuda-upload-btn {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #215F8F;
+    border-color: rgba(33, 95, 143, 0.25);
+}
+
+.ayuda-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
 }
 
 .ayuda-preview {
     width: 100%;
-    max-height: 200px;
-    object-fit: contain;
-    background: #ffffff;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    max-width: 360px;
+    max-height: 220px;
+    border-radius: 14px;
+    object-fit: cover;
+    border: 1px solid rgba(33, 95, 143, 0.16);
 }
 
-.ayuda-preview-wrap {
-    width: 100%;
+.ayuda-actions {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
+.ayuda-actions.inline {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.ayuda-btn.primary {
+    background: #1790E9;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(23, 144, 233, 0.18);
+}
+
+.ayuda-btn.primary:hover,
+.ayuda-upload-btn:hover {
+    transform: translateY(-1px);
+}
+
+.ayuda-btn.whatsapp {
+    background: #2EBF73;
+    color: #ffffff;
+}
+
+.ayuda-btn.gmail {
+    background: #E05A52;
+    color: #ffffff;
+}
+
+.ayuda-btn.outlook {
+    background: #2F74A9;
+    color: #ffffff;
+}
+
+.ayuda-btn.copy,
+.ayuda-btn.cancel,
+.ayuda-btn.ghost,
 .ayuda-btn.discard {
     background: #ffffff;
     color: #215F8F;
-    border-color: rgba(33, 95, 143, 0.3);
-    align-self: flex-start;
+    border-color: rgba(33, 95, 143, 0.22);
 }
 
-.ayuda-btn.discard:hover {
-    border-color: rgba(33, 95, 143, 0.5);
+.ayuda-btn.ghost {
+    background: transparent;
+}
+
+.ayuda-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.ayuda-success,
+.ayuda-error {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.ayuda-success {
+    background: rgba(31, 157, 85, 0.12);
+    color: #1f8f4e;
+    border-left: 3px solid #1f8f4e;
+}
+
+.ayuda-error {
+    background: rgba(220, 53, 69, 0.12);
+    color: #a02734;
+    border-left: 3px solid #a02734;
+}
+
+.ayuda-reports-controls {
+    padding-top: 4px;
+}
+
+.ayuda-reports-filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.ayuda-reports-filters label,
+.ayuda-page-size label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #526476;
+}
+
+.ayuda-reports-filters .global-select {
+    min-width: 170px;
+}
+
+.ayuda-report-status,
+.ayuda-report-empty {
+    padding: 8px 0;
+    color: #526476;
+}
+
+.ayuda-report-empty h3 {
+    margin: 0 0 8px;
+    color: #215F8F;
+}
+
+.ayuda-report-empty p {
+    margin: 0;
+}
+
+.ayuda-report-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.ayuda-report-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid rgba(11, 37, 64, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.ayuda-report-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ayuda-report-item-head strong {
+    color: #0b2540;
+}
+
+.ayuda-report-item-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    color: #526476;
+    font-size: 13px;
+}
+
+.ayuda-report-item-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ayuda-report-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ayuda-report-badge.resolved {
+    background: rgba(31, 157, 85, 0.12);
+    color: #1f8f4e;
+}
+
+.ayuda-report-badge.progress {
+    background: rgba(240, 173, 78, 0.12);
+    color: #a86a09;
+}
+
+.ayuda-report-badge.rejected {
+    background: rgba(220, 53, 69, 0.12);
+    color: #a02734;
+}
+
+.ayuda-report-badge.open {
+    background: rgba(82, 100, 118, 0.12);
+    color: #526476;
+}
+
+.ayuda-report-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 8px;
+    font-size: 13px;
+    color: #526476;
+}
+
+.ayuda-report-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ayuda-page-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    background: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.ayuda-page-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+}
+
+.ayuda-page-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ayuda-page-current {
+    font-weight: 600;
+    color: #0b2540;
+}
+
+.ayuda-page-size .global-select {
+    min-width: 92px;
+}
+
+.ayuda-contact-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.ayuda-block {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ayuda-legal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ayuda-link {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #215F8F;
+    text-align: left;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.ayuda-copy {
+    font-size: 12px;
+    color: #526476;
+}
+
+.ayuda-detail-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ayuda-detail-modal h2 {
+    margin: 0;
+    color: #0b2540;
+}
+
+.ayuda-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+.ayuda-detail-grid div,
+.ayuda-detail-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: #526476;
+}
+
+.ayuda-detail-grid strong,
+.ayuda-detail-block strong {
+    color: #0b2540;
+}
+
+.ayuda-detail-block p {
+    margin: 0;
+}
+
+.ayuda-attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ayuda-attachment-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.8fr;
+    gap: 10px;
+    font-size: 12px;
+}
+
+.ayuda-detail-actions {
+    display: flex;
+    justify-content: flex-end;
 }
 
 @media (max-width: 900px) {
-    .ayuda-lower {
+    .ayuda-section {
+        padding: 20px 0;
+    }
+
+    .ayuda-contact-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .ayuda-reports-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ayuda-reports-filters .global-select {
+        min-width: 100%;
+    }
+
+    .ayuda-report-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ayuda-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ayuda-attachment-row {
         grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 600px) {
-    .ayuda-title {
-        font-size: 28px;
+@media (max-width: 640px) {
+    .ayuda-actions.inline {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .ayuda-report-item-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ayuda-report-item-actions {
+        justify-content: flex-start;
     }
 }
