@@ -6,6 +6,9 @@ import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';
 
 type OrderDirection = 'asc' | 'desc';
+type UseMyProblemReportsOptions = {
+    enabled?: boolean;
+};
 
 function extractStatus(error: unknown) {
     if (error instanceof ApiError) {
@@ -22,9 +25,10 @@ function mapErrorMessage(status: number) {
     return 'No fue posible cargar tus reportes.';
 }
 
-export function useMyProblemReports() {
+export function useMyProblemReports(options?: UseMyProblemReportsOptions) {
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const enabled = options?.enabled ?? true;
 
     const [items, setItems] = useState<ProblemReportItem[]>([]);
     const [page, setPage] = useState(1);
@@ -37,7 +41,7 @@ export function useMyProblemReports() {
     const [sort, setSort] = useState('created_at');
     const [order, setOrder] = useState<OrderDirection>('desc');
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState<string | null>(null);
 
     const handleUnauthorized = useCallback(() => {
@@ -49,6 +53,10 @@ export function useMyProblemReports() {
     }, [logout, navigate]);
 
     const loadReports = useCallback(async () => {
+        if (!enabled) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -75,14 +83,18 @@ export function useMyProblemReports() {
         } finally {
             setLoading(false);
         }
-    }, [handleUnauthorized, issueTypeFilter, order, page, pageSize, sort, statusFilter]);
+    }, [enabled, handleUnauthorized, issueTypeFilter, order, page, pageSize, sort, statusFilter]);
 
     useEffect(() => {
+        if (!enabled) {
+            setLoading(false);
+            return;
+        }
         const timeoutId = window.setTimeout(() => {
             void loadReports();
         }, 150);
         return () => window.clearTimeout(timeoutId);
-    }, [loadReports]);
+    }, [enabled, loadReports]);
 
     const setStatusFilter = useCallback((value: string) => {
         setPage(1);
@@ -105,6 +117,10 @@ export function useMyProblemReports() {
         setPageSize(nextPageSize);
     }, []);
 
+    const reloadReports = useCallback(async () => {
+        await loadReports();
+    }, [loadReports]);
+
     return {
         items,
         page,
@@ -121,6 +137,7 @@ export function useMyProblemReports() {
         setStatusFilter,
         setIssueTypeFilter,
         setOrdering,
-        changePageSize
+        changePageSize,
+        reloadReports
     };
 }

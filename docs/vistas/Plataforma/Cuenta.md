@@ -2,171 +2,35 @@
 
 ## Propósito
 
-Centralizar la gestión de datos del perfil y seguridad en una sola vista para ambos roles.
+Centralizar datos del perfil y seguridad sin usar cards como patrón principal.
 
-## Roles y contenido visible (desde /api/auth/me)
+## Cambios relevantes
 
-**Padre/Tutor**
-- Usuario.
-- Tipo de cuenta: **Padre o tutor**.
-- No muestra **Nombre completo** ni **Tarjeta profesional**.
-- Muestra el correo actual como dato informativo.
+- La composición pasó de cards en grid a secciones verticales sobrias.
+- Se conservó la funcionalidad existente:
+  - información de cuenta
+  - cambio de contraseña
+  - MFA setup / disable
+  - logout
+- No se convirtió la vista en tabla ni dashboard.
 
-**Psicólogo**
-- Usuario.
-- Tipo de cuenta: **Psicólogo**.
-- Muestra **Nombre completo**.
-- Muestra **Tarjeta profesional**.
-- Muestra el correo actual como dato informativo.
+## Estructura actual
 
-## Estructura visual
+- encabezado simple
+- sección de información de cuenta
+- sección de seguridad con paneles expandibles
+- sección de MFA
+- cierre de sesión al final con separación visual clara
 
-- Título principal: **"Mi cuenta"** fuera de tarjetas.
-- Título centrado y separado visualmente del bloque de cards.
-- Layout en **2 columnas** en desktop y **1 columna** en mobile.
-- Secciones en cards con fondo azul claro (mismo tono de la sidebar), borde y sombra para separar del fondo.
+## Endpoints/acciones relacionadas
 
-## Secciones y acciones
-
-### A) Información de la cuenta
-- Campos visibles:
-  - **Usuario**.
-  - **Tipo de cuenta** (mapeado desde roles/user_type).
-  - **Nombre completo** (solo psicólogo).
-  - **Tarjeta profesional** (solo psicólogo).
-  - **Correo**.
-
-### B) Seguridad (desplegables sin modals)
-- Acciones:
-  - **Cambiar correo**.
-  - **Cambiar contraseña**.
-- Comportamiento:
-  - Solo un formulario abierto a la vez.
-  - Animación tipo collapse (altura + opacidad) al abrir/cerrar.
-  - Botón **Cancelar** cierra el panel con animación.
-  - Ícono del encabezado indica acción de edición.
-- Formularios:
-  - **Cambiar correo**: correo actual (solo lectura), nuevo correo, confirmar correo, contraseña.
-  - **Cambiar contraseña**: contraseña actual, nueva contraseña, confirmar nueva contraseña.
-- Validaciones:
-  - Mensajes cortos bajo el input.
-  - Botón **Guardar cambios** deshabilitado si el formulario es inválido.
-  - Reglas de contraseña reutilizan la validación global.
-- UX:
-  - Mensaje de éxito visible tras guardar cambios.
-  - Ícono de visibilidad en campos de contraseña.
-
-#### Checklist de requisitos (contraseña)
-- Se muestra debajo del campo **Nueva contraseña**.
-- Indicadores en vivo por regla.
-- Clases: `.password-checklist`, `.password-check`, `.password-check-indicator`.
-
-### C) Verificación en dos pasos (MFA)
-- Solo visible para **Padre/Tutor**.
-- Estados:
-  - Si `mfa_enabled` es **false**: CTA **Activar MFA** + texto informativo.
-  - Si `mfa_enabled` es **true**: estado **MFA activo** + CTA **Desactivar MFA**.
-- **Activar MFA** abre un modal con QR (MfaSetupView) y confirmación de código.
-  - Muestra la etiqueta visible de la app: `CogniaApp: <usuario> (<dispositivo> - DD/MM/YYYY)`.
-  - Incluye nota para eliminar entradas antiguas y usar la entrada con la fecha más reciente.
-  - Permite editar el dispositivo (Android/iPhone/Otro).
-- El modal requiere `access_token` válido; si no hay sesión, no se habilita.
-- **Desactivar MFA** abre un modal con contraseña + código TOTP o recovery code.
-  - Texto con contraste alto para legibilidad.
-  - Al desactivar, se instruye a eliminar la entrada antigua en la app autenticadora.
-- En éxito al desactivar MFA se cierra sesión (el backend revoca refresh tokens).
-- Para **Psicólogo** no se muestran CTAs de MFA.
-
-### D) Cerrar sesión
-- Bloque final fuera de tarjetas grandes.
-- Texto + botón en la misma fila, centrados y con mayor presencia visual.
-- Botón con color sólido para distinguirse del fondo.
-- Al hacer clic, ejecuta logout y limpia sesión local.
-- Referencia técnica: ver **Logout** en `docs/vistas/Autenticacion/InicioSesion.md`.
-
-## Campos guardados (no visibles)
-
-Se conservan en memoria para futuro DTO/admin, pero **no** se renderizan:
-- `id`, `is_active`, `roles`, `mfa_confirmed_at`, `mfa_method`, `created_at`, `updated_at`.
-
-## Manejo de errores de perfil (/me)
-
-- **401**: se limpia sesión local y se redirige a login.
-- **403**: mensaje "No tienes permisos para ver tu perfil.".
-- **404**: mensaje "No se encontró tu perfil.".
-- **5xx/red**: "No fue posible cargar tu información. Intenta más tarde.".
-
-## Estilo de campos visibles
-
-- Labels (**Usuario**, **Tipo de cuenta**, **Correo**, etc.): blanco más claro con peso fuerte.
-- Valores (dato del usuario): blanco sin negrita para contraste.
-- La tarjeta de MFA está centrada y el botón principal es blanco con texto azul.
-
-## Navegación
-
-- Sidebar -> **Cuenta**.
-- Rutas:
-  - Padre/Tutor: `/padre/cuenta`
-  - Psicólogo: `/psicologo/cuenta`
+- `POST /api/auth/password/change`
+- MFA setup/disable a través de los servicios auth ya existentes
+- logout a través del flujo auth actual
 
 ## Archivos relacionados
 
-- Vista compartida (ambos roles): `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
-- Estilos de la vista: `src/pages/Plataforma/MiCuenta/MiCuenta.css`
-- Validación de contraseña: `src/utils/passwordValidation.ts`
-
-## Ajustes visuales recientes en Seguridad
-
-- En los formularios de **Cambiar correo** y **Cambiar contrasena**, los textos sobre los campos ahora usan color blanco con mayor peso visual.
-- Los campos de contrasena (incluyendo los que tienen boton de visibilidad) ocupan el mismo ancho que el resto de inputs para mantener alineacion.
-- El bloque **Requisitos de contrasena** ahora se muestra en blanco sin negrita para mejorar contraste sobre el fondo.
-- Los botones **Cancelar** dentro de los paneles de cambio (correo/contrasena) usan fondo blanco para diferenciarse claramente de la tarjeta.
-
-## Cambio de contrasena (integrado con API)
-
-### Requisito de autenticacion
-- La accion solo se permite con sesion activa (`isAuthenticated = true`).
-- Si no hay sesion valida al enviar, se bloquea el envio y se muestra: `Debes iniciar sesion.`
-
-### Endpoint
-- `POST /api/auth/password/change`
-
-Request body:
-```json
-{
-  "currentPassword": "string",
-  "newPassword": "string",
-  "confirmNewPassword": "string"
-}
-```
-
-Response de exito:
-```json
-{ "msg": "ok" }
-```
-
-### Validaciones frontend
-- Ningun campo puede estar vacio.
-- `newPassword` y `confirmNewPassword` deben coincidir.
-- `newPassword` debe ser diferente de `currentPassword`.
-- Se reutiliza `validatePassword` del proyecto para reglas de seguridad.
-- Los errores se muestran inline por campo y error general en el bloque cuando aplica.
-
-### Mapeo de errores por status
-- `400`: `Datos invalidos. Verifica la contrasena actual y la nueva contrasena.`
-- `401`: `Sesion expirada o no autenticado. Inicia sesion nuevamente.`
-- `403`: `No tienes permisos para realizar esta accion.`
-- `429`: `Demasiados intentos. Espera un momento e intentalo de nuevo.`
-- Otro: `Ocurrio un error inesperado. Intenta mas tarde.`
-
-Notas:
-- En `400` se resalta el campo de contrasena actual y se muestra sugerencia de revision.
-- En `429` no se limpian campos.
-- En `200` se limpian campos y validaciones, y se muestra `Contrasena actualizada`.
-
-### Flujo
-1. Usuario completa formulario.
-2. Front valida campos.
-3. Si valida, envia al endpoint con `httpClient` y `Authorization: Bearer`.
-4. Si responde `200`, muestra exito y limpia el formulario.
-5. Si responde error, muestra mensaje mapeado por status.
+- `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
+- `src/pages/Plataforma/MiCuenta/MiCuenta.css`
+- `src/components/MFA/MfaSetupView.tsx`
+- `src/services/auth/auth.api.ts`

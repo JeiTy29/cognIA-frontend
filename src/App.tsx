@@ -16,7 +16,6 @@ import Cuestionario from './pages/Plataforma/Cuestionario/Cuestionario';
 import HistorialPadre from './pages/Plataforma/HistorialPadre/HistorialPadre';
 import MiCuenta from './pages/Plataforma/MiCuenta/MiCuenta';
 import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
-import Reportes from './pages/Plataforma/Reportes/Reportes';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import Metricas from './pages/Administrador/Metricas/Metricas';
@@ -80,7 +79,6 @@ export default function App() {
                             <Route index element={<Navigate to="/padre/cuestionario" replace />} />
                             <Route path="cuestionario" element={<Cuestionario />} />
                             <Route path="historial" element={<HistorialPadre />} />
-                            <Route path="reportes" element={<Reportes role="padre" />} />
                             <Route path="cuenta" element={<MiCuenta />} />
                             <Route path="ayuda" element={<AyudaBase role="padre" />} />
                         </Route>
@@ -89,7 +87,6 @@ export default function App() {
                             <Route path="cuestionario" element={<Cuestionario />} />
                             <Route path="historial" element={<HistorialPsicologo />} />
                             <Route path="sugerencias" element={<SugerenciasPsicologo />} />
-                            <Route path="reportes" element={<Reportes role="psicologo" />} />
                             <Route path="cuenta" element={<MiCuenta />} />
                             <Route path="ayuda" element={<AyudaBase role="psicologo" />} />
                         </Route>
