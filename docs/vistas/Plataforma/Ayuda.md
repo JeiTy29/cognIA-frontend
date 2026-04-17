@@ -60,7 +60,20 @@ Constantes configurables en la vista:
   - Descripción (textarea)
   - Adjuntar captura con botón personalizado, vista previa estandarizada y acción para descartar.
 - Acciones: **Cancelar** (cierra y resetea) y **Enviar** en la misma fila.
-- Al enviar, se muestra un mensaje de éxito visible.
+- El formulario está conectado a `POST /api/problem-reports`.
+- Si se adjunta archivo, el envío usa `multipart/form-data`; sin archivo, usa JSON.
+- Reglas de adjunto aplicadas en frontend:
+  - máximo 5 MB
+  - MIME permitidos: `image/png`, `image/jpeg`, `image/webp`
+- Mapeo de tipo de problema alineado con backend:
+  - `bug` → `Error`
+  - `ui_issue` → `Interfaz`
+  - `data_issue` → `Datos`
+  - `performance` → `Rendimiento`
+  - `questionnaire` → `Cuestionario`
+  - `model_result` → `Resultado del modelo`
+  - `other` → `Otro`
+- Al enviar, se muestra feedback real de éxito o error y se conserva la UX existente de collapse, preview y descarte de imagen.
 
 ## Legal (modals existentes)
 
@@ -77,9 +90,13 @@ Constantes configurables en la vista:
 - Rutas:
   - Padre/Tutor: `/padre/ayuda`
   - Psicólogo: `/psicologo/ayuda`
+  - Mis reportes Padre/Tutor: `/padre/reportes`
+  - Mis reportes Psicólogo: `/psicologo/reportes`
 
 ## Archivos relacionados
 
 - Vista compartida (ambos roles): `src/pages/Plataforma/Ayuda/AyudaBase.tsx`
 - Estilos: `src/pages/Plataforma/Ayuda/Ayuda.css`
+- Servicios de reportes: `src/services/problemReports/problemReports.api.ts`
+- Tipos de reportes: `src/services/problemReports/problemReports.types.ts`
 - La vista acepta `role` desde las rutas y, si no se envía, infiere el rol por la URL (`useLocation`).

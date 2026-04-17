@@ -124,6 +124,32 @@ export async function apiPost<T, B = unknown>(
     return response.json() as Promise<T>;
 }
 
+export async function apiPostFormData<T>(
+    path: string,
+    body: FormData,
+    options?: ApiRequestOptions
+): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: buildHeaders(options, false),
+        body,
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiPostFormData<T>(path, body, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return response.json() as Promise<T>;
+}
+
 export async function apiPut<T, B = unknown>(
     path: string,
     body: B,
