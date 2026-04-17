@@ -150,6 +150,32 @@ export async function apiPut<T, B = unknown>(
     return response.json() as Promise<T>;
 }
 
+export async function apiPatch<T, B = unknown>(
+    path: string,
+    body: B,
+    options?: ApiRequestOptions
+): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'PATCH',
+        headers: buildHeaders(options, true),
+        body: JSON.stringify(body),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiPatch<T, B>(path, body, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return response.json() as Promise<T>;
+}
+
 export async function apiDelete<T>(
     path: string,
     options?: ApiRequestOptions

@@ -20,7 +20,8 @@ const pageSizeOptions = [
     { value: '50', label: '50' }
 ];
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+    if (!value) return '--';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
     return date.toLocaleDateString('es-CO');

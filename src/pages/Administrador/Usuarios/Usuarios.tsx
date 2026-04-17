@@ -1,8 +1,8 @@
-﻿import { useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { Modal } from '../../../components/Modal/Modal';
-import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
+import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
-import type { CreateUserRequest, UpdateUserRequest, User } from '../../../services/admin/users';
+import type { CreateUserRequest, User } from '../../../services/admin/users';
 import './Usuarios.css';
 
 type CreateFormState = {
@@ -12,23 +12,56 @@ type CreateFormState = {
     full_name: string;
     user_type: 'guardian' | 'psychologist';
     professional_card_number: string;
-    role: 'GUARDIAN' | 'PSYCHOLOGIST' | 'ADMIN';
+    role: string;
     is_active: boolean;
 };
 
 type EditFormState = {
     id: string;
-    username: string;
     email: string;
-    password: string;
     full_name: string;
     user_type: 'guardian' | 'psychologist';
     professional_card_number: string;
-    role: 'GUARDIAN' | 'PSYCHOLOGIST' | 'ADMIN';
+    role: string;
     is_active: boolean;
 };
 
-const initialCreateForm: CreateFormState = {
+type FormErrors = Partial<Record<keyof CreateFormState | keyof EditFormState, string>>;
+
+const roleOptions: CustomSelectOption[] = [
+    { value: 'GUARDIAN', label: 'Padre/Tutor' },
+    { value: 'PSYCHOLOGIST', label: 'Psicologo' },
+    { value: 'ADMIN', label: 'Administrador' }
+];
+
+const typeOptions: CustomSelectOption[] = [
+    { value: 'guardian', label: 'Padre/Tutor' },
+    { value: 'psychologist', label: 'Psicologo' }
+];
+
+const statusOptions: CustomSelectOption[] = [
+    { value: 'all', label: 'Todos los estados' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' }
+];
+
+const roleFilterOptions: CustomSelectOption[] = [
+    { value: 'all', label: 'Todos los roles' },
+    ...roleOptions
+];
+
+const typeFilterOptions: CustomSelectOption[] = [
+    { value: 'all', label: 'Todos los tipos' },
+    ...typeOptions
+];
+
+const pageSizeOptions: CustomSelectOption[] = [
+    { value: '10', label: '10 por pagina' },
+    { value: '20', label: '20 por pagina' },
+    { value: '50', label: '50 por pagina' }
+];
+
+const initialCreateForm = (): CreateFormState => ({
     username: '',
     email: '',
     password: '',
@@ -37,105 +70,148 @@ const initialCreateForm: CreateFormState = {
     professional_card_number: '',
     role: 'GUARDIAN',
     is_active: true
-};
+});
 
-type StatusFilter = 'Todos' | 'Activos' | 'Inactivos';
-type RoleFilter = 'Todos' | 'Admin' | 'Psicologo' | 'Padre/Tutor';
-type UserRoleKey = 'ADMIN' | 'PSYCHOLOGIST' | 'GUARDIAN';
-type PendingAdminAction = 'passwordReset' | 'mfaReset';
+const emptyEditForm = (): EditFormState => ({
+    id: '',
+    email: '',
+    full_name: '',
+    user_type: 'guardian',
+    professional_card_number: '',
+    role: 'GUARDIAN',
+    is_active: true
+});
 
-const statusFilterOptions = [
-    { value: 'Todos', label: 'Todos' },
-    { value: 'Activos', label: 'Activos' },
-    { value: 'Inactivos', label: 'Inactivos' }
-];
-
-const roleFilterOptions = [
-    { value: 'Todos', label: 'Todos' },
-    { value: 'Admin', label: 'Admin' },
-    { value: 'Psicologo', label: 'Psicologo' },
-    { value: 'Padre/Tutor', label: 'Padre/Tutor' }
-];
-
-const userTypeCreateOptions = [
-    { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'psychologist', label: 'Psicologo' }
-];
-
-const userTypeEditOptions = [
-    { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'psychologist', label: 'Psicologo' }
-];
-
-const userRoleOptions = [
-    { value: 'GUARDIAN', label: 'Padre/Tutor' },
-    { value: 'PSYCHOLOGIST', label: 'Psicologo' },
-    { value: 'ADMIN', label: 'Administrador' }
-];
-
-const pageSizeOptions = [
-    { value: '10', label: '10' },
-    { value: '25', label: '25' },
-    { value: '50', label: '50' }
-];
-
-function formatDate(value: string) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return date.toLocaleDateString('es-CO');
+function mapUserTypeLabel(userType: User['user_type']) {
+    return userType === 'psychologist' ? 'Psicologo' : 'Padre/Tutor';
 }
 
-function normalizeRoleKey(role: string): UserRoleKey {
+function mapRoleLabel(role: string) {
     const normalized = role.trim().toUpperCase();
-    if (normalized === 'ADMIN') return 'ADMIN';
-    if (normalized === 'PSYCHOLOGIST') return 'PSYCHOLOGIST';
-    if (normalized === 'GUARDIAN') return 'GUARDIAN';
-    return 'GUARDIAN';
+    if (normalized === 'ADMIN') return 'Administrador';
+    if (normalized === 'PSYCHOLOGIST') return 'Psicologo';
+    if (normalized === 'GUARDIAN') return 'Padre/Tutor';
+    return normalized;
 }
 
-function roleLabelFromKey(role: UserRoleKey) {
-    if (role === 'ADMIN') return 'Administrador';
-    if (role === 'PSYCHOLOGIST') return 'Psicologo';
-    return 'Padre/Tutor';
+function getPrimaryRole(user: User) {
+    if (user.roles.includes('ADMIN')) return 'ADMIN';
+    if (user.roles.includes('PSYCHOLOGIST')) return 'PSYCHOLOGIST';
+    if (user.roles.includes('GUARDIAN')) return 'GUARDIAN';
+    return user.roles[0] ?? (user.user_type === 'psychologist' ? 'PSYCHOLOGIST' : 'GUARDIAN');
 }
 
-function resolveUserRoleKey(user: User): UserRoleKey {
-    if (user.roles && user.roles.length > 0) {
-        return normalizeRoleKey(user.roles[0]);
+function validateUserForm(
+    values: CreateFormState | EditFormState,
+    options: { isCreate: boolean }
+) {
+    const errors: FormErrors = {};
+
+    if (options.isCreate && 'username' in values && values.username.trim().length < 3) {
+        errors.username = 'Ingresa un usuario valido.';
     }
-    return normalizeRoleKey(user.user_type);
+
+    if ('email' in values && !values.email.trim()) {
+        errors.email = 'El correo es obligatorio.';
+    }
+
+    if (options.isCreate && 'password' in values && values.password.trim().length < 8) {
+        errors.password = 'La contrasena debe tener al menos 8 caracteres.';
+    }
+
+    if (!values.user_type) {
+        errors.user_type = 'Selecciona un tipo de usuario.';
+    }
+
+    if (!values.role) {
+        errors.role = 'Selecciona un rol.';
+    }
+
+    if (values.user_type === 'psychologist' && !values.professional_card_number.trim()) {
+        errors.professional_card_number = 'La tarjeta profesional es obligatoria para psicologos.';
+    }
+
+    return errors;
 }
 
-function resolveUserLabel(user: User) {
-    return roleLabelFromKey(resolveUserRoleKey(user));
+function SearchIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10.5 4a6.5 6.5 0 0 1 5.131 10.49l3.439 3.44-1.06 1.06-3.44-3.439A6.5 6.5 0 1 1 10.5 4Zm0 1.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" />
+        </svg>
+    );
 }
 
-function validateUserForm(params: {
-    userType: string;
-    fullName: string;
-    professionalCardNumber: string;
-    password?: string;
-    isCreate: boolean;
-}) {
-    const { userType, fullName, professionalCardNumber, password, isCreate } = params;
+function PlusIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" />
+        </svg>
+    );
+}
 
-    if (!['guardian', 'psychologist'].includes(userType)) {
-        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    }
+function EditIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m4 16.25 10.7-10.7 3.75 3.75L7.75 20H4v-3.75Zm2 1.75h.92l9.4-9.4-1.92-1.92L5 16.08V18Z" />
+        </svg>
+    );
+}
 
-    if (userType === 'psychologist' && fullName.trim().length === 0) {
-        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    }
+function TrashIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Z" />
+        </svg>
+    );
+}
 
-    if (userType === 'psychologist' && professionalCardNumber.trim().length === 0) {
-        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    }
+function KeyIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4a6 6 0 1 1-5.66 8H4v-2h5.17A6 6 0 0 1 14 4Zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
+        </svg>
+    );
+}
 
-    if (isCreate && (!password || password.trim().length === 0)) {
-        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    }
+function ShieldIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 5 6v5c0 4.25 2.72 8.21 7 10 4.28-1.79 7-5.75 7-10V6l-7-3Zm0 2.18 5 2.14V11c0 3.25-1.95 6.42-5 8-3.05-1.58-5-4.75-5-8V7.32l5-2.14Z" />
+        </svg>
+    );
+}
 
-    return null;
+function CopyIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 7V4h11v13h-3v3H5V7h3Zm2 0h6v8h1V6h-7v1Zm-3 2v9h7V9H7Z" />
+        </svg>
+    );
+}
+
+function EmptyIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 5h16v2H4V5Zm1 4h14v10H5V9Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Z" />
+        </svg>
+    );
+}
+
+function ArrowLeftIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6 9 12l6 6" />
+        </svg>
+    );
+}
+
+function ArrowRightIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m9 6 6 6-6 6" />
+        </svg>
+    );
 }
 
 export default function Usuarios() {
@@ -153,7 +229,6 @@ export default function Usuarios() {
         submittingDeactivate,
         submittingPasswordReset,
         submittingMfaReset,
-        loadUsers,
         goToPage,
         changePageSize,
         fetchUserDetail,
@@ -165,136 +240,104 @@ export default function Usuarios() {
         clearMessages
     } = useUsers();
 
+    const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
-    const [pendingAdminAction, setPendingAdminAction] = useState<PendingAdminAction | null>(null);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+    const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
+    const [userToResetMfa, setUserToResetMfa] = useState<User | null>(null);
 
     const [createForm, setCreateForm] = useState<CreateFormState>(initialCreateForm);
-    const [editForm, setEditForm] = useState<EditFormState | null>(null);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [formError, setFormError] = useState<string | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
-    const [roleFilter, setRoleFilter] = useState<RoleFilter>('Todos');
-    const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
+    const [formErrors, setFormErrors] = useState<FormErrors>({});
 
-    const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
-    const showingTo = Math.min(page * pageSize, total);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    const rows = useMemo(
-        () =>
-            items.map((user) => ({
-                ...user,
-                fullName: user.full_name && user.full_name.trim().length > 0 ? user.full_name : 'Sin nombre',
-                roleLabel: resolveUserLabel(user)
-            })),
-        [items]
-    );
+    const filteredItems = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
 
-    const filteredRows = useMemo(() => {
-        const normalizedSearch = searchTerm.trim().toLowerCase();
-        return rows.filter((user) => {
+        return items.filter((user) => {
             const matchesSearch =
-                normalizedSearch.length === 0
-                    ? true
-                    : user.username.toLowerCase().includes(normalizedSearch) ||
-                      user.id.toLowerCase().includes(normalizedSearch);
-            const matchesStatus =
-                statusFilter === 'Todos' ||
-                (statusFilter === 'Activos' ? user.is_active : !user.is_active);
-            const userRoleKey = resolveUserRoleKey(user);
+                !query ||
+                user.username.toLowerCase().includes(query) ||
+                user.email.toLowerCase().includes(query) ||
+                (user.full_name ?? '').toLowerCase().includes(query);
+
             const matchesRole =
-                roleFilter === 'Todos' ||
-                (roleFilter === 'Admin' && userRoleKey === 'ADMIN') ||
-                (roleFilter === 'Psicologo' && userRoleKey === 'PSYCHOLOGIST') ||
-                (roleFilter === 'Padre/Tutor' && userRoleKey === 'GUARDIAN');
-            return matchesSearch && matchesStatus && matchesRole;
+                roleFilter === 'all' || user.roles.some((role) => role.toUpperCase() === roleFilter);
+
+            const matchesType = typeFilter === 'all' || user.user_type === typeFilter;
+
+            const matchesStatus =
+                statusFilter === 'all' ||
+                (statusFilter === 'active' ? user.is_active : !user.is_active);
+
+            return matchesSearch && matchesRole && matchesType && matchesStatus;
         });
-    }, [rows, searchTerm, statusFilter, roleFilter]);
+    }, [items, roleFilter, searchTerm, statusFilter, typeFilter]);
 
-    const hasActiveFilters = searchTerm.trim().length > 0 || statusFilter !== 'Todos' || roleFilter !== 'Todos';
-    const displayTotal = hasActiveFilters ? filteredRows.length : total;
-    const displayFrom = displayTotal === 0 ? 0 : hasActiveFilters ? 1 : showingFrom;
-    const displayTo = hasActiveFilters ? filteredRows.length : showingTo;
-    const nextDisabled = loading || showingTo >= total;
-
-    const openCreateModal = () => {
-        clearMessages();
-        setFormError(null);
-        setCreateForm(initialCreateForm);
-        setIsCreateOpen(true);
+    const resetCreateState = () => {
+        setCreateForm(initialCreateForm());
+        setFormErrors({});
     };
 
     const closeCreateModal = () => {
         setIsCreateOpen(false);
-        setFormError(null);
+        resetCreateState();
     };
 
-    const openEditModal = async (user: User) => {
+    const closeEditModal = () => {
+        setEditingUserId(null);
+        setEditForm(emptyEditForm());
+        setFormErrors({});
+    };
+
+    const openCreateModal = () => {
         clearMessages();
-        setFormError(null);
-        setIsEditOpen(true);
-        const detail = await fetchUserDetail(user.id);
-        if (!detail) return;
+        resetCreateState();
+        setIsCreateOpen(true);
+    };
+
+    const openEditModal = async (userId: string) => {
+        clearMessages();
+        setFormErrors({});
+        setEditingUserId(userId);
+        const detail = await fetchUserDetail(userId);
+
+        if (!detail) {
+            setEditingUserId(null);
+            return;
+        }
 
         setEditForm({
             id: detail.id,
-            username: detail.username,
             email: detail.email,
-            password: '',
             full_name: detail.full_name ?? '',
-            user_type: detail.user_type === 'psychologist' ? 'psychologist' : 'guardian',
+            user_type: detail.user_type,
             professional_card_number: detail.professional_card_number ?? '',
-            role: (detail.roles?.[0]?.toUpperCase() === 'ADMIN'
-                ? 'ADMIN'
-                : detail.roles?.[0]?.toUpperCase() === 'PSYCHOLOGIST'
-                    ? 'PSYCHOLOGIST'
-                    : 'GUARDIAN')
-        ,
+            role: getPrimaryRole(detail),
             is_active: detail.is_active
         });
     };
 
-    const closeEditModal = () => {
-        setIsEditOpen(false);
-        setEditForm(null);
-        setFormError(null);
+    const handleCopyId = async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch {
+            window.prompt('Copia el identificador', value);
+        }
     };
 
-    const openDeactivateModal = (user: User) => {
-        clearMessages();
-        setSelectedUser(user);
-        setIsDeactivateOpen(true);
-    };
-
-    const closeDeactivateModal = () => {
-        setSelectedUser(null);
-        setIsDeactivateOpen(false);
-    };
-
-    const openAdminActionModal = (user: User, action: PendingAdminAction) => {
-        clearMessages();
-        setSelectedUser(user);
-        setPendingAdminAction(action);
-    };
-
-    const closeAdminActionModal = () => {
-        setSelectedUser(null);
-        setPendingAdminAction(null);
-    };
-
-    const handleCreateSubmit = async (event: React.FormEvent) => {
+    const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const validationError = validateUserForm({
-            userType: createForm.user_type,
-            fullName: createForm.full_name,
-            professionalCardNumber: createForm.professional_card_number,
-            password: createForm.password,
-            isCreate: true
-        });
-        if (validationError) {
-            setFormError(validationError);
+        const errors = validateUserForm(createForm, { isCreate: true });
+        setFormErrors(errors);
+
+        if (Object.keys(errors).length > 0) {
             return;
         }
 
@@ -302,571 +345,607 @@ export default function Usuarios() {
             username: createForm.username.trim(),
             email: createForm.email.trim(),
             password: createForm.password,
+            full_name: createForm.full_name.trim() || undefined,
             user_type: createForm.user_type,
+            professional_card_number:
+                createForm.user_type === 'psychologist'
+                    ? createForm.professional_card_number.trim()
+                    : undefined,
             roles: [createForm.role],
-            is_active: createForm.is_active,
-            ...(createForm.full_name.trim().length > 0 ? { full_name: createForm.full_name.trim() } : {}),
-            ...(createForm.professional_card_number.trim().length > 0
-                ? { professional_card_number: createForm.professional_card_number.trim() }
-                : {})
+            is_active: createForm.is_active
         };
 
-        const created = await createUser(payload);
-        if (created) {
+        const success = await createUser(payload);
+        if (success) {
             closeCreateModal();
         }
     };
 
-    const handleEditSubmit = async (event: React.FormEvent) => {
+    const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!editForm) return;
+        const errors = validateUserForm(editForm, { isCreate: false });
+        setFormErrors(errors);
 
-        const validationError = validateUserForm({
-            userType: editForm.user_type,
-            fullName: editForm.full_name,
-            professionalCardNumber: editForm.professional_card_number,
-            isCreate: false,
-            password: editForm.password
-        });
-        if (validationError) {
-            setFormError(validationError);
+        if (Object.keys(errors).length > 0 || !editForm.id) {
             return;
         }
 
-        const payload: UpdateUserRequest = {
-            email: editForm.email.trim(),
+        const success = await updateUser(editForm.id, {
             user_type: editForm.user_type,
             roles: [editForm.role],
             is_active: editForm.is_active,
-            ...(editForm.password.trim().length > 0 ? { password: editForm.password } : {}),
-            ...(editForm.full_name.trim().length > 0 ? { full_name: editForm.full_name.trim() } : { full_name: '' }),
-            ...(editForm.professional_card_number.trim().length > 0
-                ? { professional_card_number: editForm.professional_card_number.trim() }
-                : { professional_card_number: '' })
-        };
+            professional_card_number:
+                editForm.user_type === 'psychologist'
+                    ? editForm.professional_card_number.trim()
+                    : null
+        });
 
-        const updated = await updateUser(editForm.id, payload);
-        if (updated) {
+        if (success) {
             closeEditModal();
         }
     };
 
-    const handleDeactivateConfirm = async () => {
-        if (!selectedUser) return;
-        const deactivated = await deactivateUser(selectedUser.id);
-        if (deactivated) {
-            closeDeactivateModal();
-        }
-    };
-
-    const handleAdminActionConfirm = async () => {
-        if (!selectedUser || !pendingAdminAction) return;
-
-        const success = pendingAdminAction === 'passwordReset'
-            ? await resetUserPassword(selectedUser.id)
-            : await resetUserMfa(selectedUser.id);
-
+    const confirmDeactivate = async () => {
+        if (!userToDeactivate) return;
+        const success = await deactivateUser(userToDeactivate.id);
         if (success) {
-            closeAdminActionModal();
+            setUserToDeactivate(null);
         }
     };
 
-    const clearFilters = () => {
-        setSearchTerm('');
-        setStatusFilter('Todos');
-        setRoleFilter('Todos');
-    };
-
-    const handleCopyUserId = async (userId: string) => {
-        try {
-            await navigator.clipboard.writeText(userId);
-            setCopiedUserId(userId);
-            window.setTimeout(() => {
-                setCopiedUserId((prev) => (prev === userId ? null : prev));
-            }, 1500);
-        } catch {
-            setCopiedUserId(null);
+    const confirmPasswordReset = async () => {
+        if (!userToResetPassword) return;
+        const success = await resetUserPassword(userToResetPassword.id);
+        if (success) {
+            setUserToResetPassword(null);
         }
     };
 
-    const adminActionTitle = pendingAdminAction === 'passwordReset'
-        ? 'Restablecer contrasena'
-        : 'Resetear MFA';
-    const adminActionLoading = pendingAdminAction === 'passwordReset'
-        ? submittingPasswordReset
-        : submittingMfaReset;
-    const adminActionMessage = pendingAdminAction === 'passwordReset'
-        ? `Confirma si deseas emitir el restablecimiento de contrasena para ${selectedUser?.username ?? ''}.`
-        : `Confirma si deseas resetear MFA para ${selectedUser?.username ?? ''}.`;
+    const confirmMfaReset = async () => {
+        if (!userToResetMfa) return;
+        const success = await resetUserMfa(userToResetMfa.id);
+        if (success) {
+            setUserToResetMfa(null);
+        }
+    };
 
     return (
-        <div className="usuarios">
-            <header className="usuarios-header">
+        <section className="usuarios">
+            <div className="usuarios-header">
                 <div className="usuarios-title">
-                    <div>
-                        <h1>Usuarios</h1>
-                        <p>Gestiona cuentas registradas, roles y estados en la plataforma.</p>
-                    </div>
+                    <h1>Usuarios</h1>
+                    <p>Gestion de usuarios del sistema.</p>
                 </div>
+
                 <div className="usuarios-actions">
-                    <button type="button" className="usuarios-btn primary usuarios-btn-create" aria-label="Crear nuevo usuario" onClick={openCreateModal}>
-                        <span className="usuarios-btn-create-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M11 4h2v6h6v2h-6v6h-2v-6H5v-2h6Z" /></svg>
+                    <button type="button" className="usuarios-btn primary usuarios-btn-create" onClick={openCreateModal}>
+                        <span className="usuarios-btn-create-icon">
+                            <PlusIcon />
                         </span>
-                        Crear nuevo usuario
+                        Crear usuario
                     </button>
                 </div>
-            </header>
+            </div>
 
-            <div className="usuarios-divider" aria-hidden="true" />
+            <div className="usuarios-divider" />
 
-            {notice ? <div className="usuarios-alert success">{notice}</div> : null}
             {error ? (
                 <div className="usuarios-alert error">
                     <span>{error}</span>
-                    <button type="button" className="usuarios-btn ghost" onClick={() => void loadUsers(page, pageSize)}>
-                        Reintentar
+                    <button type="button" className="usuarios-btn ghost" onClick={clearMessages}>
+                        Cerrar
                     </button>
                 </div>
             ) : null}
 
-            <section className="usuarios-controls" aria-label="Controles de busqueda">
+            {notice ? (
+                <div className="usuarios-alert success">
+                    <span>{notice}</span>
+                    <button type="button" className="usuarios-btn ghost" onClick={clearMessages}>
+                        Cerrar
+                    </button>
+                </div>
+            ) : null}
+
+            <div className="usuarios-controls">
                 <div className="usuarios-search">
-                    <span className="usuarios-search-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
+                    <span className="usuarios-search-icon">
+                        <SearchIcon />
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por ID o usuario..."
-                        aria-label="Buscar por ID o usuario"
                         value={searchTerm}
                         onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Buscar por nombre, usuario o correo"
+                        aria-label="Buscar usuarios"
                     />
                 </div>
+
                 <div className="usuarios-filters">
                     <label>
-                        <span>Estado</span>
+                        Rol
                         <CustomSelect
-                            ariaLabel="Estado"
-                            value={statusFilter}
-                            options={statusFilterOptions}
-                            onChange={(value) => setStatusFilter(value as StatusFilter)}
-                        />
-                    </label>
-                    <label>
-                        <span>Rol</span>
-                        <CustomSelect
-                            ariaLabel="Rol"
                             value={roleFilter}
                             options={roleFilterOptions}
-                            onChange={(value) => setRoleFilter(value as RoleFilter)}
+                            onChange={setRoleFilter}
+                            ariaLabel="Filtrar por rol"
                         />
                     </label>
-                    <button type="button" className="usuarios-btn ghost" aria-label="Limpiar filtros" onClick={clearFilters}>
-                        <span aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M6 6h12v2H6zm3 5h6v2H9zm-2 5h10v2H7z" /></svg>
-                        </span>
-                        Limpiar
-                    </button>
-                </div>
-            </section>
 
-            <section className="usuarios-table" aria-label="Listado de usuarios">
+                    <label>
+                        Tipo
+                        <CustomSelect
+                            value={typeFilter}
+                            options={typeFilterOptions}
+                            onChange={setTypeFilter}
+                            ariaLabel="Filtrar por tipo"
+                        />
+                    </label>
+
+                    <label>
+                        Estado
+                        <CustomSelect
+                            value={statusFilter}
+                            options={statusOptions}
+                            onChange={setStatusFilter}
+                            ariaLabel="Filtrar por estado"
+                        />
+                    </label>
+                </div>
+            </div>
+
+            <div className="usuarios-table">
                 <div className="usuarios-table-head">
-                    <span>ID</span>
-                    <span>Usuario</span>
-                    <span>Correo</span>
-                    <span>Rol</span>
-                    <span>Estado</span>
-                    <span>Creado</span>
-                    <span>Acciones</span>
+                    <div>Nombre</div>
+                    <div>Usuario</div>
+                    <div>Correo</div>
+                    <div>Tipo</div>
+                    <div>Rol</div>
+                    <div>Estado</div>
+                    <div>Acciones</div>
                 </div>
 
-                {loading ? (
-                    <div className="usuarios-skeleton">
-                        {Array.from({ length: 7 }).map((_, index) => (
-                            <div key={`skeleton-${index}`} className="usuarios-skeleton-row">
-                                <span />
-                                <span />
-                                <span />
-                                <span />
-                                <span />
-                                <span />
-                                <span />
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
-
-                {!loading && filteredRows.length === 0 ? (
-                    <div className="usuarios-empty" role="status">
-                        <div className="usuarios-empty-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" /></svg>
+                <div className="usuarios-table-body">
+                    {loading ? (
+                        <div className="usuarios-skeleton">
+                            {Array.from({ length: 6 }).map((_, index) => (
+                                <div className="usuarios-skeleton-row" key={index}>
+                                    {Array.from({ length: 7 }).map((__, columnIndex) => (
+                                        <span key={columnIndex} />
+                                    ))}
+                                </div>
+                            ))}
                         </div>
-                        <h3>Sin usuarios</h3>
-                        <p>No hay registros disponibles con los filtros actuales.</p>
-                        <button type="button" className="usuarios-btn primary usuarios-btn-create" onClick={openCreateModal}>
-                            <span className="usuarios-btn-create-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><path d="M11 4h2v6h6v2h-6v6h-2v-6H5v-2h6Z" /></svg>
-                            </span>
-                            Crear nuevo usuario
-                        </button>
-                    </div>
-                ) : null}
+                    ) : filteredItems.length === 0 ? (
+                        <div className="usuarios-empty">
+                            <div className="usuarios-empty-icon">
+                                <EmptyIcon />
+                            </div>
+                            <div>No hay usuarios para mostrar.</div>
+                        </div>
+                    ) : (
+                        filteredItems.map((user) => (
+                            <div className="usuarios-row" key={user.id}>
+                                <div className="usuarios-cell">
+                                    <div className="usuarios-name">{user.full_name || user.username}</div>
+                                    <div className="usuarios-sub">{user.created_at ? 'Registrado' : 'Sin fecha registrada'}</div>
+                                </div>
 
-                {!loading && filteredRows.length > 0 ? (
-                    <div className="usuarios-table-body">
-                        {filteredRows.map((user) => (
-                            <div key={user.id} className="usuarios-row">
                                 <div className="usuarios-cell id">
+                                    <div className="usuarios-name">{user.username}</div>
                                     <div className="usuarios-id-wrap">
-                                        <span className="usuarios-id-value">{user.id}</span>
                                         <button
                                             type="button"
                                             className="icon-btn usuarios-id-copy has-tooltip"
-                                            data-tooltip={copiedUserId === user.id ? 'ID copiado' : 'Copiar ID al portapapeles'}
-                                            aria-label="Copiar ID al portapapeles"
-                                            onClick={() => void handleCopyUserId(user.id)}
+                                            data-tooltip="Copiar ID"
+                                            onClick={() => void handleCopyId(user.id)}
                                         >
-                                            <svg viewBox="0 0 24 24">
-                                                <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H10V7h9v14Z" />
-                                            </svg>
+                                            <CopyIcon />
                                         </button>
+                                        <span className="usuarios-id-value" title={user.id}>
+                                            {user.id}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="usuarios-cell user">
-                                    <div className="usuarios-name">{user.fullName}</div>
-                                    <div className="usuarios-sub">{user.username}</div>
-                                </div>
-                                <div className="usuarios-cell">{user.email}</div>
+
                                 <div className="usuarios-cell">
-                                    <div className="usuarios-type">{user.roleLabel}</div>
-                                    {user.professional_card_number ? (
-                                        <div className="usuarios-sub">TP: {user.professional_card_number}</div>
+                                    <div>{user.email}</div>
+                                </div>
+
+                                <div className="usuarios-cell">
+                                    <div className="usuarios-type">{mapUserTypeLabel(user.user_type)}</div>
+                                    {user.user_type === 'psychologist' && user.professional_card_number ? (
+                                        <div className="usuarios-sub">{user.professional_card_number}</div>
                                     ) : null}
                                 </div>
+
+                                <div className="usuarios-cell">
+                                    {user.roles.length > 0 ? user.roles.map(mapRoleLabel).join(', ') : '-'}
+                                </div>
+
                                 <div className="usuarios-cell status">
-                                    <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} aria-hidden="true" />
+                                    <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} />
                                     <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
                                 </div>
-                                <div className="usuarios-cell">{formatDate(user.created_at)}</div>
+
                                 <div className="usuarios-cell actions">
                                     <button
                                         type="button"
                                         className="icon-btn has-tooltip"
-                                        data-tooltip="Editar usuario"
-                                        aria-label="Editar usuario"
-                                        onClick={() => void openEditModal(user)}
+                                        data-tooltip="Editar"
+                                        onClick={() => void openEditModal(user.id)}
                                     >
-                                        <svg viewBox="0 0 24 24"><path d="m3 17 1 4 4-1 10-10-4-4L3 17Zm14-12 4 4 1-1-4-4Z" /></svg>
+                                        <EditIcon />
                                     </button>
                                     <button
                                         type="button"
                                         className="icon-btn has-tooltip"
                                         data-tooltip="Restablecer contrasena"
-                                        aria-label="Restablecer contrasena"
-                                        onClick={() => openAdminActionModal(user, 'passwordReset')}
+                                        onClick={() => setUserToResetPassword(user)}
                                     >
-                                        <svg viewBox="0 0 24 24">
-                                            <path d="M7 10a5 5 0 1 1 9.9 1H19a1 1 0 0 1 .8 1.6l-2.5 3.33a1 1 0 0 1-1.6 0l-2.5-3.33A1 1 0 0 1 14 11h1a3 3 0 1 0-5.92.75l-1.96.41A5.11 5.11 0 0 1 7 10Zm5 3a2 2 0 0 1 2 2v3h-2v-3h-2v3H8v-3a2 2 0 0 1 2-2Z" />
-                                        </svg>
+                                        <KeyIcon />
                                     </button>
                                     <button
                                         type="button"
                                         className="icon-btn has-tooltip"
                                         data-tooltip="Resetear MFA"
-                                        aria-label="Resetear MFA"
-                                        onClick={() => openAdminActionModal(user, 'mfaReset')}
+                                        onClick={() => setUserToResetMfa(user)}
                                     >
-                                        <svg viewBox="0 0 24 24">
-                                            <path d="M12 2 4 5v6c0 5 3.4 9.74 8 11 4.6-1.26 8-6 8-11V5Zm0 2.13 6 2.25V11c0 3.87-2.5 7.66-6 8.86C8.5 18.66 6 14.87 6 11V6.38ZM11 7h2v5h-2Zm0 7h2v2h-2Z" />
-                                        </svg>
+                                        <ShieldIcon />
                                     </button>
                                     <button
                                         type="button"
                                         className="icon-btn has-tooltip"
-                                        data-tooltip="Desactivar usuario"
-                                        aria-label="Desactivar usuario"
-                                        onClick={() => openDeactivateModal(user)}
+                                        data-tooltip="Desactivar"
+                                        onClick={() => setUserToDeactivate(user)}
+                                        disabled={!user.is_active}
                                     >
-                                        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm6.4 10a6.4 6.4 0 0 1-1.2 3.6L8.4 6.8A6.4 6.4 0 0 1 18.4 12Zm-12.8 0a6.4 6.4 0 0 1 1.2-3.6l8.8 8.8A6.4 6.4 0 0 1 5.6 12Z" /></svg>
+                                        <TrashIcon />
                                     </button>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                ) : null}
-            </section>
+                        ))
+                    )}
+                </div>
+            </div>
 
-            <footer className="usuarios-pagination" aria-label="Paginacion">
-                <div className="usuarios-pagination-info">
-                    Mostrando {displayFrom}-{displayTo} de {displayTotal}
+            <div className="usuarios-pagination">
+                <div>
+                    Mostrando {filteredItems.length} de {total} registros.
                 </div>
+
                 <div className="usuarios-pagination-controls">
+                    <div className="usuarios-page-size">
+                        <label>
+                            Filas
+                            <CustomSelect
+                                value={String(pageSize)}
+                                options={pageSizeOptions}
+                                onChange={(value) => void changePageSize(Number(value))}
+                                ariaLabel="Cambiar tamano de pagina"
+                            />
+                        </label>
+                    </div>
+
                     <button
                         type="button"
-                        className="icon-btn usuarios-page-nav-btn"
-                        aria-label="Pagina anterior"
+                        className="usuarios-btn ghost usuarios-page-nav-btn"
                         onClick={() => void goToPage(Math.max(1, page - 1))}
-                        disabled={loading || page <= 1}
+                        disabled={page <= 1 || loading}
+                        aria-label="Pagina anterior"
                     >
-                        <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
+                        <ArrowLeftIcon />
                     </button>
-                    <span className="usuarios-page">Pagina {page}</span>
+
+                    <span className="usuarios-page">
+                        Pagina {page} de {totalPages}
+                    </span>
+
                     <button
                         type="button"
-                        className="icon-btn usuarios-page-nav-btn"
+                        className="usuarios-btn ghost usuarios-page-nav-btn"
+                        onClick={() => void goToPage(Math.min(totalPages, page + 1))}
+                        disabled={page >= totalPages || loading}
                         aria-label="Pagina siguiente"
-                        onClick={() => void goToPage(page + 1)}
-                        disabled={nextDisabled}
                     >
-                        <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+                        <ArrowRightIcon />
                     </button>
                 </div>
-                <div className="usuarios-page-size">
-                    <label>
-                        <span>Tamaño</span>
-                        <CustomSelect
-                            ariaLabel="Tamaño de pagina"
-                            value={String(pageSize)}
-                            options={pageSizeOptions}
-                            onChange={(value) => void changePageSize(Number(value))}
-                        />
-                    </label>
-                </div>
-            </footer>
+            </div>
 
             <Modal isOpen={isCreateOpen} onClose={closeCreateModal}>
                 <form className="usuarios-modal" onSubmit={handleCreateSubmit}>
-                    <h2>Nuevo usuario</h2>
-                    {formError ? <div className="usuarios-alert error">{formError}</div> : null}
+                    <h2>Crear usuario</h2>
+
                     <label>
-                        <span>Usuario</span>
+                        Usuario
                         <input
-                            required
+                            type="text"
                             value={createForm.username}
                             onChange={(event) => setCreateForm((prev) => ({ ...prev, username: event.target.value }))}
                         />
+                        {formErrors.username ? <span className="usuarios-sub">{formErrors.username}</span> : null}
                     </label>
+
                     <label>
-                        <span>Correo</span>
+                        Correo
                         <input
                             type="email"
-                            required
                             value={createForm.email}
                             onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
                         />
+                        {formErrors.email ? <span className="usuarios-sub">{formErrors.email}</span> : null}
                     </label>
+
                     <label>
-                        <span>Contrasena</span>
+                        Contrasena
                         <input
                             type="password"
-                            required
                             value={createForm.password}
                             onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
                         />
+                        {formErrors.password ? <span className="usuarios-sub">{formErrors.password}</span> : null}
                     </label>
+
                     <label>
-                        <span>Tipo</span>
-                        <CustomSelect
-                            ariaLabel="Tipo de usuario"
-                            value={createForm.user_type}
-                            options={userTypeCreateOptions}
-                            onChange={(value) =>
-                                setCreateForm((prev) => ({
-                                    ...prev,
-                                    user_type: value as CreateFormState['user_type']
-                                }))
-                            }
-                        />
-                    </label>
-                    <label>
-                        <span>Rol</span>
-                        <CustomSelect
-                            ariaLabel="Rol del usuario"
-                            value={createForm.role}
-                            options={userRoleOptions}
-                            onChange={(value) =>
-                                setCreateForm((prev) => ({
-                                    ...prev,
-                                    role: value as CreateFormState['role']
-                                }))
-                            }
-                        />
-                    </label>
-                    <label>
-                        <span>Nombre completo</span>
+                        Nombre completo
                         <input
+                            type="text"
                             value={createForm.full_name}
                             onChange={(event) => setCreateForm((prev) => ({ ...prev, full_name: event.target.value }))}
                         />
                     </label>
+
                     <label>
-                        <span>Tarjeta profesional</span>
+                        Tipo de usuario
+                        <CustomSelect
+                            value={createForm.user_type}
+                            options={typeOptions}
+                            onChange={(value) =>
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    user_type: value as CreateFormState['user_type'],
+                                    role: value === 'psychologist' && prev.role === 'GUARDIAN' ? 'PSYCHOLOGIST' : prev.role,
+                                    professional_card_number:
+                                        value === 'psychologist' ? prev.professional_card_number : ''
+                                }))
+                            }
+                            ariaLabel="Seleccionar tipo de usuario"
+                        />
+                        {formErrors.user_type ? <span className="usuarios-sub">{formErrors.user_type}</span> : null}
+                    </label>
+
+                    <label>
+                        Rol
+                        <CustomSelect
+                            value={createForm.role}
+                            options={roleOptions}
+                            onChange={(value) => setCreateForm((prev) => ({ ...prev, role: value }))}
+                            ariaLabel="Seleccionar rol"
+                        />
+                        {formErrors.role ? <span className="usuarios-sub">{formErrors.role}</span> : null}
+                    </label>
+
+                    {createForm.user_type === 'psychologist' ? (
+                        <label>
+                            Tarjeta profesional
+                            <input
+                                type="text"
+                                value={createForm.professional_card_number}
+                                onChange={(event) =>
+                                    setCreateForm((prev) => ({
+                                        ...prev,
+                                        professional_card_number: event.target.value
+                                    }))
+                                }
+                            />
+                            {formErrors.professional_card_number ? (
+                                <span className="usuarios-sub">{formErrors.professional_card_number}</span>
+                            ) : null}
+                        </label>
+                    ) : null}
+
+                    <label className="usuarios-switch">
                         <input
-                            value={createForm.professional_card_number}
+                            type="checkbox"
+                            checked={createForm.is_active}
                             onChange={(event) =>
-                                setCreateForm((prev) => ({ ...prev, professional_card_number: event.target.value }))
+                                setCreateForm((prev) => ({ ...prev, is_active: event.target.checked }))
                             }
                         />
+                        Usuario activo
                     </label>
+
                     <div className="usuarios-modal-actions">
-                        <button type="button" className="usuarios-btn ghost" onClick={closeCreateModal}>Cancelar</button>
+                        <button type="button" className="usuarios-btn secondary" onClick={closeCreateModal}>
+                            Cancelar
+                        </button>
                         <button type="submit" className="usuarios-btn primary" disabled={submittingCreate}>
-                            {submittingCreate ? 'Guardando...' : 'Guardar'}
+                            {submittingCreate ? 'Guardando...' : 'Crear'}
                         </button>
                     </div>
                 </form>
             </Modal>
 
-            <Modal isOpen={isEditOpen} onClose={closeEditModal}>
+            <Modal isOpen={Boolean(editingUserId)} onClose={closeEditModal}>
                 <form className="usuarios-modal" onSubmit={handleEditSubmit}>
                     <h2>Editar usuario</h2>
-                    {formError ? <div className="usuarios-alert error">{formError}</div> : null}
-                    {loadingDetail || !editForm ? (
-                        <div className="usuarios-modal-loading">Cargando datos del usuario...</div>
+
+                    {loadingDetail ? (
+                        <div className="usuarios-modal-loading">Cargando detalle...</div>
                     ) : (
                         <>
                             <label>
-                                <span>Usuario</span>
-                                <input value={editForm.username} readOnly />
+                                Correo
+                                <input type="email" value={editForm.email} readOnly disabled />
                             </label>
+
                             <label>
-                                <span>Correo</span>
-                                <input
-                                    type="email"
-                                    required
-                                    value={editForm.email}
-                                    onChange={(event) => setEditForm((prev) => prev ? ({ ...prev, email: event.target.value }) : prev)}
-                                />
+                                Nombre completo
+                                <input type="text" value={editForm.full_name} readOnly disabled />
                             </label>
+
                             <label>
-                                <span>Nueva contrasena (opcional)</span>
-                                <input
-                                    type="password"
-                                    value={editForm.password}
-                                    onChange={(event) => setEditForm((prev) => prev ? ({ ...prev, password: event.target.value }) : prev)}
-                                />
-                            </label>
-                            <label>
-                                <span>Tipo</span>
+                                Tipo de usuario
                                 <CustomSelect
-                                    ariaLabel="Tipo de usuario"
                                     value={editForm.user_type}
-                                    options={userTypeEditOptions}
+                                    options={typeOptions}
                                     onChange={(value) =>
-                                        setEditForm((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      user_type: value as EditFormState['user_type']
-                                                  }
-                                                : prev
-                                        )
+                                        setEditForm((prev) => ({
+                                            ...prev,
+                                            user_type: value as EditFormState['user_type'],
+                                            role:
+                                                value === 'psychologist' && prev.role === 'GUARDIAN'
+                                                    ? 'PSYCHOLOGIST'
+                                                    : prev.role,
+                                            professional_card_number:
+                                                value === 'psychologist' ? prev.professional_card_number : ''
+                                        }))
                                     }
+                                    ariaLabel="Seleccionar tipo de usuario para edicion"
                                 />
+                                {formErrors.user_type ? (
+                                    <span className="usuarios-sub">{formErrors.user_type}</span>
+                                ) : null}
                             </label>
+
                             <label>
-                                <span>Rol</span>
+                                Rol
                                 <CustomSelect
-                                    ariaLabel="Rol del usuario"
                                     value={editForm.role}
-                                    options={userRoleOptions}
-                                    onChange={(value) =>
-                                        setEditForm((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      role: value as EditFormState['role']
-                                                  }
-                                                : prev
-                                        )
-                                    }
+                                    options={roleOptions}
+                                    onChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}
+                                    ariaLabel="Seleccionar rol para edicion"
                                 />
+                                {formErrors.role ? <span className="usuarios-sub">{formErrors.role}</span> : null}
                             </label>
-                            <label>
-                                <span>Nombre completo</span>
-                                <input
-                                    value={editForm.full_name}
-                                    onChange={(event) =>
-                                        setEditForm((prev) => prev ? ({ ...prev, full_name: event.target.value }) : prev)
-                                    }
-                                />
-                            </label>
-                            <label>
-                                <span>Tarjeta profesional</span>
-                                <input
-                                    value={editForm.professional_card_number}
-                                    onChange={(event) =>
-                                        setEditForm((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      professional_card_number: event.target.value
-                                                  }
-                                                : prev
-                                        )
-                                    }
-                                />
-                            </label>
+
+                            {editForm.user_type === 'psychologist' ? (
+                                <label>
+                                    Tarjeta profesional
+                                    <input
+                                        type="text"
+                                        value={editForm.professional_card_number}
+                                        onChange={(event) =>
+                                            setEditForm((prev) => ({
+                                                ...prev,
+                                                professional_card_number: event.target.value
+                                            }))
+                                        }
+                                    />
+                                    {formErrors.professional_card_number ? (
+                                        <span className="usuarios-sub">{formErrors.professional_card_number}</span>
+                                    ) : null}
+                                </label>
+                            ) : null}
+
                             <label className="usuarios-switch">
                                 <input
                                     type="checkbox"
                                     checked={editForm.is_active}
                                     onChange={(event) =>
-                                        setEditForm((prev) => prev ? ({ ...prev, is_active: event.target.checked }) : prev)
+                                        setEditForm((prev) => ({ ...prev, is_active: event.target.checked }))
                                     }
                                 />
-                                <span>Usuario activo</span>
+                                Usuario activo
                             </label>
                         </>
                     )}
+
                     <div className="usuarios-modal-actions">
-                        <button type="button" className="usuarios-btn ghost" onClick={closeEditModal}>Cancelar</button>
-                        <button type="submit" className="usuarios-btn primary" disabled={submittingUpdate || loadingDetail || !editForm}>
-                            {submittingUpdate ? 'Guardando...' : 'Guardar'}
+                        <button type="button" className="usuarios-btn secondary" onClick={closeEditModal}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className="usuarios-btn primary" disabled={submittingUpdate || loadingDetail}>
+                            {submittingUpdate ? 'Guardando...' : 'Guardar cambios'}
                         </button>
                     </div>
                 </form>
             </Modal>
 
-            <Modal isOpen={isDeactivateOpen} onClose={closeDeactivateModal}>
+            <Modal isOpen={Boolean(userToDeactivate)} onClose={() => setUserToDeactivate(null)}>
                 <div className="usuarios-modal">
                     <h2>Desactivar usuario</h2>
                     <p>
-                        Confirma si deseas desactivar al usuario <strong>{selectedUser?.username ?? ''}</strong>.
+                        {userToDeactivate
+                            ? `Se desactivara a ${userToDeactivate.full_name || userToDeactivate.username}.`
+                            : ''}
                     </p>
                     <div className="usuarios-modal-actions">
-                        <button type="button" className="usuarios-btn ghost" onClick={closeDeactivateModal}>Cancelar</button>
+                        <button
+                            type="button"
+                            className="usuarios-btn secondary"
+                            onClick={() => setUserToDeactivate(null)}
+                        >
+                            Cancelar
+                        </button>
                         <button
                             type="button"
                             className="usuarios-btn primary"
-                            onClick={() => void handleDeactivateConfirm()}
+                            onClick={() => void confirmDeactivate()}
                             disabled={submittingDeactivate}
                         >
-                            {submittingDeactivate ? 'Desactivando...' : 'Desactivar'}
+                            {submittingDeactivate ? 'Procesando...' : 'Confirmar'}
                         </button>
                     </div>
                 </div>
             </Modal>
 
-            <Modal isOpen={pendingAdminAction !== null} onClose={closeAdminActionModal}>
+            <Modal isOpen={Boolean(userToResetPassword)} onClose={() => setUserToResetPassword(null)}>
                 <div className="usuarios-modal">
-                    <h2>{adminActionTitle}</h2>
-                    <p>{adminActionMessage}</p>
+                    <h2>Restablecer contrasena</h2>
+                    <p>
+                        {userToResetPassword
+                            ? `Se enviara el restablecimiento a ${userToResetPassword.email}.`
+                            : ''}
+                    </p>
                     <div className="usuarios-modal-actions">
-                        <button type="button" className="usuarios-btn ghost" onClick={closeAdminActionModal}>Cancelar</button>
+                        <button
+                            type="button"
+                            className="usuarios-btn secondary"
+                            onClick={() => setUserToResetPassword(null)}
+                        >
+                            Cancelar
+                        </button>
                         <button
                             type="button"
                             className="usuarios-btn primary"
-                            onClick={() => void handleAdminActionConfirm()}
-                            disabled={adminActionLoading}
+                            onClick={() => void confirmPasswordReset()}
+                            disabled={submittingPasswordReset}
                         >
-                            {adminActionLoading ? 'Procesando...' : 'Confirmar'}
+                            {submittingPasswordReset ? 'Procesando...' : 'Confirmar'}
                         </button>
                     </div>
                 </div>
             </Modal>
-        </div>
+
+            <Modal isOpen={Boolean(userToResetMfa)} onClose={() => setUserToResetMfa(null)}>
+                <div className="usuarios-modal">
+                    <h2>Resetear MFA</h2>
+                    <p>
+                        {userToResetMfa
+                            ? `Se restablecera MFA para ${userToResetMfa.full_name || userToResetMfa.username}.`
+                            : ''}
+                    </p>
+                    <div className="usuarios-modal-actions">
+                        <button
+                            type="button"
+                            className="usuarios-btn secondary"
+                            onClick={() => setUserToResetMfa(null)}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="usuarios-btn primary"
+                            onClick={() => void confirmMfaReset()}
+                            disabled={submittingMfaReset}
+                        >
+                            {submittingMfaReset ? 'Procesando...' : 'Confirmar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        </section>
     );
 }

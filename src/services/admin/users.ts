@@ -1,16 +1,17 @@
-﻿import { apiDelete, apiGet, apiPost, apiPut } from '../api/httpClient';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../api/httpClient';
 
 export interface User {
     id: string;
     username: string;
     email: string;
     full_name: string | null;
-    user_type: string;
+    user_type: 'guardian' | 'psychologist';
     professional_card_number: string | null;
+    colpsic_verified?: boolean;
     is_active: boolean;
     roles: string[];
-    created_at: string;
-    updated_at: string;
+    created_at: string | null;
+    updated_at: string | null;
     review_status?: string | null;
     approval_status?: string | null;
     psychologist_status?: string | null;
@@ -20,9 +21,12 @@ export interface User {
 
 export interface PaginatedUsersResponse {
     items: User[];
-    page: number;
-    page_size: number;
-    total: number;
+    pagination: {
+        page: number;
+        page_size: number;
+        total: number;
+        pages: number;
+    };
 }
 
 export interface CreateUserRequest {
@@ -37,13 +41,10 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
-    email?: string;
-    password?: string;
-    full_name?: string;
-    user_type?: 'guardian' | 'psychologist';
-    professional_card_number?: string;
-    roles?: string[];
     is_active?: boolean;
+    roles?: string[];
+    user_type?: 'guardian' | 'psychologist';
+    professional_card_number?: string | null;
 }
 
 interface UsersListParams {
@@ -75,22 +76,28 @@ export function getUsers(params: UsersListParams) {
         page: String(params.page),
         page_size: String(params.page_size)
     });
-    return apiGet<PaginatedUsersResponse>(`/api/v1/users?${search.toString()}`, requestOptions);
+    return apiGet<PaginatedUsersResponse>(`/api/admin/users?${search.toString()}`, requestOptions);
 }
 
 export async function getAllUsers() {
     const pageSize = 100;
     let page = 1;
-    let total = Number.POSITIVE_INFINITY;
+    let pages = 1;
     const collected: User[] = [];
 
-    while (collected.length < total) {
+    while (page <= pages) {
         const response = await getUsers({ page, page_size: pageSize });
         const items = response.items ?? [];
-        total = response.total ?? items.length;
+        const pagination = response.pagination;
+
         collected.push(...items);
 
-        if (items.length === 0 || collected.length >= total) {
+        if (!pagination) {
+            break;
+        }
+
+        pages = pagination.pages ?? 1;
+        if (page >= pages || items.length === 0) {
             break;
         }
 
@@ -109,7 +116,7 @@ export function getUserById(userId: string) {
 }
 
 export function updateUser(userId: string, payload: UpdateUserRequest) {
-    return apiPut<User, UpdateUserRequest>(`/api/v1/users/${userId}`, payload, requestOptions);
+    return apiPatch<User, UpdateUserRequest>(`/api/admin/users/${userId}`, payload, requestOptions);
 }
 
 export function deactivateUser(userId: string) {
