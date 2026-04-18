@@ -1,4 +1,4 @@
-export type QuestionnaireV2Mode = 'short' | 'medium' | 'full';
+export type QuestionnaireV2Mode = 'short' | 'medium' | 'complete';
 export type QuestionnaireV2Role = 'caregiver' | 'psychologist';
 export type QuestionnaireV2Status = 'draft' | 'submitted' | 'processed' | string;
 export type QuestionnaireResponseType = 'likert' | 'boolean' | 'integer' | 'text' | string;

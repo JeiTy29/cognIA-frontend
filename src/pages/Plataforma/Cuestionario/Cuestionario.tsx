@@ -19,7 +19,7 @@ import type {
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
-const DEFAULT_MODE: QuestionnaireV2Mode = 'short';
+const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
 const SESSION_PAGE_SIZE = 200;
 const MIN_TEXT_LENGTH = 3;
 

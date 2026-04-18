@@ -24,7 +24,7 @@
 - Mapeo de rol:
   - `padre -> caregiver`
   - `psicologo -> psychologist`
-- Modo por defecto: `short` (implementación tipada para soportar `medium/full`).
+- Modo por defecto: `complete` (implementación tipada para soportar `short/medium/complete`).
 - Persistencia real de respuestas antes de avanzar/finalizar.
 - Envío final real con `submit` (sin éxito local simulado).
 
