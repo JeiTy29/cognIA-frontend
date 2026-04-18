@@ -7,7 +7,6 @@ import SobreNosotros from './pages/Inicio/SobreNosotros/SobreNosotros';
 import Trastornos from './pages/Inicio/Trastornos/Trastornos';
 import InicioSesion from './pages/Autenticacion/InicioSesion/InicioSesion';
 import Registro from './pages/Autenticacion/Registro/Registro';
-import ActivarCuenta from './pages/Autenticacion/ActivarCuenta/ActivarCuenta';
 import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
 import MFA from './pages/Autenticacion/MFA/MFA';
 import RestablecerContraseña from './pages/Autenticacion/RestablecerContraseña/RestablecerContraseña';
@@ -25,6 +24,7 @@ import Usuarios from './pages/Administrador/Usuarios/Usuarios';
 import Psicologos from './pages/Administrador/Psicologos/Psicologos';
 import Auditoria from './pages/Administrador/Auditoria/Auditoria';
 import ReportesAdmin from './pages/Administrador/Reportes/Reportes';
+import CuestionarioCompartido from './pages/Plataforma/CuestionarioCompartido/CuestionarioCompartido';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
@@ -67,10 +67,10 @@ export default function App() {
                 {/* Rutas de autenticación sin Header y Footer */}
                 <Route path="/inicio-sesion" element={<InicioSesion />} />
                 <Route path="/registro" element={<Registro />} />
-                <Route path="/activar-cuenta" element={<ActivarCuenta />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
                 <Route path="/restablecer-contrasena" element={<RestablecerContraseña />} />
                 <Route path="/mfa" element={<MFA />} />
+                <Route path="/cuestionario/compartido/:questionnaireId/:shareCode" element={<CuestionarioCompartido />} />
 
                 {/* Rutas de plataforma con Sidebar */}
                 <Route element={<ProtectedRoute />}>

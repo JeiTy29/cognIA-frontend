@@ -52,6 +52,27 @@ export async function apiGet<T>(path: string, options?: ApiRequestOptions): Prom
     return response.json() as Promise<T>;
 }
 
+export async function apiGetBlob(path: string, options?: ApiRequestOptions): Promise<Blob> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'GET',
+        headers: buildHeaders(options, false),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiGetBlob(path, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return response.blob();
+}
+
 type ApiRequestOptions = {
     headers?: Record<string, string>;
     credentials?: RequestCredentials;

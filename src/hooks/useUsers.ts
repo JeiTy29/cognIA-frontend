@@ -3,12 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
     adminResetUserMfa,
     adminResetUserPassword,
-    createUser,
     deactivateUser,
-    getUserById,
     getUsers,
     updateUser,
-    type CreateUserRequest,
     type PaginatedUsersResponse,
     type UpdateUserRequest,
     type User
@@ -16,14 +13,14 @@ import {
 import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';
 
-type ActionType = 'list' | 'create' | 'detail' | 'update' | 'delete' | 'passwordReset' | 'mfaReset';
+type ActionType = 'list' | 'update' | 'delete' | 'passwordReset' | 'mfaReset';
 
 function mapErrorMessage(status: number, action: ActionType) {
     if (status === 400) return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
     if (status === 401) return 'Sesion expirada o no autenticado. Inicia sesion nuevamente.';
     if (status === 403) return 'No tienes permisos para realizar esta accion.';
     if (status === 404) {
-        if (action === 'detail' || action === 'update' || action === 'delete') {
+        if (action === 'update' || action === 'delete') {
             return 'Usuario no encontrado.';
         }
         return 'No se encontraron resultados.';
@@ -53,8 +50,6 @@ export function useUsers() {
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
 
-    const [loadingDetail, setLoadingDetail] = useState(false);
-    const [submittingCreate, setSubmittingCreate] = useState(false);
     const [submittingUpdate, setSubmittingUpdate] = useState(false);
     const [submittingDeactivate, setSubmittingDeactivate] = useState(false);
     const [submittingPasswordReset, setSubmittingPasswordReset] = useState(false);
@@ -103,44 +98,6 @@ export function useUsers() {
     const changePageSize = useCallback(async (nextPageSize: number) => {
         await loadUsers(1, nextPageSize);
     }, [loadUsers]);
-
-    const fetchUserDetail = useCallback(async (userId: string) => {
-        setLoadingDetail(true);
-        setError(null);
-        try {
-            return await getUserById(userId);
-        } catch (detailError) {
-            const status = extractStatus(detailError);
-            setError(mapErrorMessage(status, 'detail'));
-            if (status === 401) {
-                handleUnauthorized();
-            }
-            return null;
-        } finally {
-            setLoadingDetail(false);
-        }
-    }, [handleUnauthorized]);
-
-    const createUserAction = useCallback(async (payload: CreateUserRequest) => {
-        setSubmittingCreate(true);
-        setError(null);
-        setNotice(null);
-        try {
-            await createUser(payload);
-            setNotice('Usuario creado correctamente.');
-            await loadUsers(page, pageSize);
-            return true;
-        } catch (createError) {
-            const status = extractStatus(createError);
-            setError(mapErrorMessage(status, 'create'));
-            if (status === 401) {
-                handleUnauthorized();
-            }
-            return false;
-        } finally {
-            setSubmittingCreate(false);
-        }
-    }, [loadUsers, page, pageSize, handleUnauthorized]);
 
     const updateUserAction = useCallback(async (userId: string, payload: UpdateUserRequest) => {
         setSubmittingUpdate(true);
@@ -241,8 +198,6 @@ export function useUsers() {
         loading,
         error,
         notice,
-        loadingDetail,
-        submittingCreate,
         submittingUpdate,
         submittingDeactivate,
         submittingPasswordReset,
@@ -250,8 +205,6 @@ export function useUsers() {
         loadUsers,
         goToPage,
         changePageSize,
-        fetchUserDetail,
-        createUser: createUserAction,
         updateUser: updateUserAction,
         deactivateUser: deactivateUserAction,
         resetUserPassword: resetPasswordAction,

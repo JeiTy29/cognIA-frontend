@@ -2,7 +2,7 @@
 
 ## Descripción general
 
-Pantalla final de confirmación después de activar cuenta.
+Pantalla final de confirmación post-registro.
 
 ## Ubicación
 

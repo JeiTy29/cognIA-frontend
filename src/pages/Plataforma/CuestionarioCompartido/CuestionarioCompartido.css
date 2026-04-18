@@ -1,0 +1,41 @@
+.shared-questionnaire {
+    min-height: 100vh;
+    padding: 40px 16px;
+    background: #f6fbff;
+    display: flex;
+    justify-content: center;
+}
+
+.shared-questionnaire-shell {
+    width: min(900px, 100%);
+    background: #ffffff;
+    border: 1px solid rgba(33, 95, 143, 0.16);
+    border-radius: 14px;
+    padding: 24px;
+    color: #215f8f;
+}
+
+.shared-questionnaire-shell h1 {
+    margin: 0 0 12px;
+    font-size: 28px;
+}
+
+.shared-questionnaire-error {
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: rgba(215, 44, 44, 0.12);
+    color: #a12424;
+    font-weight: 600;
+}
+
+.shared-questionnaire-json {
+    margin: 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    background: #f8fcff;
+    overflow: auto;
+    max-height: 70vh;
+    font-size: 12px;
+    line-height: 1.5;
+}

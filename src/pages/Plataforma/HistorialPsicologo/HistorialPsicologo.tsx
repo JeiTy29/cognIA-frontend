@@ -1,11 +1,6 @@
-import '../Plataforma.css';
+import { HistorialBase } from '../Historial/HistorialBase';
 import './HistorialPsicologo.css';
 
 export default function HistorialPsicologo() {
-    return (
-        <div className="plataforma-view">
-            <div className="info-card plataforma-card">Historial psicólogo</div>
-        </div>
-    );
+    return <HistorialBase role="psicologo" />;
 }
-

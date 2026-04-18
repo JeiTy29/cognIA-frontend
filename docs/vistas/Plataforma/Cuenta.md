@@ -1,36 +1,27 @@
 # Vista: Mi cuenta
 
-## Propósito
+## Objetivo funcional
+- Centralizar perfil y seguridad con acciones activas del backend.
 
-Centralizar datos del perfil y seguridad sin usar cards como patrón principal.
-
-## Cambios relevantes
-
-- La composición pasó de cards en grid a secciones verticales sobrias.
-- Se conservó la funcionalidad existente:
-  - información de cuenta
-  - cambio de contraseña
-  - MFA setup / disable
-  - logout
-- No se convirtió la vista en tabla ni dashboard.
-
-## Estructura actual
-
-- encabezado simple
-- sección de información de cuenta
-- sección de seguridad con paneles expandibles
-- sección de MFA
-- cierre de sesión al final con separación visual clara
-
-## Endpoints/acciones relacionadas
-
-- `POST /api/auth/password/change`
-- MFA setup/disable a través de los servicios auth ya existentes
-- logout a través del flujo auth actual
-
-## Archivos relacionados
-
+## Archivo tocado
 - `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
-- `src/pages/Plataforma/MiCuenta/MiCuenta.css`
-- `src/components/MFA/MfaSetupView.tsx`
-- `src/services/auth/auth.api.ts`
+
+## Ajuste aplicado
+- Se eliminó completamente el flujo **Cambiar correo** (UI, estado y handlers).
+- Se mantuvieron:
+  - cambio de contraseña
+  - activación/desactivación MFA
+  - cierre de sesión
+  - visualización de datos de cuenta
+
+## Endpoints/acciones que siguen vigentes
+- `POST /api/auth/password/change`
+- flujos MFA actuales (`setup/disable`) vía `auth.api.ts`
+- logout actual
+
+## Pruebas manuales
+1. Abrir `/padre/cuenta` o `/psicologo/cuenta`.
+2. Verificar que no existe opción de cambio de correo.
+3. Cambiar contraseña y validar feedback.
+4. Activar/desactivar MFA y validar comportamiento.
+5. Cerrar sesión.
