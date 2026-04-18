@@ -1,26 +1,35 @@
-﻿# Vista: Cuestionario
+# Vista: Cuestionario (Usuario)
 
-## Propósito
+## Objetivo funcional
+- Ejecutar el flujo de cuestionario de usuario sobre `QuestionnaireV2` con sesión real.
 
-Permitir diligenciar y gestionar cuestionarios según el rol.
+## Archivos tocados
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- `src/services/questionnaires/questionnaires.api.ts`
+- `src/services/questionnaires/questionnaires.types.ts`
+- `src/services/api/httpClient.ts`
 
-## Roles
+## Endpoints activos usados
+- `GET /api/v2/questionnaires/active`
+- `POST /api/v2/questionnaires/sessions`
+- `GET /api/v2/questionnaires/sessions/{session_id}`
+- `GET /api/v2/questionnaires/sessions/{session_id}/page`
+- `PATCH /api/v2/questionnaires/sessions/{session_id}/answers`
+- `POST /api/v2/questionnaires/sessions/{session_id}/submit`
 
-**Padre/Tutor**
-- Completa el cuestionario del menor.
-- Accede solo a sus propios registros.
+## Endpoint legacy retirado
+- `GET /api/v1/questionnaires/active`
 
-**Psicólogo**
-- Revisa y gestiona cuestionarios con contexto profesional.
+## Decisiones funcionales
+- Mapeo de rol:
+  - `padre -> caregiver`
+  - `psicologo -> psychologist`
+- Modo por defecto: `short` (implementación tipada para soportar `medium/full`).
+- Persistencia real de respuestas antes de avanzar/finalizar.
+- Envío final real con `submit` (sin éxito local simulado).
 
-## Navegación
-
-- Desde Sidebar → Cuestionario.
-- Rutas: `/padre/cuestionario` y `/psicologo/cuestionario`.
-
-## Componentes futuros esperados
-
-- Formulario por secciones.
-- Validaciones por tipo de pregunta.
-- Guardado parcial del progreso.
-- Revisión profesional con más detalle.
+## Pruebas manuales
+1. Abrir `/padre/cuestionario` o `/psicologo/cuestionario`.
+2. Iniciar sesión de cuestionario y responder preguntas.
+3. Verificar llamadas a `sessions`, `answers` y `submit`.
+4. Confirmar mensaje de envío exitoso al finalizar.

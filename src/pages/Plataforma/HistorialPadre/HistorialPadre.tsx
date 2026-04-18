@@ -1,11 +1,7 @@
-import '../Plataforma.css';
+import { HistorialBase } from '../Historial/HistorialBase';
 import './HistorialPadre.css';
 
 export default function HistorialPadre() {
-    return (
-        <div className="plataforma-view">
-            <div className="info-card plataforma-card">Historial padre/tutor</div>
-        </div>
-    );
+    return <HistorialBase role="padre" />;
 }
 

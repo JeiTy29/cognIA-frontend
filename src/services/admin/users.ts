@@ -1,11 +1,11 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from '../api/httpClient';
+import { apiGet, apiPatch, apiPost } from '../api/httpClient';
 
 export interface User {
     id: string;
     username: string;
     email: string;
     full_name: string | null;
-    user_type: 'guardian' | 'psychologist';
+    user_type: 'guardian' | 'teacher' | 'psychologist' | 'admin' | string;
     professional_card_number: string | null;
     colpsic_verified?: boolean;
     is_active: boolean;
@@ -29,31 +29,19 @@ export interface PaginatedUsersResponse {
     };
 }
 
-export interface CreateUserRequest {
-    username: string;
-    email: string;
-    password: string;
-    full_name?: string;
-    user_type: 'guardian' | 'psychologist';
-    professional_card_number?: string;
-    roles?: string[];
-    is_active?: boolean;
-}
-
 export interface UpdateUserRequest {
+    email?: string;
+    password?: string | null;
+    full_name?: string | null;
     is_active?: boolean;
     roles?: string[];
-    user_type?: 'guardian' | 'psychologist';
+    user_type?: 'guardian' | 'teacher' | 'psychologist' | 'admin';
     professional_card_number?: string | null;
 }
 
 interface UsersListParams {
     page: number;
     page_size: number;
-}
-
-interface DeleteUserResponse {
-    msg: string;
 }
 
 export interface AdminPasswordResetResponse {
@@ -107,20 +95,16 @@ export async function getAllUsers() {
     return collected;
 }
 
-export function createUser(payload: CreateUserRequest) {
-    return apiPost<User, CreateUserRequest>('/api/v1/users', payload, requestOptions);
-}
-
-export function getUserById(userId: string) {
-    return apiGet<User>(`/api/v1/users/${userId}`, requestOptions);
-}
-
 export function updateUser(userId: string, payload: UpdateUserRequest) {
     return apiPatch<User, UpdateUserRequest>(`/api/admin/users/${userId}`, payload, requestOptions);
 }
 
 export function deactivateUser(userId: string) {
-    return apiDelete<DeleteUserResponse>(`/api/v1/users/${userId}`, requestOptions);
+    return apiPatch<User, UpdateUserRequest>(
+        `/api/admin/users/${userId}`,
+        { is_active: false },
+        requestOptions
+    );
 }
 
 export function adminResetUserPassword(userId: string) {

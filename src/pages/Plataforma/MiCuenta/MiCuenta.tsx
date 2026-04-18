@@ -10,7 +10,6 @@ import { Modal } from '../../../components/Modal/Modal';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
 import { ApiError } from '../../../services/api/httpClient';
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordRules = [
     { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
     { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
@@ -26,11 +25,7 @@ const passwordRules = [
 export default function MiCuenta() {
     const navigate = useNavigate();
     const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
-    const [openPanel, setOpenPanel] = useState<'correo' | 'contrasena' | null>(null);
-    const [nuevoCorreo, setNuevoCorreo] = useState('');
-    const [confirmarCorreo, setConfirmarCorreo] = useState('');
-    const [passwordCorreo, setPasswordCorreo] = useState('');
-    const [emailSaved, setEmailSaved] = useState(false);
+    const [openPanel, setOpenPanel] = useState<'contrasena' | null>(null);
 
     const [contrasenaActual, setContrasenaActual] = useState('');
     const [nuevaContrasena, setNuevaContrasena] = useState('');
@@ -85,9 +80,6 @@ export default function MiCuenta() {
         return 'No fue posible cargar tu información. Intenta más tarde.';
     }, [profileStatus, profileErrorStatus]);
     useEffect(() => {
-        if (openPanel !== 'correo') {
-            setEmailSaved(false);
-        }
         if (openPanel !== 'contrasena') {
             setPasswordSaved(false);
             setPasswordSubmitAttempted(false);
@@ -95,29 +87,6 @@ export default function MiCuenta() {
             setHighlightCurrentPassword(false);
         }
     }, [openPanel]);
-
-    const emailError = useMemo(() => {
-        if (!nuevoCorreo) return '';
-        return emailPattern.test(nuevoCorreo) ? '' : 'Ingresa un correo válido.';
-    }, [nuevoCorreo]);
-
-    const confirmEmailError = useMemo(() => {
-        if (!confirmarCorreo) return '';
-        return nuevoCorreo === confirmarCorreo ? '' : 'Los correos no coinciden.';
-    }, [nuevoCorreo, confirmarCorreo]);
-
-    const passwordCorreoError = useMemo(() => {
-        if (!passwordCorreo && (nuevoCorreo || confirmarCorreo)) {
-            return 'Ingresa tu contraseña actual.';
-        }
-        return '';
-    }, [passwordCorreo, nuevoCorreo, confirmarCorreo]);
-
-    const canSaveEmail =
-        emailPattern.test(nuevoCorreo) &&
-        confirmarCorreo.length > 0 &&
-        nuevoCorreo === confirmarCorreo &&
-        passwordCorreo.trim().length > 0;
 
     const nuevaContrasenaError = useMemo(() => {
         if (!nuevaContrasena) {
@@ -156,14 +125,8 @@ export default function MiCuenta() {
         !confirmarContrasenaError &&
         nuevaContrasena === confirmarNueva;
 
-    const togglePanel = (panel: 'correo' | 'contrasena') => {
+    const togglePanel = (panel: 'contrasena') => {
         setOpenPanel((prev) => (prev === panel ? null : panel));
-    };
-
-    const handleEmailSubmit = (event: FormEvent) => {
-        event.preventDefault();
-        if (!canSaveEmail) return;
-        setEmailSaved(true);
     };
 
     const handlePasswordSubmit = (event: FormEvent) => {
@@ -297,93 +260,7 @@ export default function MiCuenta() {
 
                 <section className="info-card mi-cuenta-section">
                     <h2 className="mi-cuenta-section-title">Seguridad</h2>
-                    <p className="mi-cuenta-section-note">Actualiza tu correo o tu contraseña de acceso.</p>
-
-                    <button
-                        type="button"
-                        className={`mi-cuenta-toggle ${openPanel === 'correo' ? 'is-open' : ''}`}
-                        onClick={() => togglePanel('correo')}
-                        aria-expanded={openPanel === 'correo'}
-                        aria-controls="panel-correo"
-                    >
-                        <span>Cambiar correo</span>
-                        <span className="mi-cuenta-toggle-icon" aria-hidden="true">
-                            {openPanel === 'correo' ? <ChevronIcon /> : <EditIcon />}
-                        </span>
-                    </button>
-                    <div
-                        id="panel-correo"
-                        className={`mi-cuenta-panel ${openPanel === 'correo' ? 'is-open' : ''}`}
-                    >
-                        <div className="mi-cuenta-panel-inner">
-                            <form className="mi-cuenta-form" onSubmit={handleEmailSubmit}>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Correo actual</span>
-                                    <input className="mi-cuenta-input is-readonly" type="email" value={correo} readOnly />
-                                </label>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Nuevo correo</span>
-                                    <input
-                                        className="mi-cuenta-input"
-                                        type="email"
-                                        value={nuevoCorreo}
-                                        onChange={(event) => {
-                                            setNuevoCorreo(event.target.value);
-                                            setEmailSaved(false);
-                                        }}
-                                    />
-                                    {emailError && <span className="mi-cuenta-error">{emailError}</span>}
-                                </label>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Confirmar nuevo correo</span>
-                                    <input
-                                        className="mi-cuenta-input"
-                                        type="email"
-                                        value={confirmarCorreo}
-                                        onChange={(event) => {
-                                            setConfirmarCorreo(event.target.value);
-                                            setEmailSaved(false);
-                                        }}
-                                    />
-                                    {confirmEmailError && <span className="mi-cuenta-error">{confirmEmailError}</span>}
-                                </label>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Contraseña</span>
-                                    <input
-                                        className="mi-cuenta-input"
-                                        type="password"
-                                        value={passwordCorreo}
-                                        onChange={(event) => {
-                                            setPasswordCorreo(event.target.value);
-                                            setEmailSaved(false);
-                                        }}
-                                    />
-                                    {passwordCorreoError && <span className="mi-cuenta-error">{passwordCorreoError}</span>}
-                                </label>
-
-                                {emailSaved && (
-                                    <div className="mi-cuenta-success">Cambios guardados correctamente.</div>
-                                )}
-
-                                <div className="mi-cuenta-actions">
-                                    <button
-                                        type="button"
-                                        className="mi-cuenta-btn ghost"
-                                        onClick={() => setOpenPanel(null)}
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="mi-cuenta-btn primary"
-                                        disabled={!canSaveEmail}
-                                    >
-                                        Guardar cambios
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                    <p className="mi-cuenta-section-note">Actualiza tu contraseña de acceso.</p>
 
                     <button
                         type="button"
