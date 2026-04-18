@@ -129,9 +129,9 @@ export function getActiveQuestionnairesV2(params: {
     const query = buildSearch({
         mode: params.mode,
         role: params.role,
-        include_full: params.include_full ?? true,
-        page: params.page ?? 1,
-        page_size: params.page_size ?? 1
+        include_full: params.include_full,
+        page: params.page,
+        page_size: params.page_size
     });
     return apiGet<unknown>(`/api/v2/questionnaires/active?${query}`, requestOptions).then(
         normalizeActiveQuestionnairesResponse
@@ -221,7 +221,7 @@ export function deleteQuestionnaireHistoryTagV2(sessionId: string, tagId: string
 export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQuestionnairePayload) {
     return apiPost<unknown, ShareQuestionnairePayload>(
         `/api/v2/questionnaires/history/${sessionId}/share`,
-        payload ?? { allow_pdf_access: false },
+        payload ?? {},
         requestOptions
     );
 }

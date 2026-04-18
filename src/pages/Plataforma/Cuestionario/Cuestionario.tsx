@@ -18,14 +18,14 @@ import type {
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
-const DEFAULT_MODE: QuestionnaireV2Mode = 'full';
+const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
 const SESSION_PAGE_SIZE = 200;
 const MIN_TEXT_LENGTH = 3;
 
 const MODE_OPTIONS: Array<{ value: QuestionnaireV2Mode; label: string; hint: string; description: string }> = [
     { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Ideal cuando necesitas una guia inicial en poco tiempo.' },
     { value: 'medium', label: 'Version media', hint: 'Equilibrada', description: 'Combina un tiempo razonable con una lectura mas detallada.' },
-    { value: 'full', label: 'Version completa', hint: 'Mas robusta', description: 'Requiere mas dedicacion, pero entrega una valoracion mas solida del contexto.' }
+    { value: 'complete', label: 'Version completa', hint: 'Mas robusta', description: 'Requiere mas dedicacion, pero entrega una valoracion mas solida del contexto.' }
 ];
 
 const LIKERT = [
@@ -53,7 +53,10 @@ function normalizeAnswerDictionary(value: unknown): Record<string, Questionnaire
             const answer = item as Record<string, unknown>;
             const questionId = toText(answer.question_id);
             if (!questionId) return acc;
-            acc[questionId] = (answer.value as QuestionnaireResponseValue) ?? null;
+            acc[questionId] =
+                (answer.answer as QuestionnaireResponseValue) ??
+                (answer.value as QuestionnaireResponseValue) ??
+                null;
             return acc;
         }, {});
     }
@@ -139,10 +142,7 @@ export default function Cuestionario() {
         try {
             const response = await getActiveQuestionnairesV2({
                 mode: selectedMode,
-                role: apiRole,
-                include_full: selectedMode === 'full',
-                page: 1,
-                page_size: 1
+                role: apiRole
             });
             const first = response.items[0] as Record<string, unknown> | undefined;
             setTemplateName(toText(first?.name, 'Cuestionario de observacion'));
@@ -197,8 +197,7 @@ export default function Cuestionario() {
         try {
             const created = await createQuestionnaireSessionV2({
                 mode: selectedMode,
-                role: apiRole,
-                title: templateName
+                role: apiRole
             });
             const createdRecord = created as Record<string, unknown>;
             const id = toText(createdRecord.id) || toText(createdRecord.session_id);
@@ -223,7 +222,7 @@ export default function Cuestionario() {
         } finally {
             setWorking(false);
         }
-    }, [apiRole, loadAllSessionQuestions, selectedMode, templateName]);
+    }, [apiRole, loadAllSessionQuestions, selectedMode]);
 
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
@@ -236,7 +235,7 @@ export default function Cuestionario() {
         if (!isValid(currentQuestion, value)) return false;
 
         await patchQuestionnaireSessionAnswersV2(sessionId, {
-            answers: [{ question_id: currentQuestion.id, value: value ?? null }],
+            answers: [{ question_id: currentQuestion.id, answer: value ?? null }],
             mark_final: markFinal
         });
         return true;

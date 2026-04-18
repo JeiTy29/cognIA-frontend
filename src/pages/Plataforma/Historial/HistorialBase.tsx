@@ -63,7 +63,7 @@ function getModeLabel(mode: string | undefined) {
     const normalized = (mode ?? '').toLowerCase();
     if (normalized === 'short') return 'Corto';
     if (normalized === 'medium') return 'Medio';
-    if (normalized === 'full' || normalized === 'complete') return 'Completo';
+    if (normalized === 'complete' || normalized === 'full') return 'Completo';
     return mode ?? '--';
 }
 
@@ -249,9 +249,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const handleGenerateShare = async () => {
         if (!detailSessionId) return;
         try {
-            const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
-                allow_pdf_access: false
-            });
+            const payload = await shareQuestionnaireHistoryV2(detailSessionId);
             const resolvedUrl = resolveShareUrl(payload, detailSessionId);
             setShareUrl(resolvedUrl);
             setDetailNotice(resolvedUrl ? 'Enlace compartido generado.' : 'Se generó el recurso compartido.');

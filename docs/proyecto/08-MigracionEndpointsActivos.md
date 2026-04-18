@@ -40,6 +40,6 @@
 - Cambio de correo en `MiCuenta`.
 
 ## Estado actual
-- El cuestionario de usuario opera con `QuestionnaireV2` y seleccion de modo `short | medium | full`.
+- El cuestionario de usuario opera con `QuestionnaireV2` y seleccion de modo `short | medium | complete`.
 - El listado y actualizacion de usuarios opera con el modulo admin.
 - La desactivacion de usuarios usa `PATCH /api/admin/users/{id}` con `is_active=false`.
