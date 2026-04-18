@@ -13,17 +13,22 @@ import {
 import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseValue,
-    QuestionnaireV2Mode,
-    QuestionnaireV2Role
+    QuestionnaireV2Mode
 } from '../../../services/questionnaires/questionnaires.types';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
-const DEFAULT_MODE: QuestionnaireV2Mode = 'short';
+const DEFAULT_MODE: QuestionnaireV2Mode = 'full';
 const SESSION_PAGE_SIZE = 200;
 const MIN_TEXT_LENGTH = 3;
 
-const likertOptions = [
+const MODE_OPTIONS: Array<{ value: QuestionnaireV2Mode; label: string; hint: string; description: string }> = [
+    { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Ideal cuando necesitas una guia inicial en poco tiempo.' },
+    { value: 'medium', label: 'Version media', hint: 'Equilibrada', description: 'Combina un tiempo razonable con una lectura mas detallada.' },
+    { value: 'full', label: 'Version completa', hint: 'Mas robusta', description: 'Requiere mas dedicacion, pero entrega una valoracion mas solida del contexto.' }
+];
+
+const LIKERT = [
     { value: 1, label: 'Nunca' },
     { value: 2, label: 'Rara vez' },
     { value: 3, label: 'A veces' },
@@ -31,501 +36,276 @@ const likertOptions = [
     { value: 5, label: 'Casi siempre' }
 ];
 
-interface ActiveTemplateState {
-    id: string;
-    name: string;
-    version: string;
-    description: string;
+function roleToApiRole(role: string | null) {
+    return role === 'psicologo' ? 'psychologist' : 'caregiver';
 }
 
-function mapRoleToQuestionnaireRole(primaryRole: string | null): QuestionnaireV2Role {
-    if (primaryRole === 'psicologo') return 'psychologist';
-    return 'caregiver';
-}
-
-function toStringSafe(value: unknown, fallback = '') {
+function toText(value: unknown, fallback = '') {
     return typeof value === 'string' ? value : fallback;
 }
 
-function toNumberOrNull(value: unknown) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return null;
-    return numeric;
+function normalizeAnswerDictionary(value: unknown): Record<string, QuestionnaireResponseValue> {
+    if (!value) return {};
+
+    if (Array.isArray(value)) {
+        return value.reduce<Record<string, QuestionnaireResponseValue>>((acc, item) => {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return acc;
+            const answer = item as Record<string, unknown>;
+            const questionId = toText(answer.question_id);
+            if (!questionId) return acc;
+            acc[questionId] = (answer.value as QuestionnaireResponseValue) ?? null;
+            return acc;
+        }, {});
+    }
+
+    if (typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        return Object.entries(record).reduce<Record<string, QuestionnaireResponseValue>>((acc, [key, itemValue]) => {
+            acc[key] = itemValue as QuestionnaireResponseValue;
+            return acc;
+        }, {});
+    }
+
+    return {};
 }
 
-function normalizeQuestion(value: unknown, index: number): QuestionnaireQuestionV2DTO | null {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const record = value as Record<string, unknown>;
-    const id = toStringSafe(record.id);
-    const text = toStringSafe(record.text);
-    if (!id || !text) return null;
-
-    const responseType = toStringSafe(record.response_type, 'text');
-    const rawOptions = Array.isArray(record.response_options) ? record.response_options : null;
-
-    return {
-        id,
-        code: toStringSafe(record.code),
-        text,
-        response_type: responseType,
-        position: Number.isFinite(Number(record.position)) ? Number(record.position) : index + 1,
-        response_min: toNumberOrNull(record.response_min),
-        response_max: toNumberOrNull(record.response_max),
-        response_step: toNumberOrNull(record.response_step),
-        response_options: rawOptions as Array<number | string> | null
-    };
-}
-
-function normalizeQuestions(values: unknown[]): QuestionnaireQuestionV2DTO[] {
-    return values
-        .map((value, index) => normalizeQuestion(value, index))
-        .filter((value): value is QuestionnaireQuestionV2DTO => Boolean(value))
+function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+        .map((item, index) => {
+            const record = item as Record<string, unknown>;
+            return {
+                id: toText(record.id),
+                text: toText(record.text),
+                code: toText(record.code),
+                response_type: toText(record.response_type, 'text'),
+                position: Number.isFinite(Number(record.position)) ? Number(record.position) : index + 1,
+                response_min: Number.isFinite(Number(record.response_min)) ? Number(record.response_min) : null,
+                response_max: Number.isFinite(Number(record.response_max)) ? Number(record.response_max) : null,
+                response_step: Number.isFinite(Number(record.response_step)) ? Number(record.response_step) : null,
+                response_options: Array.isArray(record.response_options)
+                    ? (record.response_options as Array<number | string>)
+                    : null
+            };
+        })
+        .filter((q) => q.id && q.text)
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
-function normalizeActiveTemplate(payload: unknown): ActiveTemplateState | null {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    const record = payload as Record<string, unknown>;
-    const id = toStringSafe(record.id);
-    if (!id) return null;
-    return {
-        id,
-        name: toStringSafe(record.name, 'Cuestionario de observación'),
-        version: toStringSafe(record.version, DEFAULT_MODE),
-        description: toStringSafe(record.description, '')
-    };
-}
-
-function extractSessionId(payload: unknown) {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    const record = payload as Record<string, unknown>;
-    const idCandidates = [record.id, record.session_id];
-    for (const candidate of idCandidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate;
-    }
-    return null;
-}
-
-function normalizeSessionAnswers(payload: unknown) {
-    const answerMap: Record<string, QuestionnaireResponseValue> = {};
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return answerMap;
-
-    const record = payload as Record<string, unknown>;
-    const answersField = record.answers;
-    if (Array.isArray(answersField)) {
-        answersField.forEach((entry) => {
-            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
-            const answerRecord = entry as Record<string, unknown>;
-            const questionId = toStringSafe(answerRecord.question_id);
-            if (!questionId) return;
-            const value = answerRecord.value as QuestionnaireResponseValue;
-            answerMap[questionId] = value;
-        });
-        return answerMap;
-    }
-
-    if (answersField && typeof answersField === 'object' && !Array.isArray(answersField)) {
-        const answersRecord = answersField as Record<string, unknown>;
-        Object.entries(answersRecord).forEach(([questionId, value]) => {
-            answerMap[questionId] = value as QuestionnaireResponseValue;
-        });
-    }
-
-    return answerMap;
-}
-
-function isValidAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
-    switch (question.response_type) {
-        case 'likert':
-        case 'boolean':
-            return value !== null && value !== undefined && value !== '';
-        case 'integer': {
-            if (typeof value !== 'number' || Number.isNaN(value) || !Number.isInteger(value)) return false;
-            const minValue = Math.max(0, question.response_min ?? 0);
-            if (value < minValue) return false;
-            if (question.response_max !== null && question.response_max !== undefined && value > question.response_max) return false;
-            return true;
-        }
-        case 'text':
-        default:
-            return typeof value === 'string' && value.trim().length >= MIN_TEXT_LENGTH;
-    }
-}
-
-function formatAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
-    if (value === null || value === undefined || value === '') return '';
-    switch (question.response_type) {
-        case 'boolean':
-            return value === true ? 'Sí' : value === false ? 'No' : String(value);
-        case 'likert': {
-            const options = Array.isArray(question.response_options) && question.response_options.length > 0
-                ? question.response_options.map((option) => ({ value: option, label: String(option) }))
-                : likertOptions;
-            const match = options.find((option) => option.value === value);
-            return match ? match.label : String(value);
-        }
-        case 'integer':
-            return String(value);
-        case 'text':
-        default: {
-            if (typeof value !== 'string') return String(value);
-            const trimmed = value.trim();
-            return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
-        }
-    }
-}
-
-function renderQuestionInput(
-    question: QuestionnaireQuestionV2DTO,
-    value: unknown,
-    onChange: (newValue: unknown) => void
-) {
-    switch (question.response_type) {
-        case 'likert': {
-            const options = Array.isArray(question.response_options) && question.response_options.length > 0
-                ? question.response_options.map((option) => ({ value: option, label: String(option) }))
-                : likertOptions;
-            return (
-                <div className="question-options">
-                    {options.map((option) => (
-                        <button
-                            key={String(option.value)}
-                            type="button"
-                            className={`answer-option ${value === option.value ? 'is-selected' : ''}`}
-                            onClick={() => onChange(option.value)}
-                        >
-                            <span className="answer-indicator" aria-hidden="true"></span>
-                            <span className="answer-label">{option.label}</span>
-                        </button>
-                    ))}
-                </div>
-            );
-        }
-        case 'boolean':
-            return (
-                <div className="question-options">
-                    {[{ label: 'Sí', value: true }, { label: 'No', value: false }].map((option) => (
-                        <button
-                            key={option.label}
-                            type="button"
-                            className={`answer-option ${value === option.value ? 'is-selected' : ''}`}
-                            onClick={() => onChange(option.value)}
-                        >
-                            <span className="answer-indicator" aria-hidden="true"></span>
-                            <span className="answer-label">{option.label}</span>
-                        </button>
-                    ))}
-                </div>
-            );
-        case 'integer': {
-            const min = Math.max(0, question.response_min ?? 0);
-            const max = question.response_max ?? undefined;
-            const step = question.response_step ?? 1;
-            return (
-                <div className="question-input-block">
-                    <label className="question-input-label">Ingresa un número</label>
-                    <input
-                        type="number"
-                        className="question-input"
-                        placeholder="0"
-                        value={typeof value === 'number' ? value : ''}
-                        onChange={(event) => {
-                            const raw = event.target.value;
-                            if (raw.startsWith('-')) return;
-                            const nextValue = raw === '' ? '' : Number(raw);
-                            if (nextValue !== '' && Number.isNaN(nextValue)) return;
-                            onChange(nextValue === '' ? null : nextValue);
-                        }}
-                        min={min}
-                        max={max}
-                        step={step}
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                    />
-                    <span className="question-input-hint">Solo números (0 o mayor).</span>
-                </div>
-            );
-        }
-        case 'text':
-        default:
-            return (
-                <div className="question-input-block">
-                    <label className="question-input-label">Respuesta</label>
-                    <textarea
-                        className="question-textarea"
-                        rows={5}
-                        placeholder="Escribe una respuesta breve"
-                        value={typeof value === 'string' ? value : ''}
-                        onChange={(event) => onChange(event.target.value)}
-                    />
-                    <span className="question-input-note">
-                        Estas respuestas no afectan el resultado final de forma aislada; ayudan a la interpretación profesional.
-                    </span>
-                </div>
-            );
-    }
-}
-
-function mapApiErrorToText(error: unknown, fallback = 'No fue posible completar la acción.') {
+function mapError(error: unknown, fallback: string) {
     if (!(error instanceof ApiError)) return fallback;
-    if (error.status === 400) return 'No se pudieron guardar las respuestas. Revisa los datos.';
-    if (error.status === 401) return 'Sesión expirada o no autenticado. Inicia sesión nuevamente.';
-    if (error.status === 403) return 'No tienes permisos para esta operación.';
-    if (error.status === 404) return 'La sesión de cuestionario no está disponible.';
-    if (error.status >= 500) return 'Error del servidor. Intenta nuevamente.';
+    if (error.status === 400) return 'Revisa los datos e intenta nuevamente.';
+    if (error.status === 401) return 'Sesion expirada o no autenticado.';
+    if (error.status === 403) return 'No tienes permisos para esta operacion.';
+    if (error.status === 404) return 'No se encontro informacion para este cuestionario.';
+    if (error.status >= 500) return 'Error del servidor. Intenta mas tarde.';
     return fallback;
+}
+
+function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
+    if (question.response_type === 'text') return typeof value === 'string' && value.trim().length >= MIN_TEXT_LENGTH;
+    if (question.response_type === 'integer') return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+    return value !== null && value !== undefined && value !== '';
 }
 
 export default function Cuestionario() {
     const { primaryRole } = useAuth();
-    const questionnaireRole = useMemo(() => mapRoleToQuestionnaireRole(primaryRole), [primaryRole]);
+    const apiRole = useMemo(() => roleToApiRole(primaryRole), [primaryRole]);
 
-    const [activeTemplate, setActiveTemplate] = useState<ActiveTemplateState | null>(null);
+    const [selectedMode, setSelectedMode] = useState<QuestionnaireV2Mode>(DEFAULT_MODE);
+    const [templateName, setTemplateName] = useState('Cuestionario de observacion');
     const [activeLoading, setActiveLoading] = useState(true);
     const [activeError, setActiveError] = useState<string | null>(null);
-    const [activeStatusCode, setActiveStatusCode] = useState<number | null>(null);
 
+    const [started, setStarted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [questions, setQuestions] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [answers, setAnswers] = useState<Record<string, QuestionnaireResponseValue>>({});
-
-    const [started, setStarted] = useState(false);
-    const [startingSession, setStartingSession] = useState(false);
-    const [syncingAnswer, setSyncingAnswer] = useState(false);
-    const [submittingSession, setSubmittingSession] = useState(false);
-    const [sessionError, setSessionError] = useState<string | null>(null);
-
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [working, setWorking] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [showValidation, setShowValidation] = useState(false);
-    const [navDirection, setNavDirection] = useState<'next' | 'prev'>('next');
     const activeRef = useRef<HTMLDivElement | null>(null);
 
-    const loadActiveQuestionnaire = useCallback(async () => {
+    const modeMeta = useMemo(
+        () => MODE_OPTIONS.find((mode) => mode.value === selectedMode) ?? MODE_OPTIONS[2],
+        [selectedMode]
+    );
+
+    const loadActive = useCallback(async () => {
         setActiveLoading(true);
         setActiveError(null);
-        setActiveStatusCode(null);
         try {
             const response = await getActiveQuestionnairesV2({
-                mode: DEFAULT_MODE,
-                role: questionnaireRole,
-                include_full: true,
+                mode: selectedMode,
+                role: apiRole,
+                include_full: selectedMode === 'full',
                 page: 1,
                 page_size: 1
             });
-            const nextTemplate = response.items.length > 0 ? normalizeActiveTemplate(response.items[0]) : null;
-            setActiveTemplate(nextTemplate);
-        } catch (error) {
-            if (error instanceof ApiError) {
-                setActiveStatusCode(error.status);
-            }
-            setActiveError(mapApiErrorToText(error, 'No se pudo cargar el cuestionario activo.'));
-            setActiveTemplate(null);
+            const first = response.items[0] as Record<string, unknown> | undefined;
+            setTemplateName(toText(first?.name, 'Cuestionario de observacion'));
+        } catch (requestError) {
+            setActiveError(mapError(requestError, 'No se pudo cargar el cuestionario activo.'));
         } finally {
             setActiveLoading(false);
         }
-    }, [questionnaireRole]);
+    }, [apiRole, selectedMode]);
+
+    const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
+        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1, page_size: SESSION_PAGE_SIZE });
+        const firstQuestions = normalizeQuestions(firstPage.items);
+        const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
+
+        if (totalPages <= 1) {
+            return firstQuestions;
+        }
+
+        const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
+            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2, page_size: SESSION_PAGE_SIZE })
+        );
+        const remainingResponses = await Promise.all(remainingRequests);
+        const remainingQuestions = remainingResponses.flatMap((response) => normalizeQuestions(response.items));
+        const merged = [...firstQuestions, ...remainingQuestions];
+        const uniqueById = new Map<string, QuestionnaireQuestionV2DTO>();
+
+        merged.forEach((question) => {
+            if (!uniqueById.has(question.id)) {
+                uniqueById.set(question.id, question);
+            }
+        });
+
+        return Array.from(uniqueById.values()).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    }, []);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadActiveQuestionnaire();
-        }, 0);
+        const timeoutId = window.setTimeout(() => void loadActive(), 0);
         return () => window.clearTimeout(timeoutId);
-    }, [loadActiveQuestionnaire]);
+    }, [loadActive]);
 
     useEffect(() => {
-        if (!started) return;
-        if (!activeRef.current) return;
+        if (!started || !activeRef.current) return;
         requestAnimationFrame(() => {
             activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     }, [currentIndex, started]);
 
-    const resetSessionState = useCallback(() => {
-        setStarted(false);
-        setStartingSession(false);
-        setSyncingAnswer(false);
-        setSubmittingSession(false);
-        setSessionError(null);
-        setSessionId(null);
-        setQuestions([]);
-        setAnswers({});
-        setCurrentIndex(0);
-        setShowSuccess(false);
-        setShowValidation(false);
-        setNavDirection('next');
-    }, []);
-
-    const hydrateSessionAnswers = useCallback(async (nextSessionId: string) => {
-        try {
-            const detail = await getQuestionnaireSessionV2(nextSessionId);
-            return normalizeSessionAnswers(detail);
-        } catch {
-            return {};
-        }
-    }, []);
-
     const startSession = useCallback(async () => {
-        if (!activeTemplate?.id) return;
-        setStartingSession(true);
-        setSessionError(null);
+        setWorking(true);
+        setError(null);
         try {
-            const createdSession = await createQuestionnaireSessionV2({
-                mode: DEFAULT_MODE,
-                role: questionnaireRole,
-                title: activeTemplate.name
+            const created = await createQuestionnaireSessionV2({
+                mode: selectedMode,
+                role: apiRole,
+                title: templateName
             });
-            const nextSessionId = extractSessionId(createdSession);
-            if (!nextSessionId) {
-                throw new Error('Session id not found');
-            }
+            const createdRecord = created as Record<string, unknown>;
+            const id = toText(createdRecord.id) || toText(createdRecord.session_id);
+            if (!id) throw new Error('missing_session_id');
 
-            const [sessionPage, sessionAnswers] = await Promise.all([
-                getQuestionnaireSessionPageV2(nextSessionId, { page: 1, page_size: SESSION_PAGE_SIZE }),
-                hydrateSessionAnswers(nextSessionId)
+            const [allQuestions, detail] = await Promise.all([
+                loadAllSessionQuestions(id),
+                getQuestionnaireSessionV2(id)
             ]);
+            if (allQuestions.length === 0) throw new Error('empty_questions');
 
-            const normalizedQuestions = normalizeQuestions(sessionPage.items as unknown[]);
-            if (normalizedQuestions.length === 0) {
-                setSessionError('La sesión se creó, pero no tiene preguntas disponibles.');
-                return;
-            }
+            const detailAnswers = (detail as Record<string, unknown>).answers;
+            const initialAnswers = normalizeAnswerDictionary(detailAnswers);
 
-            setSessionId(nextSessionId);
-            setQuestions(normalizedQuestions);
-            setAnswers(sessionAnswers);
+            setSessionId(id);
+            setQuestions(allQuestions);
+            setAnswers(initialAnswers);
             setCurrentIndex(0);
             setStarted(true);
-            setShowValidation(false);
-        } catch (error) {
-            setSessionError(mapApiErrorToText(error, 'No se pudo iniciar la sesión del cuestionario.'));
+        } catch (requestError) {
+            setError(mapError(requestError, 'No se pudo iniciar la sesion del cuestionario.'));
         } finally {
-            setStartingSession(false);
+            setWorking(false);
         }
-    }, [activeTemplate?.id, activeTemplate?.name, hydrateSessionAnswers, questionnaireRole]);
-
-    const handleAnswerChange = (questionId: string, value: QuestionnaireResponseValue) => {
-        setAnswers((prev) => ({
-            ...prev,
-            [questionId]: value
-        }));
-        if (showValidation) {
-            const currentQuestion = questions[currentIndex];
-            if (currentQuestion && currentQuestion.id === questionId && isValidAnswer(currentQuestion, value)) {
-                setShowValidation(false);
-            }
-        }
-    };
+    }, [apiRole, loadAllSessionQuestions, selectedMode, templateName]);
 
     const currentQuestion = questions[currentIndex] ?? null;
-    const currentKey = currentQuestion?.id ?? '';
-    const currentAnswer = currentKey ? answers[currentKey] : null;
-    const currentValid = currentQuestion ? isValidAnswer(currentQuestion, currentAnswer) : false;
-    const totalQuestions = questions.length;
-    const progress = totalQuestions > 0
-        ? Math.round(((currentIndex + 1) / totalQuestions) * 100)
-        : 0;
+    const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
+    const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
+    const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
 
-    const persistCurrentAnswer = useCallback(async (markFinal = false) => {
+    const saveCurrent = async (markFinal = false) => {
         if (!sessionId || !currentQuestion) return false;
         const value = answers[currentQuestion.id];
-        if (!isValidAnswer(currentQuestion, value)) return false;
-        setSyncingAnswer(true);
-        setSessionError(null);
-        try {
-            await patchQuestionnaireSessionAnswersV2(sessionId, {
-                answers: [
-                    {
-                        question_id: currentQuestion.id,
-                        value: value ?? null
-                    }
-                ],
-                mark_final: markFinal
-            });
-            return true;
-        } catch (error) {
-            setSessionError(mapApiErrorToText(error, 'No se pudo guardar la respuesta.'));
-            return false;
-        } finally {
-            setSyncingAnswer(false);
-        }
-    }, [answers, currentQuestion, sessionId]);
+        if (!isValid(currentQuestion, value)) return false;
 
-    const goNext = async () => {
-        if (!currentQuestion) return;
-        if (!currentValid) {
-            setShowValidation(true);
-            return;
-        }
-        setShowValidation(false);
-        const persisted = await persistCurrentAnswer(false);
-        if (!persisted) return;
-        if (currentIndex < totalQuestions - 1) {
-            setNavDirection('next');
-            setCurrentIndex((prev) => prev + 1);
-        }
+        await patchQuestionnaireSessionAnswersV2(sessionId, {
+            answers: [{ question_id: currentQuestion.id, value: value ?? null }],
+            mark_final: markFinal
+        });
+        return true;
     };
 
-    const goPrevious = () => {
-        setShowValidation(false);
-        if (currentIndex > 0) {
-            setNavDirection('prev');
-            setCurrentIndex((prev) => prev - 1);
+    const handleNext = async () => {
+        if (!currentQuestion || !canContinue) return;
+        setWorking(true);
+        setError(null);
+        try {
+            const saved = await saveCurrent(false);
+            if (!saved) return;
+            if (currentIndex < questions.length - 1) {
+                setCurrentIndex((prev) => prev + 1);
+            }
+        } catch (requestError) {
+            setError(mapError(requestError, 'No se pudo guardar la respuesta.'));
+        } finally {
+            setWorking(false);
         }
     };
 
     const handleFinish = async () => {
-        if (!currentQuestion || !currentValid || !sessionId) {
-            setShowValidation(true);
-            return;
-        }
-        setShowValidation(false);
-        setSubmittingSession(true);
-        setSessionError(null);
+        if (!sessionId || !currentQuestion || !canContinue) return;
+        setWorking(true);
+        setError(null);
         try {
-            const persisted = await persistCurrentAnswer(true);
-            if (!persisted) return;
+            const saved = await saveCurrent(true);
+            if (!saved) return;
             await submitQuestionnaireSessionV2(sessionId, { force_reprocess: false });
             setShowSuccess(true);
-        } catch (error) {
-            setSessionError(mapApiErrorToText(error, 'No se pudo enviar el cuestionario.'));
+        } catch (requestError) {
+            setError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
         } finally {
-            setSubmittingSession(false);
+            setWorking(false);
+        }
+    };
+
+    const onAnswerChange = (value: QuestionnaireResponseValue) => {
+        if (!currentQuestion) return;
+        setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
+    };
+
+    const handlePrevious = () => {
+        if (currentIndex > 0) {
+            setCurrentIndex((prev) => prev - 1);
         }
     };
 
     const handleSuccessClose = () => {
-        resetSessionState();
-        void loadActiveQuestionnaire();
-    };
-
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        if (!started || syncingAnswer || submittingSession) return;
-        if (currentIndex === totalQuestions - 1) {
-            void handleFinish();
-        } else {
-            void goNext();
-        }
+        setShowSuccess(false);
+        setStarted(false);
+        setSessionId(null);
+        setQuestions([]);
+        setAnswers({});
+        setCurrentIndex(0);
+        setError(null);
+        void loadActive();
     };
 
     return (
         <div className="plataforma-view">
-            <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`} onKeyDown={handleKeyDown}>
+            <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`}>
                 {activeLoading ? (
                     <div className="questionnaire-state">Cargando cuestionario...</div>
-                ) : activeStatusCode === 404 || !activeTemplate ? (
-                    <div className="questionnaire-state">
-                        <p>No hay un cuestionario activo en este momento.</p>
-                        <button type="button" className="questionnaire-retry" onClick={() => void loadActiveQuestionnaire()}>
-                            Reintentar
-                        </button>
-                    </div>
                 ) : activeError ? (
                     <div className="questionnaire-state">
                         <p>{activeError}</p>
-                        <button type="button" className="questionnaire-retry" onClick={() => void loadActiveQuestionnaire()}>
+                        <button type="button" className="questionnaire-retry" onClick={() => void loadActive()}>
                             Reintentar
                         </button>
                     </div>
@@ -534,29 +314,54 @@ export default function Cuestionario() {
                         <div className="questionnaire-intro-content">
                             <div className="questionnaire-intro-text">
                                 <h1 className="questionnaire-title">
-                                    Cuestionario de observación
+                                    Cuestionario de observacion
                                     <span className="questionnaire-title-accent" aria-hidden="true"></span>
                                 </h1>
                                 <p className="questionnaire-subtitle">
-                                    Responde según lo observado en las últimas 4 semanas. El cuestionario dura entre 5 y 8 minutos.
+                                    Responde segun lo observado en las ultimas 4 semanas.
                                 </p>
                                 <p className="questionnaire-intro-text-body">
-                                    Tu participación ayuda a construir una alerta inicial, no un diagnóstico.
+                                    Elige el formato que mejor se ajuste a tu tiempo disponible.
                                 </p>
+
+                                <div className="questionnaire-mode">
+                                    <h2 className="questionnaire-mode-title">Selecciona el tipo de cuestionario</h2>
+                                    <p className="questionnaire-mode-description">
+                                        Mientras mas amplio sea el cuestionario, mas consistente sera la lectura final del contexto.
+                                    </p>
+                                    <div className="questionnaire-mode-list" role="radiogroup" aria-label="Modo de cuestionario">
+                                        {MODE_OPTIONS.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`questionnaire-mode-option ${selectedMode === option.value ? 'is-selected' : ''}`}
+                                                role="radio"
+                                                aria-checked={selectedMode === option.value}
+                                                onClick={() => setSelectedMode(option.value)}
+                                            >
+                                                <span className="questionnaire-mode-option-title">{option.label}</span>
+                                                <span className="questionnaire-mode-option-hint">{option.hint}</span>
+                                                <span className="questionnaire-mode-option-text">{option.description}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                             <div className="questionnaire-intro-image">
                                 <img src={questionnaireImage} alt="Vista previa del cuestionario" />
                             </div>
                         </div>
-                        {sessionError ? <div className="question-warning">{sessionError}</div> : null}
+
+                        {error ? <div className="question-warning">{error}</div> : null}
+
                         <div className="questionnaire-intro-actions">
                             <button
                                 type="button"
                                 className="questionnaire-btn primary questionnaire-start"
                                 onClick={() => void startSession()}
-                                disabled={startingSession}
+                                disabled={working}
                             >
-                                {startingSession ? 'Iniciando...' : 'Comenzar'}
+                                {working ? 'Iniciando...' : 'Comenzar'}
                             </button>
                         </div>
                     </div>
@@ -564,8 +369,10 @@ export default function Cuestionario() {
                     <div className="questionnaire-workspace">
                         <div className="questionnaire-top">
                             <div className="questionnaire-heading">
-                                <h1 className="questionnaire-title">{activeTemplate.name}</h1>
-                                <p className="questionnaire-subtitle">Modo {DEFAULT_MODE} · Rol {questionnaireRole === 'psychologist' ? 'psicólogo' : 'cuidador'}.</p>
+                                <h1 className="questionnaire-title">{templateName}</h1>
+                                <p className="questionnaire-subtitle">
+                                    {modeMeta.label} - Rol {apiRole === 'psychologist' ? 'psicologo' : 'cuidador'}
+                                </p>
                                 <p className="questionnaire-disclaimer">
                                     Este cuestionario no diagnostica, solo genera una alerta temprana.
                                 </p>
@@ -573,107 +380,86 @@ export default function Cuestionario() {
                         </div>
 
                         <div className="questionnaire-stack">
-                            {questions.map((question, index) => {
-                                if (index >= currentIndex) return null;
-                                const answerValue = answers[question.id];
-                                if (!isValidAnswer(question, answerValue)) return null;
-                                return (
-                                    <button
-                                        key={question.id}
-                                        type="button"
-                                        className="stack-item is-answered"
-                                        onClick={() => {
-                                            if (index === currentIndex) return;
-                                            setNavDirection(index < currentIndex ? 'prev' : 'next');
-                                            setCurrentIndex(index);
-                                            setShowValidation(false);
-                                        }}
-                                    >
-                                        <span className="stack-question">{question.text}</span>
-                                        <span className="stack-answer">
-                                            Respuesta: {formatAnswer(question, answerValue)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-
                             {currentQuestion ? (
                                 <div className="stack-active">
-                                    <div
-                                        key={currentQuestion.id}
-                                        className={`stack-item is-active ${navDirection === 'next' ? 'from-next' : 'from-prev'}`}
-                                        ref={activeRef}
-                                    >
+                                    <div className="stack-item is-active" ref={activeRef}>
                                         <h2 className="question-text">{currentQuestion.text}</h2>
-                                        {renderQuestionInput(currentQuestion, currentAnswer, (value) => handleAnswerChange(currentQuestion.id, value as QuestionnaireResponseValue))}
-                                        {showValidation && !currentValid ? (
-                                            <div className="question-warning">Selecciona una respuesta para continuar.</div>
-                                        ) : null}
-                                        {sessionError ? <div className="question-warning">{sessionError}</div> : null}
+                                        {currentQuestion.response_type === 'text' ? (
+                                            <textarea
+                                                className="question-textarea"
+                                                rows={5}
+                                                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                                                onChange={(event) => onAnswerChange(event.target.value)}
+                                            />
+                                        ) : currentQuestion.response_type === 'integer' ? (
+                                            <input
+                                                type="number"
+                                                className="question-input"
+                                                value={typeof currentAnswer === 'number' ? currentAnswer : ''}
+                                                onChange={(event) => onAnswerChange(event.target.value === '' ? null : Number(event.target.value))}
+                                            />
+                                        ) : (
+                                            <div className="question-options">
+                                                {(currentQuestion.response_type === 'likert'
+                                                    ? LIKERT
+                                                    : [{ value: true, label: 'Si' }, { value: false, label: 'No' }]
+                                                ).map((option) => (
+                                                    <button
+                                                        key={String(option.value)}
+                                                        type="button"
+                                                        className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
+                                                        onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
+                                                    >
+                                                        <span className="answer-indicator" aria-hidden="true"></span>
+                                                        <span className="answer-label">{option.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {error ? <div className="question-warning">{error}</div> : null}
+
                                         <div className="questionnaire-progress">
                                             <span className="questionnaire-progress-text">
-                                                Pregunta {currentIndex + 1}/{totalQuestions}
+                                                Pregunta {currentIndex + 1}/{questions.length}
                                             </span>
                                             <div className="progress-bar">
                                                 <div className="progress-fill" style={{ width: `${progress}%` }}></div>
                                             </div>
                                         </div>
                                     </div>
+
                                     <div className="stack-controls">
                                         <button
                                             type="button"
                                             className="questionnaire-btn ghost"
-                                            onClick={goPrevious}
-                                            disabled={currentIndex === 0 || syncingAnswer || submittingSession}
+                                            onClick={handlePrevious}
+                                            disabled={currentIndex <= 0 || working}
                                         >
                                             Anterior
                                         </button>
-                                        {currentIndex === totalQuestions - 1 ? (
+                                        {currentIndex === questions.length - 1 ? (
                                             <button
                                                 type="button"
                                                 className="questionnaire-btn primary"
                                                 onClick={() => void handleFinish()}
-                                                disabled={!currentValid || syncingAnswer || submittingSession}
+                                                disabled={!canContinue || working}
                                             >
-                                                {submittingSession ? 'Enviando...' : 'Enviar'}
+                                                {working ? 'Enviando...' : 'Enviar'}
                                             </button>
                                         ) : (
                                             <button
                                                 type="button"
                                                 className="questionnaire-btn primary"
-                                                onClick={() => void goNext()}
-                                                disabled={!currentValid || syncingAnswer || submittingSession}
+                                                onClick={() => void handleNext()}
+                                                disabled={!canContinue || working}
                                             >
-                                                {syncingAnswer ? 'Guardando...' : 'Siguiente'}
+                                                {working ? 'Guardando...' : 'Siguiente'}
                                             </button>
                                         )}
                                     </div>
                                 </div>
                             ) : null}
-
-                            {questions.map((question, index) => {
-                                if (index <= currentIndex) return null;
-                                const answerValue = answers[question.id];
-                                if (!isValidAnswer(question, answerValue)) return null;
-                                return (
-                                    <button
-                                        key={question.id}
-                                        type="button"
-                                        className="stack-item is-answered is-after"
-                                        onClick={() => {
-                                            if (index === currentIndex) return;
-                                            setNavDirection(index < currentIndex ? 'prev' : 'next');
-                                            setCurrentIndex(index);
-                                            setShowValidation(false);
-                                        }}
-                                    >
-                                        <span className="stack-question">{question.text}</span>
-                                        <span className="stack-answer">
-                                            Respuesta: {formatAnswer(question, answerValue)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
                         </div>
                     </div>
                 )}
@@ -683,11 +469,7 @@ export default function Cuestionario() {
                 <div className="questionnaire-modal">
                     <div className="questionnaire-modal-card">
                         <p>Cuestionario enviado correctamente.</p>
-                        <button
-                            type="button"
-                            className="questionnaire-btn primary"
-                            onClick={handleSuccessClose}
-                        >
+                        <button type="button" className="questionnaire-btn primary" onClick={handleSuccessClose}>
                             Entendido
                         </button>
                     </div>
