@@ -1,4 +1,4 @@
-export type QuestionnaireV2Mode = 'short' | 'medium' | 'full';
+export type QuestionnaireV2Mode = 'short' | 'medium' | 'complete';
 export type QuestionnaireV2Role = 'caregiver' | 'psychologist';
 export type QuestionnaireV2Status = 'draft' | 'submitted' | 'processed' | string;
 export type QuestionnaireResponseType = 'likert' | 'boolean' | 'integer' | 'text' | string;
@@ -36,7 +36,7 @@ export interface QuestionnaireQuestionV2DTO {
 
 export interface QuestionnaireAnswerV2DTO {
     question_id: string;
-    value: QuestionnaireResponseValue;
+    answer: QuestionnaireResponseValue;
 }
 
 export interface ActiveQuestionnairesV2Response {
@@ -47,7 +47,6 @@ export interface ActiveQuestionnairesV2Response {
 export interface CreateQuestionnaireSessionV2Payload {
     mode: QuestionnaireV2Mode;
     role: QuestionnaireV2Role;
-    title?: string;
     metadata?: Record<string, unknown>;
 }
 

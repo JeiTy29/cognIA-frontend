@@ -23,8 +23,8 @@
 - Mapeo de rol:
   - `padre -> caregiver`
   - `psicologo -> psychologist`
-- Seleccion explicita de modo antes de iniciar: `short | medium | full`.
-- Modo por defecto: `full`.
+- Seleccion explicita de modo antes de iniciar: `short | medium | complete`.
+- Modo por defecto: `complete`.
 - El modo seleccionado se propaga a `active` y a `sessions`.
 - Carga de preguntas por pagina con consolidacion de toda la sesion para evitar perdida de preguntas cuando hay varias paginas.
 - Persistencia real de respuestas antes de avanzar/finalizar.
@@ -32,7 +32,7 @@
 
 ## Pruebas manuales
 1. Abrir `/padre/cuestionario` o `/psicologo/cuestionario`.
-2. Cambiar modo (`short`, `medium`, `full`) y confirmar en red que cambia `mode` en `active` y en `sessions`.
+2. Cambiar modo (`short`, `medium`, `complete`) y confirmar en red que cambia `mode` en `active` y en `sessions`.
 3. Iniciar sesion de cuestionario y responder preguntas.
 4. Verificar llamadas a `sessions`, `sessions/{id}/page`, `answers` y `submit`.
 5. Confirmar mensaje de envio exitoso al finalizar.
