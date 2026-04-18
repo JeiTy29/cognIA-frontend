@@ -63,7 +63,7 @@ function getModeLabel(mode: string | undefined) {
     const normalized = (mode ?? '').toLowerCase();
     if (normalized === 'short') return 'Corto';
     if (normalized === 'medium') return 'Medio';
-    if (normalized === 'complete' || normalized === 'full') return 'Completo';
+    if (normalized === 'full' || normalized === 'complete') return 'Completo';
     return mode ?? '--';
 }
 

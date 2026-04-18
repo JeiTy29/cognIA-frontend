@@ -1,4 +1,4 @@
-# Migración a módulos activos (frontend)
+# Migracion a modulos activos (frontend)
 
 ## Objetivo
 - Retirar dependencias legacy y alinear frontend con contratos activos para cuestionario y usuarios.
@@ -33,8 +33,13 @@
   - `POST /api/admin/users/{id}/password-reset`
   - `POST /api/admin/users/{id}/mfa/reset`
 
-## Flujos retirados por no tener reemplazo activo
-- Ruta pública `/activar-cuenta` y su pantalla.
-- Creación de usuarios desde admin usando `POST /api/v1/users`.
+## Flujos retirados por no tener reemplazo activo en el alcance
+- Ruta publica `/activar-cuenta` y su pantalla.
+- Creacion de usuarios desde admin usando `POST /api/v1/users`.
 - Detalle de usuario por `GET /api/v1/users/{id}`.
 - Cambio de correo en `MiCuenta`.
+
+## Estado actual
+- El cuestionario de usuario opera con `QuestionnaireV2` y seleccion de modo `short | medium | full`.
+- El listado y actualizacion de usuarios opera con el modulo admin.
+- La desactivacion de usuarios usa `PATCH /api/admin/users/{id}` con `is_active=false`.

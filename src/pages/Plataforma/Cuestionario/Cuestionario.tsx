@@ -10,18 +10,22 @@ import {
     patchQuestionnaireSessionAnswersV2,
     submitQuestionnaireSessionV2
 } from '../../../services/questionnaires/questionnaires.api';
-import type { QuestionnaireQuestionV2DTO, QuestionnaireResponseValue, QuestionnaireV2Mode } from '../../../services/questionnaires/questionnaires.types';
+import type {
+    QuestionnaireQuestionV2DTO,
+    QuestionnaireResponseValue,
+    QuestionnaireV2Mode
+} from '../../../services/questionnaires/questionnaires.types';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
-const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
+const DEFAULT_MODE: QuestionnaireV2Mode = 'full';
 const SESSION_PAGE_SIZE = 200;
 const MIN_TEXT_LENGTH = 3;
 
 const MODE_OPTIONS: Array<{ value: QuestionnaireV2Mode; label: string; hint: string; description: string }> = [
-    { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Orientacion inicial en menos tiempo.' },
-    { value: 'medium', label: 'Version media', hint: 'Equilibrada', description: 'Balance entre duracion y nivel de detalle.' },
-    { value: 'complete', label: 'Version completa', hint: 'Mas detallada', description: 'Mas extensa y con base de analisis mas robusta.' }
+    { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Ideal cuando necesitas una guia inicial en poco tiempo.' },
+    { value: 'medium', label: 'Version media', hint: 'Equilibrada', description: 'Combina un tiempo razonable con una lectura mas detallada.' },
+    { value: 'full', label: 'Version completa', hint: 'Mas robusta', description: 'Requiere mas dedicacion, pero entrega una valoracion mas solida del contexto.' }
 ];
 
 const LIKERT = [
@@ -40,6 +44,31 @@ function toText(value: unknown, fallback = '') {
     return typeof value === 'string' ? value : fallback;
 }
 
+function normalizeAnswerDictionary(value: unknown): Record<string, QuestionnaireResponseValue> {
+    if (!value) return {};
+
+    if (Array.isArray(value)) {
+        return value.reduce<Record<string, QuestionnaireResponseValue>>((acc, item) => {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return acc;
+            const answer = item as Record<string, unknown>;
+            const questionId = toText(answer.question_id);
+            if (!questionId) return acc;
+            acc[questionId] = (answer.value as QuestionnaireResponseValue) ?? null;
+            return acc;
+        }, {});
+    }
+
+    if (typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        return Object.entries(record).reduce<Record<string, QuestionnaireResponseValue>>((acc, [key, itemValue]) => {
+            acc[key] = itemValue as QuestionnaireResponseValue;
+            return acc;
+        }, {});
+    }
+
+    return {};
+}
+
 function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
     if (!Array.isArray(raw)) return [];
     return raw
@@ -55,7 +84,9 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
                 response_min: Number.isFinite(Number(record.response_min)) ? Number(record.response_min) : null,
                 response_max: Number.isFinite(Number(record.response_max)) ? Number(record.response_max) : null,
                 response_step: Number.isFinite(Number(record.response_step)) ? Number(record.response_step) : null,
-                response_options: Array.isArray(record.response_options) ? (record.response_options as Array<number | string>) : null
+                response_options: Array.isArray(record.response_options)
+                    ? (record.response_options as Array<number | string>)
+                    : null
             };
         })
         .filter((q) => q.id && q.text)
@@ -97,13 +128,22 @@ export default function Cuestionario() {
     const [showSuccess, setShowSuccess] = useState(false);
     const activeRef = useRef<HTMLDivElement | null>(null);
 
-    const modeMeta = useMemo(() => MODE_OPTIONS.find((m) => m.value === selectedMode) ?? MODE_OPTIONS[2], [selectedMode]);
+    const modeMeta = useMemo(
+        () => MODE_OPTIONS.find((mode) => mode.value === selectedMode) ?? MODE_OPTIONS[2],
+        [selectedMode]
+    );
 
     const loadActive = useCallback(async () => {
         setActiveLoading(true);
         setActiveError(null);
         try {
-            const response = await getActiveQuestionnairesV2({ mode: selectedMode, role: apiRole, include_full: true, page: 1, page_size: 1 });
+            const response = await getActiveQuestionnairesV2({
+                mode: selectedMode,
+                role: apiRole,
+                include_full: selectedMode === 'full',
+                page: 1,
+                page_size: 1
+            });
             const first = response.items[0] as Record<string, unknown> | undefined;
             setTemplateName(toText(first?.name, 'Cuestionario de observacion'));
         } catch (requestError) {
@@ -113,6 +153,32 @@ export default function Cuestionario() {
         }
     }, [apiRole, selectedMode]);
 
+    const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
+        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1, page_size: SESSION_PAGE_SIZE });
+        const firstQuestions = normalizeQuestions(firstPage.items);
+        const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
+
+        if (totalPages <= 1) {
+            return firstQuestions;
+        }
+
+        const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
+            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2, page_size: SESSION_PAGE_SIZE })
+        );
+        const remainingResponses = await Promise.all(remainingRequests);
+        const remainingQuestions = remainingResponses.flatMap((response) => normalizeQuestions(response.items));
+        const merged = [...firstQuestions, ...remainingQuestions];
+        const uniqueById = new Map<string, QuestionnaireQuestionV2DTO>();
+
+        merged.forEach((question) => {
+            if (!uniqueById.has(question.id)) {
+                uniqueById.set(question.id, question);
+            }
+        });
+
+        return Array.from(uniqueById.values()).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    }, []);
+
     useEffect(() => {
         const timeoutId = window.setTimeout(() => void loadActive(), 0);
         return () => window.clearTimeout(timeoutId);
@@ -120,31 +186,35 @@ export default function Cuestionario() {
 
     useEffect(() => {
         if (!started || !activeRef.current) return;
-        requestAnimationFrame(() => activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        requestAnimationFrame(() => {
+            activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
     }, [currentIndex, started]);
 
     const startSession = useCallback(async () => {
         setWorking(true);
         setError(null);
         try {
-            const created = await createQuestionnaireSessionV2({ mode: selectedMode, role: apiRole, title: templateName });
-            const id = toText((created as Record<string, unknown>).id) || toText((created as Record<string, unknown>).session_id);
+            const created = await createQuestionnaireSessionV2({
+                mode: selectedMode,
+                role: apiRole,
+                title: templateName
+            });
+            const createdRecord = created as Record<string, unknown>;
+            const id = toText(createdRecord.id) || toText(createdRecord.session_id);
             if (!id) throw new Error('missing_session_id');
-            const [pageResponse, detail] = await Promise.all([
-                getQuestionnaireSessionPageV2(id, { page: 1, page_size: SESSION_PAGE_SIZE }),
+
+            const [allQuestions, detail] = await Promise.all([
+                loadAllSessionQuestions(id),
                 getQuestionnaireSessionV2(id)
             ]);
-            const normalized = normalizeQuestions(pageResponse.items);
-            if (normalized.length === 0) throw new Error('empty_questions');
-            const initialAnswers: Record<string, QuestionnaireResponseValue> = {};
+            if (allQuestions.length === 0) throw new Error('empty_questions');
+
             const detailAnswers = (detail as Record<string, unknown>).answers;
-            if (detailAnswers && typeof detailAnswers === 'object' && !Array.isArray(detailAnswers)) {
-                Object.entries(detailAnswers as Record<string, unknown>).forEach(([key, value]) => {
-                    initialAnswers[key] = value as QuestionnaireResponseValue;
-                });
-            }
+            const initialAnswers = normalizeAnswerDictionary(detailAnswers);
+
             setSessionId(id);
-            setQuestions(normalized);
+            setQuestions(allQuestions);
             setAnswers(initialAnswers);
             setCurrentIndex(0);
             setStarted(true);
@@ -153,7 +223,7 @@ export default function Cuestionario() {
         } finally {
             setWorking(false);
         }
-    }, [apiRole, selectedMode, templateName]);
+    }, [apiRole, loadAllSessionQuestions, selectedMode, templateName]);
 
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
@@ -164,6 +234,7 @@ export default function Cuestionario() {
         if (!sessionId || !currentQuestion) return false;
         const value = answers[currentQuestion.id];
         if (!isValid(currentQuestion, value)) return false;
+
         await patchQuestionnaireSessionAnswersV2(sessionId, {
             answers: [{ question_id: currentQuestion.id, value: value ?? null }],
             mark_final: markFinal
@@ -178,7 +249,9 @@ export default function Cuestionario() {
         try {
             const saved = await saveCurrent(false);
             if (!saved) return;
-            if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
+            if (currentIndex < questions.length - 1) {
+                setCurrentIndex((prev) => prev + 1);
+            }
         } catch (requestError) {
             setError(mapError(requestError, 'No se pudo guardar la respuesta.'));
         } finally {
@@ -208,7 +281,9 @@ export default function Cuestionario() {
     };
 
     const handlePrevious = () => {
-        if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
+        if (currentIndex > 0) {
+            setCurrentIndex((prev) => prev - 1);
+        }
     };
 
     const handleSuccessClose = () => {
@@ -242,13 +317,17 @@ export default function Cuestionario() {
                                     Cuestionario de observacion
                                     <span className="questionnaire-title-accent" aria-hidden="true"></span>
                                 </h1>
-                                <p className="questionnaire-subtitle">Responde segun lo observado en las ultimas 4 semanas.</p>
-                                <p className="questionnaire-intro-text-body">Elige el formato que mejor se ajuste a tu tiempo disponible.</p>
+                                <p className="questionnaire-subtitle">
+                                    Responde segun lo observado en las ultimas 4 semanas.
+                                </p>
+                                <p className="questionnaire-intro-text-body">
+                                    Elige el formato que mejor se ajuste a tu tiempo disponible.
+                                </p>
 
                                 <div className="questionnaire-mode">
                                     <h2 className="questionnaire-mode-title">Selecciona el tipo de cuestionario</h2>
                                     <p className="questionnaire-mode-description">
-                                        Las versiones mas amplias suelen ofrecer una lectura mas consistente del contexto.
+                                        Mientras mas amplio sea el cuestionario, mas consistente sera la lectura final del contexto.
                                     </p>
                                     <div className="questionnaire-mode-list" role="radiogroup" aria-label="Modo de cuestionario">
                                         {MODE_OPTIONS.map((option) => (
@@ -292,9 +371,11 @@ export default function Cuestionario() {
                             <div className="questionnaire-heading">
                                 <h1 className="questionnaire-title">{templateName}</h1>
                                 <p className="questionnaire-subtitle">
-                                    {modeMeta.label} · Rol {apiRole === 'psychologist' ? 'psicologo' : 'cuidador'}
+                                    {modeMeta.label} - Rol {apiRole === 'psychologist' ? 'psicologo' : 'cuidador'}
                                 </p>
-                                <p className="questionnaire-disclaimer">Este cuestionario no diagnostica, solo genera una alerta temprana.</p>
+                                <p className="questionnaire-disclaimer">
+                                    Este cuestionario no diagnostica, solo genera una alerta temprana.
+                                </p>
                             </div>
                         </div>
 
@@ -319,7 +400,10 @@ export default function Cuestionario() {
                                             />
                                         ) : (
                                             <div className="question-options">
-                                                {(currentQuestion.response_type === 'likert' ? LIKERT : [{ value: true, label: 'Si' }, { value: false, label: 'No' }]).map((option) => (
+                                                {(currentQuestion.response_type === 'likert'
+                                                    ? LIKERT
+                                                    : [{ value: true, label: 'Si' }, { value: false, label: 'No' }]
+                                                ).map((option) => (
                                                     <button
                                                         key={String(option.value)}
                                                         type="button"
@@ -346,15 +430,30 @@ export default function Cuestionario() {
                                     </div>
 
                                     <div className="stack-controls">
-                                        <button type="button" className="questionnaire-btn ghost" onClick={handlePrevious} disabled={currentIndex <= 0 || working}>
+                                        <button
+                                            type="button"
+                                            className="questionnaire-btn ghost"
+                                            onClick={handlePrevious}
+                                            disabled={currentIndex <= 0 || working}
+                                        >
                                             Anterior
                                         </button>
                                         {currentIndex === questions.length - 1 ? (
-                                            <button type="button" className="questionnaire-btn primary" onClick={() => void handleFinish()} disabled={!canContinue || working}>
+                                            <button
+                                                type="button"
+                                                className="questionnaire-btn primary"
+                                                onClick={() => void handleFinish()}
+                                                disabled={!canContinue || working}
+                                            >
                                                 {working ? 'Enviando...' : 'Enviar'}
                                             </button>
                                         ) : (
-                                            <button type="button" className="questionnaire-btn primary" onClick={() => void handleNext()} disabled={!canContinue || working}>
+                                            <button
+                                                type="button"
+                                                className="questionnaire-btn primary"
+                                                onClick={() => void handleNext()}
+                                                disabled={!canContinue || working}
+                                            >
                                                 {working ? 'Guardando...' : 'Siguiente'}
                                             </button>
                                         )}
