@@ -186,6 +186,71 @@ function mapError(error: unknown, fallback: string) {
     return fallback;
 }
 
+function toApiErrorDetail(payload: unknown): string | null {
+    if (!payload) return null;
+
+    if (typeof payload === 'string' && payload.trim().length > 0) {
+        return payload.trim();
+    }
+
+    if (typeof payload !== 'object' || Array.isArray(payload)) {
+        return null;
+    }
+
+    const record = payload as Record<string, unknown>;
+    const directCandidates = [record.detail, record.message, record.msg, record.error, record.code];
+    for (const candidate of directCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim();
+        }
+    }
+
+    if (Array.isArray(record.errors)) {
+        const firstError = record.errors.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
+        if (typeof firstError === 'string' && firstError.trim().length > 0) {
+            return firstError.trim();
+        }
+    }
+
+    return null;
+}
+
+type StartSessionStep =
+    | 'create_session'
+    | 'load_questions'
+    | 'load_session_detail'
+    | 'validate_questions';
+
+function mapStartSessionStepLabel(step: StartSessionStep) {
+    if (step === 'create_session') return 'crear la sesion';
+    if (step === 'load_questions') return 'cargar las preguntas';
+    if (step === 'load_session_detail') return 'cargar el detalle de la sesion';
+    return 'validar la estructura del cuestionario';
+}
+
+function mapStartSessionError(error: unknown, step: StartSessionStep) {
+    if (error instanceof Error && error.message === 'missing_session_id') {
+        return 'El backend respondio al crear la sesion, pero no devolvio un identificador usable (id/session_id).';
+    }
+
+    if (error instanceof Error && error.message === 'empty_questions') {
+        return 'La sesion se creo, pero la API no devolvio preguntas en la primera carga de pagina.';
+    }
+
+    if (error instanceof ApiError) {
+        const stepLabel = mapStartSessionStepLabel(step);
+        const base = `Fallo al ${stepLabel} (HTTP ${error.status}).`;
+        const detail = toApiErrorDetail(error.payload);
+        return detail ? `${base} Detalle API: ${detail}` : base;
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+        return `Fallo al ${mapStartSessionStepLabel(step)}. Detalle: ${error.message}`;
+    }
+
+    return `Fallo al ${mapStartSessionStepLabel(step)}.`;
+}
+
 function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
     const required = isQuestionRequired(question);
     if (!required && (value === null || value === undefined || value === '')) {
@@ -305,6 +370,7 @@ export default function Cuestionario() {
     const startSession = useCallback(async () => {
         setWorking(true);
         setError(null);
+        let failedStep: StartSessionStep = 'create_session';
         try {
             const created = await createQuestionnaireSessionV2({
                 mode: selectedMode,
@@ -314,11 +380,12 @@ export default function Cuestionario() {
             const id = toText(createdRecord.id) || toText(createdRecord.session_id);
             if (!id) throw new Error('missing_session_id');
 
-            const [allQuestions, detail] = await Promise.all([
-                loadAllSessionQuestions(id),
-                getQuestionnaireSessionV2(id)
-            ]);
+            failedStep = 'load_questions';
+            const allQuestions = await loadAllSessionQuestions(id);
+            failedStep = 'load_session_detail';
+            const detail = await getQuestionnaireSessionV2(id);
             if (allQuestions.length === 0) throw new Error('empty_questions');
+            failedStep = 'validate_questions';
 
             const detailAnswers = (detail as Record<string, unknown>).answers;
             const initialAnswers = normalizeAnswerDictionary(detailAnswers);
@@ -329,7 +396,7 @@ export default function Cuestionario() {
             setCurrentIndex(0);
             setStarted(true);
         } catch (requestError) {
-            setError(mapError(requestError, 'No se pudo iniciar la sesion del cuestionario.'));
+            setError(mapStartSessionError(requestError, failedStep));
         } finally {
             setWorking(false);
         }
