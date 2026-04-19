@@ -79,6 +79,38 @@
     letter-spacing: 0.06em;
 }
 
+.shared-questionnaire-domain-list {
+    display: grid;
+    gap: 10px;
+}
+
+.shared-questionnaire-domain {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid rgba(33, 95, 143, 0.16);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.shared-questionnaire-domain div {
+    display: grid;
+    gap: 4px;
+}
+
+.shared-questionnaire-domain strong {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.shared-questionnaire-empty {
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: rgba(33, 95, 143, 0.06);
+}
+
 .shared-questionnaire-tags {
     display: flex;
     flex-wrap: wrap;
@@ -106,7 +138,8 @@
 
 @media (max-width: 768px) {
     .shared-questionnaire-meta,
-    .shared-questionnaire-results {
+    .shared-questionnaire-results,
+    .shared-questionnaire-domain {
         grid-template-columns: 1fr;
     }
 }

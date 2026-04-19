@@ -159,6 +159,50 @@ export interface QuestionnaireShareResponseDTO {
     [key: string]: unknown;
 }
 
+export interface QuestionnaireSharedSessionDTO {
+    session_id: string;
+    questionnaire_id: string;
+    status: string;
+    mode: QuestionnaireV2Mode | string;
+    role: QuestionnaireV2Role | string;
+    mode_key?: string;
+    progress_pct?: number | null;
+    version?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
+export interface QuestionnaireSharedResultDTO {
+    summary?: string | null;
+    operational_recommendation?: string | null;
+    completion_quality_score?: number | null;
+    missingness_score?: number | null;
+    needs_professional_review?: boolean | null;
+}
+
+export interface QuestionnaireSharedDomainDTO {
+    domain: string;
+    probability?: number | null;
+    alert_level?: string | null;
+    confidence_pct?: number | null;
+    confidence_band?: string | null;
+    model_id?: string | null;
+    model_version?: string | null;
+    mode?: string | null;
+    operational_class?: string | null;
+    operational_caveat?: string | null;
+    result_summary?: string | null;
+    needs_professional_review?: boolean | null;
+}
+
+export interface QuestionnaireSharedComorbidityDTO {
+    coexistence_key: string;
+    domains: string[];
+    combined_risk_score?: number | null;
+    coexistence_level?: string | null;
+    summary?: string | null;
+}
+
 export interface QuestionnairePdfInfoV2DTO {
     status?: string;
     file_id?: string;
@@ -179,22 +223,14 @@ export interface QuestionnaireHistoryDetailV2DTO extends QuestionnaireHistoryIte
 }
 
 export interface QuestionnaireSharedDataV2DTO {
+    session: QuestionnaireSharedSessionDTO | null;
+    result: QuestionnaireSharedResultDTO | null;
+    domains: QuestionnaireSharedDomainDTO[];
+    comorbidity: QuestionnaireSharedComorbidityDTO[];
     questionnaire_id?: string;
     share_code?: string;
     shared_url?: string;
-    name?: string;
-    title?: string;
-    version?: string;
-    status?: string;
-    mode?: QuestionnaireV2Mode;
-    role?: QuestionnaireV2Role;
-    created_at?: string | null;
-    updated_at?: string | null;
-    expires_at?: string | null;
-    tags?: QuestionnaireTagDTO[];
-    results?: Record<string, unknown> | null;
-    summary?: Record<string, unknown> | null;
-    metadata?: Record<string, unknown> | null;
+    shared_path?: string;
     [key: string]: unknown;
 }
 

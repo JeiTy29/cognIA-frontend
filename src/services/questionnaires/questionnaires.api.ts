@@ -19,7 +19,11 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireSessionPageV2Response,
     QuestionnaireSessionV2DTO,
+    QuestionnaireSharedComorbidityDTO,
+    QuestionnaireSharedDomainDTO,
     QuestionnaireShareResponseDTO,
+    QuestionnaireSharedResultDTO,
+    QuestionnaireSharedSessionDTO,
     QuestionnaireSharedDataV2DTO,
     QuestionnaireTagDTO,
     QuestionnaireTemplateV2DTO,
@@ -64,6 +68,16 @@ function firstNonEmptyString(candidates: unknown[]) {
             return candidate.trim();
         }
     }
+    return null;
+}
+
+function toNumberOrNull(value: unknown) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toBooleanOrNull(value: unknown) {
+    if (typeof value === 'boolean') return value;
     return null;
 }
 
@@ -495,9 +509,7 @@ function normalizeShareResponse(payload: unknown): QuestionnaireShareResponseDTO
     const shareCode =
         firstNonEmptyString([
             root.share_code,
-            root.shareCode,
-            root.code,
-            root.token
+            root.shareCode
         ]) ?? undefined;
 
     const sharedPath =
@@ -531,91 +543,102 @@ function normalizePdfInfo(payload: unknown): QuestionnairePdfInfoV2DTO {
 }
 
 function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedDataV2DTO {
-    const source = asRecord(payload);
-    if (!source) return {};
-    const wrapper =
-        asRecord(source.shared) ??
-        asRecord(source.data) ??
-        asRecord(source.result) ??
-        null;
-    const root: Record<string, unknown> = wrapper ? { ...source, ...wrapper } : source;
+    const root = asRecord(payload);
+    if (!root) {
+        return {
+            session: null,
+            result: null,
+            domains: [],
+            comorbidity: []
+        };
+    }
 
-    const questionnaireInfo = asRecord(root.questionnaire);
-    const summaryRecord =
-        asRecord(root.summary) ??
-        asRecord(root.results_summary) ??
-        asRecord(questionnaireInfo?.summary) ??
-        null;
-    const resultsRecord =
-        asRecord(root.results) ??
-        asRecord(root.result) ??
-        asRecord(root.scores) ??
-        asRecord(root.output) ??
-        summaryRecord;
-    const metadataRecord =
-        asRecord(root.metadata) ??
-        asRecord(questionnaireInfo?.metadata) ??
-        null;
-    const tagsSource = asArray(root.tags).length > 0 ? root.tags : root.labels;
-    const tags = asArray(tagsSource)
-        .map(normalizeTag)
-        .filter((item): item is QuestionnaireTagDTO => Boolean(item));
+    const rawSession = asRecord(root.session);
+    const rawResult = asRecord(root.result);
+    const rawDomains = asArray(root.domains).map(asRecord).filter((item): item is Record<string, unknown> => Boolean(item));
+    const rawComorbidity = asArray(root.comorbidity).map(asRecord).filter((item): item is Record<string, unknown> => Boolean(item));
+
+    const session: QuestionnaireSharedSessionDTO | null = rawSession
+        ? {
+            session_id: firstNonEmptyString([rawSession.session_id, rawSession.id]) ?? '',
+            questionnaire_id: firstNonEmptyString([rawSession.questionnaire_id]) ?? '',
+            status: firstNonEmptyString([rawSession.status]) ?? '--',
+            mode: (firstNonEmptyString([rawSession.mode]) ?? '--') as QuestionnaireSharedSessionDTO['mode'],
+            role: (firstNonEmptyString([rawSession.role]) ?? '--') as QuestionnaireSharedSessionDTO['role'],
+            mode_key: firstNonEmptyString([rawSession.mode_key]) ?? undefined,
+            progress_pct: toNumberOrNull(rawSession.progress_pct),
+            version: firstNonEmptyString([rawSession.version]),
+            created_at: firstNonEmptyString([rawSession.created_at]),
+            updated_at: firstNonEmptyString([rawSession.updated_at])
+        }
+        : null;
+
+    const result: QuestionnaireSharedResultDTO | null = rawResult
+        ? {
+            summary: firstNonEmptyString([rawResult.summary]),
+            operational_recommendation: firstNonEmptyString([rawResult.operational_recommendation]),
+            completion_quality_score: toNumberOrNull(rawResult.completion_quality_score),
+            missingness_score: toNumberOrNull(rawResult.missingness_score),
+            needs_professional_review: toBooleanOrNull(rawResult.needs_professional_review)
+        }
+        : null;
+
+    const domains: QuestionnaireSharedDomainDTO[] = rawDomains
+        .map((domain) => {
+            const domainName = firstNonEmptyString([domain.domain]);
+            if (!domainName) return null;
+            return {
+                domain: domainName,
+                probability: toNumberOrNull(domain.probability),
+                alert_level: firstNonEmptyString([domain.alert_level]),
+                confidence_pct: toNumberOrNull(domain.confidence_pct),
+                confidence_band: firstNonEmptyString([domain.confidence_band]),
+                model_id: firstNonEmptyString([domain.model_id]),
+                model_version: firstNonEmptyString([domain.model_version]),
+                mode: firstNonEmptyString([domain.mode]),
+                operational_class: firstNonEmptyString([domain.operational_class]),
+                operational_caveat: firstNonEmptyString([domain.operational_caveat]),
+                result_summary: firstNonEmptyString([domain.result_summary]),
+                needs_professional_review: toBooleanOrNull(domain.needs_professional_review)
+            } as QuestionnaireSharedDomainDTO;
+        })
+        .filter((item): item is QuestionnaireSharedDomainDTO => Boolean(item));
+
+    const comorbidity: QuestionnaireSharedComorbidityDTO[] = rawComorbidity
+        .map((item) => {
+            const key = firstNonEmptyString([item.coexistence_key]);
+            if (!key) return null;
+            return {
+                coexistence_key: key,
+                domains: asArray(item.domains).map((value) => String(value)),
+                combined_risk_score: toNumberOrNull(item.combined_risk_score),
+                coexistence_level: firstNonEmptyString([item.coexistence_level]),
+                summary: firstNonEmptyString([item.summary])
+            } as QuestionnaireSharedComorbidityDTO;
+        })
+        .filter((item): item is QuestionnaireSharedComorbidityDTO => Boolean(item));
 
     const questionnaireId =
-        firstNonEmptyString([
-            root.questionnaire_id,
-            root.questionnaireId,
-            questionnaireInfo?.id,
-            questionnaireInfo?.questionnaire_id
-        ]) ?? undefined;
-    const shareCode =
-        firstNonEmptyString([
-            root.share_code,
-            root.shareCode
-        ]) ?? undefined;
+        firstNonEmptyString([session?.questionnaire_id, root.questionnaire_id, root.questionnaireId]) ?? undefined;
+    const shareCode = firstNonEmptyString([root.share_code, root.shareCode]) ?? undefined;
     const sharedPath =
         questionnaireId && shareCode
             ? `/cuestionario/compartido/${questionnaireId}/${shareCode}`
             : undefined;
     const sharedUrl =
-        firstNonEmptyString([
-            root.url,
-            root.share_url,
-            root.public_url,
-            root.link
-        ]) ?? sharedPath ?? undefined;
+        firstNonEmptyString([root.url, root.share_url, root.public_url, root.link]) ?? sharedPath ?? undefined;
 
     return {
         ...root,
         questionnaire_id: questionnaireId,
         share_code: shareCode,
+        shared_path: sharedPath,
         shared_url: sharedUrl,
-        name:
-            firstNonEmptyString([
-                root.name,
-                root.title,
-                questionnaireInfo?.name,
-                questionnaireInfo?.title
-            ]) ?? undefined,
-        title:
-            firstNonEmptyString([
-                root.title,
-                root.name,
-                questionnaireInfo?.title,
-                questionnaireInfo?.name
-            ]) ?? undefined,
-        status: firstNonEmptyString([root.status, questionnaireInfo?.status]) ?? undefined,
-        mode: (firstNonEmptyString([root.mode, questionnaireInfo?.mode]) ?? undefined) as QuestionnaireSharedDataV2DTO['mode'],
-        role: (firstNonEmptyString([root.role, questionnaireInfo?.role]) ?? undefined) as QuestionnaireSharedDataV2DTO['role'],
-        version: firstNonEmptyString([root.version, questionnaireInfo?.version]) ?? undefined,
-        created_at: firstNonEmptyString([root.created_at, root.createdAt, questionnaireInfo?.created_at]) ?? undefined,
-        updated_at: firstNonEmptyString([root.updated_at, root.updatedAt, questionnaireInfo?.updated_at]) ?? undefined,
-        expires_at: firstNonEmptyString([root.expires_at, root.expiresAt]) ?? undefined,
-        tags,
-        results: resultsRecord,
-        summary: summaryRecord,
-        metadata: metadataRecord
-    } as QuestionnaireSharedDataV2DTO;
+        session,
+        result,
+        domains,
+        comorbidity
+    };
 }
 
 function extractFilenameFromHeaders(headers: Headers) {
