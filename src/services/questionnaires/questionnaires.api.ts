@@ -1,5 +1,4 @@
 import {
-    ApiError,
     apiDelete,
     apiGet,
     apiGetBlobWithMeta,
@@ -388,25 +387,11 @@ export function getQuestionnaireSessionV2(sessionId: string) {
 export function getQuestionnaireSessionPageV2(sessionId: string, params?: { page?: number; page_size?: number }) {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? sessionDefaultPageSize;
-    const queryWithoutPageSize = buildSearch({ page });
     const queryWithPageSize = buildSearch({ page, page_size: pageSize });
-    const pathWithoutPageSize = `/api/v2/questionnaires/sessions/${sessionId}/page?${queryWithoutPageSize}`;
     const pathWithPageSize = `/api/v2/questionnaires/sessions/${sessionId}/page?${queryWithPageSize}`;
-
-    if (params?.page_size !== undefined) {
-        return apiGet<unknown>(pathWithPageSize, requestOptions).then((payload) =>
-            normalizeSessionPageResponse(payload, page, pageSize)
-        );
-    }
-
-    return apiGet<unknown>(pathWithoutPageSize, requestOptions)
-        .catch((error) => {
-            if (error instanceof ApiError && error.status === 400) {
-                return apiGet<unknown>(pathWithPageSize, requestOptions);
-            }
-            throw error;
-        })
-        .then((payload) => normalizeSessionPageResponse(payload, page, pageSize));
+    return apiGet<unknown>(pathWithPageSize, requestOptions).then((payload) =>
+        normalizeSessionPageResponse(payload, page, pageSize)
+    );
 }
 
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
