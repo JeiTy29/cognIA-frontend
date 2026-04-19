@@ -35,6 +35,7 @@ const LIKERT = [
     { value: 4, label: 'Frecuentemente' },
     { value: 5, label: 'Casi siempre' }
 ];
+const SESSION_PAGE_SIZE = 20;
 
 function roleToApiRole(role: string | null) {
     return role === 'psicologo' ? 'psychologist' : 'caregiver';
@@ -234,7 +235,7 @@ function mapStartSessionError(error: unknown, step: StartSessionStep) {
     }
 
     if (error instanceof Error && error.message === 'empty_questions') {
-        return 'La sesion se creo, pero la API no devolvio preguntas en la primera carga de pagina.';
+        return 'La sesion se creo, pero la API no devolvio preguntas en la primera carga de pagina (page=1, page_size=20).';
     }
 
     if (error instanceof ApiError) {
@@ -330,7 +331,7 @@ export default function Cuestionario() {
     }, [apiRole, selectedMode]);
 
     const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
-        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1 });
+        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1, page_size: SESSION_PAGE_SIZE });
         const firstQuestions = normalizeQuestions(firstPage.items);
         const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
 
@@ -339,7 +340,7 @@ export default function Cuestionario() {
         }
 
         const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
-            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2 })
+            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2, page_size: SESSION_PAGE_SIZE })
         );
         const remainingResponses = await Promise.all(remainingRequests);
         const remainingQuestions = remainingResponses.flatMap((response) => normalizeQuestions(response.items));
