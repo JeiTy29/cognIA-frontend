@@ -1,0 +1,358 @@
+.dashboard-page {
+    padding: 32px 40px 40px;
+    color: #0b2540;
+    background: #ffffff;
+    min-height: 100vh;
+    display: grid;
+    gap: 22px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.dashboard-header h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+}
+
+.dashboard-header p {
+    margin: 0;
+    color: #526476;
+    font-size: 14px;
+}
+
+.dashboard-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.dashboard-controls label {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+    color: #526476;
+}
+
+.dashboard-controls input {
+    width: 120px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    padding: 0 10px;
+    font-size: 14px;
+    color: #0b2540;
+}
+
+.dashboard-refresh {
+    height: 40px;
+    background: #1790e9;
+    border: none;
+    color: #ffffff;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dashboard-refresh:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.dashboard-divider {
+    height: 2px;
+    background: rgba(23, 144, 233, 0.18);
+    margin: 0;
+}
+
+.dashboard-global-alert {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(240, 173, 78, 0.36);
+    background: rgba(240, 173, 78, 0.12);
+    color: #8d5d09;
+    font-size: 13px;
+}
+
+.dashboard-adoption,
+.dashboard-series,
+.dashboard-funnel-block {
+    border-top: 1px solid rgba(11, 37, 64, 0.12);
+    padding-top: 16px;
+}
+
+.dashboard-adoption h2,
+.dashboard-series h3,
+.dashboard-funnel-block h3 {
+    margin: 0 0 10px;
+    color: #0b2540;
+}
+
+.dashboard-adoption.is-prioritized h2 {
+    font-size: 26px;
+}
+
+.dashboard-adoption-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.dashboard-adoption-item {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.08);
+}
+
+.dashboard-adoption-item h4 {
+    margin: 0 0 8px;
+    color: #215f8f;
+    font-size: 14px;
+}
+
+.dashboard-node-value {
+    font-size: 13px;
+    color: #0b2540;
+}
+
+.dashboard-node-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dashboard-node-chip {
+    font-size: 12px;
+    color: #1b4f72;
+    background: rgba(23, 144, 233, 0.12);
+    border-radius: 999px;
+    padding: 4px 8px;
+}
+
+.dashboard-node-array {
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-node-array-item {
+    border-left: 2px solid rgba(23, 144, 233, 0.3);
+    padding-left: 10px;
+}
+
+.dashboard-node-table {
+    display: grid;
+    gap: 6px;
+}
+
+.dashboard-node-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 220px) 1fr;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.dashboard-node-key {
+    font-size: 12px;
+    color: #526476;
+}
+
+.dashboard-funnel-grid,
+.dashboard-series-grid,
+.dashboard-adoption-grid-wide {
+    display: grid;
+    gap: 18px;
+}
+
+.dashboard-funnel-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-series-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-adoption-grid-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-funnel-rows {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-funnel-row {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr) 80px;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.dashboard-funnel-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(23, 144, 233, 0.14);
+    overflow: hidden;
+}
+
+.dashboard-funnel-track i {
+    display: block;
+    height: 100%;
+    background: #1790e9;
+}
+
+.dashboard-funnel-conversion {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #526476;
+}
+
+.dashboard-funnel-conversion strong {
+    font-size: 18px;
+    color: #215f8f;
+}
+
+.dashboard-series {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-series-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+}
+
+.dashboard-sparkline {
+    width: 240px;
+    height: 46px;
+}
+
+.dashboard-sparkline path {
+    fill: none;
+    stroke: #1790e9;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.dashboard-table {
+    display: grid;
+    border-top: 1px solid rgba(11, 37, 64, 0.1);
+}
+
+.dashboard-table-row {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(11, 37, 64, 0.07);
+    font-size: 13px;
+}
+
+.dashboard-table-row.head {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #526476;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.dashboard-table.compact .dashboard-table-row {
+    padding: 7px 0;
+}
+
+.dashboard-block-loading {
+    display: grid;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.dashboard-shimmer-line {
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(11, 37, 64, 0.07), rgba(23, 144, 233, 0.16), rgba(11, 37, 64, 0.07));
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+}
+
+.dashboard-shimmer-line.short {
+    width: 60%;
+}
+
+.dashboard-block-error {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(220, 53, 69, 0.1);
+    color: #a02734;
+    font-size: 13px;
+}
+
+.dashboard-block-error small {
+    color: #7f1f2b;
+}
+
+.dashboard-empty {
+    margin: 0;
+    color: #526476;
+    font-size: 13px;
+    padding: 8px 0 2px;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+
+@media (max-width: 1100px) {
+    .dashboard-funnel-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 980px) {
+    .dashboard-series-grid,
+    .dashboard-adoption-grid-wide,
+    .dashboard-adoption-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-node-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 860px) {
+    .dashboard-page {
+        padding: 24px 20px 32px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+    }
+
+    .dashboard-sparkline {
+        width: 180px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-shimmer-line {
+        animation: none;
+    }
+}

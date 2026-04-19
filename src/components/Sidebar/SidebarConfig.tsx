@@ -46,6 +46,12 @@ const IconMetrics = (
     </svg>
 );
 
+const IconDashboard = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 3h8v8H3V3Zm10 0h8v5h-8V3ZM3 13h5v8H3v-8Zm7 0h11v8H10v-8Z" />
+    </svg>
+);
+
 const IconAdminQuestionnaires = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h12V5H6Zm2 3h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
@@ -136,6 +142,15 @@ const adminItems: SidebarItem[] = [
         roles: ['admin'],
         paths: {
             admin: '/admin/metricas'
+        }
+    },
+    {
+        id: 'dashboard-admin',
+        label: 'Dashboard',
+        icon: IconDashboard,
+        roles: ['admin'],
+        paths: {
+            admin: '/admin/dashboard'
         }
     },
     {

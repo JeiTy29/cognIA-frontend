@@ -18,6 +18,7 @@ import AyudaBase from './pages/Plataforma/Ayuda/AyudaBase';
 import HistorialPsicologo from './pages/Plataforma/HistorialPsicologo/HistorialPsicologo';
 import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo';
 import Metricas from './pages/Administrador/Metricas/Metricas';
+import Dashboard from './pages/Administrador/Dashboard/Dashboard';
 import Cuestionarios from './pages/Administrador/Cuestionarios/Cuestionarios';
 import Evaluaciones from './pages/Administrador/Evaluaciones/Evaluaciones';
 import Usuarios from './pages/Administrador/Usuarios/Usuarios';
@@ -93,6 +94,7 @@ export default function App() {
                         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
                             <Route index element={<Navigate to="/admin/metricas" replace />} />
                             <Route path="metricas" element={<Metricas />} />
+                            <Route path="dashboard" element={<Dashboard />} />
                             <Route path="cuestionarios" element={<Cuestionarios />} />
                             <Route path="evaluaciones" element={<Evaluaciones />} />
                             <Route path="usuarios" element={<Usuarios />} />
