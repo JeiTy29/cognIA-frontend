@@ -250,6 +250,10 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
         const pageNumber = Number(candidate.page_number ?? candidate.page);
         return Number.isFinite(pageNumber) && pageNumber === page;
     }) ?? pagesArray[0] ?? null;
+    const allQuestionsFromPages = pagesArray
+        .flatMap((candidate) => asArray(candidate.questions))
+        .map(normalizeQuestion)
+        .filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
 
     const containerCandidates: Record<string, unknown>[] = [
         root,
@@ -278,14 +282,19 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
         );
     }
 
-    let normalizedItems: QuestionnaireQuestionV2DTO[] = [];
-    for (const candidate of arrayCandidates) {
-        const parsed = asArray(candidate)
-            .map(normalizeQuestion)
-            .filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
-        if (parsed.length > 0) {
-            normalizedItems = parsed;
-            break;
+    // Si el backend ya devolvio un bloque "pages[]" con preguntas, priorizamos ese
+    // arreglo consolidado para no quedarnos solo con la primera pagina.
+    let normalizedItems: QuestionnaireQuestionV2DTO[] = allQuestionsFromPages;
+
+    if (normalizedItems.length === 0) {
+        for (const candidate of arrayCandidates) {
+            const parsed = asArray(candidate)
+                .map(normalizeQuestion)
+                .filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
+            if (parsed.length > 0) {
+                normalizedItems = parsed;
+                break;
+            }
         }
     }
 
@@ -322,9 +331,19 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
         asRecord(root.page) ??
         root;
 
+    const normalizedPagination = normalizePagination(paginationSource, page, pageSize);
+
     return {
         items: normalizedItems,
-        pagination: normalizePagination(paginationSource, page, pageSize)
+        pagination:
+            allQuestionsFromPages.length > 0 && pagesArray.length > 1
+                ? {
+                    ...normalizedPagination,
+                    page: 1,
+                    pages: 1,
+                    total: normalizedItems.length
+                }
+                : normalizedPagination
     };
 }
 
