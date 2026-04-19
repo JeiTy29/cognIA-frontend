@@ -254,6 +254,10 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     }, [pdfPayload]);
 
     const openDetail = async (sessionId: string) => {
+        if (!sessionId || sessionId.trim().length === 0) {
+            setDetailError('No se encontro un identificador valido para esta sesion.');
+            return;
+        }
         setDetailSessionId(sessionId);
         setDetailLoading(true);
         setDetailError(null);

@@ -97,6 +97,8 @@ export interface PatchSessionAnswersV2Payload {
 
 export interface QuestionnaireHistoryItemV2DTO {
     id: string;
+    session_id?: string | null;
+    questionnaire_session_id?: string | null;
     questionnaire_id?: string | null;
     share_code?: string | null;
     status?: QuestionnaireV2Status;

@@ -1,4 +1,5 @@
 import {
+    ApiError,
     apiDelete,
     apiGet,
     apiGetBlobWithMeta,
@@ -34,7 +35,7 @@ const requestOptions = {
 };
 
 const defaultPageSize = 20;
-const sessionDefaultPageSize = 200;
+const sessionDefaultPageSize = 20;
 
 interface QueryParams {
     [key: string]: string | number | boolean | undefined | null;
@@ -94,6 +95,16 @@ function normalizePagination(payload: unknown, fallbackPage = 1, fallbackPageSiz
     };
 }
 
+function getSessionLikeId(record: Record<string, unknown>) {
+    const candidates = [record.id, record.session_id, record.questionnaire_session_id, record.history_id];
+    for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim();
+        }
+    }
+    return '';
+}
+
 function normalizeTemplate(value: unknown): QuestionnaireTemplateV2DTO | null {
     const record = asRecord(value);
     if (!record) return null;
@@ -139,12 +150,7 @@ function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
         return { id: '' };
     }
 
-    const id =
-        typeof record.id === 'string'
-            ? record.id
-            : typeof record.session_id === 'string'
-                ? record.session_id
-                : '';
+    const id = getSessionLikeId(record);
 
     return {
         ...record,
@@ -196,6 +202,41 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
     };
 }
 
+function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO | null {
+    const record = pickRecord(value, ['session', 'history', 'item', 'data', 'result']);
+    if (!record) return null;
+
+    const id = getSessionLikeId(record);
+    if (!id) return null;
+
+    const questionnaireIdCandidates = [record.questionnaire_id, record.questionnaireId, record.template_id];
+    let questionnaireId: string | null = null;
+    for (const candidate of questionnaireIdCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            questionnaireId = candidate.trim();
+            break;
+        }
+    }
+
+    return {
+        ...record,
+        id,
+        session_id:
+            typeof record.session_id === 'string'
+                ? record.session_id
+                : typeof record.questionnaire_session_id === 'string'
+                    ? record.questionnaire_session_id
+                    : id,
+        questionnaire_session_id:
+            typeof record.questionnaire_session_id === 'string'
+                ? record.questionnaire_session_id
+                : typeof record.session_id === 'string'
+                    ? record.session_id
+                    : id,
+        questionnaire_id: questionnaireId
+    } as QuestionnaireHistoryDetailV2DTO;
+}
+
 function normalizeHistoryResponse(payload: unknown, page: number, pageSize: number): QuestionnaireHistoryListV2Response {
     const root = pickRecord(payload, ['data', 'result']);
     if (!root) {
@@ -205,9 +246,11 @@ function normalizeHistoryResponse(payload: unknown, page: number, pageSize: numb
         };
     }
 
-    const items = asArray(root.items) as QuestionnaireHistoryListV2Response['items'];
+    const items = asArray(root.items)
+        .map(normalizeHistoryItem)
+        .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
     return {
-        items,
+        items: items as QuestionnaireHistoryListV2Response['items'],
         pagination: normalizePagination(root.pagination, page, pageSize)
     };
 }
@@ -219,14 +262,22 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
     }
 
     const tags = asArray(root.tags).map(normalizeTag).filter((item): item is QuestionnaireTagDTO => Boolean(item));
+    const id = getSessionLikeId(root);
     return {
         ...root,
-        id:
-            typeof root.id === 'string'
-                ? root.id
+        id,
+        session_id:
+            typeof root.session_id === 'string'
+                ? root.session_id
+                : typeof root.questionnaire_session_id === 'string'
+                    ? root.questionnaire_session_id
+                    : id,
+        questionnaire_session_id:
+            typeof root.questionnaire_session_id === 'string'
+                ? root.questionnaire_session_id
                 : typeof root.session_id === 'string'
                     ? root.session_id
-                    : '',
+                    : id,
         tags
     } as QuestionnaireHistoryDetailV2DTO;
 }
@@ -337,12 +388,25 @@ export function getQuestionnaireSessionV2(sessionId: string) {
 export function getQuestionnaireSessionPageV2(sessionId: string, params?: { page?: number; page_size?: number }) {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? sessionDefaultPageSize;
-    const query = buildSearch({
-        page,
-        page_size: pageSize
-    });
-    const path = `/api/v2/questionnaires/sessions/${sessionId}/page?${query}`;
-    return apiGet<unknown>(path, requestOptions).then((payload) => normalizeSessionPageResponse(payload, page, pageSize));
+    const queryWithoutPageSize = buildSearch({ page });
+    const queryWithPageSize = buildSearch({ page, page_size: pageSize });
+    const pathWithoutPageSize = `/api/v2/questionnaires/sessions/${sessionId}/page?${queryWithoutPageSize}`;
+    const pathWithPageSize = `/api/v2/questionnaires/sessions/${sessionId}/page?${queryWithPageSize}`;
+
+    if (params?.page_size !== undefined) {
+        return apiGet<unknown>(pathWithPageSize, requestOptions).then((payload) =>
+            normalizeSessionPageResponse(payload, page, pageSize)
+        );
+    }
+
+    return apiGet<unknown>(pathWithoutPageSize, requestOptions)
+        .catch((error) => {
+            if (error instanceof ApiError && error.status === 400) {
+                return apiGet<unknown>(pathWithPageSize, requestOptions);
+            }
+            throw error;
+        })
+        .then((payload) => normalizeSessionPageResponse(payload, page, pageSize));
 }
 
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
