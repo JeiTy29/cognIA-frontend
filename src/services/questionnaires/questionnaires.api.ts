@@ -58,6 +58,29 @@ function asArray<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function firstNonEmptyString(candidates: unknown[]) {
+    for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim();
+        }
+    }
+    return null;
+}
+
+function normalizeTagVisibility(value: unknown): QuestionnaireTagDTO['visibility'] {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'private') return 'private';
+    if (normalized === 'shared') return 'shared';
+    return null;
+}
+
+function toVisibilityLabel(visibility: QuestionnaireTagDTO['visibility']): QuestionnaireTagDTO['visibility_label'] {
+    if (visibility === 'private') return 'Privado';
+    if (visibility === 'shared') return 'Compartido';
+    return '--';
+}
+
 function pickRecord(payload: unknown, keys: string[]) {
     const record = asRecord(payload);
     if (!record) return null;
@@ -183,14 +206,32 @@ function normalizeQuestion(value: unknown): QuestionnaireQuestionV2DTO | null {
 function normalizeTag(value: unknown): QuestionnaireTagDTO | null {
     const record = asRecord(value);
     if (!record) return null;
+
+    const id = firstNonEmptyString([record.id, record.tag_id, record.uuid]);
+    const label =
+        firstNonEmptyString([
+            record.label,
+            record.tag,
+            record.name,
+            record.text,
+            record.title
+        ]) ?? '--';
+    const color = firstNonEmptyString([record.color, record.color_hex, record.hex, record.bg_color]);
+    const visibility = normalizeTagVisibility(
+        firstNonEmptyString([record.visibility, record.share_visibility, record.access])
+    );
+
     return {
         ...record,
-        id:
-            typeof record.id === 'string'
-                ? record.id
-                : typeof record.tag_id === 'string'
-                    ? record.tag_id
-                    : undefined
+        id: id ?? undefined,
+        tag_id: id ?? undefined,
+        label,
+        tag: label,
+        color: color ?? null,
+        visibility,
+        visibility_label: toVisibilityLabel(visibility),
+        created_at: firstNonEmptyString([record.created_at, record.createdAt]),
+        updated_at: firstNonEmptyString([record.updated_at, record.updatedAt])
     };
 }
 
@@ -406,7 +447,8 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
         return { id: '' };
     }
 
-    const tags = asArray(root.tags).map(normalizeTag).filter((item): item is QuestionnaireTagDTO => Boolean(item));
+    const tagsSource = asArray(root.tags).length > 0 ? root.tags : root.labels;
+    const tags = asArray(tagsSource).map(normalizeTag).filter((item): item is QuestionnaireTagDTO => Boolean(item));
     const id = getSessionLikeId(root);
     return {
         ...root,
@@ -433,22 +475,53 @@ function normalizeResults(payload: unknown): Record<string, unknown> {
 }
 
 function normalizeShareResponse(payload: unknown): QuestionnaireShareResponseDTO {
-    const root = pickRecord(payload, ['share', 'data', 'result']);
-    if (!root) return {};
+    const source = asRecord(payload);
+    if (!source) return {};
+    const wrapper =
+        asRecord(source.share) ??
+        asRecord(source.data) ??
+        asRecord(source.result) ??
+        null;
+    const root: Record<string, unknown> = wrapper ? { ...source, ...wrapper } : source;
+
+    const questionnaireId =
+        firstNonEmptyString([
+            root.questionnaire_id,
+            root.questionnaireId,
+            asRecord(root.questionnaire)?.id,
+            asRecord(root.questionnaire)?.questionnaire_id
+        ]) ?? undefined;
+
+    const shareCode =
+        firstNonEmptyString([
+            root.share_code,
+            root.shareCode,
+            root.code,
+            root.token
+        ]) ?? undefined;
+
+    const sharedPath =
+        questionnaireId && shareCode
+            ? `/cuestionario/compartido/${questionnaireId}/${shareCode}`
+            : undefined;
+
+    const sharedUrl =
+        firstNonEmptyString([
+            root.url,
+            root.share_url,
+            root.public_url,
+            root.link,
+            root.share_link,
+            root.public_link
+        ]) ?? sharedPath ?? undefined;
+
     return {
         ...root,
-        questionnaire_id:
-            typeof root.questionnaire_id === 'string'
-                ? root.questionnaire_id
-                : typeof root.questionnaireId === 'string'
-                    ? root.questionnaireId
-                    : undefined,
-        share_code:
-            typeof root.share_code === 'string'
-                ? root.share_code
-                : typeof root.shareCode === 'string'
-                    ? root.shareCode
-                    : undefined
+        questionnaire_id: questionnaireId,
+        share_code: shareCode,
+        shared_path: sharedPath,
+        shared_url: sharedUrl,
+        url: sharedUrl
     } as QuestionnaireShareResponseDTO;
 }
 
@@ -458,27 +531,90 @@ function normalizePdfInfo(payload: unknown): QuestionnairePdfInfoV2DTO {
 }
 
 function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedDataV2DTO {
-    const root = pickRecord(payload, ['shared', 'questionnaire', 'data', 'result']);
-    if (!root) return {};
+    const source = asRecord(payload);
+    if (!source) return {};
+    const wrapper =
+        asRecord(source.shared) ??
+        asRecord(source.data) ??
+        asRecord(source.result) ??
+        null;
+    const root: Record<string, unknown> = wrapper ? { ...source, ...wrapper } : source;
+
+    const questionnaireInfo = asRecord(root.questionnaire);
+    const summaryRecord =
+        asRecord(root.summary) ??
+        asRecord(root.results_summary) ??
+        asRecord(questionnaireInfo?.summary) ??
+        null;
+    const resultsRecord =
+        asRecord(root.results) ??
+        asRecord(root.result) ??
+        asRecord(root.scores) ??
+        asRecord(root.output) ??
+        summaryRecord;
+    const metadataRecord =
+        asRecord(root.metadata) ??
+        asRecord(questionnaireInfo?.metadata) ??
+        null;
+    const tagsSource = asArray(root.tags).length > 0 ? root.tags : root.labels;
+    const tags = asArray(tagsSource)
+        .map(normalizeTag)
+        .filter((item): item is QuestionnaireTagDTO => Boolean(item));
+
+    const questionnaireId =
+        firstNonEmptyString([
+            root.questionnaire_id,
+            root.questionnaireId,
+            questionnaireInfo?.id,
+            questionnaireInfo?.questionnaire_id
+        ]) ?? undefined;
+    const shareCode =
+        firstNonEmptyString([
+            root.share_code,
+            root.shareCode
+        ]) ?? undefined;
+    const sharedPath =
+        questionnaireId && shareCode
+            ? `/cuestionario/compartido/${questionnaireId}/${shareCode}`
+            : undefined;
+    const sharedUrl =
+        firstNonEmptyString([
+            root.url,
+            root.share_url,
+            root.public_url,
+            root.link
+        ]) ?? sharedPath ?? undefined;
+
     return {
         ...root,
-        questionnaire_id:
-            typeof root.questionnaire_id === 'string'
-                ? root.questionnaire_id
-                : typeof root.questionnaireId === 'string'
-                    ? root.questionnaireId
-                    : undefined,
-        share_code:
-            typeof root.share_code === 'string'
-                ? root.share_code
-                : typeof root.shareCode === 'string'
-                    ? root.shareCode
-                    : undefined,
-        results:
-            asRecord(root.results) ??
-            asRecord(root.result) ??
-            asRecord(root.summary) ??
-            null
+        questionnaire_id: questionnaireId,
+        share_code: shareCode,
+        shared_url: sharedUrl,
+        name:
+            firstNonEmptyString([
+                root.name,
+                root.title,
+                questionnaireInfo?.name,
+                questionnaireInfo?.title
+            ]) ?? undefined,
+        title:
+            firstNonEmptyString([
+                root.title,
+                root.name,
+                questionnaireInfo?.title,
+                questionnaireInfo?.name
+            ]) ?? undefined,
+        status: firstNonEmptyString([root.status, questionnaireInfo?.status]) ?? undefined,
+        mode: (firstNonEmptyString([root.mode, questionnaireInfo?.mode]) ?? undefined) as QuestionnaireSharedDataV2DTO['mode'],
+        role: (firstNonEmptyString([root.role, questionnaireInfo?.role]) ?? undefined) as QuestionnaireSharedDataV2DTO['role'],
+        version: firstNonEmptyString([root.version, questionnaireInfo?.version]) ?? undefined,
+        created_at: firstNonEmptyString([root.created_at, root.createdAt, questionnaireInfo?.created_at]) ?? undefined,
+        updated_at: firstNonEmptyString([root.updated_at, root.updatedAt, questionnaireInfo?.updated_at]) ?? undefined,
+        expires_at: firstNonEmptyString([root.expires_at, root.expiresAt]) ?? undefined,
+        tags,
+        results: resultsRecord,
+        summary: summaryRecord,
+        metadata: metadataRecord
     } as QuestionnaireSharedDataV2DTO;
 }
 

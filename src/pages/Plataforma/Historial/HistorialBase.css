@@ -201,12 +201,25 @@
 
 .historial-v2-tag {
     display: grid;
-    grid-template-columns: 1fr 100px 100px 92px;
+    grid-template-columns: 1fr auto 92px;
     align-items: center;
     gap: 8px;
     border: 1px solid rgba(33, 95, 143, 0.15);
+    border-left: 4px solid #215f8f;
     border-radius: 8px;
     padding: 8px 10px;
+}
+
+.historial-v2-tag-name {
+    font-weight: 600;
+}
+
+.historial-v2-tag-meta {
+    font-size: 12px;
+    color: #215f8f;
+    background: rgba(33, 95, 143, 0.1);
+    border-radius: 999px;
+    padding: 3px 8px;
 }
 
 .historial-v2-tag button {
@@ -220,7 +233,7 @@
 
 .historial-v2-tag-form {
     display: grid;
-    grid-template-columns: 1fr 140px 140px 100px;
+    grid-template-columns: 1fr 180px auto 100px;
     gap: 10px;
 }
 
@@ -231,6 +244,27 @@
     padding: 8px 10px;
     font-size: 13px;
     color: #215f8f;
+}
+
+.historial-v2-color-palette {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.historial-v2-color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    outline: none;
+}
+
+.historial-v2-color-swatch.is-selected {
+    border-color: #215f8f;
+    box-shadow: 0 0 0 2px rgba(33, 95, 143, 0.16);
 }
 
 .historial-v2-section-actions {
