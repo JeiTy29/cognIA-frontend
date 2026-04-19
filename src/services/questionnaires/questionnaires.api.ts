@@ -118,14 +118,65 @@ function normalizeTemplate(value: unknown): QuestionnaireTemplateV2DTO | null {
 function normalizeQuestion(value: unknown): QuestionnaireQuestionV2DTO | null {
     const record = asRecord(value);
     if (!record) return null;
-    const id = typeof record.id === 'string' ? record.id : null;
-    const text = typeof record.text === 'string' ? record.text : null;
+    const idCandidates = [
+        record.id,
+        record.question_id,
+        record.item_id,
+        record.questionnaire_item_id
+    ];
+    let id: string | null = null;
+    for (const candidate of idCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            id = candidate.trim();
+            break;
+        }
+    }
+
+    const textCandidates = [
+        record.text,
+        record.prompt,
+        record.question_text,
+        record.question,
+        record.statement,
+        record.title,
+        record.label
+    ];
+    let text: string | null = null;
+    for (const candidate of textCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            text = candidate.trim();
+            break;
+        }
+    }
     if (!id || !text) return null;
+
+    const responseTypeCandidates = [
+        record.response_type,
+        record.answer_type,
+        record.input_type,
+        record.type
+    ];
+    let responseType: string = 'text';
+    for (const candidate of responseTypeCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            responseType = candidate;
+            break;
+        }
+    }
+
+    const responseOptions =
+        Array.isArray(record.response_options) ? record.response_options :
+            Array.isArray(record.options) ? record.options :
+                Array.isArray(record.choices) ? record.choices :
+                    Array.isArray(record.values) ? record.values :
+                        null;
+
     return {
         ...record,
         id,
         text,
-        response_type: typeof record.response_type === 'string' ? record.response_type : 'text'
+        response_type: responseType,
+        response_options: responseOptions
     } as QuestionnaireQuestionV2DTO;
 }
 
@@ -184,7 +235,7 @@ function normalizeActiveQuestionnairesResponse(payload: unknown): ActiveQuestion
 }
 
 function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: number): QuestionnaireSessionPageV2Response {
-    const root = pickRecord(payload, ['page', 'data', 'result']);
+    const root = asRecord(payload);
     if (!root) {
         return {
             items: [],
@@ -192,12 +243,88 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
         };
     }
 
-    const directItems = asArray(root.items).map(normalizeQuestion).filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
-    const fallbackQuestions = asArray(root.questions).map(normalizeQuestion).filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
+    const pagesArray = asArray(root.pages)
+        .map(asRecord)
+        .filter((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+    const requestedPage = pagesArray.find((candidate) => {
+        const pageNumber = Number(candidate.page_number ?? candidate.page);
+        return Number.isFinite(pageNumber) && pageNumber === page;
+    }) ?? pagesArray[0] ?? null;
+
+    const containerCandidates: Record<string, unknown>[] = [
+        root,
+        asRecord(root.data),
+        asRecord(root.result),
+        asRecord(root.page),
+        asRecord(root.session_page),
+        requestedPage
+    ].filter((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+
+    const arrayCandidates: unknown[] = [
+        root.data,
+        root.items,
+        root.questions,
+        requestedPage ? requestedPage.questions : undefined
+    ];
+
+    for (const container of containerCandidates) {
+        arrayCandidates.push(
+            container.items,
+            container.questions,
+            container.page_items,
+            container.question_items,
+            container.rows,
+            container.questions
+        );
+    }
+
+    let normalizedItems: QuestionnaireQuestionV2DTO[] = [];
+    for (const candidate of arrayCandidates) {
+        const parsed = asArray(candidate)
+            .map(normalizeQuestion)
+            .filter((item): item is QuestionnaireQuestionV2DTO => Boolean(item));
+        if (parsed.length > 0) {
+            normalizedItems = parsed;
+            break;
+        }
+    }
+
+    const derivedPaginationFromPages =
+        requestedPage || pagesArray.length > 0
+            ? {
+                page: Number(requestedPage?.page_number ?? requestedPage?.page ?? page),
+                page_size: Number(requestedPage?.page_size ?? pageSize),
+                total: Number(
+                    root.total ??
+                    root.total_items ??
+                    (pagesArray.length > 0
+                        ? pagesArray.reduce((acc, candidate) => acc + asArray(candidate.questions).length, 0)
+                        : normalizedItems.length)
+                ),
+                pages: Number(
+                    root.pages_total ??
+                    root.total_pages ??
+                    root.page_count ??
+                    root.pages_count ??
+                    pagesArray.length ??
+                    1
+                )
+            }
+            : null;
+
+    const paginationSource =
+        asRecord(root.pagination) ??
+        asRecord((asRecord(root.data) ?? {}).pagination) ??
+        asRecord((asRecord(root.result) ?? {}).pagination) ??
+        asRecord((requestedPage ?? {}).pagination) ??
+        asRecord((asRecord(root.meta) ?? {}).pagination) ??
+        derivedPaginationFromPages ??
+        asRecord(root.page) ??
+        root;
 
     return {
-        items: directItems.length > 0 ? directItems : fallbackQuestions,
-        pagination: normalizePagination(root.pagination, page, pageSize)
+        items: normalizedItems,
+        pagination: normalizePagination(paginationSource, page, pageSize)
     };
 }
 
