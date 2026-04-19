@@ -1,318 +1,394 @@
-﻿import { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
+import { useDashboard } from '../../../hooks/dashboard/useDashboard';
+import type {
+    DashboardAdoptionHistoryResponse,
+    DashboardBlockState,
+    DashboardFunnelResponse,
+    DashboardMetricNode,
+    DashboardSeriesPoint,
+    DashboardSeriesResponse
+} from '../../../services/dashboard/dashboard.types';
 import './Metricas.css';
-import { useMetrics } from '../../../hooks/metrics/useMetrics';
 
-function formatUptime(seconds: number) {
-    if (seconds < 60) return `${seconds} s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+const MONTH_OPTIONS = [1, 3, 6, 12, 24, 36, 60, 120].map((value) => ({
+    value: String(value),
+    label: `${value} mes${value === 1 ? '' : 'es'}`
+}));
+
+function clampMonths(value: number) {
+    if (!Number.isFinite(value)) return 12;
+    const parsed = Math.trunc(value);
+    if (parsed < 1) return 1;
+    if (parsed > 120) return 120;
+    return parsed;
 }
 
-function buildSparklinePath(values: number[], width: number, height: number) {
-    const max = Math.max(...values, 1);
-    const step = values.length > 1 ? width / (values.length - 1) : width;
-    return values
-        .map((value, index) => {
+function formatLabel(key: string) {
+    const normalized = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
+    if (!normalized) return '--';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function formatPrimitive(value: string | number | boolean | null) {
+    if (value === null) return '--';
+    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    if (typeof value === 'number') {
+        return Number.isInteger(value)
+            ? new Intl.NumberFormat('es-CO').format(value)
+            : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(value);
+    }
+    return value.trim().length > 0 ? value : '--';
+}
+
+function formatSeriesValue(point: DashboardSeriesPoint) {
+    if (point.raw_value !== null) {
+        if (typeof point.raw_value === 'number') return formatPrimitive(point.raw_value);
+        if (typeof point.raw_value === 'boolean') return point.raw_value ? 'Sí' : 'No';
+        const text = String(point.raw_value).trim();
+        return text.length > 0 ? text : '--';
+    }
+    if (point.value === null) return '--';
+    return formatPrimitive(point.value);
+}
+
+function formatConversion(value: number | null) {
+    if (value === null) return '--';
+    if (value <= 1) return `${(value * 100).toFixed(1)}%`;
+    return `${value.toFixed(1)}%`;
+}
+
+function buildSparklinePath(points: DashboardSeriesPoint[], width: number, height: number) {
+    const numeric = points
+        .map((point, index) => ({ index, value: point.value }))
+        .filter((row): row is { index: number; value: number } => typeof row.value === 'number');
+    if (numeric.length < 2) return '';
+
+    const max = Math.max(...numeric.map((row) => row.value), 1);
+    const min = Math.min(...numeric.map((row) => row.value), 0);
+    const range = max - min || 1;
+    const step = width / (numeric.length - 1);
+
+    return numeric
+        .map((row, index) => {
             const x = index * step;
-            const y = height - (value / max) * height;
+            const normalized = (row.value - min) / range;
+            const y = height - normalized * height;
             return `${index === 0 ? 'M' : 'L'}${x},${y}`;
         })
         .join(' ');
 }
 
-function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number> }) {
-    const total = counts['200'] + counts['401'] + counts['500'];
-    const radius = 28;
-    const circumference = 2 * Math.PI * radius;
-    const segments = [
-        { key: '200', color: '#1f9d55', value: counts['200'] },
-        { key: '401', color: '#f0ad4e', value: counts['401'] },
-        { key: '500', color: '#dc3545', value: counts['500'] }
-    ];
-    let offset = 0;
+function BlockError({ message, status }: { message: string; status: number | null }) {
+    return (
+        <div className="dashboard-block-error" role="status" aria-live="polite">
+            <strong>Error</strong>
+            <span>{message}</span>
+            {status ? <small>HTTP {status}</small> : null}
+        </div>
+    );
+}
+
+function BlockLoading() {
+    return (
+        <div className="dashboard-block-loading" aria-live="polite">
+            <span className="dashboard-shimmer-line" />
+            <span className="dashboard-shimmer-line short" />
+            <span className="dashboard-shimmer-line" />
+        </div>
+    );
+}
+
+function MetricNodeView({ node, depth = 0 }: { node: DashboardMetricNode; depth?: number }) {
+    if (depth > 4) return <span className="dashboard-node-value">--</span>;
+    if (node === null || typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
+        return <span className="dashboard-node-value">{formatPrimitive(node as string | number | boolean | null)}</span>;
+    }
+
+    if (Array.isArray(node)) {
+        if (node.length === 0) return <span className="dashboard-node-value">--</span>;
+        const isPrimitive = node.every(
+            (item) =>
+                item === null ||
+                typeof item === 'string' ||
+                typeof item === 'number' ||
+                typeof item === 'boolean'
+        );
+        if (isPrimitive) {
+            return (
+                <div className="dashboard-node-inline">
+                    {node.map((item, index) => (
+                        <span key={`${String(item)}-${index}`} className="dashboard-node-chip">
+                            {formatPrimitive(item as string | number | boolean | null)}
+                        </span>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <div className="dashboard-node-array">
+                {node.map((item, index) => (
+                    <div className="dashboard-node-array-item" key={index}>
+                        <MetricNodeView node={item} depth={depth + 1} />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    const entries = Object.entries(node);
+    if (entries.length === 0) return <span className="dashboard-node-value">--</span>;
 
     return (
-        <svg className="metricas-donut" viewBox="0 0 80 80" role="img" aria-label="Conteo de estados HTTP">
-            {segments.map((segment) => {
-                const dash = total > 0 ? (segment.value / total) * circumference : 0;
-                const strokeDasharray = `${dash} ${circumference - dash}`;
-                const strokeDashoffset = -offset;
-                offset += dash;
-                return (
-                    <circle
-                        key={segment.key}
-                        className="donut-ring"
-                        cx="40"
-                        cy="40"
-                        r={radius}
-                        fill="none"
-                        stroke={segment.color}
-                        strokeWidth="10"
-                        strokeDasharray={strokeDasharray}
-                        strokeDashoffset={strokeDashoffset}
-                    />
-                );
-            })}
-            <circle cx="40" cy="40" r="20" fill="#ffffff" />
-        </svg>
+        <div className="dashboard-node-table">
+            {entries.map(([key, value]) => (
+                <div className="dashboard-node-row" key={key}>
+                    <span className="dashboard-node-key">{formatLabel(key)}</span>
+                    <MetricNodeView node={value} depth={depth + 1} />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function SectionSeries({
+    title,
+    state
+}: {
+    title: string;
+    state: DashboardBlockState<DashboardSeriesResponse>;
+}) {
+    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
+    if (state.status === 'error' && state.error) {
+        return <BlockError message={state.error.message} status={state.error.status} />;
+    }
+    if (state.status === 'empty' || !state.data || state.data.series.length === 0) {
+        return <p className="dashboard-empty">Sin datos para el rango seleccionado.</p>;
+    }
+
+    const sparklinePath = buildSparklinePath(state.data.series, 240, 46);
+
+    return (
+        <div className="dashboard-series">
+            <div className="dashboard-series-header">
+                <h3>{title}</h3>
+                {sparklinePath ? (
+                    <svg className="dashboard-sparkline" viewBox="0 0 240 46" aria-label={`Tendencia de ${title}`}>
+                        <path d={sparklinePath} />
+                    </svg>
+                ) : null}
+            </div>
+            <div className="dashboard-table compact">
+                <div className="dashboard-table-row head">
+                    <span>Periodo</span>
+                    <span>Valor</span>
+                </div>
+                {state.data.series.map((point, index) => (
+                    <div className="dashboard-table-row" key={`${point.period}-${index}`}>
+                        <span>{point.period}</span>
+                        <span>{formatSeriesValue(point)}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function SectionFunnel({
+    title,
+    state
+}: {
+    title: string;
+    state: DashboardBlockState<DashboardFunnelResponse>;
+}) {
+    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
+    if (state.status === 'error' && state.error) {
+        return <BlockError message={state.error.message} status={state.error.status} />;
+    }
+    if (state.status === 'empty' || !state.data) {
+        return <p className="dashboard-empty">Sin datos para el rango seleccionado.</p>;
+    }
+
+    const created = state.data.created ?? 0;
+    const submitted = state.data.submitted ?? 0;
+    const processed = state.data.processed ?? 0;
+    const max = Math.max(created, submitted, processed, 1);
+
+    return (
+        <section className="dashboard-funnel-block">
+            <h3>{title}</h3>
+            <div className="dashboard-funnel-rows">
+                <div className="dashboard-funnel-row">
+                    <span>Creado</span>
+                    <div className="dashboard-funnel-track"><i style={{ width: `${(created / max) * 100}%` }} /></div>
+                    <strong>{formatPrimitive(created)}</strong>
+                </div>
+                <div className="dashboard-funnel-row">
+                    <span>Enviado</span>
+                    <div className="dashboard-funnel-track"><i style={{ width: `${(submitted / max) * 100}%` }} /></div>
+                    <strong>{formatPrimitive(submitted)}</strong>
+                </div>
+                <div className="dashboard-funnel-row">
+                    <span>Procesado</span>
+                    <div className="dashboard-funnel-track"><i style={{ width: `${(processed / max) * 100}%` }} /></div>
+                    <strong>{formatPrimitive(processed)}</strong>
+                </div>
+            </div>
+            <div className="dashboard-funnel-conversion">
+                <span>Conversión creado → procesado</span>
+                <strong>{formatConversion(state.data.conversion_created_to_processed)}</strong>
+            </div>
+        </section>
+    );
+}
+
+function SectionAdoption({
+    title,
+    state,
+    prioritized = false
+}: {
+    title: string;
+    state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
+    prioritized?: boolean;
+}) {
+    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
+    if (state.status === 'error' && state.error) {
+        return <BlockError message={state.error.message} status={state.error.status} />;
+    }
+    if (state.status === 'empty' || !state.data) {
+        return <p className="dashboard-empty">Sin datos para el rango seleccionado.</p>;
+    }
+
+    const adoption = state.data.adoption_history;
+
+    return (
+        <section className={`dashboard-adoption ${prioritized ? 'is-prioritized' : ''}`}>
+            <h2>{title}</h2>
+            <div className="dashboard-adoption-grid">
+                <div className="dashboard-adoption-item">
+                    <h4>Volume and Growth</h4>
+                    <MetricNodeView node={adoption.volume_and_growth} />
+                </div>
+                <div className="dashboard-adoption-item">
+                    <h4>User Growth</h4>
+                    <MetricNodeView node={adoption.user_growth} />
+                </div>
+                <div className="dashboard-adoption-item">
+                    <h4>Conversion</h4>
+                    <MetricNodeView node={adoption.conversion} />
+                </div>
+                <div className="dashboard-adoption-item">
+                    <h4>Operational Capacity</h4>
+                    <MetricNodeView node={adoption.operational_capacity} />
+                </div>
+            </div>
+        </section>
     );
 }
 
 export default function Metricas() {
-    const location = useLocation();
-    const metricsViewEnabled = location.pathname === '/admin/metricas';
-    const {
-        serverState,
-        dbState,
-        emailState,
-        snapshot,
-        metricsDisabled,
-        errorMessage,
-        isLoading,
-        requestHistory,
-        latencyHistory,
-        reload
-    } = useMetrics({ enabled: metricsViewEnabled });
+    const { months, setMonths, blocks, isReloading, reload, lastUpdated } = useDashboard();
+    const [monthsInput, setMonthsInput] = useState(String(months));
 
-    const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
-    const totalStatus = statusCounts['200'] + statusCounts['401'] + statusCounts['500'];
+    useEffect(() => {
+        setMonthsInput(String(months));
+    }, [months]);
 
-    const uptimeLabel = snapshot ? formatUptime(snapshot.uptime_seconds) : '--';
-    const latencyAvg = snapshot?.latency_ms_avg ?? null;
-    const latencyMax = snapshot?.latency_ms_max ?? null;
-    const requestsTotal = snapshot?.requests_total ?? null;
+    const hasCriticalAuthError = useMemo(
+        () =>
+            Object.values(blocks).some(
+                (block) => block.status === 'error' && (block.error?.status === 401 || block.error?.status === 403)
+            ),
+        [blocks]
+    );
 
-    const latencyBarPercent = useMemo(() => {
-        const latency = dbState.latency_ms ?? 0;
-        return Math.min(latency / 2000, 1) * 100;
-    }, [dbState.latency_ms]);
-
-    const latencyStatusClass = useMemo(() => {
-        if (latencyMax === null) return '';
-        if (latencyMax < 50) return 'status-ok';
-        if (latencyMax < 1000) return 'status-warn';
-        return 'status-error';
-    }, [latencyMax]);
-
-    const dbBadgeLabel = dbState.status === 'ready'
-        ? 'OK'
-        : dbState.status === 'not_ready'
-            ? 'No disponible'
-            : dbState.status === 'error'
-                ? 'No disponible'
-                : 'Cargando';
-    const dbStatusDot = dbState.status === 'ready'
-        ? 'status-ok'
-        : dbState.status === 'not_ready' || dbState.status === 'error'
-            ? 'status-error'
-            : 'status-warn';
-    const dbAccentClass = dbState.status === 'ready'
-        ? 'accent-green'
-        : dbState.status === 'not_ready' || dbState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const serverAccentClass = serverState.status === 'ok'
-        ? 'accent-green'
-        : serverState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const emailAccentClass = emailState.status === 'ok'
-        ? 'accent-green'
-        : emailState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const emailStatusDot = emailState.status === 'ok'
-        ? 'status-ok'
-        : emailState.status === 'error'
-            ? 'status-error'
-            : 'status-warn';
+    const applyMonths = () => {
+        const parsed = Number(monthsInput);
+        setMonths(clampMonths(parsed));
+    };
 
     return (
-        <div className="metricas">
-            <header className="metricas-header">
+        <div className="metricas dashboard-view">
+            <header className="dashboard-header">
                 <div>
-                    <h1>Metricas del sistema</h1>
+                    <h1>Dashboard</h1>
+                    <p>Monitoreo operativo y ejecutivo del sistema CognIA.</p>
+                </div>
+                <div className="dashboard-controls">
+                    <label>
+                        Rango (meses)
+                        <input
+                            type="number"
+                            min={1}
+                            max={120}
+                            value={monthsInput}
+                            onChange={(event) => setMonthsInput(event.target.value)}
+                            onBlur={applyMonths}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    applyMonths();
+                                }
+                            }}
+                        />
+                    </label>
+                    <label>
+                        Atajo
+                        <CustomSelect
+                            value={String(months)}
+                            options={MONTH_OPTIONS}
+                            ariaLabel="Seleccionar meses del dashboard"
+                            onChange={(value) => setMonths(Number(value))}
+                            placeholder="Personalizado"
+                        />
+                    </label>
+                    <button type="button" className="metricas-refresh" onClick={reload} disabled={isReloading}>
+                        {isReloading ? 'Actualizando...' : 'Actualizar'}
+                    </button>
                 </div>
             </header>
+
             <div className="metricas-divider" aria-hidden="true" />
 
-            <section className="metricas-row">
-                <div className={`metricas-block ${serverAccentClass}`}>
-                    <div className="metricas-block-title">Estado del servidor</div>
-                    <div className="metricas-status">
-                        <span className={`status-dot ${serverState.status === 'ok' ? 'status-ok' : 'status-error'}`} aria-hidden="true" />
-                        <span className="status-label">
-                            {serverState.status === 'ok' ? 'OK' : serverState.status === 'loading' ? 'Cargando' : 'No disponible'}
-                        </span>
-                    </div>
-                    <div className="metricas-small">
-                        {serverState.status === 'ok' ? 'Servidor operativo' : 'No disponible'}
-                    </div>
-                    <div className="metricas-micro">{serverState.detail || 'Sin interrupciones registradas'}</div>
-                </div>
-
-                <div className={`metricas-block ${dbAccentClass}`}>
-                    <div className="metricas-block-title">Base de datos</div>
-                    <div className="metricas-status">
-                        <span className={`status-dot ${dbStatusDot}`} aria-hidden="true" />
-                        <span className="status-label">{dbBadgeLabel}</span>
-                    </div>
-                    <div className="metricas-small">
-                        Latencia: {dbState.latency_ms !== null ? `${dbState.latency_ms.toFixed(1)} ms` : '--'}
-                    </div>
-                    <div className="metricas-latency">
-                        <span className="metricas-latency-icon" aria-hidden="true">⏱</span>
-                        <div className="metricas-latency-bar">
-                            <span style={{ width: `${latencyBarPercent}%` }} />
-                        </div>
-                    </div>
-                    <div className="metricas-micro">
-                        {dbState.status === 'ready' ? 'Base de datos lista' : 'Revisa la conectividad del servicio'}
-                    </div>
-                </div>
-
-                <div className={`metricas-block ${emailAccentClass}`}>
-                    <div className="metricas-block-title">Servicio de correo</div>
-                    <div className="metricas-status">
-                        <span className={`status-dot ${emailStatusDot}`} aria-hidden="true" />
-                        <span className="status-label">{emailState.label}</span>
-                    </div>
-                    <div className="metricas-small">{emailState.detail}</div>
-                    <div className="metricas-micro">{emailState.reason ?? 'Sin detalle adicional'}</div>
-                </div>
-            </section>
-
-            {metricsDisabled ? (
-                <section className="metricas-disabled">
-                    <h2>Métricas deshabilitadas</h2>
-                    <p>El sistema no está exponiendo métricas en este momento.</p>
-                    <button type="button" className="metricas-refresh" onClick={reload}>Recargar</button>
-                </section>
-            ) : (
-                <section className="metricas-snapshot">
-                    <div className="metricas-snapshot-main">
-                        <h2>Snapshot de métricas</h2>
-                        <div className="metricas-grid">
-                            <div>
-                                <span className="metricas-label">Latencia promedio</span>
-                                <div className="metricas-value">{latencyAvg !== null ? `${latencyAvg.toFixed(1)} ms` : '--'}</div>
-                                {latencyHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" role="img" aria-label="Tendencia de latencia">
-                                        <path
-                                            className="sparkline-path"
-                                            d={buildSparklinePath(latencyHistory, 120, 40)}
-                                            fill="none"
-                                        />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <span className="metricas-label">Latencia máxima</span>
-                                <div className={`metricas-value ${latencyStatusClass}`}>{latencyMax !== null ? `${latencyMax.toFixed(1)} ms` : '--'}</div>
-                            </div>
-                            <div>
-                                <span className="metricas-label">Solicitudes totales</span>
-                                <div className="metricas-value">{requestsTotal ?? '--'}</div>
-                                {requestHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" role="img" aria-label="Tendencia de solicitudes">
-                                        <path
-                                            className="sparkline-path"
-                                            d={buildSparklinePath(requestHistory, 120, 40)}
-                                            fill="none"
-                                        />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <span className="metricas-label">Uptime</span>
-                                <div className="metricas-value">{uptimeLabel}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="metricas-snapshot-side">
-                        <StatusDonut counts={statusCounts} />
-                        <div className="metricas-legend">
-                            <div>
-                                <span className="legend-dot legend-green" aria-hidden="true" />
-                                200 — {statusCounts['200']} ({totalStatus ? Math.round((statusCounts['200'] / totalStatus) * 100) : 0}%)
-                            </div>
-                            <div>
-                                <span className="legend-dot legend-yellow" aria-hidden="true" />
-                                401 — {statusCounts['401']} ({totalStatus ? Math.round((statusCounts['401'] / totalStatus) * 100) : 0}%)
-                            </div>
-                            <div>
-                                <span className="legend-dot legend-red" aria-hidden="true" />
-                                500 — {statusCounts['500']} ({totalStatus ? Math.round((statusCounts['500'] / totalStatus) * 100) : 0}%)
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            <section className="metricas-table" aria-label="Detalle de metricas">
-                <div className="metricas-table-row header">
-                    <span aria-hidden="true" />
-                    <span>Indicador</span>
-                    <span>Valor</span>
-                    <span>Detalle</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator green" aria-hidden="true" />
-                    <span>Uptime</span>
-                    <span>{uptimeLabel}</span>
-                    <span>Tiempo activo continuo del servicio.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator blue" aria-hidden="true" />
-                    <span>Solicitudes</span>
-                    <span>{requestsTotal ?? '--'}</span>
-                    <span>Trafico acumulado desde el arranque.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator teal" aria-hidden="true" />
-                    <span>Latencia promedio</span>
-                    <span>{latencyAvg !== null ? `${latencyAvg.toFixed(1)} ms` : '--'}</span>
-                    <span>Tiempo medio de respuesta.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator orange" aria-hidden="true" />
-                    <span>Latencia maxima</span>
-                    <span>{latencyMax !== null ? `${latencyMax.toFixed(1)} ms` : '--'}</span>
-                    <span>Picos de carga recientes.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator green" aria-hidden="true" />
-                    <span>HTTP 200</span>
-                    <span>{statusCounts['200']}</span>
-                    <span>Respuestas exitosas.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator yellow" aria-hidden="true" />
-                    <span>HTTP 401</span>
-                    <span>{statusCounts['401']}</span>
-                    <span>Accesos no autorizados.</span>
-                </div>
-                <div className="metricas-table-row">
-                    <span className="indicator red" aria-hidden="true" />
-                    <span>HTTP 500</span>
-                    <span>{statusCounts['500']}</span>
-                    <span>Errores internos.</span>
-                </div>
-            </section>
-
-            {errorMessage ? (
-                <div className="metricas-alert" role="status" aria-live="polite">
-                    {errorMessage}
+            {hasCriticalAuthError ? (
+                <div className="dashboard-global-alert" role="status" aria-live="polite">
+                    Algunos bloques requieren permisos adicionales para tu sesión actual.
                 </div>
             ) : null}
 
-            {isLoading ? (
-                <div className="metricas-loading">Cargando metricas...</div>
+            <SectionAdoption title="Executive Summary" state={blocks.executiveSummary} prioritized />
+            <SectionAdoption title="Adoption History" state={blocks.adoptionHistory} />
+
+            <section className="dashboard-funnel-grid">
+                <SectionFunnel title="Funnel" state={blocks.funnel} />
+                <SectionFunnel title="Productivity" state={blocks.productivity} />
+                <SectionFunnel title="Human Review" state={blocks.humanReview} />
+            </section>
+
+            <SectionSeries title="User Growth" state={blocks.userGrowth} />
+
+            <section className="dashboard-series-grid">
+                <SectionSeries title="Questionnaire Volume" state={blocks.questionnaireVolume} />
+                <SectionSeries title="Questionnaire Quality" state={blocks.questionnaireQuality} />
+            </section>
+
+            <section className="dashboard-series-grid">
+                <SectionSeries title="API Health" state={blocks.apiHealth} />
+                <SectionSeries title="Data Quality" state={blocks.dataQuality} />
+            </section>
+
+            <section className="dashboard-adoption-grid-wide">
+                <SectionAdoption title="Drift" state={blocks.drift} />
+                <SectionAdoption title="Equity" state={blocks.equity} />
+                <SectionAdoption title="Model Monitoring" state={blocks.modelMonitoring} />
+                <SectionAdoption title="Retention" state={blocks.retention} />
+            </section>
+
+            {lastUpdated ? (
+                <div className="dashboard-footnote">
+                    Última actualización: {lastUpdated.toLocaleDateString('es-CO')} {lastUpdated.toLocaleTimeString('es-CO')}
+                </div>
             ) : null}
         </div>
     );
