@@ -11,11 +11,17 @@ import {
     submitQuestionnaireSessionV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireEvaluationComorbidityDTO,
+    QuestionnaireEvaluationDomainDTO,
+    QuestionnaireEvaluationResultDTO,
     QuestionnaireOptionDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseType,
     QuestionnaireResponseValue,
-    QuestionnaireV2Mode
+    QuestionnaireSessionV2DTO,
+    QuestionnaireSubmitResponseV2DTO,
+    QuestionnaireV2Mode,
+    QuestionnaireV2Status
 } from '../../../services/questionnaires/questionnaires.types';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -36,6 +42,18 @@ const LIKERT = [
     { value: 5, label: 'Casi siempre' }
 ];
 const SESSION_PAGE_SIZE = 20;
+const PROCESSING_POLL_INTERVAL_MS = 2500;
+const PROCESSING_TIMEOUT_MS = 120000;
+
+type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
+type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
+
+interface ProcessingStep {
+    id: 'receive' | 'analyze' | 'generate';
+    title: string;
+    description: string;
+    state: ProcessingStepState;
+}
 
 function roleToApiRole(role: string | null) {
     return role === 'psicologo' ? 'psychologist' : 'caregiver';
@@ -252,6 +270,163 @@ function mapStartSessionError(error: unknown, step: StartSessionStep) {
     return `Fallo al ${mapStartSessionStepLabel(step)}.`;
 }
 
+function getBackendStatusLabel(status: QuestionnaireV2Status | null | undefined) {
+    const normalized = (status ?? '').toLowerCase();
+    if (normalized === 'draft') return 'Borrador';
+    if (normalized === 'in_progress') return 'En progreso';
+    if (normalized === 'submitted') return 'Enviado';
+    if (normalized === 'processed') return 'Procesado';
+    if (normalized === 'failed') return 'Fallido';
+    if (normalized === 'archived') return 'Archivado';
+    return status ?? '--';
+}
+
+function isTerminalStatus(status: QuestionnaireV2Status | null | undefined) {
+    const normalized = (status ?? '').toLowerCase();
+    return normalized === 'processed' || normalized === 'failed' || normalized === 'archived';
+}
+
+function hasText(value: unknown) {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
+function hasRenderableResult(payload: QuestionnaireSubmitResponseV2DTO | null) {
+    if (!payload) return false;
+    const result = payload.result as QuestionnaireEvaluationResultDTO | null | undefined;
+    const hasResultBlock =
+        !!result &&
+        (hasText(result.summary) ||
+            hasText(result.operational_recommendation) ||
+            typeof result.completion_quality_score === 'number' ||
+            typeof result.missingness_score === 'number' ||
+            typeof result.needs_professional_review === 'boolean');
+    const hasDomains = Array.isArray(payload.domains) && payload.domains.length > 0;
+    const hasComorbidity = Array.isArray(payload.comorbidity) && payload.comorbidity.length > 0;
+    return hasResultBlock || hasDomains || hasComorbidity;
+}
+
+function mergeCompletionPayload(
+    current: QuestionnaireSubmitResponseV2DTO | null,
+    incoming: QuestionnaireSubmitResponseV2DTO | null
+): QuestionnaireSubmitResponseV2DTO | null {
+    if (!current && !incoming) return null;
+    if (!current) return incoming;
+    if (!incoming) return current;
+
+    const nextResult = hasRenderableResult({ ...incoming, domains: [], comorbidity: [] })
+        ? incoming.result
+        : current.result;
+    const nextDomains =
+        Array.isArray(incoming.domains) && incoming.domains.length > 0
+            ? incoming.domains
+            : current.domains ?? [];
+    const nextComorbidity =
+        Array.isArray(incoming.comorbidity) && incoming.comorbidity.length > 0
+            ? incoming.comorbidity
+            : current.comorbidity ?? [];
+
+    return {
+        ...current,
+        ...incoming,
+        result: nextResult ?? null,
+        domains: nextDomains,
+        comorbidity: nextComorbidity,
+        metadata: incoming.metadata ?? current.metadata ?? null
+    };
+}
+
+function sessionToCompletionPayload(session: QuestionnaireSessionV2DTO): QuestionnaireSubmitResponseV2DTO {
+    return {
+        session_id: session.session_id ?? session.id,
+        questionnaire_id: session.questionnaire_id,
+        status: session.status,
+        result: session.result ?? null,
+        domains: (session.domains as QuestionnaireEvaluationDomainDTO[] | undefined) ?? [],
+        comorbidity: (session.comorbidity as QuestionnaireEvaluationComorbidityDTO[] | undefined) ?? [],
+        metadata: session.metadata ?? null
+    };
+}
+
+function getProcessingMessage(phase: CompletionPhase, status: QuestionnaireV2Status | null | undefined) {
+    if (phase === 'submitting') {
+        return 'Estamos enviando tus respuestas y preparando la evaluacion para analisis.';
+    }
+
+    const normalized = (status ?? '').toLowerCase();
+    if (normalized === 'draft' || normalized === 'in_progress') {
+        return 'El motor esta validando consistencia y preparando el analisis clinico orientativo.';
+    }
+    if (normalized === 'submitted') {
+        return 'La evaluacion esta en cola de procesamiento y generacion de resultado.';
+    }
+    if (normalized === 'processed') {
+        return 'La evaluacion finalizo correctamente.';
+    }
+    if (normalized === 'failed') {
+        return 'No se logro completar el procesamiento de la evaluacion.';
+    }
+    if (normalized === 'archived') {
+        return 'La sesion fue archivada antes de completar el resultado.';
+    }
+    return 'Estamos consolidando la informacion para generar un resultado util.';
+}
+
+function buildProcessingSteps(phase: CompletionPhase, status: QuestionnaireV2Status | null | undefined): ProcessingStep[] {
+    const normalized = (status ?? '').toLowerCase();
+    const receiveState: ProcessingStepState =
+        phase === 'submitting' ? 'active' : phase === 'processing' || phase === 'processed' ? 'done' : 'pending';
+    let analyzeState: ProcessingStepState = 'pending';
+    let generateState: ProcessingStepState = 'pending';
+
+    if (phase === 'submitting') {
+        analyzeState = 'pending';
+        generateState = 'pending';
+    } else if (phase === 'processing') {
+        if (normalized === 'draft' || normalized === 'in_progress') {
+            analyzeState = 'active';
+            generateState = 'pending';
+        } else if (normalized === 'submitted') {
+            analyzeState = 'done';
+            generateState = 'active';
+        } else {
+            analyzeState = 'active';
+            generateState = 'pending';
+        }
+    } else if (phase === 'processed') {
+        analyzeState = 'done';
+        generateState = 'done';
+    } else if (phase === 'failed') {
+        analyzeState = normalized === 'failed' ? 'error' : 'done';
+        generateState = 'error';
+    }
+
+    return [
+        {
+            id: 'receive',
+            title: 'Recepcion de respuestas',
+            description: 'Confirmamos y sellamos tus respuestas en la sesion activa.',
+            state: receiveState
+        },
+        {
+            id: 'analyze',
+            title: 'Analisis de evaluacion',
+            description: 'Corremos validaciones y consistencia del cuestionario.',
+            state: analyzeState
+        },
+        {
+            id: 'generate',
+            title: 'Generacion de resultado',
+            description: 'Consolidamos hallazgos para mostrar un resumen accionable.',
+            state: generateState
+        }
+    ];
+}
+
+function formatPercent(value: number | null | undefined) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+    return `${Math.round(value * 100) / 100}%`;
+}
+
 function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
     const required = isQuestionRequired(question);
     if (!required && (value === null || value === undefined || value === '')) {
@@ -305,13 +480,41 @@ export default function Cuestionario() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [working, setWorking] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [showSuccess, setShowSuccess] = useState(false);
+    const [completionPhase, setCompletionPhase] = useState<CompletionPhase>('idle');
+    const [backendStatus, setBackendStatus] = useState<QuestionnaireV2Status | null>(null);
+    const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
+    const [completionError, setCompletionError] = useState<string | null>(null);
+    const [sessionSnapshot, setSessionSnapshot] = useState<QuestionnaireSessionV2DTO | null>(null);
     const activeRef = useRef<HTMLDivElement | null>(null);
+    const isMountedRef = useRef(true);
+    const pollingTimerRef = useRef<number | null>(null);
+    const pollingTokenRef = useRef(0);
+    const pollingStartedAtRef = useRef<number | null>(null);
+    const completionPayloadRef = useRef<QuestionnaireSubmitResponseV2DTO | null>(null);
+    const processingPanelRef = useRef<HTMLDivElement | null>(null);
 
     const modeMeta = useMemo(
         () => MODE_OPTIONS.find((mode) => mode.value === selectedMode) ?? MODE_OPTIONS[2],
         [selectedMode]
     );
+
+    useEffect(() => {
+        completionPayloadRef.current = completionPayload;
+    }, [completionPayload]);
+
+    const stopPolling = useCallback(() => {
+        if (pollingTimerRef.current !== null) {
+            window.clearTimeout(pollingTimerRef.current);
+            pollingTimerRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            stopPolling();
+        };
+    }, [stopPolling]);
 
     const loadActive = useCallback(async () => {
         setActiveLoading(true);
@@ -356,6 +559,64 @@ export default function Cuestionario() {
         return Array.from(uniqueById.values()).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     }, []);
 
+    const startStatusPolling = useCallback((sessionIdToPoll: string) => {
+        stopPolling();
+        pollingTokenRef.current += 1;
+        const currentToken = pollingTokenRef.current;
+        pollingStartedAtRef.current = Date.now();
+
+        const poll = async () => {
+            if (!isMountedRef.current || pollingTokenRef.current !== currentToken) return;
+
+            const startedAt = pollingStartedAtRef.current ?? Date.now();
+            if (Date.now() - startedAt >= PROCESSING_TIMEOUT_MS) {
+                setCompletionPhase('failed');
+                setCompletionError('La evaluacion sigue en proceso por mas tiempo del esperado. Puedes reintentar la consulta en unos minutos.');
+                stopPolling();
+                return;
+            }
+
+            try {
+                const latestSession = await getQuestionnaireSessionV2(sessionIdToPoll);
+                if (!isMountedRef.current || pollingTokenRef.current !== currentToken) return;
+
+                setSessionSnapshot(latestSession);
+                const latestStatus = latestSession.status ?? null;
+                setBackendStatus(latestStatus);
+
+                const sessionOutcome = sessionToCompletionPayload(latestSession);
+                setCompletionPayload((prev) => mergeCompletionPayload(prev, sessionOutcome));
+
+                if (isTerminalStatus(latestStatus)) {
+                    stopPolling();
+                    if ((latestStatus ?? '').toLowerCase() === 'processed') {
+                        setCompletionPhase('processed');
+                        setCompletionError(null);
+                    } else {
+                        setCompletionPhase('failed');
+                        if ((latestStatus ?? '').toLowerCase() === 'archived') {
+                            setCompletionError('La sesion fue archivada antes de obtener un resultado final.');
+                        } else {
+                            setCompletionError('El procesamiento de la evaluacion finalizo con error.');
+                        }
+                    }
+                    return;
+                }
+
+                pollingTimerRef.current = window.setTimeout(() => {
+                    void poll();
+                }, PROCESSING_POLL_INTERVAL_MS);
+            } catch (requestError) {
+                if (!isMountedRef.current || pollingTokenRef.current !== currentToken) return;
+                setCompletionPhase('failed');
+                setCompletionError(mapError(requestError, 'No se pudo consultar el estado del procesamiento.'));
+                stopPolling();
+            }
+        };
+
+        void poll();
+    }, [stopPolling]);
+
     useEffect(() => {
         const timeoutId = window.setTimeout(() => void loadActive(), 0);
         return () => window.clearTimeout(timeoutId);
@@ -368,9 +629,23 @@ export default function Cuestionario() {
         });
     }, [currentIndex, started]);
 
+    useEffect(() => {
+        if (completionPhase === 'idle') return;
+        const rafId = requestAnimationFrame(() => {
+            processingPanelRef.current?.focus();
+        });
+        return () => cancelAnimationFrame(rafId);
+    }, [completionPhase]);
+
     const startSession = useCallback(async () => {
+        stopPolling();
         setWorking(true);
         setError(null);
+        setCompletionPhase('idle');
+        setCompletionPayload(null);
+        setCompletionError(null);
+        setBackendStatus(null);
+        setSessionSnapshot(null);
         let failedStep: StartSessionStep = 'create_session';
         try {
             const created = await createQuestionnaireSessionV2({
@@ -395,13 +670,14 @@ export default function Cuestionario() {
             setQuestions(allQuestions);
             setAnswers(initialAnswers);
             setCurrentIndex(0);
+            setSessionSnapshot(detail);
             setStarted(true);
         } catch (requestError) {
             setError(mapStartSessionError(requestError, failedStep));
         } finally {
             setWorking(false);
         }
-    }, [apiRole, loadAllSessionQuestions, selectedMode]);
+    }, [apiRole, loadAllSessionQuestions, selectedMode, stopPolling]);
 
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
@@ -441,13 +717,40 @@ export default function Cuestionario() {
         if (!sessionId || !currentQuestion || !canContinue) return;
         setWorking(true);
         setError(null);
+        setCompletionError(null);
+        setCompletionPhase('submitting');
         try {
             const saved = await saveCurrent();
-            if (!saved) return;
-            await submitQuestionnaireSessionV2(sessionId);
-            setShowSuccess(true);
+            if (!saved) {
+                setCompletionPhase('idle');
+                return;
+            }
+            const submitPayload = await submitQuestionnaireSessionV2(sessionId);
+            const mergedPayload = mergeCompletionPayload(
+                null,
+                mergeCompletionPayload(submitPayload, { session_id: submitPayload.session_id ?? sessionId })
+            );
+            setCompletionPayload(mergedPayload);
+            const submittedStatus = submitPayload.status ?? null;
+            setBackendStatus(submittedStatus);
+
+            const normalizedStatus = (submittedStatus ?? '').toLowerCase();
+            if (normalizedStatus === 'failed') {
+                setCompletionPhase('failed');
+                setCompletionError('La evaluacion no pudo procesarse correctamente. Puedes intentar consultar el estado de nuevo.');
+                return;
+            }
+
+            if (normalizedStatus === 'processed' && hasRenderableResult(mergedPayload)) {
+                setCompletionPhase('processed');
+                return;
+            }
+
+            setCompletionPhase('processing');
+            startStatusPolling(sessionId);
         } catch (requestError) {
-            setError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
+            setCompletionPhase('failed');
+            setCompletionError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
         } finally {
             setWorking(false);
         }
@@ -465,15 +768,47 @@ export default function Cuestionario() {
     };
 
     const handleSuccessClose = () => {
-        setShowSuccess(false);
+        stopPolling();
         setStarted(false);
         setSessionId(null);
         setQuestions([]);
         setAnswers({});
         setCurrentIndex(0);
         setError(null);
+        setCompletionPhase('idle');
+        setBackendStatus(null);
+        setCompletionPayload(null);
+        setCompletionError(null);
+        setSessionSnapshot(null);
         void loadActive();
     };
+
+    const handleRetryProcessing = () => {
+        if (!sessionId) return;
+        setCompletionPhase('processing');
+        setCompletionError(null);
+        startStatusPolling(sessionId);
+    };
+
+    const processingSteps = useMemo(
+        () => buildProcessingSteps(completionPhase, backendStatus),
+        [backendStatus, completionPhase]
+    );
+    const processingMessage = useMemo(
+        () => getProcessingMessage(completionPhase, backendStatus),
+        [backendStatus, completionPhase]
+    );
+    const resultBlock = completionPayload?.result ?? null;
+    const domains = completionPayload?.domains ?? [];
+    const comorbidity = completionPayload?.comorbidity ?? [];
+    const resultSessionId = completionPayload?.session_id ?? sessionSnapshot?.session_id ?? sessionId ?? '--';
+    const resultQuestionnaireId = completionPayload?.questionnaire_id ?? sessionSnapshot?.questionnaire_id ?? '--';
+    const statusChipClass =
+        completionPhase === 'processed'
+            ? 'is-processed'
+            : completionPhase === 'failed'
+                ? 'is-failed'
+                : 'is-processing';
 
     return (
         <div className="plataforma-view">
@@ -558,7 +893,178 @@ export default function Cuestionario() {
                         </div>
 
                         <div className="questionnaire-stack">
-                            {currentQuestion ? (
+                            {completionPhase !== 'idle' ? (
+                                <div
+                                    className={`questionnaire-processing-panel ${completionPhase === 'processed' ? 'is-result' : ''} ${completionPhase === 'failed' ? 'is-error' : ''}`}
+                                    aria-live="polite"
+                                    ref={processingPanelRef}
+                                    tabIndex={-1}
+                                >
+                                    <div className={`questionnaire-processing-chip ${statusChipClass}`}>
+                                        {completionPhase === 'submitting' || completionPhase === 'processing'
+                                            ? 'Procesando evaluacion'
+                                            : completionPhase === 'processed'
+                                                ? 'Resultado listo'
+                                                : 'Procesamiento interrumpido'}
+                                    </div>
+                                    <h2 className="questionnaire-processing-title">
+                                        {completionPhase === 'processed'
+                                            ? 'Evaluacion completada'
+                                            : completionPhase === 'failed'
+                                                ? 'No pudimos completar la evaluacion'
+                                                : 'Estamos analizando tus respuestas'}
+                                    </h2>
+                                    <p className="questionnaire-processing-description">{processingMessage}</p>
+
+                                    {completionPhase === 'submitting' || completionPhase === 'processing' ? (
+                                        <div className="questionnaire-processing-visual" aria-hidden="true">
+                                            <div className="processing-orb"></div>
+                                            <div className="processing-wave"></div>
+                                            <div className="processing-wave delay"></div>
+                                        </div>
+                                    ) : null}
+
+                                    <div className="questionnaire-processing-steps">
+                                        {processingSteps.map((step) => (
+                                            <div key={step.id} className={`processing-step is-${step.state}`}>
+                                                <div className="processing-step-indicator" aria-hidden="true"></div>
+                                                <div>
+                                                    <strong>{step.title}</strong>
+                                                    <p>{step.description}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="questionnaire-processing-meta">
+                                        <div>
+                                            <strong>Estado backend</strong>
+                                            <span>{getBackendStatusLabel(backendStatus)}</span>
+                                        </div>
+                                        <div>
+                                            <strong>ID sesion</strong>
+                                            <span>{resultSessionId}</span>
+                                        </div>
+                                        <div>
+                                            <strong>ID cuestionario</strong>
+                                            <span>{resultQuestionnaireId}</span>
+                                        </div>
+                                        <div>
+                                            <strong>Progreso backend</strong>
+                                            <span>{formatPercent(sessionSnapshot?.progress_pct)}</span>
+                                        </div>
+                                    </div>
+
+                                    {completionPhase === 'processed' ? (
+                                        <div className="questionnaire-result-view">
+                                            <h3>Resultado principal</h3>
+                                            {resultBlock ? (
+                                                <div className="questionnaire-result-grid">
+                                                    <div>
+                                                        <strong>Resumen</strong>
+                                                        <p>{toText(resultBlock.summary, 'Sin resumen disponible.')}</p>
+                                                    </div>
+                                                    <div>
+                                                        <strong>Recomendacion operativa</strong>
+                                                        <p>{toText(resultBlock.operational_recommendation, 'Sin recomendacion registrada.')}</p>
+                                                    </div>
+                                                    <div>
+                                                        <strong>Calidad de completitud</strong>
+                                                        <p>{formatPercent(resultBlock.completion_quality_score)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <strong>Nivel de datos faltantes</strong>
+                                                        <p>{formatPercent(resultBlock.missingness_score)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <strong>Revision profesional</strong>
+                                                        <p>
+                                                            {typeof resultBlock.needs_professional_review === 'boolean'
+                                                                ? resultBlock.needs_professional_review ? 'Si recomendada' : 'No requerida'
+                                                                : '--'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="questionnaire-result-empty">
+                                                    El estado llego a procesado, pero no hay resumen estructurado para mostrar.
+                                                </p>
+                                            )}
+
+                                            {domains.length > 0 ? (
+                                                <div className="questionnaire-result-section">
+                                                    <h4>Dominios evaluados</h4>
+                                                    <div className="questionnaire-result-list">
+                                                        {domains.map((domain, index) => (
+                                                            <article key={`${domain.domain ?? 'domain'}-${index}`} className="questionnaire-result-item">
+                                                                <header>
+                                                                    <strong>{toText(domain.domain, `Dominio ${index + 1}`)}</strong>
+                                                                    <span className={`domain-alert is-${toText(domain.alert_level, 'unknown').toLowerCase()}`}>
+                                                                        {toText(domain.alert_level, '--')}
+                                                                    </span>
+                                                                </header>
+                                                                <p>{toText(domain.result_summary, 'Sin resumen operativo para este dominio.')}</p>
+                                                                <div className="questionnaire-result-item-meta">
+                                                                    <span>Probabilidad: {formatPercent(domain.probability)}</span>
+                                                                    <span>Confianza: {formatPercent(domain.confidence_pct)}</span>
+                                                                    <span>Banda: {toText(domain.confidence_band, '--')}</span>
+                                                                </div>
+                                                                <div className="questionnaire-result-item-meta">
+                                                                    <span>Clase operativa: {toText(domain.operational_class, '--')}</span>
+                                                                    <span>Caveat: {toText(domain.operational_caveat, '--')}</span>
+                                                                </div>
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
+                                            {comorbidity.length > 0 ? (
+                                                <div className="questionnaire-result-section">
+                                                    <h4>Comorbilidad</h4>
+                                                    <div className="questionnaire-result-list">
+                                                        {comorbidity.map((item, index) => (
+                                                            <article key={`${item.coexistence_key ?? 'co'}-${index}`} className="questionnaire-result-item">
+                                                                <header>
+                                                                    <strong>{toText(item.coexistence_key, `Relacion ${index + 1}`)}</strong>
+                                                                </header>
+                                                                <p>{toText(item.summary, 'Sin resumen de coexistencia.')}</p>
+                                                                <div className="questionnaire-result-item-meta">
+                                                                    <span>Dominios: {Array.isArray(item.domains) && item.domains.length > 0 ? item.domains.join(', ') : '--'}</span>
+                                                                    <span>Riesgo combinado: {formatPercent(item.combined_risk_score)}</span>
+                                                                    <span>Nivel: {toText(item.coexistence_level, '--')}</span>
+                                                                </div>
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
+                                            <div className="questionnaire-result-actions">
+                                                <button type="button" className="questionnaire-btn primary" onClick={handleSuccessClose}>
+                                                    Finalizar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {completionPhase === 'failed' ? (
+                                        <div className="questionnaire-processing-error">
+                                            <p>{completionError ?? 'No fue posible completar el procesamiento de la evaluacion.'}</p>
+                                            <div className="questionnaire-result-actions">
+                                                <button type="button" className="questionnaire-btn ghost" onClick={handleSuccessClose}>
+                                                    Volver al inicio
+                                                </button>
+                                                {sessionId ? (
+                                                    <button type="button" className="questionnaire-btn primary" onClick={handleRetryProcessing}>
+                                                        Reintentar estado
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : currentQuestion ? (
                                 <div className="stack-active">
                                     <div className="stack-item is-active" ref={activeRef}>
                                         <h2 className="question-text">{currentQuestion.text}</h2>
@@ -649,17 +1155,6 @@ export default function Cuestionario() {
                     </div>
                 )}
             </div>
-
-            {showSuccess ? (
-                <div className="questionnaire-modal">
-                    <div className="questionnaire-modal-card">
-                        <p>Cuestionario enviado correctamente.</p>
-                        <button type="button" className="questionnaire-btn primary" onClick={handleSuccessClose}>
-                            Entendido
-                        </button>
-                    </div>
-                </div>
-            ) : null}
         </div>
     );
 }

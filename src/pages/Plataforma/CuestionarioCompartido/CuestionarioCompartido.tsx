@@ -19,36 +19,17 @@ function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
 }
 
+function getNumber(value: unknown, fallback = '--') {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return String(parsed);
+}
+
 function getDate(value: unknown) {
     if (typeof value !== 'string' || !value) return '--';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
     return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
-}
-
-function toRecord(payload: unknown): Record<string, unknown> | null {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    return payload as Record<string, unknown>;
-}
-
-function toLabel(key: string) {
-    const label = key.replace(/_/g, ' ').trim();
-    if (!label) return '--';
-    return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function formatValue(value: unknown) {
-    if (value === null || value === undefined) return '--';
-    if (typeof value === 'string') return value.trim().length > 0 ? value : '--';
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    if (Array.isArray(value)) {
-        if (value.length === 0) return '--';
-        const scalarValues = value.filter((item) => ['string', 'number', 'boolean'].includes(typeof item));
-        if (scalarValues.length === value.length) return scalarValues.map(String).join(', ');
-        return `${value.length} elemento(s)`;
-    }
-    if (typeof value === 'object') return 'Disponible';
-    return '--';
 }
 
 function getModeLabel(mode: string | undefined) {
@@ -75,19 +56,6 @@ function getStatusLabel(status: string | undefined) {
     if (normalized === 'failed') return 'Fallido';
     if (normalized === 'archived') return 'Archivado';
     return status ?? '--';
-}
-
-function getTagVisibilityLabel(visibility: string | undefined | null) {
-    const normalized = (visibility ?? '').toLowerCase();
-    if (normalized === 'private') return 'Privado';
-    if (normalized === 'shared') return 'Compartido';
-    return '--';
-}
-
-function normalizeTagColor(color: string | null | undefined) {
-    const value = (color ?? '').trim();
-    if (!value) return '#215f8f';
-    return value;
 }
 
 export default function CuestionarioCompartido() {
@@ -121,41 +89,11 @@ export default function CuestionarioCompartido() {
         return () => window.clearTimeout(timeoutId);
     }, [questionnaireId, shareCode]);
 
-    const resultsRecord = useMemo(() => toRecord(payload?.results), [payload]);
-    const summaryRecord = useMemo(() => toRecord(payload?.summary), [payload]);
-    const metadataRecord = useMemo(() => toRecord(payload?.metadata), [payload]);
-    const resultRows = useMemo(() => {
-        if (!resultsRecord) return [];
-        return Object.entries(resultsRecord)
-            .map(([key, value]) => ({
-                key,
-                label: toLabel(key),
-                value: formatValue(value)
-            }))
-            .filter((row) => row.value !== '--');
-    }, [resultsRecord]);
-
-    const summaryRows = useMemo(() => {
-        if (!summaryRecord) return [];
-        return Object.entries(summaryRecord)
-            .map(([key, value]) => ({
-                key,
-                label: toLabel(key),
-                value: formatValue(value)
-            }))
-            .filter((row) => row.value !== '--');
-    }, [summaryRecord]);
-
-    const metadataRows = useMemo(() => {
-        if (!metadataRecord) return [];
-        return Object.entries(metadataRecord)
-            .map(([key, value]) => ({
-                key,
-                label: toLabel(key),
-                value: formatValue(value)
-            }))
-            .filter((row) => row.value !== '--');
-    }, [metadataRecord]);
+    const session = useMemo(() => payload?.session ?? null, [payload]);
+    const result = useMemo(() => payload?.result ?? null, [payload]);
+    const domains = useMemo(() => payload?.domains ?? [], [payload]);
+    const comorbidity = useMemo(() => payload?.comorbidity ?? [], [payload]);
+    const showNotFoundState = !loading && !error && payload && !session && !result && domains.length === 0 && comorbidity.length === 0;
 
     return (
         <div className="shared-questionnaire">
@@ -166,27 +104,60 @@ export default function CuestionarioCompartido() {
 
                 {!loading && !error && payload ? (
                     <div className="shared-questionnaire-content">
+                        {showNotFoundState ? (
+                            <div className="shared-questionnaire-empty">
+                                No se encontro informacion util para este enlace compartido.
+                            </div>
+                        ) : null}
+
                         <div className="shared-questionnaire-meta">
-                            <div><strong>Titulo</strong><span>{getString(payload.name || payload.title)}</span></div>
-                            <div><strong>Version</strong><span>{getString(payload.version)}</span></div>
-                            <div><strong>Estado</strong><span>{getStatusLabel(payload.status)}</span></div>
-                            <div><strong>Modo</strong><span>{getModeLabel(payload.mode)}</span></div>
-                            <div><strong>Rol</strong><span>{getRoleLabel(payload.role)}</span></div>
-                            <div><strong>Creado</strong><span>{getDate(payload.created_at)}</span></div>
-                            <div><strong>Actualizado</strong><span>{getDate(payload.updated_at)}</span></div>
-                            <div><strong>Expira</strong><span>{getDate(payload.expires_at)}</span></div>
+                            <div><strong>Questionnaire ID</strong><span>{getString(session?.questionnaire_id ?? payload.questionnaire_id)}</span></div>
+                            <div><strong>Session ID</strong><span>{getString(session?.session_id)}</span></div>
+                            <div><strong>Estado</strong><span>{getStatusLabel(session?.status)}</span></div>
+                            <div><strong>Modo</strong><span>{getModeLabel(session?.mode)}</span></div>
+                            <div><strong>Rol</strong><span>{getRoleLabel(session?.role)}</span></div>
+                            <div><strong>Version</strong><span>{getString(session?.version)}</span></div>
+                            <div><strong>Progreso (%)</strong><span>{getNumber(session?.progress_pct)}</span></div>
+                            <div><strong>Mode key</strong><span>{getString(session?.mode_key)}</span></div>
+                            <div><strong>Creado</strong><span>{getDate(session?.created_at)}</span></div>
+                            <div><strong>Actualizado</strong><span>{getDate(session?.updated_at)}</span></div>
                         </div>
 
                         <div className="shared-questionnaire-section">
-                            <h2>Resumen</h2>
-                            {summaryRows.length === 0 ? (
-                                <p>Sin resumen disponible.</p>
-                            ) : (
+                            <h2>Resultado principal</h2>
+                            {result ? (
                                 <div className="shared-questionnaire-results">
-                                    {summaryRows.map((row) => (
-                                        <div key={row.key}>
-                                            <strong>{row.label}</strong>
-                                            <span>{row.value}</span>
+                                    <div><strong>Summary</strong><span>{getString(result.summary)}</span></div>
+                                    <div><strong>Recomendacion operativa</strong><span>{getString(result.operational_recommendation)}</span></div>
+                                    <div><strong>Completion quality score</strong><span>{getNumber(result.completion_quality_score)}</span></div>
+                                    <div><strong>Missingness score</strong><span>{getNumber(result.missingness_score)}</span></div>
+                                    <div><strong>Needs professional review</strong><span>{result.needs_professional_review === null || result.needs_professional_review === undefined ? '--' : result.needs_professional_review ? 'Si' : 'No'}</span></div>
+                                </div>
+                            ) : (
+                                <p>No hay resultado principal disponible.</p>
+                            )}
+                        </div>
+
+                        <div className="shared-questionnaire-section">
+                            <h2>Dominios</h2>
+                            {domains.length === 0 ? (
+                                <p>No hay dominios disponibles.</p>
+                            ) : (
+                                <div className="shared-questionnaire-domain-list">
+                                    {domains.map((domain, index) => (
+                                        <div className="shared-questionnaire-domain" key={`${domain.domain}-${index}`}>
+                                            <div><strong>Domain</strong><span>{getString(domain.domain)}</span></div>
+                                            <div><strong>Alert level</strong><span>{getString(domain.alert_level)}</span></div>
+                                            <div><strong>Confidence (%)</strong><span>{getNumber(domain.confidence_pct)}</span></div>
+                                            <div><strong>Confidence band</strong><span>{getString(domain.confidence_band)}</span></div>
+                                            <div><strong>Probability</strong><span>{getNumber(domain.probability)}</span></div>
+                                            <div><strong>Result summary</strong><span>{getString(domain.result_summary)}</span></div>
+                                            <div><strong>Operational class</strong><span>{getString(domain.operational_class)}</span></div>
+                                            <div><strong>Operational caveat</strong><span>{getString(domain.operational_caveat)}</span></div>
+                                            <div><strong>Needs professional review</strong><span>{domain.needs_professional_review === null || domain.needs_professional_review === undefined ? '--' : domain.needs_professional_review ? 'Si' : 'No'}</span></div>
+                                            <div><strong>Model ID</strong><span>{getString(domain.model_id)}</span></div>
+                                            <div><strong>Model version</strong><span>{getString(domain.model_version)}</span></div>
+                                            <div><strong>Mode</strong><span>{getString(domain.mode)}</span></div>
                                         </div>
                                     ))}
                                 </div>
@@ -194,51 +165,18 @@ export default function CuestionarioCompartido() {
                         </div>
 
                         <div className="shared-questionnaire-section">
-                            <h2>Resultados</h2>
-                            {resultRows.length === 0 ? (
-                                <p>No hay resultados compartidos disponibles.</p>
+                            <h2>Comorbilidad</h2>
+                            {comorbidity.length === 0 ? (
+                                <p>No hay datos de comorbilidad disponibles.</p>
                             ) : (
-                                <div className="shared-questionnaire-results">
-                                    {resultRows.map((row) => (
-                                        <div key={row.key}>
-                                            <strong>{row.label}</strong>
-                                            <span>{row.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="shared-questionnaire-section">
-                            <h2>Etiquetas</h2>
-                            {Array.isArray(payload.tags) && payload.tags.length > 0 ? (
-                                <div className="shared-questionnaire-tags">
-                                    {payload.tags.map((tag, index) => (
-                                        <span
-                                            key={`${tag.id ?? tag.tag_id ?? index}`}
-                                            className="shared-questionnaire-tag"
-                                            style={{ borderLeftColor: normalizeTagColor(tag.color) }}
-                                        >
-                                            <span>{getString(tag.label ?? tag.tag, '--')}</span>
-                                            <small>{getTagVisibilityLabel(tag.visibility)}</small>
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p>Sin etiquetas compartidas.</p>
-                            )}
-                        </div>
-
-                        <div className="shared-questionnaire-section">
-                            <h2>Metadata</h2>
-                            {metadataRows.length === 0 ? (
-                                <p>Sin metadata disponible.</p>
-                            ) : (
-                                <div className="shared-questionnaire-results">
-                                    {metadataRows.map((row) => (
-                                        <div key={row.key}>
-                                            <strong>{row.label}</strong>
-                                            <span>{row.value}</span>
+                                <div className="shared-questionnaire-domain-list">
+                                    {comorbidity.map((item, index) => (
+                                        <div className="shared-questionnaire-domain" key={`${item.coexistence_key}-${index}`}>
+                                            <div><strong>Coexistence key</strong><span>{getString(item.coexistence_key)}</span></div>
+                                            <div><strong>Domains</strong><span>{item.domains.length > 0 ? item.domains.join(', ') : '--'}</span></div>
+                                            <div><strong>Combined risk score</strong><span>{getNumber(item.combined_risk_score)}</span></div>
+                                            <div><strong>Coexistence level</strong><span>{getString(item.coexistence_level)}</span></div>
+                                            <div><strong>Summary</strong><span>{getString(item.summary)}</span></div>
                                         </div>
                                     ))}
                                 </div>
