@@ -120,10 +120,13 @@ export interface QuestionnaireHistoryListV2Response {
 export interface QuestionnaireTagDTO {
     id?: string;
     tag_id?: string;
+    label: string;
     tag?: string;
     color?: string | null;
-    visibility?: QuestionnaireTagVisibility | string | null;
+    visibility?: QuestionnaireTagVisibility | null;
+    visibility_label?: 'Privado' | 'Compartido' | '--';
     created_at?: string | null;
+    updated_at?: string | null;
     [key: string]: unknown;
 }
 
@@ -144,6 +147,8 @@ export interface ShareQuestionnairePayload {
 export interface QuestionnaireShareResponseDTO {
     questionnaire_id?: string;
     share_code?: string;
+    shared_path?: string;
+    shared_url?: string;
     url?: string;
     share_url?: string;
     public_url?: string;
@@ -176,6 +181,7 @@ export interface QuestionnaireHistoryDetailV2DTO extends QuestionnaireHistoryIte
 export interface QuestionnaireSharedDataV2DTO {
     questionnaire_id?: string;
     share_code?: string;
+    shared_url?: string;
     name?: string;
     title?: string;
     version?: string;
@@ -187,6 +193,7 @@ export interface QuestionnaireSharedDataV2DTO {
     expires_at?: string | null;
     tags?: QuestionnaireTagDTO[];
     results?: Record<string, unknown> | null;
+    summary?: Record<string, unknown> | null;
     metadata?: Record<string, unknown> | null;
     [key: string]: unknown;
 }

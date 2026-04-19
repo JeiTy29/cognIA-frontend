@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
+import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
@@ -48,6 +49,18 @@ const tagVisibilityOptions = [
     { value: 'private', label: 'Privado' },
     { value: 'shared', label: 'Compartido' }
 ];
+
+const tagColorOptions = [
+    { value: '#215f8f', label: 'Azul' },
+    { value: '#198e50', label: 'Verde' },
+    { value: '#d97a1f', label: 'Naranja' },
+    { value: '#7b4bbf', label: 'Violeta' },
+    { value: '#c23f5a', label: 'Frambuesa' },
+    { value: '#4f7a6a', label: 'Oliva' },
+    { value: '#3e6ea8', label: 'Indigo' },
+    { value: '#6a6f7d', label: 'Gris' }
+];
+const defaultTagColor = tagColorOptions[0].value;
 
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
@@ -124,6 +137,35 @@ function resolveTagId(tag: QuestionnaireTagDTO) {
     return '';
 }
 
+function getTagVisibilityLabel(visibility: string | null | undefined) {
+    const normalized = (visibility ?? '').toLowerCase();
+    if (normalized === 'private') return 'Privado';
+    if (normalized === 'shared') return 'Compartido';
+    return '--';
+}
+
+function normalizeTagColor(color: string | null | undefined) {
+    const value = (color ?? '').trim();
+    if (!value) return defaultTagColor;
+    return value;
+}
+
+function readApiErrorDetail(error: unknown) {
+    if (!(error instanceof ApiError)) return null;
+    const payload = error.payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const record = payload as Record<string, unknown>;
+    const detail = [record.detail, record.message, record.msg, record.error, record.code]
+        .find((item) => typeof item === 'string' && item.trim().length > 0);
+    return typeof detail === 'string' ? detail.trim() : null;
+}
+
+function buildActionErrorMessage(error: unknown, fallback: string) {
+    if (!(error instanceof ApiError)) return fallback;
+    const detail = readApiErrorDetail(error);
+    return detail ? `${fallback} (${detail})` : `${fallback} (HTTP ${error.status})`;
+}
+
 function resolveQuestionnaireId(
     detail: QuestionnaireHistoryDetailV2DTO | null,
     sharePayload: QuestionnaireShareResponseDTO | null
@@ -139,26 +181,6 @@ function resolveQuestionnaireId(
     for (const candidate of candidates) {
         if (typeof candidate === 'string' && candidate.trim().length > 0) {
             return candidate.trim();
-        }
-    }
-
-    return null;
-}
-
-function resolveShareUrl(payload: QuestionnaireShareResponseDTO | null, questionnaireId: string | null) {
-    if (!payload) return null;
-
-    const directCandidates = [payload.url, payload.share_url, payload.public_url, payload.link];
-    for (const candidate of directCandidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            return candidate.trim();
-        }
-    }
-
-    const codeCandidates = [payload.share_code, payload.code];
-    for (const shareCode of codeCandidates) {
-        if (typeof shareCode === 'string' && shareCode.trim().length > 0 && questionnaireId) {
-            return `/cuestionario/compartido/${questionnaireId}/${shareCode.trim()}`;
         }
     }
 
@@ -225,7 +247,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
 
     const [newTag, setNewTag] = useState('');
-    const [newTagColor, setNewTagColor] = useState('');
+    const [newTagColor, setNewTagColor] = useState(defaultTagColor);
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
 
     const [shareExpiresHours, setShareExpiresHours] = useState('24');
@@ -291,7 +313,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setDetailError(null);
         setDetailNotice(null);
         setNewTag('');
-        setNewTagColor('');
+        setNewTagColor(defaultTagColor);
         setNewTagVisibility('private');
         setShareExpiresHours('24');
         setShareMaxUses('');
@@ -306,17 +328,17 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         try {
             await addQuestionnaireHistoryTagV2(detailSessionId, {
                 tag: newTag.trim(),
-                color: newTagColor.trim() || undefined,
+                color: normalizeTagColor(newTagColor),
                 visibility: newTagVisibility
             });
             const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
             setDetailPayload(refreshed);
             setNewTag('');
-            setNewTagColor('');
+            setNewTagColor(defaultTagColor);
             setDetailNotice('Etiqueta agregada correctamente.');
             await reload();
-        } catch {
-            setDetailError('No fue posible agregar la etiqueta.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible agregar la etiqueta.'));
         }
     };
 
@@ -328,8 +350,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             setDetailPayload(refreshed);
             setDetailNotice('Etiqueta eliminada.');
             await reload();
-        } catch {
-            setDetailError('No fue posible eliminar la etiqueta.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible eliminar la etiqueta.'));
         }
     };
 
@@ -346,15 +368,15 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                 grant_can_download_pdf: shareCanDownloadPdf
             });
             setSharePayload(payload);
-            const resolvedUrl = resolveShareUrl(payload, resolveQuestionnaireId(detailPayload, payload));
+            const resolvedUrl = payload.shared_url ?? payload.shared_path ?? null;
             setShareUrl(resolvedUrl);
             setDetailNotice(
                 resolvedUrl
                     ? 'Enlace compartido generado.'
                     : 'El recurso compartido fue creado, pero no se pudo resolver la URL publica.'
             );
-        } catch {
-            setDetailError('No fue posible generar el enlace compartido.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el enlace compartido.'));
         }
     };
 
@@ -363,8 +385,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         try {
             await generateQuestionnaireHistoryPdfV2(detailSessionId);
             setDetailNotice('Generacion de PDF solicitada correctamente.');
-        } catch {
-            setDetailError('No fue posible generar el PDF.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el PDF.'));
         }
     };
 
@@ -374,8 +396,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
             setPdfPayload(payload);
             setDetailNotice('Informacion de PDF cargada.');
-        } catch {
-            setDetailError('No fue posible consultar el estado del PDF.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible consultar el estado del PDF.'));
         }
     };
 
@@ -385,8 +407,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             const result = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
             downloadBlob(result.blob, result.filename);
             setDetailNotice('Descarga iniciada.');
-        } catch {
-            setDetailError('No fue posible descargar el PDF.');
+        } catch (actionError) {
+            setDetailError(buildActionErrorMessage(actionError, 'No fue posible descargar el PDF.'));
         }
     };
 
@@ -511,14 +533,19 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                 <h3>Etiquetas</h3>
                                 {tags.length === 0 ? <p>Sin etiquetas.</p> : (
                                     <div className="historial-v2-tags">
-                                        {tags.map((tag) => {
-                                            const tagName = getString(tag.tag, '--');
+                                        {tags.map((tag, index) => {
+                                            const tagName = getString(tag.label ?? tag.tag, '--');
                                             const tagId = resolveTagId(tag);
+                                            const tagColor = normalizeTagColor(tag.color);
+                                            const visibilityLabel = getString(tag.visibility_label, getTagVisibilityLabel(tag.visibility));
                                             return (
-                                                <div className="historial-v2-tag" key={`${tagId}-${tagName}`}>
-                                                    <span>{tagName}</span>
-                                                    <span>{getString(tag.visibility, '--')}</span>
-                                                    <span>{getString(tag.color, '--')}</span>
+                                                <div
+                                                    className="historial-v2-tag"
+                                                    key={`${tagId || index}-${tagName}`}
+                                                    style={{ borderLeftColor: tagColor }}
+                                                >
+                                                    <span className="historial-v2-tag-name">{tagName}</span>
+                                                    <span className="historial-v2-tag-meta">{visibilityLabel}</span>
                                                     {tagId !== '' ? (
                                                         <button type="button" onClick={() => void handleDeleteTag(tagId)}>
                                                             Eliminar
@@ -537,18 +564,27 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         value={newTag}
                                         onChange={(event) => setNewTag(event.target.value)}
                                     />
-                                    <input
-                                        type="text"
-                                        placeholder="Color (opcional)"
-                                        value={newTagColor}
-                                        onChange={(event) => setNewTagColor(event.target.value)}
-                                    />
                                     <CustomSelect
                                         value={newTagVisibility}
                                         options={tagVisibilityOptions}
                                         onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)}
                                         ariaLabel="Visibilidad de etiqueta"
                                     />
+                                    <div className="historial-v2-color-palette" role="radiogroup" aria-label="Color de etiqueta">
+                                        {tagColorOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`historial-v2-color-swatch ${newTagColor === option.value ? 'is-selected' : ''}`}
+                                                role="radio"
+                                                aria-checked={newTagColor === option.value}
+                                                aria-label={option.label}
+                                                title={option.label}
+                                                style={{ backgroundColor: option.value }}
+                                                onClick={() => setNewTagColor(option.value)}
+                                            />
+                                        ))}
+                                    </div>
                                     <button type="button" className="historial-v2-btn" onClick={() => void handleAddTag()}>
                                         Agregar
                                     </button>
