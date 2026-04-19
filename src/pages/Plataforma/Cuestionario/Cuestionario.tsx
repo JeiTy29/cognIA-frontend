@@ -21,7 +21,6 @@ import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
 const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
-const SESSION_PAGE_SIZE = 200;
 
 const MODE_OPTIONS: Array<{ value: QuestionnaireV2Mode; label: string; hint: string; description: string }> = [
     { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Ideal cuando necesitas una guia inicial en poco tiempo.' },
@@ -266,7 +265,7 @@ export default function Cuestionario() {
     }, [apiRole, selectedMode]);
 
     const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
-        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1, page_size: SESSION_PAGE_SIZE });
+        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1 });
         const firstQuestions = normalizeQuestions(firstPage.items);
         const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
 
@@ -275,7 +274,7 @@ export default function Cuestionario() {
         }
 
         const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
-            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2, page_size: SESSION_PAGE_SIZE })
+            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2 })
         );
         const remainingResponses = await Promise.all(remainingRequests);
         const remainingQuestions = remainingResponses.flatMap((response) => normalizeQuestions(response.items));
