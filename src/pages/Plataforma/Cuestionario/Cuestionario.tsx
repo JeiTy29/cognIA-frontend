@@ -142,7 +142,10 @@ export default function Cuestionario() {
         try {
             const response = await getActiveQuestionnairesV2({
                 mode: selectedMode,
-                role: apiRole
+                role: apiRole,
+                include_full: true,
+                page: 1,
+                page_size: 1
             });
             const first = response.items[0] as Record<string, unknown> | undefined;
             setTemplateName(toText(first?.name, 'Cuestionario de observacion'));

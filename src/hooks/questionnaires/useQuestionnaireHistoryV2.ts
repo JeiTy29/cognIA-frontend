@@ -41,7 +41,10 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
         setError(null);
         try {
             const response = await getQuestionnaireHistoryV2({
-                status: statusFilter === '' ? undefined : (statusFilter as 'draft' | 'submitted' | 'processed'),
+                status:
+                    statusFilter === ''
+                        ? undefined
+                        : (statusFilter as 'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'),
                 page,
                 page_size: pageSize
             });
