@@ -60,6 +60,53 @@ export interface QuestionnaireOptionDTO {
     label: string;
 }
 
+export interface QuestionnaireEvaluationResultDTO {
+    summary?: string | null;
+    operational_recommendation?: string | null;
+    completion_quality_score?: number | null;
+    missingness_score?: number | null;
+    needs_professional_review?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireEvaluationDomainDTO {
+    domain?: string | null;
+    probability?: number | null;
+    alert_level?: string | null;
+    confidence_pct?: number | null;
+    confidence_band?: string | null;
+    model_id?: string | null;
+    model_version?: string | null;
+    mode?: string | null;
+    operational_class?: string | null;
+    operational_caveat?: string | null;
+    result_summary?: string | null;
+    needs_professional_review?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireEvaluationComorbidityDTO {
+    coexistence_key?: string | null;
+    domains?: string[];
+    combined_risk_score?: number | null;
+    coexistence_level?: string | null;
+    summary?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireSubmitResponseV2DTO {
+    session_id?: string;
+    questionnaire_id?: string;
+    status?: QuestionnaireV2Status;
+    submitted_at?: string | null;
+    processed_at?: string | null;
+    result?: QuestionnaireEvaluationResultDTO | null;
+    domains?: QuestionnaireEvaluationDomainDTO[];
+    comorbidity?: QuestionnaireEvaluationComorbidityDTO[];
+    metadata?: Record<string, unknown> | null;
+    [key: string]: unknown;
+}
+
 export interface ActiveQuestionnairesV2Response {
     items: QuestionnaireTemplateV2DTO[];
     pagination: PaginationDTO;
@@ -75,10 +122,19 @@ export interface CreateQuestionnaireSessionV2Payload {
 
 export interface QuestionnaireSessionV2DTO {
     id: string;
+    session_id?: string;
+    questionnaire_id?: string;
     questionnaire_template_id?: string;
     status?: QuestionnaireV2Status;
     mode?: QuestionnaireV2Mode;
     role?: QuestionnaireV2Role;
+    mode_key?: string | null;
+    progress_pct?: number | null;
+    version?: string | null;
+    result?: QuestionnaireEvaluationResultDTO | null;
+    domains?: QuestionnaireEvaluationDomainDTO[];
+    comorbidity?: QuestionnaireEvaluationComorbidityDTO[];
+    metadata?: Record<string, unknown> | null;
     title?: string | null;
     created_at?: string | null;
     updated_at?: string | null;

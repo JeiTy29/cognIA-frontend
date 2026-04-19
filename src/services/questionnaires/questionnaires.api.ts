@@ -16,6 +16,7 @@ import type {
     QuestionnaireHistoryListV2Response,
     QuestionnaireHistoryStatusFilter,
     QuestionnairePdfInfoV2DTO,
+    QuestionnaireSubmitResponseV2DTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireSessionPageV2Response,
     QuestionnaireSessionV2DTO,
@@ -256,10 +257,25 @@ function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
     }
 
     const id = getSessionLikeId(record);
+    const resultPayload = asRecord(record.result) ?? asRecord(record.results);
+    const result = normalizeEvaluationResult(
+        resultPayload ??
+        (firstNonEmptyString([record.summary, record.operational_recommendation]) ? record : null)
+    );
 
     return {
         ...record,
-        id
+        id,
+        session_id:
+            firstNonEmptyString([record.session_id, record.id, record.questionnaire_session_id]) ?? id,
+        questionnaire_id: firstNonEmptyString([record.questionnaire_id, record.questionnaireId]) ?? undefined,
+        mode_key: firstNonEmptyString([record.mode_key]),
+        progress_pct: toNumberOrNull(record.progress_pct),
+        version: firstNonEmptyString([record.version]),
+        result,
+        domains: normalizeEvaluationDomains(record.domains ?? resultPayload?.domains),
+        comorbidity: normalizeEvaluationComorbidity(record.comorbidity ?? resultPayload?.comorbidity),
+        metadata: asRecord(record.metadata)
     } as QuestionnaireSessionV2DTO;
 }
 
@@ -542,6 +558,50 @@ function normalizePdfInfo(payload: unknown): QuestionnairePdfInfoV2DTO {
     return (root ?? {}) as QuestionnairePdfInfoV2DTO;
 }
 
+function normalizeSubmitResponse(payload: unknown): QuestionnaireSubmitResponseV2DTO {
+    const source = asRecord(payload);
+    if (!source) return {};
+
+    const wrapper =
+        asRecord(source.data) ??
+        asRecord(source.submission) ??
+        asRecord(source.submit) ??
+        null;
+    const root: Record<string, unknown> = wrapper ? { ...source, ...wrapper } : source;
+    const rawSession = asRecord(root.session);
+    const status = firstNonEmptyString([root.status, rawSession?.status]) ?? undefined;
+    const resultPayload =
+        asRecord(root.result) ??
+        asRecord(root.results) ??
+        asRecord(rawSession?.result) ??
+        null;
+    const result = normalizeEvaluationResult(
+        resultPayload ??
+        (firstNonEmptyString([root.summary, root.operational_recommendation]) ? root : null)
+    );
+
+    return {
+        ...root,
+        session_id:
+            firstNonEmptyString([
+                root.session_id,
+                root.questionnaire_session_id,
+                rawSession?.session_id,
+                rawSession?.id
+            ]) ?? undefined,
+        questionnaire_id:
+            firstNonEmptyString([root.questionnaire_id, rawSession?.questionnaire_id, root.questionnaireId]) ??
+            undefined,
+        status: status as QuestionnaireSubmitResponseV2DTO['status'],
+        submitted_at: firstNonEmptyString([root.submitted_at]) ?? undefined,
+        processed_at: firstNonEmptyString([root.processed_at]) ?? undefined,
+        result,
+        domains: normalizeEvaluationDomains(root.domains ?? resultPayload?.domains),
+        comorbidity: normalizeEvaluationComorbidity(root.comorbidity ?? resultPayload?.comorbidity),
+        metadata: asRecord(root.metadata)
+    };
+}
+
 function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedDataV2DTO {
     const root = asRecord(payload);
     if (!root) {
@@ -641,6 +701,54 @@ function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedData
     };
 }
 
+function normalizeEvaluationResult(value: unknown) {
+    const record = asRecord(value);
+    if (!record) return null;
+    return {
+        ...record,
+        summary: firstNonEmptyString([record.summary]),
+        operational_recommendation: firstNonEmptyString([record.operational_recommendation]),
+        completion_quality_score: toNumberOrNull(record.completion_quality_score),
+        missingness_score: toNumberOrNull(record.missingness_score),
+        needs_professional_review: toBooleanOrNull(record.needs_professional_review)
+    };
+}
+
+function normalizeEvaluationDomains(value: unknown) {
+    return asArray(value)
+        .map(asRecord)
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .map((domain) => ({
+            ...domain,
+            domain: firstNonEmptyString([domain.domain]),
+            probability: toNumberOrNull(domain.probability),
+            alert_level: firstNonEmptyString([domain.alert_level]),
+            confidence_pct: toNumberOrNull(domain.confidence_pct),
+            confidence_band: firstNonEmptyString([domain.confidence_band]),
+            model_id: firstNonEmptyString([domain.model_id]),
+            model_version: firstNonEmptyString([domain.model_version]),
+            mode: firstNonEmptyString([domain.mode]),
+            operational_class: firstNonEmptyString([domain.operational_class]),
+            operational_caveat: firstNonEmptyString([domain.operational_caveat]),
+            result_summary: firstNonEmptyString([domain.result_summary]),
+            needs_professional_review: toBooleanOrNull(domain.needs_professional_review)
+        }));
+}
+
+function normalizeEvaluationComorbidity(value: unknown) {
+    return asArray(value)
+        .map(asRecord)
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .map((item) => ({
+            ...item,
+            coexistence_key: firstNonEmptyString([item.coexistence_key]),
+            domains: asArray(item.domains).map((domain) => String(domain)),
+            combined_risk_score: toNumberOrNull(item.combined_risk_score),
+            coexistence_level: firstNonEmptyString([item.coexistence_level]),
+            summary: firstNonEmptyString([item.summary])
+        }));
+}
+
 function extractFilenameFromHeaders(headers: Headers) {
     const disposition = headers.get('content-disposition') ?? '';
     if (!disposition) return null;
@@ -708,10 +816,10 @@ export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: P
 }
 
 export function submitQuestionnaireSessionV2(sessionId: string) {
-    return apiPostNoBody<Record<string, unknown>>(
+    return apiPostNoBody<unknown>(
         `/api/v2/questionnaires/sessions/${sessionId}/submit`,
         requestOptions
-    );
+    ).then(normalizeSubmitResponse);
 }
 
 export function getQuestionnaireHistoryV2(params?: {
