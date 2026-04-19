@@ -11,7 +11,9 @@ import {
     submitQuestionnaireSessionV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireOptionDTO,
     QuestionnaireQuestionV2DTO,
+    QuestionnaireResponseType,
     QuestionnaireResponseValue,
     QuestionnaireV2Mode
 } from '../../../services/questionnaires/questionnaires.types';
@@ -20,7 +22,6 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 
 const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
 const SESSION_PAGE_SIZE = 200;
-const MIN_TEXT_LENGTH = 3;
 
 const MODE_OPTIONS: Array<{ value: QuestionnaireV2Mode; label: string; hint: string; description: string }> = [
     { value: 'short', label: 'Version corta', hint: 'Mas rapida', description: 'Ideal cuando necesitas una guia inicial en poco tiempo.' },
@@ -55,7 +56,6 @@ function normalizeAnswerDictionary(value: unknown): Record<string, Questionnaire
             if (!questionId) return acc;
             acc[questionId] =
                 (answer.answer as QuestionnaireResponseValue) ??
-                (answer.value as QuestionnaireResponseValue) ??
                 null;
             return acc;
         }, {});
@@ -72,6 +72,86 @@ function normalizeAnswerDictionary(value: unknown): Record<string, Questionnaire
     return {};
 }
 
+function normalizeQuestionType(value: unknown): QuestionnaireResponseType {
+    const normalized = toText(value, 'text').trim().toLowerCase();
+    if (normalized === 'numeric' || normalized === 'float' || normalized === 'decimal') return 'number';
+    return normalized;
+}
+
+function normalizeOption(value: unknown): QuestionnaireOptionDTO | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return {
+            value,
+            label: String(value)
+        };
+    }
+
+    if (typeof value !== 'object' || Array.isArray(value)) return null;
+
+    const record = value as Record<string, unknown>;
+    const rawValue = record.value ?? record.answer ?? record.id ?? record.code ?? null;
+    if (
+        rawValue !== null &&
+        rawValue !== undefined &&
+        typeof rawValue !== 'string' &&
+        typeof rawValue !== 'number' &&
+        typeof rawValue !== 'boolean'
+    ) {
+        return null;
+    }
+
+    const optionValue =
+        typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+            ? rawValue
+            : null;
+    if (optionValue === null) return null;
+
+    const label =
+        toText(record.label) ||
+        toText(record.text) ||
+        toText(record.name) ||
+        toText(record.title) ||
+        String(optionValue);
+
+    return {
+        value: optionValue,
+        label
+    };
+}
+
+function normalizeQuestionOptions(question: QuestionnaireQuestionV2DTO) {
+    const fromContract = Array.isArray(question.response_options)
+        ? question.response_options.map(normalizeOption).filter((item): item is QuestionnaireOptionDTO => Boolean(item))
+        : [];
+
+    if (fromContract.length > 0) return fromContract;
+
+    if (question.response_type === 'likert') return LIKERT;
+    if (question.response_type === 'boolean') {
+        return [{ value: true, label: 'Si' }, { value: false, label: 'No' }];
+    }
+
+    return [];
+}
+
+function isQuestionRequired(question: QuestionnaireQuestionV2DTO) {
+    const raw = question.required;
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'number') return raw > 0;
+    return true;
+}
+
+function normalizeNumberInputValue(value: string, question: QuestionnaireQuestionV2DTO) {
+    if (value.trim() === '') return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    const isIntegerType = question.response_type === 'integer';
+    if (isIntegerType) return Math.trunc(parsed);
+    return parsed;
+}
+
 function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
     if (!Array.isArray(raw)) return [];
     return raw
@@ -82,14 +162,15 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
                 id: toText(record.id),
                 text: toText(record.text),
                 code: toText(record.code),
-                response_type: toText(record.response_type, 'text'),
+                response_type: normalizeQuestionType(record.response_type),
                 position: Number.isFinite(Number(record.position)) ? Number(record.position) : index + 1,
                 response_min: Number.isFinite(Number(record.response_min)) ? Number(record.response_min) : null,
                 response_max: Number.isFinite(Number(record.response_max)) ? Number(record.response_max) : null,
                 response_step: Number.isFinite(Number(record.response_step)) ? Number(record.response_step) : null,
                 response_options: Array.isArray(record.response_options)
-                    ? (record.response_options as Array<number | string>)
-                    : null
+                    ? (record.response_options as unknown[])
+                    : null,
+                required: typeof record.required === 'boolean' ? record.required : undefined
             };
         })
         .filter((q) => q.id && q.text)
@@ -107,8 +188,39 @@ function mapError(error: unknown, fallback: string) {
 }
 
 function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
-    if (question.response_type === 'text') return typeof value === 'string' && value.trim().length >= MIN_TEXT_LENGTH;
-    if (question.response_type === 'integer') return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+    const required = isQuestionRequired(question);
+    if (!required && (value === null || value === undefined || value === '')) {
+        return true;
+    }
+
+    if (question.response_type === 'text') {
+        if (typeof value !== 'string') return false;
+        const trimmed = value.trim();
+        if (!required && trimmed.length === 0) return true;
+        const minLength = question.response_min != null ? Math.max(0, Math.trunc(question.response_min)) : 1;
+        const maxLength = question.response_max != null ? Math.max(minLength, Math.trunc(question.response_max)) : null;
+        if (trimmed.length < minLength) return false;
+        if (maxLength != null && trimmed.length > maxLength) return false;
+        return true;
+    }
+
+    if (question.response_type === 'integer' || question.response_type === 'number') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+        if (question.response_type === 'integer' && !Number.isInteger(value)) return false;
+        if (question.response_min != null && value < question.response_min) return false;
+        if (question.response_max != null && value > question.response_max) return false;
+        return true;
+    }
+
+    if (question.response_type === 'boolean') {
+        return typeof value === 'boolean';
+    }
+
+    const options = normalizeQuestionOptions(question);
+    if (options.length > 0) {
+        return options.some((option) => option.value === value);
+    }
+
     return value !== null && value !== undefined && value !== '';
 }
 
@@ -142,10 +254,7 @@ export default function Cuestionario() {
         try {
             const response = await getActiveQuestionnairesV2({
                 mode: selectedMode,
-                role: apiRole,
-                include_full: true,
-                page: 1,
-                page_size: 1
+                role: apiRole
             });
             const first = response.items[0] as Record<string, unknown> | undefined;
             setTemplateName(toText(first?.name, 'Cuestionario de observacion'));
@@ -229,17 +338,17 @@ export default function Cuestionario() {
 
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
+    const currentOptions = currentQuestion ? normalizeQuestionOptions(currentQuestion) : [];
     const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
     const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
 
-    const saveCurrent = async (markFinal = false) => {
+    const saveCurrent = async () => {
         if (!sessionId || !currentQuestion) return false;
         const value = answers[currentQuestion.id];
         if (!isValid(currentQuestion, value)) return false;
 
         await patchQuestionnaireSessionAnswersV2(sessionId, {
-            answers: [{ question_id: currentQuestion.id, answer: value ?? null }],
-            mark_final: markFinal
+            answers: [{ question_id: currentQuestion.id, answer: value ?? null }]
         });
         return true;
     };
@@ -249,7 +358,7 @@ export default function Cuestionario() {
         setWorking(true);
         setError(null);
         try {
-            const saved = await saveCurrent(false);
+            const saved = await saveCurrent();
             if (!saved) return;
             if (currentIndex < questions.length - 1) {
                 setCurrentIndex((prev) => prev + 1);
@@ -266,9 +375,9 @@ export default function Cuestionario() {
         setWorking(true);
         setError(null);
         try {
-            const saved = await saveCurrent(true);
+            const saved = await saveCurrent();
             if (!saved) return;
-            await submitQuestionnaireSessionV2(sessionId, { force_reprocess: false });
+            await submitQuestionnaireSessionV2(sessionId);
             setShowSuccess(true);
         } catch (requestError) {
             setError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
@@ -393,19 +502,19 @@ export default function Cuestionario() {
                                                 value={typeof currentAnswer === 'string' ? currentAnswer : ''}
                                                 onChange={(event) => onAnswerChange(event.target.value)}
                                             />
-                                        ) : currentQuestion.response_type === 'integer' ? (
+                                        ) : currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number' ? (
                                             <input
                                                 type="number"
                                                 className="question-input"
                                                 value={typeof currentAnswer === 'number' ? currentAnswer : ''}
-                                                onChange={(event) => onAnswerChange(event.target.value === '' ? null : Number(event.target.value))}
+                                                min={currentQuestion.response_min ?? undefined}
+                                                max={currentQuestion.response_max ?? undefined}
+                                                step={currentQuestion.response_step ?? (currentQuestion.response_type === 'integer' ? 1 : 'any')}
+                                                onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
                                             />
-                                        ) : (
+                                        ) : currentOptions.length > 0 ? (
                                             <div className="question-options">
-                                                {(currentQuestion.response_type === 'likert'
-                                                    ? LIKERT
-                                                    : [{ value: true, label: 'Si' }, { value: false, label: 'No' }]
-                                                ).map((option) => (
+                                                {currentOptions.map((option) => (
                                                     <button
                                                         key={String(option.value)}
                                                         type="button"
@@ -417,6 +526,13 @@ export default function Cuestionario() {
                                                     </button>
                                                 ))}
                                             </div>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                className="question-input"
+                                                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                                                onChange={(event) => onAnswerChange(event.target.value)}
+                                            />
                                         )}
 
                                         {error ? <div className="question-warning">{error}</div> : null}

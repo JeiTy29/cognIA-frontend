@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getQuestionnaireHistoryV2 } from '../../services/questionnaires/questionnaires.api';
 import type {
     QuestionnaireHistoryItemV2DTO,
-    QuestionnaireV2Status
+    QuestionnaireHistoryStatusFilter
 } from '../../services/questionnaires/questionnaires.types';
 import { ApiError } from '../../services/api/httpClient';
 
@@ -28,7 +28,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [statusFilter, setStatusFilterState] = useState<QuestionnaireV2Status | ''>('');
+    const [statusFilter, setStatusFilterState] = useState<QuestionnaireHistoryStatusFilter | ''>('');
     const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +44,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
                 status:
                     statusFilter === ''
                         ? undefined
-                        : (statusFilter as 'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'),
+                        : (statusFilter as QuestionnaireHistoryStatusFilter),
                 page,
                 page_size: pageSize
             });
@@ -72,7 +72,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
     }, [enabled, loadHistory]);
 
     const setStatusFilter = useCallback((value: string) => {
-        setStatusFilterState(value as QuestionnaireV2Status | '');
+        setStatusFilterState(value as QuestionnaireHistoryStatusFilter | '');
         setPage(1);
     }, []);
 

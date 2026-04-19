@@ -13,7 +13,10 @@ import {
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnairePdfInfoV2DTO,
+    QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
@@ -43,7 +46,7 @@ const pageSizeOptions = [
 
 const tagVisibilityOptions = [
     { value: 'private', label: 'Privado' },
-    { value: 'shared', label: 'Compartido' },
+    { value: 'shared', label: 'Compartido' }
 ];
 
 function getString(value: unknown, fallback = '--') {
@@ -79,7 +82,7 @@ function getModeLabel(mode: string | undefined) {
 function getRoleLabel(role: string | undefined) {
     const normalized = (role ?? '').toLowerCase();
     if (normalized === 'caregiver') return 'Cuidador';
-    if (normalized === 'psychologist') return 'Psicólogo';
+    if (normalized === 'psychologist') return 'Psicologo';
     return role ?? '--';
 }
 
@@ -88,45 +91,77 @@ function toRecord(payload: unknown): Record<string, unknown> | null {
     return payload as Record<string, unknown>;
 }
 
-function extractDetailRecord(payload: unknown): Record<string, unknown> | null {
-    const record = toRecord(payload);
-    if (!record) return null;
-    const preferredKeys = ['item', 'session', 'history', 'questionnaire', 'detail'];
-    for (const key of preferredKeys) {
-        const value = record[key];
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-            return value as Record<string, unknown>;
-        }
+function toLabel(key: string) {
+    const withSpaces = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
+    if (!withSpaces) return '--';
+    return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
+}
+
+function formatValue(value: unknown): string {
+    if (value === null || value === undefined) return '--';
+    if (typeof value === 'string') return value.trim().length > 0 ? value : '--';
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) {
+        if (value.length === 0) return '--';
+        const scalarValues = value.filter((item) => ['string', 'number', 'boolean'].includes(typeof item));
+        if (scalarValues.length === value.length) return scalarValues.map(String).join(', ');
+        return `${value.length} elemento(s)`;
     }
-    return record;
+    if (typeof value === 'object') return 'Disponible';
+    return '--';
 }
 
-function extractTags(payload: unknown): QuestionnaireTagDTO[] {
-    const detail = extractDetailRecord(payload);
-    if (!detail) return [];
-    const raw = detail.tags;
-    if (!Array.isArray(raw)) return [];
-    return raw.filter((value) => value && typeof value === 'object' && !Array.isArray(value)) as QuestionnaireTagDTO[];
+function extractScalarEntries(record: Record<string, unknown>, exclude: string[] = []) {
+    return Object.entries(record)
+        .filter(([key]) => !exclude.includes(key))
+        .map(([key, value]) => ({ key, label: toLabel(key), value: formatValue(value), rawValue: value }))
+        .filter((entry) => entry.value !== '--');
 }
 
-function resolveShareUrl(payload: unknown, sessionId: string) {
-    const record = toRecord(payload);
-    if (!record) return null;
-    const candidates = [
-        record.url,
-        record.share_url,
-        record.public_url,
-        record.link
+function resolveTagId(tag: QuestionnaireTagDTO) {
+    if (typeof tag.id === 'string' && tag.id.trim().length > 0) return tag.id;
+    if (typeof tag.tag_id === 'string' && tag.tag_id.trim().length > 0) return tag.tag_id;
+    return '';
+}
+
+function resolveQuestionnaireId(
+    detail: QuestionnaireHistoryDetailV2DTO | null,
+    sharePayload: QuestionnaireShareResponseDTO | null
+) {
+    const fromShare = sharePayload?.questionnaire_id;
+    if (typeof fromShare === 'string' && fromShare.trim().length > 0) return fromShare.trim();
+
+    const candidates: unknown[] = [
+        detail?.questionnaire_id,
+        detail?.questionnaire_template_id
     ];
+
     for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim();
-    }
-    const shareCodeCandidates = [record.share_code, record.code];
-    for (const shareCodeCandidate of shareCodeCandidates) {
-        if (typeof shareCodeCandidate === 'string' && shareCodeCandidate.trim().length > 0) {
-            return `/cuestionario/compartido/${sessionId}/${shareCodeCandidate.trim()}`;
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim();
         }
     }
+
+    return null;
+}
+
+function resolveShareUrl(payload: QuestionnaireShareResponseDTO | null, questionnaireId: string | null) {
+    if (!payload) return null;
+
+    const directCandidates = [payload.url, payload.share_url, payload.public_url, payload.link];
+    for (const candidate of directCandidates) {
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim();
+        }
+    }
+
+    const codeCandidates = [payload.share_code, payload.code];
+    for (const shareCode of codeCandidates) {
+        if (typeof shareCode === 'string' && shareCode.trim().length > 0 && questionnaireId) {
+            return `/cuestionario/compartido/${questionnaireId}/${shareCode.trim()}`;
+        }
+    }
+
     return null;
 }
 
@@ -139,15 +174,29 @@ function downloadBlob(blob: Blob, filename: string) {
     URL.revokeObjectURL(href);
 }
 
-function JsonPreview({ payload }: { payload: unknown }) {
-    const value = useMemo(() => {
-        try {
-            return JSON.stringify(payload, null, 2);
-        } catch {
-            return '--';
-        }
-    }, [payload]);
-    return <pre className="historial-json">{value}</pre>;
+function KeyValueRows({
+    data,
+    exclude = [],
+    emptyText
+}: {
+    data: Record<string, unknown> | null;
+    exclude?: string[];
+    emptyText: string;
+}) {
+    if (!data) return <p>{emptyText}</p>;
+    const rows = extractScalarEntries(data, exclude);
+    if (rows.length === 0) return <p>{emptyText}</p>;
+
+    return (
+        <div className="historial-v2-kv-grid">
+            {rows.map((row) => (
+                <div key={row.key}>
+                    <strong>{row.label}</strong>
+                    <span>{row.value}</span>
+                </div>
+            ))}
+        </div>
+    );
 }
 
 export function HistorialBase({ role }: HistorialBaseProps) {
@@ -167,9 +216,10 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     } = useQuestionnaireHistoryV2();
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
-    const [detailPayload, setDetailPayload] = useState<unknown>(null);
-    const [resultsPayload, setResultsPayload] = useState<unknown>(null);
-    const [pdfPayload, setPdfPayload] = useState<unknown>(null);
+    const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
+    const [resultsPayload, setResultsPayload] = useState<Record<string, unknown> | null>(null);
+    const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
+    const [sharePayload, setSharePayload] = useState<QuestionnaireShareResponseDTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
@@ -177,6 +227,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState('');
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
+
+    const [shareExpiresHours, setShareExpiresHours] = useState('24');
+    const [shareMaxUses, setShareMaxUses] = useState('');
+    const [shareGranteeUserId, setShareGranteeUserId] = useState('');
+    const [shareCanTag, setShareCanTag] = useState(true);
+    const [shareCanDownloadPdf, setShareCanDownloadPdf] = useState(true);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
     const title = role === 'psicologo' ? 'Historial de cuestionarios' : 'Historial de cuestionarios';
@@ -184,7 +240,18 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const currentPage = Math.min(Math.max(page, 1), totalPages);
     const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const showTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
-    const tags = useMemo(() => extractTags(detailPayload), [detailPayload]);
+    const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
+
+    const questionnaireIdForShare = useMemo(
+        () => resolveQuestionnaireId(detailPayload, sharePayload),
+        [detailPayload, sharePayload]
+    );
+
+    const isPdfReady = useMemo(() => {
+        const status = getString(pdfPayload?.status, '').toLowerCase();
+        if (!status) return true;
+        return ['ready', 'completed', 'generated', 'available', 'done'].includes(status);
+    }, [pdfPayload]);
 
     const openDetail = async (sessionId: string) => {
         setDetailSessionId(sessionId);
@@ -192,6 +259,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setDetailError(null);
         setDetailNotice(null);
         setShareUrl(null);
+        setSharePayload(null);
         setPdfPayload(null);
         try {
             const [detailResponse, resultsResponse] = await Promise.all([
@@ -201,7 +269,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             setDetailPayload(detailResponse);
             setResultsPayload(resultsResponse);
         } catch {
-            setDetailError('No fue posible cargar el detalle de la sesión.');
+            setDetailError('No fue posible cargar el detalle de la sesion.');
             setDetailPayload(null);
             setResultsPayload(null);
         } finally {
@@ -214,12 +282,18 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setDetailPayload(null);
         setResultsPayload(null);
         setPdfPayload(null);
+        setSharePayload(null);
         setDetailLoading(false);
         setDetailError(null);
         setDetailNotice(null);
         setNewTag('');
         setNewTagColor('');
         setNewTagVisibility('private');
+        setShareExpiresHours('24');
+        setShareMaxUses('');
+        setShareGranteeUserId('');
+        setShareCanTag(true);
+        setShareCanDownloadPdf(true);
         setShareUrl(null);
     };
 
@@ -258,13 +332,23 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const handleGenerateShare = async () => {
         if (!detailSessionId) return;
         try {
+            const expiresCandidate = Number(shareExpiresHours);
+            const maxUsesCandidate = Number(shareMaxUses);
             const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
-                grant_can_tag: true,
-                grant_can_download_pdf: true
+                expires_in_hours: Number.isFinite(expiresCandidate) && expiresCandidate > 0 ? expiresCandidate : undefined,
+                max_uses: Number.isFinite(maxUsesCandidate) && maxUsesCandidate > 0 ? maxUsesCandidate : undefined,
+                grantee_user_id: shareGranteeUserId.trim() || undefined,
+                grant_can_tag: shareCanTag,
+                grant_can_download_pdf: shareCanDownloadPdf
             });
-            const resolvedUrl = resolveShareUrl(payload, detailSessionId);
+            setSharePayload(payload);
+            const resolvedUrl = resolveShareUrl(payload, resolveQuestionnaireId(detailPayload, payload));
             setShareUrl(resolvedUrl);
-            setDetailNotice(resolvedUrl ? 'Enlace compartido generado.' : 'Se generó el recurso compartido.');
+            setDetailNotice(
+                resolvedUrl
+                    ? 'Enlace compartido generado.'
+                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL publica.'
+            );
         } catch {
             setDetailError('No fue posible generar el enlace compartido.');
         }
@@ -274,7 +358,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         if (!detailSessionId) return;
         try {
             await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setDetailNotice('Generación de PDF solicitada correctamente.');
+            setDetailNotice('Generacion de PDF solicitada correctamente.');
         } catch {
             setDetailError('No fue posible generar el PDF.');
         }
@@ -285,7 +369,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         try {
             const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
             setPdfPayload(payload);
-            setDetailNotice('Información de PDF cargada.');
+            setDetailNotice('Informacion de PDF cargada.');
         } catch {
             setDetailError('No fue posible consultar el estado del PDF.');
         }
@@ -327,7 +411,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
                 <div className="historial-v2-table">
                     <div className="historial-v2-head">
-                        <div>Sesión</div>
+                        <div>Sesion</div>
                         <div>Estado</div>
                         <div>Modo</div>
                         <div>Rol</div>
@@ -364,12 +448,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                     <div>Mostrando {showFrom}-{showTo} de {total}</div>
                     <div className="historial-v2-pagination-right">
                         <label>
-                            Tamaño
+                            Tamano
                             <CustomSelect
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
                                 onChange={(value) => changePageSize(Number(value))}
-                                ariaLabel="Cambiar tamaño de página de historial"
+                                ariaLabel="Cambiar tamano de pagina de historial"
                             />
                         </label>
                         <button
@@ -380,7 +464,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                         >
                             ‹
                         </button>
-                        <span>Página {currentPage} de {totalPages}</span>
+                        <span>Pagina {currentPage} de {totalPages}</span>
                         <button
                             type="button"
                             className="historial-v2-page-btn"
@@ -395,7 +479,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-v2-modal">
-                    <h2>Detalle de sesión</h2>
+                    <h2>Detalle de sesion</h2>
                     {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
@@ -403,17 +487,20 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                     {!detailLoading && detailPayload ? (
                         <>
                             <div className="historial-v2-modal-grid">
-                                <div><strong>ID</strong><span>{getString(extractDetailRecord(detailPayload)?.id ?? detailSessionId)}</span></div>
-                                <div><strong>Estado</strong><span>{getStatusLabel(getString(extractDetailRecord(detailPayload)?.status, ''))}</span></div>
-                                <div><strong>Modo</strong><span>{getModeLabel(getString(extractDetailRecord(detailPayload)?.mode, ''))}</span></div>
-                                <div><strong>Rol</strong><span>{getRoleLabel(getString(extractDetailRecord(detailPayload)?.role, ''))}</span></div>
-                                <div><strong>Creado</strong><span>{getDate(extractDetailRecord(detailPayload)?.created_at)}</span></div>
-                                <div><strong>Actualizado</strong><span>{getDate(extractDetailRecord(detailPayload)?.updated_at)}</span></div>
+                                <div><strong>ID</strong><span>{getString(detailPayload.id || detailSessionId)}</span></div>
+                                <div><strong>Estado</strong><span>{getStatusLabel(getString(detailPayload.status, ''))}</span></div>
+                                <div><strong>Modo</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
+                                <div><strong>Rol</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
+                                <div><strong>Cuestionario</strong><span>{getString(questionnaireIdForShare)}</span></div>
+                                <div><strong>Actualizado</strong><span>{getDate(detailPayload.updated_at)}</span></div>
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Resultados</h3>
-                                {resultsPayload ? <JsonPreview payload={resultsPayload} /> : <p>Sin resultados disponibles.</p>}
+                                <KeyValueRows
+                                    data={toRecord(resultsPayload)}
+                                    emptyText="Sin resultados disponibles."
+                                />
                             </div>
 
                             <div className="historial-v2-section">
@@ -422,7 +509,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                     <div className="historial-v2-tags">
                                         {tags.map((tag) => {
                                             const tagName = getString(tag.tag, '--');
-                                            const tagId = getString(tag.id, '');
+                                            const tagId = resolveTagId(tag);
                                             return (
                                                 <div className="historial-v2-tag" key={`${tagId}-${tagName}`}>
                                                     <span>{tagName}</span>
@@ -466,6 +553,46 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
                             <div className="historial-v2-section">
                                 <h3>Compartir y PDF</h3>
+                                <div className="historial-v2-share-form">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        placeholder="Expira (horas)"
+                                        value={shareExpiresHours}
+                                        onChange={(event) => setShareExpiresHours(event.target.value)}
+                                    />
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        placeholder="Max usos (opcional)"
+                                        value={shareMaxUses}
+                                        onChange={(event) => setShareMaxUses(event.target.value)}
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Grantee user id (opcional)"
+                                        value={shareGranteeUserId}
+                                        onChange={(event) => setShareGranteeUserId(event.target.value)}
+                                    />
+                                </div>
+                                <div className="historial-v2-share-toggles">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={shareCanTag}
+                                            onChange={(event) => setShareCanTag(event.target.checked)}
+                                        />
+                                        Permitir tags
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={shareCanDownloadPdf}
+                                            onChange={(event) => setShareCanDownloadPdf(event.target.checked)}
+                                        />
+                                        Permitir descarga PDF
+                                    </label>
+                                </div>
                                 <div className="historial-v2-section-actions">
                                     <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
                                         Generar enlace
@@ -476,7 +603,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                     <button type="button" className="historial-v2-btn" onClick={() => void handleFetchPdfInfo()}>
                                         Ver estado PDF
                                     </button>
-                                    <button type="button" className="historial-v2-btn" onClick={() => void handleDownloadPdf()}>
+                                    <button
+                                        type="button"
+                                        className="historial-v2-btn"
+                                        onClick={() => void handleDownloadPdf()}
+                                        disabled={!isPdfReady}
+                                    >
                                         Descargar PDF
                                     </button>
                                 </div>
@@ -486,7 +618,15 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
                                     </div>
                                 ) : null}
-                                {pdfPayload ? <JsonPreview payload={pdfPayload} /> : null}
+                                <KeyValueRows
+                                    data={toRecord(sharePayload)}
+                                    exclude={['url', 'share_url', 'public_url', 'link']}
+                                    emptyText="Sin metadata adicional de share."
+                                />
+                                <KeyValueRows
+                                    data={toRecord(pdfPayload)}
+                                    emptyText="Sin informacion de PDF."
+                                />
                             </div>
                         </>
                     ) : null}
