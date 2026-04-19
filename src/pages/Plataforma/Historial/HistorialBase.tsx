@@ -12,7 +12,11 @@ import {
     getQuestionnaireHistoryResultsV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
-import type { QuestionnaireHistoryItemV2DTO, QuestionnaireTagDTO } from '../../../services/questionnaires/questionnaires.types';
+import type {
+    QuestionnaireHistoryItemV2DTO,
+    QuestionnaireTagDTO,
+    QuestionnaireTagVisibility
+} from '../../../services/questionnaires/questionnaires.types';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -24,8 +28,11 @@ interface HistorialBaseProps {
 const statusOptions = [
     { value: '', label: 'Todos' },
     { value: 'draft', label: 'Borrador' },
+    { value: 'in_progress', label: 'En progreso' },
     { value: 'submitted', label: 'Enviado' },
-    { value: 'processed', label: 'Procesado' }
+    { value: 'processed', label: 'Procesado' },
+    { value: 'failed', label: 'Fallido' },
+    { value: 'archived', label: 'Archivado' }
 ];
 
 const pageSizeOptions = [
@@ -37,7 +44,6 @@ const pageSizeOptions = [
 const tagVisibilityOptions = [
     { value: 'private', label: 'Privado' },
     { value: 'shared', label: 'Compartido' },
-    { value: 'public', label: 'Público' }
 ];
 
 function getString(value: unknown, fallback = '--') {
@@ -54,8 +60,11 @@ function getDate(value: unknown) {
 function getStatusLabel(status: string | undefined) {
     const normalized = (status ?? '').toLowerCase();
     if (normalized === 'draft') return 'Borrador';
+    if (normalized === 'in_progress') return 'En progreso';
     if (normalized === 'submitted') return 'Enviado';
     if (normalized === 'processed') return 'Procesado';
+    if (normalized === 'failed') return 'Fallido';
+    if (normalized === 'archived') return 'Archivado';
     return status ?? '--';
 }
 
@@ -63,7 +72,7 @@ function getModeLabel(mode: string | undefined) {
     const normalized = (mode ?? '').toLowerCase();
     if (normalized === 'short') return 'Corto';
     if (normalized === 'medium') return 'Medio';
-    if (normalized === 'complete' || normalized === 'full') return 'Completo';
+    if (normalized === 'complete') return 'Completo';
     return mode ?? '--';
 }
 
@@ -167,7 +176,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState('');
-    const [newTagVisibility, setNewTagVisibility] = useState<'private' | 'shared' | 'public'>('private');
+    const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
     const title = role === 'psicologo' ? 'Historial de cuestionarios' : 'Historial de cuestionarios';
@@ -249,7 +258,10 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const handleGenerateShare = async () => {
         if (!detailSessionId) return;
         try {
-            const payload = await shareQuestionnaireHistoryV2(detailSessionId);
+            const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
+                grant_can_tag: true,
+                grant_can_download_pdf: true
+            });
             const resolvedUrl = resolveShareUrl(payload, detailSessionId);
             setShareUrl(resolvedUrl);
             setDetailNotice(resolvedUrl ? 'Enlace compartido generado.' : 'Se generó el recurso compartido.');
@@ -443,7 +455,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                     <CustomSelect
                                         value={newTagVisibility}
                                         options={tagVisibilityOptions}
-                                        onChange={(value) => setNewTagVisibility(value as 'private' | 'shared' | 'public')}
+                                        onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)}
                                         ariaLabel="Visibilidad de etiqueta"
                                     />
                                     <button type="button" className="historial-v2-btn" onClick={() => void handleAddTag()}>

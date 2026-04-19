@@ -179,7 +179,7 @@ export function submitQuestionnaireSessionV2(sessionId: string, payload?: Submit
 }
 
 export function getQuestionnaireHistoryV2(params?: {
-    status?: 'draft' | 'submitted' | 'processed';
+    status?: 'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived';
     page?: number;
     page_size?: number;
 }) {
@@ -221,7 +221,7 @@ export function deleteQuestionnaireHistoryTagV2(sessionId: string, tagId: string
 export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQuestionnairePayload) {
     return apiPost<unknown, ShareQuestionnairePayload>(
         `/api/v2/questionnaires/history/${sessionId}/share`,
-        payload ?? {},
+        payload ?? { grant_can_tag: true, grant_can_download_pdf: true },
         requestOptions
     );
 }
