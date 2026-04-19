@@ -73,6 +73,35 @@ export async function apiGetBlob(path: string, options?: ApiRequestOptions): Pro
     return response.blob();
 }
 
+export interface ApiBlobWithMeta {
+    blob: Blob;
+    headers: Headers;
+}
+
+export async function apiGetBlobWithMeta(path: string, options?: ApiRequestOptions): Promise<ApiBlobWithMeta> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'GET',
+        headers: buildHeaders(options, false),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiGetBlobWithMeta(path, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    return {
+        blob: await response.blob(),
+        headers: response.headers
+    };
+}
+
 type ApiRequestOptions = {
     headers?: Record<string, string>;
     credentials?: RequestCredentials;
@@ -143,6 +172,31 @@ export async function apiPost<T, B = unknown>(
     }
 
     return response.json() as Promise<T>;
+}
+
+export async function apiPostNoBody<T>(
+    path: string,
+    options?: ApiRequestOptions
+): Promise<T> {
+    const response = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: buildHeaders(options, false),
+        credentials: options?.credentials
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && options?.retryAuth !== false) {
+            const refreshed = await attemptRefresh();
+            if (refreshed) {
+                return apiPostNoBody<T>(path, { ...options, retryAuth: false });
+            }
+        }
+        const payload = await parseJsonSafe(response);
+        throw new ApiError(`Request failed with status ${response.status}`, response.status, payload ?? undefined);
+    }
+
+    const payload = await parseJsonSafe(response);
+    return (payload ?? {}) as T;
 }
 
 export async function apiPostFormData<T>(

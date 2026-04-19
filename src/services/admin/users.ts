@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '../api/httpClient';
+import { apiGet, apiPatch, apiPostNoBody } from '../api/httpClient';
 
 export interface User {
     id: string;
@@ -108,17 +108,15 @@ export function deactivateUser(userId: string) {
 }
 
 export function adminResetUserPassword(userId: string) {
-    return apiPost<AdminPasswordResetResponse, Record<string, never>>(
+    return apiPostNoBody<AdminPasswordResetResponse>(
         `/api/admin/users/${userId}/password-reset`,
-        {},
         requestOptions
     );
 }
 
 export function adminResetUserMfa(userId: string) {
-    return apiPost<AdminMfaResetResponse, Record<string, never>>(
+    return apiPostNoBody<AdminMfaResetResponse>(
         `/api/admin/users/${userId}/mfa/reset`,
-        {},
         requestOptions
     );
 }

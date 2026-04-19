@@ -245,6 +245,51 @@
     font-size: 13px;
 }
 
+.historial-v2-kv-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.historial-v2-kv-grid div {
+    display: grid;
+    gap: 4px;
+}
+
+.historial-v2-kv-grid strong {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.historial-v2-share-form {
+    display: grid;
+    grid-template-columns: 160px 180px 1fr;
+    gap: 10px;
+}
+
+.historial-v2-share-form input {
+    min-height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #215f8f;
+}
+
+.historial-v2-share-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 13px;
+}
+
+.historial-v2-share-toggles label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .historial-v2-json,
 .historial-json {
     margin: 0;
@@ -299,6 +344,14 @@
     }
 
     .historial-v2-tag-form {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-v2-kv-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-v2-share-form {
         grid-template-columns: 1fr;
     }
 }
