@@ -1,6 +1,14 @@
-# Introducción
+# Introduccion
 
-El presente documento describe la documentación técnica correspondiente al frontend del proyecto de tesis titulado “APLICATIVO WEB CON RANDOM FOREST PARA LA ALERTA TEMPRANA DE CINCO TRASTORNOS PSICOLOGICOS EN NIÑOS ENTRE 6 A 11 AÑOS”, desarrollado en el marco del programa de Ingeniería de Sistemas y Computación de la Universidad de Cundinamarca.
+Este paquete documental describe tecnicamente el frontend actual del proyecto `JeiTy29/cognIA-frontend`.
 
-El frontend del sistema constituye la capa de presentación del aplicativo web y tiene como finalidad facilitar la interacción entre los distintos tipos de usuarios y el sistema de análisis. A través de esta interfaz, los usuarios pueden acceder a información general del proyecto, diligenciar cuestionarios psicológicos y visualizar los resultados de las evaluaciones generadas por el sistema.
+La intencion es que cualquier persona nueva en el equipo pueda entender:
 
+- como esta organizada la aplicacion cliente,
+- como navegan los usuarios por rol,
+- que modulos estan activos,
+- que endpoints consume el frontend,
+- y que limites de verificacion existen cuando no se dispone del backend.
+
+La documentacion prioriza evidencia directa del repositorio frontend.  
+Cuando una conclusion depende de heuristicas del cliente, se identifica como inferida desde el consumo frontend.
