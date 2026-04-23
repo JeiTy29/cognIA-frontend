@@ -2,6 +2,7 @@ import { ApiError } from '../api/httpClient';
 import type {
     OperationalReportCapacitySummary,
     OperationalReportConversionSummary,
+    OperationalReportDatasetSection,
     OperationalReportGenerationState,
     OperationalReportJob,
     OperationalReportMetricNode,
@@ -12,6 +13,7 @@ import type {
 } from './reports.types';
 import {
     OPERATIONAL_REPORT_TYPES,
+    getOperationalReportSectionLabel,
     getOperationalReportTypeLabel
 } from './reports.types';
 
@@ -102,6 +104,70 @@ function parseOperationalCapacitySummary(node: unknown): OperationalReportCapaci
     };
 }
 
+function hasAnyNumber(values: Array<number | null>) {
+    return values.some((value) => typeof value === 'number' && Number.isFinite(value));
+}
+
+function detectSectionKind(
+    key: string,
+    node: unknown,
+    series: OperationalReportSeriesPoint[],
+    conversionSummary: OperationalReportConversionSummary | null
+): OperationalReportDatasetSection['kind'] {
+    if (key === 'adoption_history') return 'adoption_history';
+    if (series.length > 0) return 'series';
+    if (
+        conversionSummary &&
+        hasAnyNumber([
+            conversionSummary.created,
+            conversionSummary.submitted,
+            conversionSummary.processed,
+            conversionSummary.conversion_created_to_processed
+        ])
+    ) {
+        return 'funnel';
+    }
+    if (node === null || typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
+        return 'scalar';
+    }
+    if (Array.isArray(node)) return 'list';
+    return 'structured';
+}
+
+function buildDatasetSections(dataset: Record<string, unknown>) {
+    const sections: OperationalReportDatasetSection[] = [];
+
+    Object.entries(dataset).forEach(([key, value]) => {
+        const sanitizedNode = sanitizeNode(value);
+        const series = parseSeries(value);
+        const conversionSummary = parseConversionSummary(value);
+        const capacitySummary = parseOperationalCapacitySummary(value);
+        const hasConversionSummary = hasAnyNumber([
+            conversionSummary.created,
+            conversionSummary.submitted,
+            conversionSummary.processed,
+            conversionSummary.conversion_created_to_processed
+        ]);
+        const hasCapacitySummary = hasAnyNumber([
+            capacitySummary.processed_sessions,
+            capacitySummary.registered_users,
+            capacitySummary.processed_per_user
+        ]);
+
+        sections.push({
+            key,
+            label: getOperationalReportSectionLabel(key),
+            kind: detectSectionKind(key, value, series, hasConversionSummary ? conversionSummary : null),
+            node: sanitizedNode,
+            series,
+            conversion_summary: hasConversionSummary ? conversionSummary : null,
+            operational_capacity_summary: hasCapacitySummary ? capacitySummary : null
+        });
+    });
+
+    return sections;
+}
+
 function normalizeReportType(value: unknown, fallback: OperationalReportType): OperationalReportType {
     if (typeof value !== 'string') return fallback;
     return OPERATIONAL_REPORT_TYPES.includes(value as OperationalReportType)
@@ -134,6 +200,7 @@ export function normalizeOperationalReportJob(
 ): OperationalReportJob {
     const root = asRecord(payload);
     const dataset = asRecord(root?.dataset);
+    const datasetSections = dataset ? buildDatasetSections(dataset) : [];
     const adoptionHistory = asRecord(dataset?.adoption_history);
 
     const reportType = normalizeReportType(root?.report_type, context.reportType);
@@ -158,7 +225,8 @@ export function normalizeOperationalReportJob(
                       conversion_summary: parseConversionSummary(adoptionHistory.conversion),
                       operational_capacity_summary: parseOperationalCapacitySummary(adoptionHistory.operational_capacity)
                   }
-                : null
+                : null,
+            sections: datasetSections
         }
     };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './MFA.css';
 import { loginMfa } from '../../../services/auth/auth.api';
@@ -18,8 +18,10 @@ type MFANavigationState = {
     expiresIn?: number;
 };
 
+const MFA_CODE_LENGTH = 6;
+
 export default function MFA() {
-    const [codigo, setCodigo] = useState('');
+    const [codeDigits, setCodeDigits] = useState<string[]>(() => Array.from({ length: MFA_CODE_LENGTH }, () => ''));
     const [recoveryCode, setRecoveryCode] = useState('');
     const [useRecovery, setUseRecovery] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -36,6 +38,8 @@ export default function MFA() {
     const enrollmentToken = state?.enrollmentToken;
     const username = state?.username;
     const navigate = useNavigate();
+    const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
+    const code = useMemo(() => codeDigits.join(''), [codeDigits]);
 
     useEffect(() => {
         if (!state?.mode) {
@@ -51,6 +55,78 @@ export default function MFA() {
         }
     }, [mode, challengeId, enrollmentToken, navigate, state]);
 
+    useEffect(() => {
+        if (mode !== 'challenge' || useRecovery) return;
+        const firstEmpty = codeDigits.findIndex((digit) => digit.length === 0);
+        const focusIndex = firstEmpty >= 0 ? firstEmpty : MFA_CODE_LENGTH - 1;
+        digitRefs.current[focusIndex]?.focus();
+    }, [codeDigits, mode, useRecovery]);
+
+    const setDigit = (index: number, value: string) => {
+        setCodeDigits((previous) => {
+            const next = [...previous];
+            next[index] = value;
+            return next;
+        });
+    };
+
+    const applyPastedCode = (pastedValue: string) => {
+        const onlyDigits = pastedValue.replace(/\D/g, '').slice(0, MFA_CODE_LENGTH);
+        if (!onlyDigits) return;
+        const nextDigits = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => onlyDigits[index] ?? '');
+        setCodeDigits(nextDigits);
+        digitRefs.current[Math.min(onlyDigits.length, MFA_CODE_LENGTH - 1)]?.focus();
+    };
+
+    const handleDigitChange = (index: number, value: string) => {
+        const onlyDigits = value.replace(/\D/g, '');
+        if (!onlyDigits) {
+            setDigit(index, '');
+            return;
+        }
+
+        if (onlyDigits.length > 1) {
+            applyPastedCode(onlyDigits);
+            return;
+        }
+
+        setDigit(index, onlyDigits);
+        if (index < MFA_CODE_LENGTH - 1) {
+            digitRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleDigitKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Backspace') {
+            if (codeDigits[index]) {
+                setDigit(index, '');
+                return;
+            }
+            if (index > 0) {
+                event.preventDefault();
+                digitRefs.current[index - 1]?.focus();
+                setDigit(index - 1, '');
+            }
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' && index > 0) {
+            event.preventDefault();
+            digitRefs.current[index - 1]?.focus();
+            return;
+        }
+
+        if (event.key === 'ArrowRight' && index < MFA_CODE_LENGTH - 1) {
+            event.preventDefault();
+            digitRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleDigitPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+        event.preventDefault();
+        applyPastedCode(event.clipboardData.getData('text'));
+    };
+
     const handleVerify = async (event: React.FormEvent) => {
         event.preventDefault();
         setSubmitError(null);
@@ -63,28 +139,29 @@ export default function MFA() {
         }
         if (useRecovery) {
             if (!recoveryCode.trim()) {
-                setSubmitError('Ingresa el código de recuperación.');
+                setSubmitError('Ingresa el codigo de recuperacion.');
                 setSubmitting(false);
                 return;
             }
-        } else if (codigo.length !== 6) {
-            setSubmitError('Ingresa un código de 6 dígitos.');
+        } else if (code.length !== MFA_CODE_LENGTH) {
+            setSubmitError('Ingresa un codigo de 6 digitos.');
             setSubmitting(false);
             return;
         }
+
         try {
             const payload = useRecovery
                 ? { challenge_id: challengeId, recovery_code: recoveryCode }
-                : { challenge_id: challengeId, code: codigo };
+                : { challenge_id: challengeId, code };
             const response = await loginMfa(payload);
             setSession(response.access_token, response.expires_in);
             const jwtPayload = decodeJwtPayload(response.access_token);
             navigate(getDefaultRouteForRoles(jwtPayload?.roles), { replace: true });
         } catch (error) {
             if (error instanceof ApiError && error.status === 403) {
-                setSubmitError('Debes configurar MFA antes de verificar. Inicia sesión nuevamente.');
+                setSubmitError('Debes configurar MFA antes de verificar. Inicia sesion nuevamente.');
             } else {
-                setSubmitError('El código ingresado no es válido. Intenta nuevamente.');
+                setSubmitError('El codigo ingresado no es valido. Intenta nuevamente.');
             }
         } finally {
             setSubmitting(false);
@@ -105,7 +182,7 @@ export default function MFA() {
                     </div>
 
                     <h1 className="auth-title">
-                        {mode === 'setup' ? 'Configurar verificación en dos pasos' : 'Verificación requerida'}
+                        {mode === 'setup' ? 'Configurar verificacion en dos pasos' : 'Verificacion requerida'}
                     </h1>
 
                     {mode === 'setup' ? (
@@ -120,39 +197,63 @@ export default function MFA() {
                     ) : (
                         <>
                             <p className="auth-subtitle">
-                                Abre tu aplicación de autenticación y escribe el código de 6 dígitos que se muestra allí.
+                                Abre tu aplicacion de autenticacion y escribe el codigo de 6 digitos que se muestra alli.
                             </p>
                             <form className="auth-form" onSubmit={handleVerify}>
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
                                 {submitSuccess ? <div className="validation-success">{submitSuccess}</div> : null}
-                                <div className="form-group">
-                                    <input
-                                        type="text"
-                                        className="form-input auth-code-input"
-                                        placeholder="Código de 6 dígitos"
-                                        inputMode="numeric"
-                                        maxLength={6}
-                                        value={codigo}
-                                        onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-                                        required={!useRecovery}
-                                    />
-                                </div>
+
+                                {!useRecovery ? (
+                                    <div className="form-group">
+                                        <div className="mfa-code-grid" role="group" aria-label="Codigo MFA de 6 digitos">
+                                            {codeDigits.map((digit, index) => (
+                                                <input
+                                                    key={index}
+                                                    ref={(element) => {
+                                                        digitRefs.current[index] = element;
+                                                    }}
+                                                    type="text"
+                                                    className="mfa-code-digit"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                                                    maxLength={1}
+                                                    value={digit}
+                                                    onChange={(event) => handleDigitChange(index, event.target.value)}
+                                                    onKeyDown={(event) => handleDigitKeyDown(index, event)}
+                                                    onPaste={handleDigitPaste}
+                                                    aria-label={`Digito ${index + 1} de 6`}
+                                                    required
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+
                                 <div className="form-group">
                                     <label className="mfa-recovery-toggle">
                                         <input
                                             type="checkbox"
                                             checked={useRecovery}
-                                            onChange={(e) => setUseRecovery(e.target.checked)}
+                                            onChange={(event) => {
+                                                const nextValue = event.target.checked;
+                                                setUseRecovery(nextValue);
+                                                if (!nextValue) {
+                                                    requestAnimationFrame(() => {
+                                                        digitRefs.current[0]?.focus();
+                                                    });
+                                                }
+                                            }}
                                         />
-                                        Usar código de recuperación
+                                        Usar codigo de recuperacion
                                     </label>
                                     {useRecovery ? (
                                         <input
                                             type="text"
                                             className="form-input"
-                                            placeholder="Código de recuperación"
+                                            placeholder="Codigo de recuperacion"
                                             value={recoveryCode}
-                                            onChange={(e) => setRecoveryCode(e.target.value.trim())}
+                                            onChange={(event) => setRecoveryCode(event.target.value.trim())}
                                             required
                                         />
                                     ) : null}
@@ -167,7 +268,7 @@ export default function MFA() {
 
                     {mode === 'setup' ? (
                         <p className="auth-mfa-note">
-                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el código.
+                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el codigo.
                         </p>
                     ) : null}
 
