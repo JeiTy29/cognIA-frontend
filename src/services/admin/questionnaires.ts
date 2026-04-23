@@ -43,6 +43,49 @@ export interface CloneQuestionnairePayload {
     description?: string;
 }
 
+export interface CreateQuestionnaireTemplatePayload {
+    name: string;
+    version: string;
+    description?: string;
+}
+
+export interface CreateQuestionnaireTemplateResponse {
+    template_id?: string;
+    id?: string;
+    name?: string;
+    version?: string;
+    description?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireQuestionOptionPayload {
+    label: string;
+    value: string | number | boolean;
+}
+
+export interface CreateQuestionnaireQuestionPayload {
+    code: string;
+    text: string;
+    response_type: string;
+    position: number;
+    response_min?: number;
+    response_max?: number;
+    response_options?: QuestionnaireQuestionOptionPayload[];
+}
+
+export interface CreateQuestionnaireQuestionResponse {
+    id?: string;
+    question_id?: string;
+    code?: string;
+    text?: string;
+    response_type?: string;
+    position?: number;
+    response_min?: number | null;
+    response_max?: number | null;
+    response_options?: QuestionnaireQuestionOptionPayload[] | null;
+    [key: string]: unknown;
+}
+
 export interface PublishQuestionnaireResponse {
     msg: string;
     template_id: string;
@@ -110,6 +153,22 @@ export function archiveQuestionnaire(templateId: string) {
 export function cloneQuestionnaire(templateId: string, payload: CloneQuestionnairePayload) {
     return apiPost<CloneQuestionnaireResponse, CloneQuestionnairePayload>(
         `/api/admin/questionnaires/${templateId}/clone`,
+        payload,
+        requestOptions
+    );
+}
+
+export function createQuestionnaireTemplate(payload: CreateQuestionnaireTemplatePayload) {
+    return apiPost<CreateQuestionnaireTemplateResponse, CreateQuestionnaireTemplatePayload>(
+        '/api/v1/questionnaires',
+        payload,
+        requestOptions
+    );
+}
+
+export function createQuestionnaireQuestion(templateId: string, payload: CreateQuestionnaireQuestionPayload) {
+    return apiPost<CreateQuestionnaireQuestionResponse, CreateQuestionnaireQuestionPayload>(
+        `/api/v1/questionnaires/${templateId}/questions`,
         payload,
         requestOptions
     );

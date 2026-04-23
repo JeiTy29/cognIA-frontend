@@ -63,6 +63,7 @@ Las rutas privadas comparten `SidebarLayout` y doble validacion de guardas.
 | `/admin/metricas` | Metricas operativas |
 | `/admin/dashboard` | Dashboard analitico |
 | `/admin/cuestionarios` | Gestion de cuestionarios |
+| `/admin/cuestionarios/:templateId/preguntas` | Gestion de preguntas de plantilla |
 | `/admin/evaluaciones` | Gestion de evaluaciones |
 | `/admin/usuarios` | Gestion de usuarios |
 | `/admin/psicologos` | Revision de psicologos |

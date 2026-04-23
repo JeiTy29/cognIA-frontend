@@ -9,7 +9,8 @@
 ## Objetivo funcional
 Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo), incluyendo:
 - seleccion de modo,
-- inicio de sesion,
+- deteccion de sesion reutilizable,
+- inicio de sesion nueva o continuacion,
 - carga y respuesta de preguntas,
 - guardado de respuestas,
 - submit y procesamiento,
@@ -17,6 +18,7 @@ Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo
 
 ## Endpoints consumidos por frontend
 - `GET /api/v2/questionnaires/active`
+- `GET /api/v2/questionnaires/history` (filtro `draft` / `in_progress` para reanudar)
 - `POST /api/v2/questionnaires/sessions`
 - `GET /api/v2/questionnaires/sessions/{session_id}`
 - `GET /api/v2/questionnaires/sessions/{session_id}/page`
@@ -48,11 +50,28 @@ Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo
 
 ## Notas de implementacion relevantes
 - Mapeo de rol frontend a rol API:
-  - `padre -> caregiver`
+  - `padre -> guardian`
   - `psicologo -> psychologist`
 - Modo por defecto: `complete`.
 - Tamano de pagina de sesion: `page_size=20`.
 - El componente consolida preguntas y respuestas en estado local para no perder continuidad de navegacion entre preguntas.
+
+## Flujo de continuidad de sesion
+
+Antes de crear una sesion nueva, el frontend consulta historial en dos estados:
+- `in_progress`
+- `draft`
+
+Si encuentra una sesion compatible con modo y rol vigentes:
+- muestra decision de UX:
+  - `Continuar cuestionario`
+  - `Empezar de nuevo`
+- `Continuar cuestionario`:
+  - no crea nueva sesion
+  - carga detalle + paginas de la sesion existente
+  - restaura respuestas guardadas y posiciona el avance
+- `Empezar de nuevo`:
+  - ejecuta `POST /api/v2/questionnaires/sessions` y mantiene flujo base.
 
 ## Alcance de esta documentacion
 - Esta ficha describe lo verificable desde el frontend y su consumo de API.

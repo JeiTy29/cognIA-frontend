@@ -121,6 +121,7 @@
 ### Servicios/endpoints consumidos
 
 - `getActiveQuestionnairesV2` -> `GET /api/v2/questionnaires/active`
+- `getQuestionnaireHistoryV2` -> `GET /api/v2/questionnaires/history` (draft/in_progress)
 - `createQuestionnaireSessionV2` -> `POST /api/v2/questionnaires/sessions`
 - `getQuestionnaireSessionPageV2` -> `GET /api/v2/questionnaires/sessions/{session_id}/page`
 - `getQuestionnaireSessionV2` -> `GET /api/v2/questionnaires/sessions/{session_id}`
@@ -128,9 +129,17 @@
 ### Secuencia funcional observada
 
 1. Se consulta cuestionario activo por modo/rol.
-2. Se crea sesion.
-3. Se carga pagina de preguntas para render inicial.
-4. Se consulta detalle de sesion para sincronizar estado.
+2. Se consulta historial reutilizable (`in_progress` y `draft`) para detectar continuidad.
+3. Si hay sesion reutilizable, la UI ofrece:
+   - continuar sesion
+   - empezar de nuevo
+4. Si el usuario continua:
+   - se reutiliza `session_id` existente
+   - se cargan preguntas y detalle de sesion para restaurar respuestas.
+5. Si el usuario empieza de nuevo:
+   - se crea sesion (`POST /sessions`)
+   - se carga pagina de preguntas inicial
+   - se consulta detalle de sesion para sincronizar estado.
 
 ### Nota de contrato
 

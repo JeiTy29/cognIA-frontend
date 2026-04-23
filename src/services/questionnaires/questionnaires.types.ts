@@ -1,5 +1,5 @@
 export type QuestionnaireV2Mode = 'short' | 'medium' | 'complete';
-export type QuestionnaireV2Role = 'caregiver' | 'psychologist';
+export type QuestionnaireV2Role = 'guardian' | 'psychologist';
 export type QuestionnaireV2Status =
     | 'draft'
     | 'in_progress'

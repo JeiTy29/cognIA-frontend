@@ -5,6 +5,7 @@ import { ApiError } from '../../../services/api/httpClient';
 import {
     createQuestionnaireSessionV2,
     getActiveQuestionnairesV2,
+    getQuestionnaireHistoryV2,
     getQuestionnaireSessionPageV2,
     getQuestionnaireSessionV2,
     patchQuestionnaireSessionAnswersV2,
@@ -18,6 +19,7 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseType,
     QuestionnaireResponseValue,
+    QuestionnaireHistoryItemV2DTO,
     QuestionnaireSessionV2DTO,
     QuestionnaireSubmitResponseV2DTO,
     QuestionnaireV2Mode,
@@ -56,7 +58,46 @@ interface ProcessingStep {
 }
 
 function roleToApiRole(role: string | null) {
-    return role === 'psicologo' ? 'psychologist' : 'caregiver';
+    return role === 'psicologo' ? 'psychologist' : 'guardian';
+}
+
+function getHistorySessionId(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
+    if (!item) return '';
+    if (typeof item.session_id === 'string' && item.session_id.trim().length > 0) return item.session_id.trim();
+    if (typeof item.questionnaire_session_id === 'string' && item.questionnaire_session_id.trim().length > 0) return item.questionnaire_session_id.trim();
+    return item.id;
+}
+
+function parseDate(value: string | null | undefined) {
+    if (!value) return 0;
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function pickReusableSession(
+    items: QuestionnaireHistoryItemV2DTO[],
+    mode: QuestionnaireV2Mode,
+    apiRole: 'guardian' | 'psychologist'
+) {
+    const filtered = items.filter((item) => {
+        const normalizedStatus = (item.status ?? '').toLowerCase();
+        if (normalizedStatus !== 'draft' && normalizedStatus !== 'in_progress') return false;
+
+        const itemMode = typeof item.mode === 'string' ? item.mode.toLowerCase() : '';
+        if (itemMode && itemMode !== mode) return false;
+
+        const itemRole = typeof item.role === 'string' ? item.role.toLowerCase() : '';
+        if (itemRole && itemRole !== apiRole) return false;
+
+        return getHistorySessionId(item).length > 0;
+    });
+
+    if (filtered.length === 0) return null;
+    return [...filtered].sort((a, b) => {
+        const bScore = parseDate(b.updated_at) || parseDate(b.created_at);
+        const aScore = parseDate(a.updated_at) || parseDate(a.created_at);
+        return bScore - aScore;
+    })[0] ?? null;
 }
 
 function toText(value: unknown, fallback = '') {
@@ -472,6 +513,7 @@ export default function Cuestionario() {
     const [templateName, setTemplateName] = useState('Cuestionario de observacion');
     const [activeLoading, setActiveLoading] = useState(true);
     const [activeError, setActiveError] = useState<string | null>(null);
+    const [reusableSession, setReusableSession] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
 
     const [started, setStarted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -526,6 +568,21 @@ export default function Cuestionario() {
             });
             const first = response.items[0] as Record<string, unknown> | undefined;
             setTemplateName(toText(first?.name, 'Cuestionario de observacion'));
+
+            try {
+                const [inProgressResponse, draftResponse] = await Promise.all([
+                    getQuestionnaireHistoryV2({ status: 'in_progress', page: 1, page_size: SESSION_PAGE_SIZE }),
+                    getQuestionnaireHistoryV2({ status: 'draft', page: 1, page_size: SESSION_PAGE_SIZE })
+                ]);
+                const candidate = pickReusableSession(
+                    [...(inProgressResponse.items ?? []), ...(draftResponse.items ?? [])],
+                    selectedMode,
+                    apiRole
+                );
+                setReusableSession(candidate);
+            } catch {
+                setReusableSession(null);
+            }
         } catch (requestError) {
             setActiveError(mapError(requestError, 'No se pudo cargar el cuestionario activo.'));
         } finally {
@@ -637,6 +694,41 @@ export default function Cuestionario() {
         return () => cancelAnimationFrame(rafId);
     }, [completionPhase]);
 
+    const continueSession = useCallback(async (sessionIdToContinue: string) => {
+        stopPolling();
+        setWorking(true);
+        setError(null);
+        setCompletionPhase('idle');
+        setCompletionPayload(null);
+        setCompletionError(null);
+        setBackendStatus(null);
+        setSessionSnapshot(null);
+        let failedStep: StartSessionStep = 'load_questions';
+        try {
+            const allQuestions = await loadAllSessionQuestions(sessionIdToContinue);
+            failedStep = 'load_session_detail';
+            const detail = await getQuestionnaireSessionV2(sessionIdToContinue);
+            if (allQuestions.length === 0) throw new Error('empty_questions');
+            failedStep = 'validate_questions';
+
+            const detailAnswers = (detail as Record<string, unknown>).answers;
+            const initialAnswers = normalizeAnswerDictionary(detailAnswers);
+            const nextQuestionIndex = allQuestions.findIndex((question) => !isValid(question, initialAnswers[question.id]));
+
+            setSessionId(sessionIdToContinue);
+            setQuestions(allQuestions);
+            setAnswers(initialAnswers);
+            setCurrentIndex(nextQuestionIndex >= 0 ? nextQuestionIndex : Math.max(allQuestions.length - 1, 0));
+            setSessionSnapshot(detail);
+            setStarted(true);
+            setReusableSession(null);
+        } catch (requestError) {
+            setError(mapStartSessionError(requestError, failedStep));
+        } finally {
+            setWorking(false);
+        }
+    }, [loadAllSessionQuestions, stopPolling]);
+
     const startSession = useCallback(async () => {
         stopPolling();
         setWorking(true);
@@ -672,6 +764,7 @@ export default function Cuestionario() {
             setCurrentIndex(0);
             setSessionSnapshot(detail);
             setStarted(true);
+            setReusableSession(null);
         } catch (requestError) {
             setError(mapStartSessionError(requestError, failedStep));
         } finally {
@@ -780,6 +873,7 @@ export default function Cuestionario() {
         setCompletionPayload(null);
         setCompletionError(null);
         setSessionSnapshot(null);
+        setReusableSession(null);
         void loadActive();
     };
 
@@ -803,6 +897,11 @@ export default function Cuestionario() {
     const comorbidity = completionPayload?.comorbidity ?? [];
     const resultSessionId = completionPayload?.session_id ?? sessionSnapshot?.session_id ?? sessionId ?? '--';
     const resultQuestionnaireId = completionPayload?.questionnaire_id ?? sessionSnapshot?.questionnaire_id ?? '--';
+    const reusableSessionId = getHistorySessionId(reusableSession);
+    const reusableUpdatedAt =
+        reusableSession?.updated_at ??
+        reusableSession?.created_at ??
+        null;
     const statusChipClass =
         completionPhase === 'processed'
             ? 'is-processed'
@@ -878,14 +977,44 @@ export default function Cuestionario() {
                         {error ? <div className="question-warning">{error}</div> : null}
 
                         <div className="questionnaire-intro-actions">
-                            <button
-                                type="button"
-                                className="questionnaire-btn primary questionnaire-start"
-                                onClick={() => void startSession()}
-                                disabled={working}
-                            >
-                                {working ? 'Iniciando...' : 'Comenzar'}
-                            </button>
+                            {reusableSession && reusableSessionId ? (
+                                <div className="questionnaire-resume-panel" role="status" aria-live="polite">
+                                    <div className="questionnaire-resume-copy">
+                                        <strong>Tienes un cuestionario en progreso</strong>
+                                        <p>
+                                            Puedes retomar tu sesion guardada o iniciar una nueva.
+                                            {reusableUpdatedAt ? ` Ultima actualizacion: ${new Date(reusableUpdatedAt).toLocaleString('es-CO')}.` : ''}
+                                        </p>
+                                    </div>
+                                    <div className="questionnaire-resume-actions">
+                                        <button
+                                            type="button"
+                                            className="questionnaire-btn primary questionnaire-start"
+                                            onClick={() => void continueSession(reusableSessionId)}
+                                            disabled={working}
+                                        >
+                                            {working ? 'Cargando...' : 'Continuar cuestionario'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="questionnaire-btn ghost"
+                                            onClick={() => void startSession()}
+                                            disabled={working}
+                                        >
+                                            Empezar de nuevo
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="questionnaire-btn primary questionnaire-start"
+                                    onClick={() => void startSession()}
+                                    disabled={working}
+                                >
+                                    {working ? 'Iniciando...' : 'Comenzar'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 ) : (
