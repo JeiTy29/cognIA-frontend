@@ -58,10 +58,30 @@
     letter-spacing: 1px;
 }
 
-.auth-code-input {
+.mfa-code-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.mfa-code-digit {
+    width: 100%;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.22);
+    background: #ffffff;
+    color: #215f8f;
     text-align: center;
-    font-size: 20px;
-    letter-spacing: 6px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+.mfa-code-digit:focus {
+    border-color: #1790e9;
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.18);
 }
 
 @media (max-width: 480px) {
@@ -75,8 +95,12 @@
         height: 160px;
     }
 
-    .auth-code-input {
-        letter-spacing: 4px;
-        font-size: 18px;
+    .mfa-code-grid {
+        gap: 6px;
+    }
+
+    .mfa-code-digit {
+        height: 44px;
+        font-size: 19px;
     }
 }

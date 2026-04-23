@@ -21,6 +21,14 @@ export type OperationalReportMetricNode =
     | OperationalReportMetricNode[]
     | { [key: string]: OperationalReportMetricNode };
 
+export type OperationalReportDatasetSectionKind =
+    | 'adoption_history'
+    | 'series'
+    | 'funnel'
+    | 'list'
+    | 'scalar'
+    | 'structured';
+
 export interface OperationalReportSeriesPoint {
     period: string;
     value: number | null;
@@ -53,6 +61,17 @@ export interface OperationalReportAdoptionHistory {
 
 export interface OperationalReportDataset {
     adoption_history: OperationalReportAdoptionHistory | null;
+    sections: OperationalReportDatasetSection[];
+}
+
+export interface OperationalReportDatasetSection {
+    key: string;
+    label: string;
+    kind: OperationalReportDatasetSectionKind;
+    node: OperationalReportMetricNode;
+    series: OperationalReportSeriesPoint[];
+    conversion_summary: OperationalReportConversionSummary | null;
+    operational_capacity_summary: OperationalReportCapacitySummary | null;
 }
 
 export interface OperationalReportJob {
@@ -92,7 +111,7 @@ export type OperationalReportGenerationMap = Record<OperationalReportType, Opera
 
 export const OPERATIONAL_REPORT_TYPE_LABELS: Record<OperationalReportType, string> = {
     executive_monthly: 'Resumen ejecutivo mensual',
-    adoption_history: 'Historico de adopcion',
+    adoption_history: 'Evolucion del uso de la plataforma',
     model_monitoring: 'Monitoreo del modelo',
     operational_productivity: 'Productividad operativa',
     security_compliance: 'Seguridad y cumplimiento',
@@ -101,4 +120,25 @@ export const OPERATIONAL_REPORT_TYPE_LABELS: Record<OperationalReportType, strin
 
 export function getOperationalReportTypeLabel(reportType: OperationalReportType) {
     return OPERATIONAL_REPORT_TYPE_LABELS[reportType];
+}
+
+const REPORT_SECTION_LABELS: Record<string, string> = {
+    adoption_history: 'Evolucion del uso de la plataforma',
+    volume_and_growth: 'Volumen y crecimiento',
+    user_growth: 'Crecimiento de usuarios',
+    conversion: 'Conversion operativa',
+    operational_capacity: 'Capacidad operativa',
+    security_compliance: 'Seguridad y cumplimiento',
+    traceability_audit: 'Auditoria de trazabilidad'
+};
+
+export function getOperationalReportSectionLabel(sectionKey: string) {
+    const normalized = sectionKey.trim().toLowerCase();
+    const mapped = REPORT_SECTION_LABELS[normalized];
+    if (mapped) return mapped;
+    return normalized
+        .replace(/_/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^\w/, (char) => char.toUpperCase());
 }

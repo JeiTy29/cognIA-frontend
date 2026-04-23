@@ -53,7 +53,7 @@ const blockConfigs: {
     },
     adoptionHistory: {
         key: 'adoptionHistory',
-        title: 'Adoption History',
+        title: 'Evolucion del uso de la plataforma',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/adoption-history',
         load: getDashboardAdoptionHistoryBlock,
@@ -125,7 +125,7 @@ const blockConfigs: {
     },
     drift: {
         key: 'drift',
-        title: 'Drift',
+        title: 'Cambios en el comportamiento de los datos',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/drift',
         load: getDashboardDrift,
@@ -133,7 +133,7 @@ const blockConfigs: {
     },
     equity: {
         key: 'equity',
-        title: 'Equity',
+        title: 'Comparativas entre grupos',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/equity',
         load: getDashboardEquity,
@@ -149,7 +149,7 @@ const blockConfigs: {
     },
     retention: {
         key: 'retention',
-        title: 'Retention',
+        title: 'Continuidad de uso',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/retention',
         load: getDashboardRetention,

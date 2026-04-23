@@ -11,12 +11,15 @@ import type {
     DashboardSeriesResponse
 } from '../../../services/dashboard/dashboard.types';
 import type {
+    OperationalReportDatasetSection,
     OperationalReportGenerationState,
     OperationalReportMetricNode,
     OperationalReportSeriesPoint,
     OperationalReportType
 } from '../../../services/reports/reports.types';
-import { getOperationalReportTypeLabel } from '../../../services/reports/reports.types';
+import {
+    getOperationalReportTypeLabel
+} from '../../../services/reports/reports.types';
 import './Dashboard.css';
 
 const MONTH_OPTIONS = [1, 3, 6, 12, 24, 36, 60, 120].map((value) => ({
@@ -48,7 +51,10 @@ const LABEL_MAP: Record<string, string> = {
     processed_sessions: 'Sesiones procesadas',
     registered_users: 'Usuarios registrados',
     processed_per_user: 'Procesadas por usuario',
-    report_job_id: 'ID de generacion'
+    report_job_id: 'ID de generacion',
+    count: 'Total',
+    month: 'Periodo',
+    months: 'Meses'
 };
 
 function clampMonths(value: number) {
@@ -65,6 +71,32 @@ function formatLabel(key: string) {
     const normalized = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
     if (!normalized) return '--';
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function formatPeriodLabel(period: string) {
+    const normalized = period.trim();
+    if (!normalized) return '--';
+
+    const monthlyMatch = normalized.match(/^(\d{4})-(\d{2})$/);
+    if (monthlyMatch) {
+        const year = Number(monthlyMatch[1]);
+        const month = Number(monthlyMatch[2]);
+        if (Number.isFinite(year) && Number.isFinite(month)) {
+            return new Intl.DateTimeFormat('es-CO', {
+                month: 'long',
+                year: 'numeric'
+            }).format(new Date(year, month - 1, 1));
+        }
+    }
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+        return new Intl.DateTimeFormat('es-CO', {
+            dateStyle: 'medium'
+        }).format(parsed);
+    }
+
+    return normalized;
 }
 
 function formatPrimitive(value: string | number | boolean | null) {
@@ -243,7 +275,7 @@ function ReportSeriesTable({
                 </div>
                 {points.map((point, index) => (
                     <div className="dashboard-table-row" key={`${point.period}-${index}`}>
-                        <span>{point.period}</span>
+                        <span>{formatPeriodLabel(point.period)}</span>
                         <span>{formatOperationalSeriesValue(point)}</span>
                     </div>
                 ))}
@@ -280,7 +312,67 @@ function ReportGenerationOutput({
     if (state.status !== 'success' || !state.data) return null;
 
     const report = state.data;
-    const adoptionHistory = report.dataset.adoption_history;
+    const sections = report.dataset.sections ?? [];
+
+    const renderSection = (section: OperationalReportDatasetSection) => {
+        const showMetricNode = !isMetricNodeEmpty(section.node);
+        const showSeries = section.series.length > 0;
+        const showConversionSummary = !!section.conversion_summary;
+        const showCapacitySummary = !!section.operational_capacity_summary;
+
+        return (
+            <div className="dashboard-report-block" key={section.key}>
+                <h4>{section.label}</h4>
+
+                {showSeries ? (
+                    <ReportSeriesTable
+                        title="Tendencia del periodo"
+                        points={section.series}
+                    />
+                ) : null}
+
+                {showConversionSummary ? (
+                    <div className="dashboard-report-summary">
+                        <div className="dashboard-report-summary-row">
+                            <span>Creados</span>
+                            <strong>{formatPrimitive(section.conversion_summary?.created ?? null)}</strong>
+                        </div>
+                        <div className="dashboard-report-summary-row">
+                            <span>Enviados</span>
+                            <strong>{formatPrimitive(section.conversion_summary?.submitted ?? null)}</strong>
+                        </div>
+                        <div className="dashboard-report-summary-row">
+                            <span>Procesados</span>
+                            <strong>{formatPrimitive(section.conversion_summary?.processed ?? null)}</strong>
+                        </div>
+                        <div className="dashboard-report-summary-row">
+                            <span>Conversion de creados a procesados</span>
+                            <strong>{formatConversion(section.conversion_summary?.conversion_created_to_processed ?? null)}</strong>
+                        </div>
+                    </div>
+                ) : null}
+
+                {showCapacitySummary ? (
+                    <div className="dashboard-report-summary">
+                        <div className="dashboard-report-summary-row">
+                            <span>Sesiones procesadas</span>
+                            <strong>{formatPrimitive(section.operational_capacity_summary?.processed_sessions ?? null)}</strong>
+                        </div>
+                        <div className="dashboard-report-summary-row">
+                            <span>Usuarios registrados</span>
+                            <strong>{formatPrimitive(section.operational_capacity_summary?.registered_users ?? null)}</strong>
+                        </div>
+                        <div className="dashboard-report-summary-row">
+                            <span>Procesadas por usuario</span>
+                            <strong>{formatPrimitive(section.operational_capacity_summary?.processed_per_user ?? null)}</strong>
+                        </div>
+                    </div>
+                ) : null}
+
+                {showMetricNode ? <MetricNodeView node={section.node} /> : null}
+            </div>
+        );
+    };
 
     return (
         <div className="dashboard-report-feedback is-success" role="status" aria-live="polite">
@@ -291,81 +383,13 @@ function ReportGenerationOutput({
                 <span><strong>Generado:</strong> {formatDateTime(report.generated_at)}</span>
             </div>
 
-            {adoptionHistory ? (
+            {sections.length > 0 ? (
                 <div className="dashboard-report-grid">
-                    <div className="dashboard-report-block">
-                        <h4>Volumen y crecimiento</h4>
-                        {adoptionHistory.volume_and_growth_series.length > 0 ? (
-                            <ReportSeriesTable
-                                title="Serie temporal"
-                                points={adoptionHistory.volume_and_growth_series}
-                            />
-                        ) : (
-                            <MetricNodeView node={adoptionHistory.volume_and_growth} />
-                        )}
-                    </div>
-
-                    <div className="dashboard-report-block">
-                        <h4>Crecimiento de usuarios</h4>
-                        {adoptionHistory.user_growth_series.length > 0 ? (
-                            <ReportSeriesTable
-                                title="Serie temporal"
-                                points={adoptionHistory.user_growth_series}
-                            />
-                        ) : (
-                            <MetricNodeView node={adoptionHistory.user_growth} />
-                        )}
-                    </div>
-
-                    <div className="dashboard-report-block">
-                        <h4>Conversion</h4>
-                        <div className="dashboard-report-summary">
-                            <div className="dashboard-report-summary-row">
-                                <span>Creados</span>
-                                <strong>{formatPrimitive(adoptionHistory.conversion_summary.created)}</strong>
-                            </div>
-                            <div className="dashboard-report-summary-row">
-                                <span>Enviados</span>
-                                <strong>{formatPrimitive(adoptionHistory.conversion_summary.submitted)}</strong>
-                            </div>
-                            <div className="dashboard-report-summary-row">
-                                <span>Procesados</span>
-                                <strong>{formatPrimitive(adoptionHistory.conversion_summary.processed)}</strong>
-                            </div>
-                            <div className="dashboard-report-summary-row">
-                                <span>Conversion de creados a procesados</span>
-                                <strong>{formatConversion(adoptionHistory.conversion_summary.conversion_created_to_processed)}</strong>
-                            </div>
-                        </div>
-                        {!isMetricNodeEmpty(adoptionHistory.conversion) ? (
-                            <MetricNodeView node={adoptionHistory.conversion} />
-                        ) : null}
-                    </div>
-
-                    <div className="dashboard-report-block">
-                        <h4>Capacidad operativa</h4>
-                        <div className="dashboard-report-summary">
-                            <div className="dashboard-report-summary-row">
-                                <span>Sesiones procesadas</span>
-                                <strong>{formatPrimitive(adoptionHistory.operational_capacity_summary.processed_sessions)}</strong>
-                            </div>
-                            <div className="dashboard-report-summary-row">
-                                <span>Usuarios registrados</span>
-                                <strong>{formatPrimitive(adoptionHistory.operational_capacity_summary.registered_users)}</strong>
-                            </div>
-                            <div className="dashboard-report-summary-row">
-                                <span>Procesadas por usuario</span>
-                                <strong>{formatPrimitive(adoptionHistory.operational_capacity_summary.processed_per_user)}</strong>
-                            </div>
-                        </div>
-                        {!isMetricNodeEmpty(adoptionHistory.operational_capacity) ? (
-                            <MetricNodeView node={adoptionHistory.operational_capacity} />
-                        ) : null}
-                    </div>
+                    {sections.map((section) => renderSection(section))}
                 </div>
             ) : (
                 <p className="dashboard-empty">
-                    El reporte se genero correctamente. Este tipo no trae un bloque estructurado de adopcion para mostrar en esta vista.
+                    El reporte se genero correctamente, pero no trajo datos representables para este rango.
                 </p>
             )}
         </div>
@@ -397,9 +421,11 @@ function SectionReportAction({
 
 function SectionSeries({
     title,
+    description,
     state
 }: {
     title: string;
+    description?: string;
     state: DashboardBlockState<DashboardSeriesResponse>;
 }) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
@@ -415,7 +441,10 @@ function SectionSeries({
     return (
         <div className="dashboard-series">
             <div className="dashboard-series-header">
-                <h3>{title}</h3>
+                <div>
+                    <h3>{title}</h3>
+                    {description ? <p className="dashboard-section-description">{description}</p> : null}
+                </div>
                 {sparklinePath ? (
                     <svg className="dashboard-sparkline" viewBox="0 0 240 46" aria-label={`Tendencia de ${title}`}>
                         <path d={sparklinePath} />
@@ -429,7 +458,7 @@ function SectionSeries({
                 </div>
                 {state.data.series.map((point, index) => (
                     <div className="dashboard-table-row" key={`${point.period}-${index}`}>
-                        <span>{point.period}</span>
+                        <span>{formatPeriodLabel(point.period)}</span>
                         <span>{formatSeriesValue(point)}</span>
                     </div>
                 ))}
@@ -502,6 +531,7 @@ function SectionFunnel({
 
 function SectionAdoption({
     title,
+    description,
     state,
     prioritized = false,
     reportType,
@@ -509,6 +539,7 @@ function SectionAdoption({
     onGenerateReport
 }: {
     title: string;
+    description?: string;
     state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
     prioritized?: boolean;
     reportType?: OperationalReportType;
@@ -528,7 +559,10 @@ function SectionAdoption({
     return (
         <section className={`dashboard-adoption ${prioritized ? 'is-prioritized' : ''}`}>
             <div className="dashboard-section-title-row">
-                <h2>{title}</h2>
+                <div>
+                    <h2>{title}</h2>
+                    {description ? <p className="dashboard-section-description">{description}</p> : null}
+                </div>
                 <SectionReportAction
                     reportType={reportType}
                     reportState={reportState}
@@ -678,6 +712,7 @@ export default function Dashboard() {
 
             <SectionAdoption
                 title="Resumen ejecutivo"
+                description="Lectura general del rendimiento operativo y del uso reciente de la plataforma."
                 state={blocks.executiveSummary}
                 prioritized
                 reportType="executive_monthly"
@@ -687,7 +722,8 @@ export default function Dashboard() {
                 }}
             />
             <SectionAdoption
-                title="Historico de adopcion"
+                title="Evolucion del uso de la plataforma"
+                description="Seguimiento de volumen, crecimiento y capacidad operativa en el periodo seleccionado."
                 state={blocks.adoptionHistory}
                 reportType="adoption_history"
                 reportState={reportStates.adoption_history}
@@ -710,7 +746,11 @@ export default function Dashboard() {
                 <SectionFunnel title="Revision humana" state={blocks.humanReview} />
             </section>
 
-            <SectionSeries title="Crecimiento de usuarios" state={blocks.userGrowth} />
+            <SectionSeries
+                title="Crecimiento de usuarios"
+                description="Tendencia de nuevas altas y variacion del total de usuarios."
+                state={blocks.userGrowth}
+            />
 
             <section className="dashboard-series-grid">
                 <SectionSeries title="Volumen de cuestionarios" state={blocks.questionnaireVolume} />
@@ -723,10 +763,19 @@ export default function Dashboard() {
             </section>
 
             <section className="dashboard-adoption-grid-wide">
-                <SectionAdoption title="Drift" state={blocks.drift} />
-                <SectionAdoption title="Equidad" state={blocks.equity} />
+                <SectionAdoption
+                    title="Cambios en el comportamiento de los datos"
+                    description="Variaciones relevantes entre periodos que pueden impactar la lectura de resultados."
+                    state={blocks.drift}
+                />
+                <SectionAdoption
+                    title="Comparativas entre grupos"
+                    description="Analisis de consistencia y brechas observables entre segmentos de la poblacion."
+                    state={blocks.equity}
+                />
                 <SectionAdoption
                     title="Monitoreo de modelos"
+                    description="Seguimiento del desempeno y estabilidad de los modelos de apoyo."
                     state={blocks.modelMonitoring}
                     reportType="model_monitoring"
                     reportState={reportStates.model_monitoring}
@@ -734,7 +783,11 @@ export default function Dashboard() {
                         void generateReport(reportType);
                     }}
                 />
-                <SectionAdoption title="Retencion" state={blocks.retention} />
+                <SectionAdoption
+                    title="Continuidad de uso"
+                    description="Permanencia de usuarios y recurrencia de uso en el tiempo."
+                    state={blocks.retention}
+                />
             </section>
         </div>
     );
