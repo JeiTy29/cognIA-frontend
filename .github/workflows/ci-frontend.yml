@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend CI (Required)
 
 on:
   push:
@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Validate Build
+  frontend_ci_required:
+    name: frontend-ci-required
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -37,3 +37,7 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Lint frontend (advisory, non-blocking)
+        continue-on-error: true
+        run: npm run lint
