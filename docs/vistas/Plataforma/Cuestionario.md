@@ -48,7 +48,7 @@ Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo
 
 ## Notas de implementacion relevantes
 - Mapeo de rol frontend a rol API:
-  - `padre -> caregiver`
+  - `padre -> guardian`
   - `psicologo -> psychologist`
 - Modo por defecto: `complete`.
 - Tamano de pagina de sesion: `page_size=20`.

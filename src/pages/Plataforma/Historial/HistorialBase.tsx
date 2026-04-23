@@ -94,6 +94,7 @@ function getModeLabel(mode: string | undefined) {
 
 function getRoleLabel(role: string | undefined) {
     const normalized = (role ?? '').toLowerCase();
+    if (normalized === 'guardian') return 'Tutor';
     if (normalized === 'caregiver') return 'Cuidador';
     if (normalized === 'psychologist') return 'Psicologo';
     return role ?? '--';

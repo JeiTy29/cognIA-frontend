@@ -56,7 +56,7 @@ interface ProcessingStep {
 }
 
 function roleToApiRole(role: string | null) {
-    return role === 'psicologo' ? 'psychologist' : 'caregiver';
+    return role === 'psicologo' ? 'psychologist' : 'guardian';
 }
 
 function toText(value: unknown, fallback = '') {
