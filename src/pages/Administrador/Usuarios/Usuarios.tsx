@@ -139,10 +139,10 @@ function EditIcon() {
     );
 }
 
-function TrashIcon() {
+function LockUserIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Z" />
+            <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-7a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v2h6V7a3 3 0 0 0-3-3Zm-4 7h8v7a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-7Z" />
         </svg>
     );
 }
@@ -514,10 +514,11 @@ export default function Usuarios() {
                                         type="button"
                                         className="icon-btn has-tooltip"
                                         data-tooltip="Desactivar"
+                                        aria-label="Desactivar usuario"
                                         onClick={() => setUserToDeactivate(user)}
                                         disabled={!user.is_active}
                                     >
-                                        <TrashIcon />
+                                        <LockUserIcon />
                                     </button>
                                 </div>
                             </div>
@@ -534,7 +535,7 @@ export default function Usuarios() {
                 <div className="usuarios-pagination-controls">
                     <div className="usuarios-page-size">
                         <label>
-                            Filas
+                            Tamaño
                             <CustomSelect
                                 value={String(pageSize)}
                                 options={pageSizeOptions}

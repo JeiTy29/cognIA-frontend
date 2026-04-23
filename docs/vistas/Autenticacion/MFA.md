@@ -31,6 +31,10 @@ El modo se resuelve desde `location.state`.
   - pegado de codigo (6 digitos) distribuido automaticamente
 - El valor final se consolida en `code` y se envia al endpoint de login MFA.
 - El flujo alterno con `recovery_code` sigue disponible y no se rompe.
+- La seleccion de modo ya no usa checkbox:
+  - usa un control segmentado (`Codigo TOTP` / `Codigo de recuperacion`).
+  - al cambiar a recovery, se muestra input de recovery code.
+  - al volver a TOTP, se recupera foco natural en las cajas de codigo.
 
 ## Setup MFA
 

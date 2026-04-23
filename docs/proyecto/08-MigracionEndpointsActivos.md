@@ -120,22 +120,6 @@ Todos consumidos por GET con query `months`:
 - Carga por bloque con `Promise.allSettled` (fallo parcial no tumba toda la vista).
 - Normalizacion por familia (`series`, `funnel`, `adoption_history`).
 
-## Admin: reportes operativos desde dashboard
-
-Servicios:
-
-- `src/services/reports/reports.api.ts`
-- `src/hooks/reports/useDashboardReports.ts`
-
-| Endpoint consumido | Metodo | Uso en frontend |
-|---|---|---|
-| `/api/v2/reports/jobs` | POST | Generacion contextual de reportes operativos desde dashboard |
-
-### Observaciones
-
-- El cliente muestra dataset normalizado y metadata de job.
-- `file_path` se trata como metadato, no como URL publica descargable inferida.
-
 ## Admin: gestion de cuestionarios/evaluaciones/usuarios/psicologos/auditoria
 
 ### Cuestionarios admin (`src/services/admin/questionnaires.ts`)

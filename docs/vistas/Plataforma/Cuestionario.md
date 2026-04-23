@@ -53,7 +53,7 @@ Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo
   - `padre -> guardian`
   - `psicologo -> psychologist`
 - Modo por defecto: `complete`.
-- Tamano de pagina de sesion: `page_size=20`.
+- Tamaño de pagina de sesion: `page_size=20`.
 - El componente consolida preguntas y respuestas en estado local para no perder continuidad de navegacion entre preguntas.
 
 ## Flujo de continuidad de sesion

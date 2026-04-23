@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { useDashboard } from '../../../hooks/dashboard/useDashboard';
-import { useDashboardReports } from '../../../hooks/reports/useDashboardReports';
 import type {
     DashboardAdoptionHistoryResponse,
     DashboardBlockState,
@@ -10,27 +9,12 @@ import type {
     DashboardSeriesPoint,
     DashboardSeriesResponse
 } from '../../../services/dashboard/dashboard.types';
-import type {
-    OperationalReportDatasetSection,
-    OperationalReportGenerationState,
-    OperationalReportMetricNode,
-    OperationalReportSeriesPoint,
-    OperationalReportType
-} from '../../../services/reports/reports.types';
-import {
-    getOperationalReportTypeLabel
-} from '../../../services/reports/reports.types';
 import './Dashboard.css';
 
 const MONTH_OPTIONS = [1, 3, 6, 12, 24, 36, 60, 120].map((value) => ({
     value: String(value),
     label: `${value} mes${value === 1 ? '' : 'es'}`
 }));
-
-const ADDITIONAL_REPORT_TYPES: OperationalReportType[] = [
-    'security_compliance',
-    'traceability_audit'
-];
 
 const LABEL_MAP: Record<string, string> = {
     volume_and_growth: 'Volumen y crecimiento',
@@ -51,7 +35,6 @@ const LABEL_MAP: Record<string, string> = {
     processed_sessions: 'Sesiones procesadas',
     registered_users: 'Usuarios registrados',
     processed_per_user: 'Procesadas por usuario',
-    report_job_id: 'ID de generacion',
     count: 'Total',
     month: 'Periodo',
     months: 'Meses'
@@ -121,30 +104,10 @@ function formatSeriesValue(point: DashboardSeriesPoint) {
     return formatPrimitive(point.value);
 }
 
-function formatOperationalSeriesValue(point: OperationalReportSeriesPoint) {
-    if (point.raw_value !== null) {
-        if (typeof point.raw_value === 'number') return formatPrimitive(point.raw_value);
-        if (typeof point.raw_value === 'boolean') return point.raw_value ? 'Si' : 'No';
-        const text = String(point.raw_value).trim();
-        return text.length > 0 ? text : '--';
-    }
-    if (point.value === null) return '--';
-    return formatPrimitive(point.value);
-}
-
 function formatConversion(value: number | null) {
     if (value === null) return '--';
     if (value <= 1) return `${(value * 100).toFixed(1)}%`;
     return `${value.toFixed(1)}%`;
-}
-
-function formatDateTime(value: string) {
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '--';
-    return new Intl.DateTimeFormat('es-CO', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-    }).format(parsed);
 }
 
 function buildSparklinePath(points: DashboardSeriesPoint[], width: number, height: number) {
@@ -166,16 +129,6 @@ function buildSparklinePath(points: DashboardSeriesPoint[], width: number, heigh
             return `${index === 0 ? 'M' : 'L'}${x},${y}`;
         })
         .join(' ');
-}
-
-function isMetricNodeEmpty(node: OperationalReportMetricNode | DashboardMetricNode): boolean {
-    if (node === null) return true;
-    if (typeof node === 'string') return node.trim().length === 0;
-    if (typeof node === 'number' || typeof node === 'boolean') return false;
-    if (Array.isArray(node)) return node.length === 0 || node.every((item) => isMetricNodeEmpty(item));
-    const entries = Object.entries(node);
-    if (entries.length === 0) return true;
-    return entries.every(([, value]) => isMetricNodeEmpty(value));
 }
 
 function BlockError({ message, status }: { message: string; status: number | null }) {
@@ -202,7 +155,7 @@ function MetricNodeView({
     node,
     depth = 0
 }: {
-    node: DashboardMetricNode | OperationalReportMetricNode;
+    node: DashboardMetricNode;
     depth?: number;
 }) {
     if (depth > 4) return <span className="dashboard-node-value">--</span>;
@@ -257,168 +210,6 @@ function MetricNodeView({
     );
 }
 
-function ReportSeriesTable({
-    title,
-    points
-}: {
-    title: string;
-    points: OperationalReportSeriesPoint[];
-}) {
-    if (points.length === 0) return null;
-    return (
-        <div className="dashboard-report-subblock">
-            <h5>{title}</h5>
-            <div className="dashboard-table compact">
-                <div className="dashboard-table-row head">
-                    <span>Periodo</span>
-                    <span>Valor</span>
-                </div>
-                {points.map((point, index) => (
-                    <div className="dashboard-table-row" key={`${point.period}-${index}`}>
-                        <span>{formatPeriodLabel(point.period)}</span>
-                        <span>{formatOperationalSeriesValue(point)}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function ReportGenerationOutput({
-    state
-}: {
-    state: OperationalReportGenerationState | undefined;
-}) {
-    if (!state || state.status === 'idle') return null;
-
-    if (state.status === 'loading') {
-        return (
-            <div className="dashboard-report-feedback is-loading" role="status" aria-live="polite">
-                Generando reporte...
-            </div>
-        );
-    }
-
-    if (state.status === 'error' && state.error) {
-        return (
-            <div className="dashboard-report-feedback is-error" role="status" aria-live="polite">
-                <strong>No se pudo generar el reporte</strong>
-                <span>{state.error.message}</span>
-                {state.error.status ? <small>HTTP {state.error.status}</small> : null}
-            </div>
-        );
-    }
-
-    if (state.status !== 'success' || !state.data) return null;
-
-    const report = state.data;
-    const sections = report.dataset.sections ?? [];
-
-    const renderSection = (section: OperationalReportDatasetSection) => {
-        const showMetricNode = !isMetricNodeEmpty(section.node);
-        const showSeries = section.series.length > 0;
-        const showConversionSummary = !!section.conversion_summary;
-        const showCapacitySummary = !!section.operational_capacity_summary;
-
-        return (
-            <div className="dashboard-report-block" key={section.key}>
-                <h4>{section.label}</h4>
-
-                {showSeries ? (
-                    <ReportSeriesTable
-                        title="Tendencia del periodo"
-                        points={section.series}
-                    />
-                ) : null}
-
-                {showConversionSummary ? (
-                    <div className="dashboard-report-summary">
-                        <div className="dashboard-report-summary-row">
-                            <span>Creados</span>
-                            <strong>{formatPrimitive(section.conversion_summary?.created ?? null)}</strong>
-                        </div>
-                        <div className="dashboard-report-summary-row">
-                            <span>Enviados</span>
-                            <strong>{formatPrimitive(section.conversion_summary?.submitted ?? null)}</strong>
-                        </div>
-                        <div className="dashboard-report-summary-row">
-                            <span>Procesados</span>
-                            <strong>{formatPrimitive(section.conversion_summary?.processed ?? null)}</strong>
-                        </div>
-                        <div className="dashboard-report-summary-row">
-                            <span>Conversion de creados a procesados</span>
-                            <strong>{formatConversion(section.conversion_summary?.conversion_created_to_processed ?? null)}</strong>
-                        </div>
-                    </div>
-                ) : null}
-
-                {showCapacitySummary ? (
-                    <div className="dashboard-report-summary">
-                        <div className="dashboard-report-summary-row">
-                            <span>Sesiones procesadas</span>
-                            <strong>{formatPrimitive(section.operational_capacity_summary?.processed_sessions ?? null)}</strong>
-                        </div>
-                        <div className="dashboard-report-summary-row">
-                            <span>Usuarios registrados</span>
-                            <strong>{formatPrimitive(section.operational_capacity_summary?.registered_users ?? null)}</strong>
-                        </div>
-                        <div className="dashboard-report-summary-row">
-                            <span>Procesadas por usuario</span>
-                            <strong>{formatPrimitive(section.operational_capacity_summary?.processed_per_user ?? null)}</strong>
-                        </div>
-                    </div>
-                ) : null}
-
-                {showMetricNode ? <MetricNodeView node={section.node} /> : null}
-            </div>
-        );
-    };
-
-    return (
-        <div className="dashboard-report-feedback is-success" role="status" aria-live="polite">
-            <div className="dashboard-report-meta">
-                <span><strong>Reporte:</strong> {report.report_type_label}</span>
-                <span><strong>Periodo:</strong> {report.months} meses</span>
-                <span><strong>ID:</strong> {report.report_job_id || '--'}</span>
-                <span><strong>Generado:</strong> {formatDateTime(report.generated_at)}</span>
-            </div>
-
-            {sections.length > 0 ? (
-                <div className="dashboard-report-grid">
-                    {sections.map((section) => renderSection(section))}
-                </div>
-            ) : (
-                <p className="dashboard-empty">
-                    El reporte se genero correctamente, pero no trajo datos representables para este rango.
-                </p>
-            )}
-        </div>
-    );
-}
-
-function SectionReportAction({
-    reportType,
-    reportState,
-    onGenerateReport
-}: {
-    reportType?: OperationalReportType;
-    reportState?: OperationalReportGenerationState;
-    onGenerateReport?: (reportType: OperationalReportType) => void;
-}) {
-    if (!reportType || !onGenerateReport) return null;
-    const isLoading = reportState?.status === 'loading';
-    return (
-        <button
-            type="button"
-            className="dashboard-report-action"
-            onClick={() => onGenerateReport(reportType)}
-            disabled={isLoading}
-        >
-            {isLoading ? 'Generando...' : 'Generar reporte'}
-        </button>
-    );
-}
-
 function SectionSeries({
     title,
     description,
@@ -469,16 +260,10 @@ function SectionSeries({
 
 function SectionFunnel({
     title,
-    state,
-    reportType,
-    reportState,
-    onGenerateReport
+    state
 }: {
     title: string;
     state: DashboardBlockState<DashboardFunnelResponse>;
-    reportType?: OperationalReportType;
-    reportState?: OperationalReportGenerationState;
-    onGenerateReport?: (reportType: OperationalReportType) => void;
 }) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
     if (state.status === 'error' && state.error) {
@@ -497,11 +282,6 @@ function SectionFunnel({
         <section className="dashboard-funnel-block">
             <div className="dashboard-section-title-row">
                 <h3>{title}</h3>
-                <SectionReportAction
-                    reportType={reportType}
-                    reportState={reportState}
-                    onGenerateReport={onGenerateReport}
-                />
             </div>
             <div className="dashboard-funnel-rows">
                 <div className="dashboard-funnel-row">
@@ -524,7 +304,6 @@ function SectionFunnel({
                 <span>Conversion de creados a procesados</span>
                 <strong>{formatConversion(state.data.conversion_created_to_processed)}</strong>
             </div>
-            <ReportGenerationOutput state={reportState} />
         </section>
     );
 }
@@ -533,18 +312,12 @@ function SectionAdoption({
     title,
     description,
     state,
-    prioritized = false,
-    reportType,
-    reportState,
-    onGenerateReport
+    prioritized = false
 }: {
     title: string;
     description?: string;
     state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
     prioritized?: boolean;
-    reportType?: OperationalReportType;
-    reportState?: OperationalReportGenerationState;
-    onGenerateReport?: (reportType: OperationalReportType) => void;
 }) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
     if (state.status === 'error' && state.error) {
@@ -563,11 +336,6 @@ function SectionAdoption({
                     <h2>{title}</h2>
                     {description ? <p className="dashboard-section-description">{description}</p> : null}
                 </div>
-                <SectionReportAction
-                    reportType={reportType}
-                    reportState={reportState}
-                    onGenerateReport={onGenerateReport}
-                />
             </div>
             <div className="dashboard-adoption-grid">
                 <div className="dashboard-adoption-item">
@@ -587,16 +355,13 @@ function SectionAdoption({
                     <MetricNodeView node={adoption.operational_capacity} />
                 </div>
             </div>
-            <ReportGenerationOutput state={reportState} />
         </section>
     );
 }
 
 export default function Dashboard() {
     const { months, setMonths, blocks, isReloading, reload } = useDashboard();
-    const { reportStates, generateReport } = useDashboardReports(months);
     const [monthsInput, setMonthsInput] = useState(String(months));
-    const [showExtraReports, setShowExtraReports] = useState(false);
 
     useEffect(() => {
         setMonthsInput(String(months));
@@ -653,37 +418,6 @@ export default function Dashboard() {
                     <button type="button" className="dashboard-refresh" onClick={reload} disabled={isReloading}>
                         {isReloading ? 'Actualizando...' : 'Actualizar'}
                     </button>
-                    <div className="dashboard-extra-reports">
-                        <button
-                            type="button"
-                            className="dashboard-extra-reports-toggle"
-                            onClick={() => setShowExtraReports((prev) => !prev)}
-                            aria-expanded={showExtraReports}
-                        >
-                            Reportes adicionales
-                        </button>
-                        {showExtraReports ? (
-                            <div className="dashboard-extra-reports-menu">
-                                {ADDITIONAL_REPORT_TYPES.map((reportType) => {
-                                    const state = reportStates[reportType];
-                                    const loading = state.status === 'loading';
-                                    return (
-                                        <button
-                                            key={reportType}
-                                            type="button"
-                                            className="dashboard-extra-reports-item"
-                                            onClick={() => {
-                                                void generateReport(reportType);
-                                            }}
-                                            disabled={loading}
-                                        >
-                                            {loading ? 'Generando...' : getOperationalReportTypeLabel(reportType)}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : null}
-                    </div>
                 </div>
             </header>
 
@@ -695,54 +429,21 @@ export default function Dashboard() {
                 </div>
             ) : null}
 
-            {ADDITIONAL_REPORT_TYPES.some((reportType) => reportStates[reportType].status !== 'idle') ? (
-                <section className="dashboard-additional-reports-results">
-                    {ADDITIONAL_REPORT_TYPES.map((reportType) => {
-                        const state = reportStates[reportType];
-                        if (state.status === 'idle') return null;
-                        return (
-                            <div key={reportType} className="dashboard-additional-report-item">
-                                <h3>{getOperationalReportTypeLabel(reportType)}</h3>
-                                <ReportGenerationOutput state={state} />
-                            </div>
-                        );
-                    })}
-                </section>
-            ) : null}
-
             <SectionAdoption
                 title="Resumen ejecutivo"
                 description="Lectura general del rendimiento operativo y del uso reciente de la plataforma."
                 state={blocks.executiveSummary}
                 prioritized
-                reportType="executive_monthly"
-                reportState={reportStates.executive_monthly}
-                onGenerateReport={(reportType) => {
-                    void generateReport(reportType);
-                }}
             />
             <SectionAdoption
                 title="Evolucion del uso de la plataforma"
                 description="Seguimiento de volumen, crecimiento y capacidad operativa en el periodo seleccionado."
                 state={blocks.adoptionHistory}
-                reportType="adoption_history"
-                reportState={reportStates.adoption_history}
-                onGenerateReport={(reportType) => {
-                    void generateReport(reportType);
-                }}
             />
 
             <section className="dashboard-funnel-grid">
                 <SectionFunnel title="Embudo operativo" state={blocks.funnel} />
-                <SectionFunnel
-                    title="Productividad"
-                    state={blocks.productivity}
-                    reportType="operational_productivity"
-                    reportState={reportStates.operational_productivity}
-                    onGenerateReport={(reportType) => {
-                        void generateReport(reportType);
-                    }}
-                />
+                <SectionFunnel title="Productividad" state={blocks.productivity} />
                 <SectionFunnel title="Revision humana" state={blocks.humanReview} />
             </section>
 
@@ -777,11 +478,6 @@ export default function Dashboard() {
                     title="Monitoreo de modelos"
                     description="Seguimiento del desempeno y estabilidad de los modelos de apoyo."
                     state={blocks.modelMonitoring}
-                    reportType="model_monitoring"
-                    reportState={reportStates.model_monitoring}
-                    onGenerateReport={(reportType) => {
-                        void generateReport(reportType);
-                    }}
                 />
                 <SectionAdoption
                     title="Continuidad de uso"

@@ -7,6 +7,66 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-04-23 - Ajustes visuales MFA/Admin y limpieza Dashboard
+
+### 1) MFA challenge: control de modo sin checkbox
+
+- Vista: `src/pages/Autenticacion/MFA/MFA.tsx`
+- Estilos: `src/pages/Autenticacion/MFA/MFA.css`
+- Cambios:
+  - se reemplazo checkbox de recovery por control segmentado:
+    - `Codigo TOTP`
+    - `Codigo de recuperacion`
+  - se mantiene envio condicional de payload:
+    - `code` en modo TOTP
+    - `recovery_code` en modo recovery
+  - foco natural al cambiar de modo (cajas/input recovery).
+
+### 2) Dashboard: eliminacion total de generacion de reportes
+
+- Vista: `src/pages/Administrador/Dashboard/Dashboard.tsx`
+- Estilos: `src/pages/Administrador/Dashboard/Dashboard.css`
+- Eliminado:
+  - botones `Generar reporte` y `Reportes adicionales`
+  - estados/loading/error/success de reportes en dashboard
+  - render de salida de reportes
+  - hook y servicios dedicados al flujo:
+    - `src/hooks/reports/useDashboardReports.ts`
+    - `src/services/reports/reports.api.ts`
+    - `src/services/reports/reports.mappers.ts`
+    - `src/services/reports/reports.types.ts`
+
+### 3) Estandarizacion de paginacion (`Tamaño`)
+
+- Vistas actualizadas:
+  - `src/pages/Administrador/Usuarios/Usuarios.tsx`
+  - `src/pages/Administrador/Auditoria/Auditoria.tsx`
+  - `src/pages/Administrador/Cuestionarios/Cuestionarios.tsx`
+  - `src/pages/Administrador/Psicologos/Psicologos.tsx`
+  - `src/pages/Administrador/Evaluaciones/Evaluaciones.tsx`
+  - `src/pages/Plataforma/Historial/HistorialBase.tsx`
+- Resultado:
+  - etiqueta visible estandarizada a `Tamaño`.
+
+### 4) Usuarios admin: iconografia y micro-ajustes de accion
+
+- Archivos:
+  - `src/pages/Administrador/Usuarios/Usuarios.tsx`
+  - `src/pages/Administrador/Usuarios/Usuarios.css`
+- Cambios:
+  - icono de desactivar pasa de papelera a bloqueo.
+  - boton de copiar ID con mejor tamaño/alineacion y foco visible.
+
+### 5) Auditoria: detalle en lenguaje mas natural
+
+- Archivos:
+  - `src/pages/Administrador/Auditoria/Auditoria.tsx`
+  - `src/pages/Administrador/Auditoria/Auditoria.css`
+- Cambios:
+  - el modal prioriza campos humanizados (accion, actor, objetivo, resumen, fecha).
+  - campos complementarios con labels naturales.
+  - datos tecnicos completos en bloque secundario desplegable.
+
 ## 2026-04-22 - Admin Cuestionarios + Continuidad V2
 
 ### 1) Creacion de plantilla de cuestionario (admin)

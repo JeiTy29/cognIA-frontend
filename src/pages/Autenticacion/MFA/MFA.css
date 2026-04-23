@@ -23,13 +23,39 @@
     text-align: left;
 }
 
-.mfa-recovery-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #52667a;
+.mfa-mode-toggle {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    border-radius: 12px;
+    background: #f4f8fc;
+    padding: 4px;
     margin-bottom: 12px;
+    gap: 4px;
+}
+
+.mfa-mode-toggle-btn {
+    height: 34px;
+    border: none;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f6377;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mfa-mode-toggle-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.2);
+}
+
+.mfa-mode-toggle-btn.is-active {
+    color: #215f8f;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(33, 95, 143, 0.12);
 }
 
 .qr-card {
