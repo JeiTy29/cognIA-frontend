@@ -1,10 +1,33 @@
-﻿.auth-guard {
+.auth-guard {
     min-height: 60vh;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
     color: #52667a;
+}
+
+.auth-guard-content-loading {
+    min-height: 42vh;
+    display: grid;
+    place-items: center;
+    gap: 12px;
+    color: #4d6780;
+    text-align: center;
+}
+
+.auth-guard-content-loading p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.auth-guard-content-loading-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #1790e9;
+    box-shadow: 0 0 0 0 rgba(23, 144, 233, 0.35);
+    animation: authGuardPulse 1.3s ease-in-out infinite;
 }
 
 .no-auth {
@@ -59,6 +82,21 @@
     font-size: 14px;
     color: #52667a;
     margin: 0 0 16px;
+}
+
+@keyframes authGuardPulse {
+    0% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(23, 144, 233, 0.35);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 9px rgba(23, 144, 233, 0);
+    }
+    100% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(23, 144, 233, 0);
+    }
 }
 
 @media (max-width: 900px) {

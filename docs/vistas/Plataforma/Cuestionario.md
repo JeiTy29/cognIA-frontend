@@ -1,14 +1,21 @@
 # Vista: Cuestionario (Usuario)
 
+## Ubicacion
+- Vista principal: `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- Estilos: `src/pages/Plataforma/Cuestionario/Cuestionario.css`
+- Servicios usados: `src/services/questionnaires/questionnaires.api.ts`
+- Tipos usados: `src/services/questionnaires/questionnaires.types.ts`
+
 ## Objetivo funcional
-- Ejecutar el flujo de cuestionario de usuario sobre `QuestionnaireV2` con sesion real.
+Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo), incluyendo:
+- seleccion de modo,
+- inicio de sesion,
+- carga y respuesta de preguntas,
+- guardado de respuestas,
+- submit y procesamiento,
+- presentacion de resultado cuando el backend lo entrega.
 
-## Archivos tocados
-- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
-- `src/services/questionnaires/questionnaires.api.ts`
-- `src/services/questionnaires/questionnaires.types.ts`
-
-## Endpoints activos usados
+## Endpoints consumidos por frontend
 - `GET /api/v2/questionnaires/active`
 - `POST /api/v2/questionnaires/sessions`
 - `GET /api/v2/questionnaires/sessions/{session_id}`
@@ -16,23 +23,37 @@
 - `PATCH /api/v2/questionnaires/sessions/{session_id}/answers`
 - `POST /api/v2/questionnaires/sessions/{session_id}/submit`
 
-## Endpoint legacy retirado
-- `GET /api/v1/questionnaires/active`
+## Estados de carga y UX (actualizado)
 
-## Decisiones funcionales
-- Mapeo de rol:
+### 1. Carga inicial previa al boton "Comenzar"
+- Cuando `activeLoading` es `true`, se muestra un estado visual de carga estilizado:
+  - bloque centrado,
+  - indicador animado (anillos + punto),
+  - texto de apoyo:
+    - titulo: "Preparando cuestionario"
+    - descripcion: "Estamos cargando la sesion y las preguntas iniciales."
+- Ya no se usa texto plano aislado tipo "Cargando cuestionario...".
+
+### 2. Error de carga inicial
+- Si falla la carga inicial, se muestra mensaje de error con boton "Reintentar".
+
+### 3. Carga/procesamiento luego de submit
+- La vista maneja fases:
+  - `submitting`
+  - `processing`
+  - `processed`
+  - `failed`
+- Mientras procesa, se muestra panel operativo con pasos, estado backend y metadatos de sesion.
+- Si llega `processed`, se muestra resultado estructurado (resumen, dominios y comorbilidad cuando existan).
+
+## Notas de implementacion relevantes
+- Mapeo de rol frontend a rol API:
   - `padre -> caregiver`
   - `psicologo -> psychologist`
-- Seleccion explicita de modo antes de iniciar: `short | medium | complete`.
 - Modo por defecto: `complete`.
-- El modo seleccionado se propaga a `active` y a `sessions`.
-- Carga de preguntas por pagina con consolidacion de toda la sesion para evitar perdida de preguntas cuando hay varias paginas.
-- Persistencia real de respuestas antes de avanzar/finalizar.
-- Envio final real con `submit` (sin exito local simulado).
+- Tamano de pagina de sesion: `page_size=20`.
+- El componente consolida preguntas y respuestas en estado local para no perder continuidad de navegacion entre preguntas.
 
-## Pruebas manuales
-1. Abrir `/padre/cuestionario` o `/psicologo/cuestionario`.
-2. Cambiar modo (`short`, `medium`, `complete`) y confirmar en red que cambia `mode` en `active` y en `sessions`.
-3. Iniciar sesion de cuestionario y responder preguntas.
-4. Verificar llamadas a `sessions`, `sessions/{id}/page`, `answers` y `submit`.
-5. Confirmar mensaje de envio exitoso al finalizar.
+## Alcance de esta documentacion
+- Esta ficha describe lo verificable desde el frontend y su consumo de API.
+- No confirma reglas internas de evaluacion del backend mas alla de lo observable por respuestas consumidas.

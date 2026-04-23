@@ -55,8 +55,22 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     }, [isAuthLoading, isAuthenticated, refreshSession]);
 
     const shouldShowLoader = isAuthLoading || (isAuthenticated && profileStatus === 'loading');
+    const isRoleGuard = Array.isArray(allowedRoles) && allowedRoles.length > 0;
 
     if (shouldShowLoader) {
+        if (isAuthenticated && !isRoleGuard) {
+            return <Outlet />;
+        }
+
+        if (isAuthenticated && isRoleGuard) {
+            return (
+                <div className="auth-guard-content-loading" aria-live="polite">
+                    <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
+                    <p>Cargando vista...</p>
+                </div>
+            );
+        }
+
         return null;
     }
 

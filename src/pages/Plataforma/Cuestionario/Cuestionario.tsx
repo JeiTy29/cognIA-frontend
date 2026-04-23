@@ -814,7 +814,17 @@ export default function Cuestionario() {
         <div className="plataforma-view">
             <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`}>
                 {activeLoading ? (
-                    <div className="questionnaire-state">Cargando cuestionario...</div>
+                    <div className="questionnaire-state questionnaire-state-loading" role="status" aria-live="polite">
+                        <div className="questionnaire-intro-loader" aria-hidden="true">
+                            <span className="questionnaire-intro-loader-ring"></span>
+                            <span className="questionnaire-intro-loader-ring delay"></span>
+                            <span className="questionnaire-intro-loader-dot"></span>
+                        </div>
+                        <div className="questionnaire-intro-loader-copy">
+                            <strong>Preparando cuestionario</strong>
+                            <p>Estamos cargando la sesion y las preguntas iniciales.</p>
+                        </div>
+                    </div>
                 ) : activeError ? (
                     <div className="questionnaire-state">
                         <p>{activeError}</p>

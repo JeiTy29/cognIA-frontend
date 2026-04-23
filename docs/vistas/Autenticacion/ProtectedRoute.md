@@ -1,47 +1,47 @@
-﻿# ProtectedRoute
+# ProtectedRoute
 
-## Ubicación
+## Ubicacion
 - Componente: `src/components/ProtectedRoute/ProtectedRoute.tsx`
 - Estilos: `src/components/ProtectedRoute/ProtectedRoute.css`
 
-## Propósito
-Asegura que las rutas privadas solo se muestren cuando el usuario está autenticado y su rol corresponde a la sección solicitada.
+## Proposito
+Controlar acceso a rutas privadas por estado de autenticacion y por rol, sin romper la continuidad visual del area operativa.
 
 ## Props
 - `allowedRoles?: string[]`
-  - Si no se envía, solo valida autenticación.
-  - Acepta roles por nombre (`padre`, `psicologo`, `admin`) o en formato de backend (`GUARDIAN`, `PSYCHOLOGIST`, `ADMIN`).
-  - `'*'` indica que cualquier usuario autenticado puede entrar.
+  - Si no se envia, valida solo autenticacion (guard general).
+  - Si se envia, valida autenticacion + rol (guard por seccion).
+  - Acepta nombres de app (`padre`, `psicologo`, `admin`) y equivalentes backend (`GUARDIAN`, `PSYCHOLOGIST`, `ADMIN`).
+  - `'*'` habilita acceso para cualquier usuario autenticado.
 
 ## Comportamiento
 
-### No autenticado
+### Usuario no autenticado
 - Redirige a `/inicio-sesion`.
-- Envía un mensaje en `location.state.message`:
-  - “Debes iniciar sesión para acceder a esta sección.”
+- Envia `state.message` con texto de acceso requerido.
 
-### Autenticado sin rol permitido
-- Muestra pantalla **Acceso denegado** (no renderiza el contenido protegido).
-- Explica el motivo y ofrece botón **Ir a mi área** con redirección según rol.
-- Incluye botones de contacto a soporte (WhatsApp, Gmail, Outlook, copiar correo).
+### Carga de sesion/perfil (post-login)
+- Condicion de carga: `isAuthLoading` o `profileStatus === 'loading'`.
+- Si el usuario ya esta autenticado y el guard es general (sin `allowedRoles`):
+  - Renderiza `Outlet` durante la carga.
+  - Resultado: el `SidebarLayout` se monta de inmediato y se mantiene el shell autenticado visible.
+- Si el usuario ya esta autenticado y el guard es por rol (`allowedRoles`):
+  - Renderiza un estado neutro de carga en contenido (`auth-guard-content-loading`).
+  - Esto evita mostrar pantalla publica y evita exponer contenido de una seccion antes de terminar validacion de rol.
 
-### Autenticado con rol permitido
-- Renderiza las rutas hijas normalmente.
+### Usuario autenticado sin rol permitido
+- Muestra pantalla de acceso denegado.
+- Ofrece boton para volver a la ruta principal de su rol.
+- Muestra bloque de soporte.
 
-## Política de roles
-- **ADMIN** solo accede a rutas `/admin/*`.
-- **PSYCHOLOGIST** solo accede a rutas `/psicologo/*`.
-- **GUARDIAN** solo accede a rutas `/padre/*`.
+### Usuario autenticado con rol permitido
+- Renderiza las rutas hijas normalmente (`Outlet`).
 
-## Roles y redirección por defecto
-- `GUARDIAN` → `/padre/cuestionario`
-- `PSYCHOLOGIST` → `/psicologo/cuestionario`
-- `ADMIN` → `/admin/metricas`
+## Mapeo y redireccion por rol
+- `GUARDIAN` -> `/padre/cuestionario`
+- `PSYCHOLOGIST` -> `/psicologo/cuestionario`
+- `ADMIN` -> `/admin/metricas`
 
-## Fallback de rutas
-- Si no existe una ruta válida, se redirige a `/` (Bienvenida).
-- Si hay sesión válida, se intenta enviar a la ruta principal de su rol.
-
-## Notas de UX
-- Se muestra loader si la sesión o el perfil aún están cargando para evitar falsos negativos.
-- No se ejecuta logout automático por falta de rol.
+## Nota de UX registrada
+- El fallback de carga de rutas protegidas se resolvio para que el contexto visual operativo (sidebar + shell autenticado) aparezca antes de que termine de cargar el contenido interno.
+- Con esto se elimina la sensacion de retorno a la vista publica durante la entrada al area operativa.
