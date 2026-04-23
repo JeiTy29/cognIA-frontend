@@ -135,12 +135,10 @@ Cada modulo se describe con:
 - Componente: `src/pages/Administrador/Dashboard/Dashboard.tsx`
 - Hooks/servicios:
   - `useDashboard` + `services/dashboard/*`
-  - `useDashboardReports` + `services/reports/*`
 - Acciones UI:
   - cambiar rango de meses
   - recargar bloques
-  - generar reportes operativos contextuales por seccion
-  - generar reportes adicionales (seguridad/cumplimiento y trazabilidad)
+  - consultar bloques analiticos por familia de datos (`series`, `funnel`, `adoption_history`)
 - Limitaciones:
   - si un bloque falla, se muestra error por bloque sin detener toda la pantalla.
 

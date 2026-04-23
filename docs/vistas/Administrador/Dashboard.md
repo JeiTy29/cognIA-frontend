@@ -5,10 +5,8 @@
 - Vista: `src/pages/Administrador/Dashboard/Dashboard.tsx`
 - Estilos: `src/pages/Administrador/Dashboard/Dashboard.css`
 - Hook principal: `src/hooks/dashboard/useDashboard.ts`
-- Reportes: `src/hooks/reports/useDashboardReports.ts`
 - Servicios:
   - `src/services/dashboard/*`
-  - `src/services/reports/*`
 
 ## Ruta
 
@@ -16,7 +14,7 @@
 
 ## Objetivo funcional
 
-Presentar lectura ejecutiva y operativa del sistema para administradores y permitir generacion contextual de reportes.
+Presentar lectura ejecutiva y operativa del sistema para administradores.
 
 ## Mejoras visuales aplicadas
 
@@ -31,27 +29,11 @@ Presentar lectura ejecutiva y operativa del sistema para administradores y permi
 4. Se ampliaron labels de campos tecnicos:
    - `count`, `month`, `conversion_created_to_processed`, etc.
 
-## Reportes operativos (POST /api/v2/reports/jobs)
+## Estado funcional vigente
 
-La vista ya no depende solo de `dataset.adoption_history`.
-
-- Se normaliza `dataset` en secciones.
-- Cada seccion se renderiza por tipo/familia:
-  - series
-  - resumen de conversion
-  - resumen de capacidad operativa
-  - bloque estructurado/escalares/listas
-- Si el dataset trae informacion util, se muestra en la UI sin fallback tecnico.
-- Solo se muestra estado vacio cuando realmente no hay datos representables.
-
-## Tipos de reporte soportados en frontend
-
-- `executive_monthly`
-- `adoption_history`
-- `model_monitoring`
-- `operational_productivity`
-- `security_compliance`
-- `traceability_audit`
+- La vista de Dashboard no incluye generacion de reportes.
+- Se eliminaron CTAs y estado UI de `Generar reporte` / `Reportes adicionales`.
+- El foco de la pantalla queda en consumo y visualizacion de bloques analiticos (`/api/v2/dashboard/*`).
 
 ## Nota de verificabilidad
 

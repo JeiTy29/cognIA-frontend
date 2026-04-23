@@ -33,6 +33,33 @@
     padding: 9px 12px;
 }
 
+.auditoria-raw-details {
+    margin-top: 8px;
+    border: 1px solid rgba(11, 37, 64, 0.12);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #f8fbff;
+}
+
+.auditoria-raw-details summary {
+    cursor: pointer;
+    color: #526476;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.auditoria-raw-details pre {
+    margin: 10px 0 0;
+    padding: 10px;
+    max-height: 200px;
+    overflow: auto;
+    border-radius: 8px;
+    background: #edf3fa;
+    color: #3c4f62;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 @media (max-width: 1040px) {
     .auditoria-grid {
         min-width: 1080px;

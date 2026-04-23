@@ -475,12 +475,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                     <div>Mostrando {showFrom}-{showTo} de {total}</div>
                     <div className="historial-v2-pagination-right">
                         <label>
-                            Tamano
+                            Tamaño
                             <CustomSelect
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
                                 onChange={(value) => changePageSize(Number(value))}
-                                ariaLabel="Cambiar tamano de pagina de historial"
+                                ariaLabel="Cambiar tamaño de pagina de historial"
                             />
                         </label>
                         <button

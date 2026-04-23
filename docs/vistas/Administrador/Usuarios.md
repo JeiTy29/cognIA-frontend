@@ -1,12 +1,13 @@
 # Usuarios (Admin)
 
 ## Objetivo funcional
-- Mantener la gestión admin de usuarios sin depender de endpoints legacy `v1`.
+- Gestionar usuarios administrativos y operativos desde la vista `/admin/usuarios`.
 
-## Archivos tocados
-- `src/services/admin/users.ts`
-- `src/hooks/useUsers.ts`
+## Archivos principales
 - `src/pages/Administrador/Usuarios/Usuarios.tsx`
+- `src/pages/Administrador/Usuarios/Usuarios.css`
+- `src/hooks/useUsers.ts`
+- `src/services/admin/users.ts`
 
 ## Endpoints activos utilizados
 - `GET /api/admin/users`
@@ -14,19 +15,20 @@
 - `POST /api/admin/users/{id}/password-reset`
 - `POST /api/admin/users/{id}/mfa/reset`
 
-## Endpoints legacy retirados
-- `POST /api/v1/users`
-- `GET /api/v1/users/{id}`
-- `DELETE /api/v1/users/{id}`
+## Comportamiento visible en UI
+- Edicion de usuario por modal.
+- Desactivacion por modal de confirmacion (no elimina registros).
+- Reset de contraseña y reset MFA desde acciones por fila.
+- Copia de ID de usuario desde el boton de portapapeles en la columna de identificador.
+- Paginacion con etiqueta estandarizada: `Tamaño`.
 
-## Decisiones de implementación
-- Se retiró el flujo de creación de usuario porque no tiene reemplazo activo en el módulo válido para esta tarea.
-- Se retiró la carga de detalle por ID; edición se basa en datos de fila.
-- La desactivación ahora usa `PATCH /api/admin/users/{id}` con `is_active=false`.
-- Se mantuvieron reset de contraseña y reset MFA.
+## Ajustes visuales recientes
+- El boton de copiar ID se ajusto para mejor tamaño y alineacion vertical con el identificador.
+- La accion de desactivar usa icono de bloqueo (semantica de desactivacion), en lugar de icono de papelera.
+- Se mantiene tooltip y accesibilidad (`aria-label`) alineada a la accion real.
 
-## Pruebas manuales
-1. Abrir `/admin/usuarios` y verificar listado.
-2. Editar usuario y confirmar `PATCH /api/admin/users/{id}`.
-3. Desactivar usuario y confirmar `PATCH /api/admin/users/{id}` con `is_active=false`.
-4. Ejecutar reset de contraseña y reset MFA desde la fila.
+## Validacion manual sugerida
+1. Abrir `/admin/usuarios`.
+2. Verificar el boton de copiar ID en tamaño/alineacion.
+3. Confirmar que el boton de desactivar muestra iconografia de bloqueo.
+4. Confirmar que el selector de paginacion muestra `Tamaño`.

@@ -77,6 +77,50 @@ function humanizeAction(action: string) {
         .join(' ');
 }
 
+const detailFieldLabels: Record<string, string> = {
+    ip: 'Dirección IP',
+    ip_address: 'Dirección IP',
+    user_agent: 'Dispositivo o navegador',
+    request_id: 'ID de solicitud',
+    session_id: 'ID de sesión',
+    status_code: 'Código de estado',
+    http_status: 'Código de estado',
+    method: 'Método',
+    path: 'Ruta',
+    endpoint: 'Endpoint',
+    resource: 'Recurso',
+    resource_id: 'ID de recurso',
+    reason: 'Motivo',
+    message: 'Mensaje',
+    description: 'Descripción',
+    detail: 'Detalle',
+    outcome: 'Resultado'
+};
+
+function formatDetailValue(value: unknown): string {
+    if (value === null || value === undefined) return '--';
+    if (typeof value === 'string') return value.trim() || '--';
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) {
+        const items = value.map((item) => formatDetailValue(item)).filter((item) => item !== '--');
+        return items.length > 0 ? items.join(', ') : '--';
+    }
+    if (typeof value === 'object') {
+        return Object.entries(value as Record<string, unknown>)
+            .slice(0, 6)
+            .map(([key, entry]) => `${key}: ${formatDetailValue(entry)}`)
+            .join(' · ');
+    }
+    return '--';
+}
+
+function toNaturalLabel(key: string): string {
+    if (detailFieldLabels[key]) return detailFieldLabels[key];
+    const normalized = key.replace(/[_\-.]+/g, ' ').trim();
+    if (!normalized) return key;
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 export default function Auditoria() {
     const { items, loading, error } = useAuditLogs();
     const [searchTerm, setSearchTerm] = useState('');
@@ -255,9 +299,9 @@ export default function Auditoria() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tamano</span>
+                        <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tamano de pagina"
+                            ariaLabel="Tamaño de pagina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => setPageSize(Number(value))}
@@ -269,16 +313,52 @@ export default function Auditoria() {
             <Modal isOpen={selectedItem !== null} onClose={() => setSelectedItem(null)}>
                 <div className="admin-modal">
                     <h2>Detalle de auditoria</h2>
-                    <div className="admin-detail-list">
-                        {selectedItem
-                            ? Object.entries(selectedItem.raw).map(([key, value]) => (
-                                <div key={key} className="admin-detail-row">
-                                    <strong>{key}</strong>
-                                    <span>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+                    {selectedItem ? (
+                        <>
+                            <div className="admin-detail-list">
+                                <div className="admin-detail-row">
+                                    <strong>Acción</strong>
+                                    <span>{humanizeAction(selectedItem.action)}</span>
                                 </div>
-                            ))
-                            : null}
-                    </div>
+                                <div className="admin-detail-row">
+                                    <strong>Actor</strong>
+                                    <span>{selectedItem.actor || '--'}</span>
+                                </div>
+                                <div className="admin-detail-row">
+                                    <strong>Objetivo</strong>
+                                    <span>{selectedItem.target || '--'}</span>
+                                </div>
+                                <div className="admin-detail-row">
+                                    <strong>Resumen</strong>
+                                    <span>{selectedItem.summary || '--'}</span>
+                                </div>
+                                <div className="admin-detail-row">
+                                    <strong>Fecha</strong>
+                                    <span>{formatDateTime(selectedItem.timestamp)}</span>
+                                </div>
+                                {selectedItem.section ? (
+                                    <div className="admin-detail-row">
+                                        <strong>Sección</strong>
+                                        <span>{selectedItem.section}</span>
+                                    </div>
+                                ) : null}
+                                {Object.entries(selectedItem.raw)
+                                    .filter(([key]) => !['action', 'actor', 'target', 'summary', 'timestamp', 'created_at', 'id'].includes(key))
+                                    .slice(0, 10)
+                                    .map(([key, value]) => (
+                                        <div key={key} className="admin-detail-row">
+                                            <strong>{toNaturalLabel(key)}</strong>
+                                            <span>{formatDetailValue(value)}</span>
+                                        </div>
+                                    ))}
+                            </div>
+
+                            <details className="auditoria-raw-details">
+                                <summary>Ver datos técnicos completos</summary>
+                                <pre>{JSON.stringify(selectedItem.raw, null, 2)}</pre>
+                            </details>
+                        </>
+                    ) : null}
                     <div className="admin-modal-actions">
                         <button type="button" className="admin-btn ghost" onClick={() => setSelectedItem(null)}>
                             Cerrar

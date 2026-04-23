@@ -39,6 +39,7 @@ export default function MFA() {
     const username = state?.username;
     const navigate = useNavigate();
     const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
+    const recoveryInputRef = useRef<HTMLInputElement | null>(null);
     const code = useMemo(() => codeDigits.join(''), [codeDigits]);
 
     useEffect(() => {
@@ -56,7 +57,11 @@ export default function MFA() {
     }, [mode, challengeId, enrollmentToken, navigate, state]);
 
     useEffect(() => {
-        if (mode !== 'challenge' || useRecovery) return;
+        if (mode !== 'challenge') return;
+        if (useRecovery) {
+            recoveryInputRef.current?.focus();
+            return;
+        }
         const firstEmpty = codeDigits.findIndex((digit) => digit.length === 0);
         const focusIndex = firstEmpty >= 0 ? firstEmpty : MFA_CODE_LENGTH - 1;
         digitRefs.current[focusIndex]?.focus();
@@ -231,24 +236,29 @@ export default function MFA() {
                                 ) : null}
 
                                 <div className="form-group">
-                                    <label className="mfa-recovery-toggle">
-                                        <input
-                                            type="checkbox"
-                                            checked={useRecovery}
-                                            onChange={(event) => {
-                                                const nextValue = event.target.checked;
-                                                setUseRecovery(nextValue);
-                                                if (!nextValue) {
-                                                    requestAnimationFrame(() => {
-                                                        digitRefs.current[0]?.focus();
-                                                    });
-                                                }
-                                            }}
-                                        />
-                                        Usar codigo de recuperacion
-                                    </label>
+                                    <div className="mfa-mode-toggle" role="tablist" aria-label="Modo de verificacion MFA">
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={!useRecovery}
+                                            className={`mfa-mode-toggle-btn ${!useRecovery ? 'is-active' : ''}`}
+                                            onClick={() => setUseRecovery(false)}
+                                        >
+                                            Codigo TOTP
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={useRecovery}
+                                            className={`mfa-mode-toggle-btn ${useRecovery ? 'is-active' : ''}`}
+                                            onClick={() => setUseRecovery(true)}
+                                        >
+                                            Codigo de recuperacion
+                                        </button>
+                                    </div>
                                     {useRecovery ? (
                                         <input
+                                            ref={recoveryInputRef}
                                             type="text"
                                             className="form-input"
                                             placeholder="Codigo de recuperacion"

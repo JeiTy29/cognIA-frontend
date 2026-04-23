@@ -235,9 +235,9 @@ export default function Psicologos() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tamano</span>
+                        <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tamano de pagina"
+                            ariaLabel="Tamaño de pagina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => setPageSize(Number(value))}

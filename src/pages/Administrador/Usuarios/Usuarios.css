@@ -232,7 +232,7 @@
 .usuarios-id-wrap {
     position: relative;
     overflow: hidden;
-    min-height: 30px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     padding-left: 0;
@@ -255,20 +255,32 @@
     opacity: 0;
     pointer-events: none;
     background: #eaf4fc;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    color: #215f8f;
+    border: 1px solid rgba(33, 95, 143, 0.18);
 }
 
 .usuarios-id-wrap:hover .usuarios-id-value {
-    transform: translateX(32px);
+    transform: translateX(36px);
 }
 
 .usuarios-id-wrap:hover .usuarios-id-copy {
     opacity: 1;
     pointer-events: auto;
+}
+
+.usuarios-id-copy:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.usuarios-id-copy svg {
+    width: 17px;
+    height: 17px;
 }
 
 .usuarios-cell.status {
