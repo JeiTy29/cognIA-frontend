@@ -1,0 +1,134 @@
+name: Deploy Frontend (Self-Hosted)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-frontend-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Ubuntu Self-Hosted
+    runs-on: [self-hosted, linux, x64, cognia-frontend]
+    timeout-minutes: 45
+    env:
+      DEPLOY_BRANCH: main
+      FRONTEND_REPO_DIR: /opt/cognia/frontend
+      COMPOSE_DIR: /opt/cognia
+      FRONTEND_SERVICE: frontend
+      GATEWAY_SERVICE: gateway
+
+    steps:
+      - name: Validate runtime prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          command -v git >/dev/null
+          command -v docker >/dev/null
+          command -v curl >/dev/null
+
+          if [ ! -d "$FRONTEND_REPO_DIR/.git" ]; then
+            echo "Missing git repository at $FRONTEND_REPO_DIR"
+            exit 1
+          fi
+
+          if [ ! -f "$COMPOSE_DIR/docker-compose.yml" ] && [ ! -f "$COMPOSE_DIR/compose.yml" ] && [ ! -f "$COMPOSE_DIR/compose.yaml" ]; then
+            echo "No docker compose file found in $COMPOSE_DIR"
+            exit 1
+          fi
+
+      - name: Capture currently deployed commit
+        id: capture_previous
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PREVIOUS_COMMIT="$(git -C "$FRONTEND_REPO_DIR" rev-parse HEAD)"
+          echo "previous_commit=$PREVIOUS_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "PREVIOUS_COMMIT=$PREVIOUS_COMMIT" >> "$GITHUB_ENV"
+          echo "Current deployed commit: $PREVIOUS_COMMIT"
+
+      - name: Update repository to origin/main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$FRONTEND_REPO_DIR"
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+
+          NEW_COMMIT="$(git rev-parse HEAD)"
+          echo "NEW_COMMIT=$NEW_COMMIT" >> "$GITHUB_ENV"
+          echo "Updated repository to commit: $NEW_COMMIT"
+
+      - name: Rebuild and start frontend + gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$COMPOSE_DIR"
+          docker compose up -d --build frontend gateway
+
+      - name: Verify frontend responds on localhost
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost >/dev/null; then
+              echo "Frontend is healthy on attempt ${attempt}"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Frontend did not respond on http://localhost after deploy"
+          exit 1
+
+      - name: Rollback to previous commit on failure
+        if: failure() && steps.capture_previous.outputs.previous_commit != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Deploy verification failed. Rolling back to ${PREVIOUS_COMMIT}"
+
+          cd "$FRONTEND_REPO_DIR"
+          git reset --hard "$PREVIOUS_COMMIT"
+
+          cd "$COMPOSE_DIR"
+          docker compose up -d --build frontend gateway
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://localhost >/dev/null; then
+              echo "Rollback validated on attempt ${attempt}"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Rollback applied but frontend is still unreachable on http://localhost"
+          exit 1
+
+      - name: Show compose status and frontend logs
+        if: always()
+        shell: bash
+        run: |
+          set +e
+
+          cd "$COMPOSE_DIR"
+          echo "=== docker compose ps ==="
+          docker compose ps
+
+          echo "=== frontend logs (tail 200) ==="
+          docker compose logs --tail=200 "$FRONTEND_SERVICE"
