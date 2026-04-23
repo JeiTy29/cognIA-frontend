@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminQuestionnaires } from '../../../hooks/useAdminQuestionnaires';
@@ -11,6 +12,12 @@ type ToggleFilter = 'all' | 'true' | 'false';
 type CloneFormState = {
     version: string;
     name: string;
+    description: string;
+};
+
+type CreateFormState = {
+    name: string;
+    version: string;
     description: string;
 };
 
@@ -52,6 +59,12 @@ const initialCloneForm = (): CloneFormState => ({
     description: ''
 });
 
+const initialCreateForm = (): CreateFormState => ({
+    name: '',
+    version: '',
+    description: ''
+});
+
 function formatDateTime(value: string | null) {
     if (!value) return '--';
     const date = new Date(value);
@@ -72,6 +85,7 @@ function getOrderValue(sort: string, order: string) {
 }
 
 export default function Cuestionarios() {
+    const navigate = useNavigate();
     const {
         items,
         page,
@@ -90,6 +104,7 @@ export default function Cuestionarios() {
         submittingPublish,
         submittingArchive,
         submittingClone,
+        submittingCreate,
         setPage,
         setNameFilter,
         setVersionFilter,
@@ -100,6 +115,7 @@ export default function Cuestionarios() {
         publishQuestionnaire,
         archiveQuestionnaire,
         cloneQuestionnaire,
+        createQuestionnaireTemplate,
         clearMessages
     } = useAdminQuestionnaires();
 
@@ -107,6 +123,9 @@ export default function Cuestionarios() {
     const [cloneTarget, setCloneTarget] = useState<AdminQuestionnaireItem | null>(null);
     const [cloneForm, setCloneForm] = useState<CloneFormState>(initialCloneForm);
     const [cloneError, setCloneError] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [createForm, setCreateForm] = useState<CreateFormState>(initialCreateForm);
+    const [createError, setCreateError] = useState<string | null>(null);
 
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -138,6 +157,19 @@ export default function Cuestionarios() {
         setCloneTarget(null);
         setCloneForm(initialCloneForm());
         setCloneError(null);
+    };
+
+    const openCreateModal = () => {
+        clearMessages();
+        setCreateError(null);
+        setCreateForm(initialCreateForm());
+        setIsCreateModalOpen(true);
+    };
+
+    const closeCreateModal = () => {
+        setIsCreateModalOpen(false);
+        setCreateForm(initialCreateForm());
+        setCreateError(null);
     };
 
     const handleConfirmAction = async () => {
@@ -173,11 +205,48 @@ export default function Cuestionarios() {
         }
     };
 
+    const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!createForm.name.trim()) {
+            setCreateError('El nombre es obligatorio.');
+            return;
+        }
+        if (!createForm.version.trim()) {
+            setCreateError('La version es obligatoria.');
+            return;
+        }
+
+        setCreateError(null);
+        const success = await createQuestionnaireTemplate({
+            name: createForm.name.trim(),
+            version: createForm.version.trim(),
+            description: createForm.description.trim() || undefined
+        });
+
+        if (success) {
+            closeCreateModal();
+        }
+    };
+
+    const handleManageQuestions = (item: AdminQuestionnaireItem) => {
+        navigate(`/admin/cuestionarios/${item.id}/preguntas`, {
+            state: {
+                template: item
+            }
+        });
+    };
+
     return (
         <div className="admin-page cuestionarios-page">
             <header className="admin-header">
                 <div className="admin-title">
                     <h1>Cuestionarios</h1>
+                </div>
+                <div className="admin-actions">
+                    <button type="button" className="admin-btn primary" onClick={openCreateModal}>
+                        Crear plantilla
+                    </button>
                 </div>
             </header>
 
@@ -294,6 +363,13 @@ export default function Cuestionarios() {
                                 <div>{formatDateTime(item.created_at)}</div>
                                 <div>{formatDateTime(item.updated_at)}</div>
                                 <div className="cuestionarios-actions">
+                                    <button
+                                        type="button"
+                                        className="admin-btn ghost cuestionarios-action-btn"
+                                        onClick={() => handleManageQuestions(item)}
+                                    >
+                                        Gestionar preguntas
+                                    </button>
                                     <button
                                         type="button"
                                         className="admin-btn ghost cuestionarios-action-btn"
@@ -431,6 +507,55 @@ export default function Cuestionarios() {
                         </button>
                         <button type="submit" className="admin-btn primary" disabled={submittingClone}>
                             {submittingClone ? 'Clonando...' : 'Clonar'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal isOpen={isCreateModalOpen} onClose={closeCreateModal}>
+                <form className="admin-modal" onSubmit={handleCreateSubmit}>
+                    <h2>Crear plantilla</h2>
+
+                    <label>
+                        <span>Nombre</span>
+                        <input
+                            type="text"
+                            value={createForm.name}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, name: event.target.value }))
+                            }
+                        />
+                    </label>
+
+                    <label>
+                        <span>Version</span>
+                        <input
+                            type="text"
+                            value={createForm.version}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, version: event.target.value }))
+                            }
+                        />
+                    </label>
+
+                    <label>
+                        <span>Descripcion</span>
+                        <textarea
+                            value={createForm.description}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, description: event.target.value }))
+                            }
+                        />
+                    </label>
+
+                    {createError ? <div className="admin-alert error">{createError}</div> : null}
+
+                    <div className="admin-modal-actions">
+                        <button type="button" className="admin-btn ghost" onClick={closeCreateModal}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className="admin-btn primary" disabled={submittingCreate}>
+                            {submittingCreate ? 'Creando...' : 'Crear plantilla'}
                         </button>
                     </div>
                 </form>

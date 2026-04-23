@@ -20,6 +20,7 @@ import SugerenciasPsicologo from './pages/Plataforma/SugerenciasPsicologo/Sugere
 import Metricas from './pages/Administrador/Metricas/Metricas';
 import Dashboard from './pages/Administrador/Dashboard/Dashboard';
 import Cuestionarios from './pages/Administrador/Cuestionarios/Cuestionarios';
+import PreguntasCuestionario from './pages/Administrador/Cuestionarios/PreguntasCuestionario';
 import Evaluaciones from './pages/Administrador/Evaluaciones/Evaluaciones';
 import Usuarios from './pages/Administrador/Usuarios/Usuarios';
 import Psicologos from './pages/Administrador/Psicologos/Psicologos';
@@ -96,6 +97,7 @@ export default function App() {
                             <Route path="metricas" element={<Metricas />} />
                             <Route path="dashboard" element={<Dashboard />} />
                             <Route path="cuestionarios" element={<Cuestionarios />} />
+                            <Route path="cuestionarios/:templateId/preguntas" element={<PreguntasCuestionario />} />
                             <Route path="evaluaciones" element={<Evaluaciones />} />
                             <Route path="usuarios" element={<Usuarios />} />
                             <Route path="psicologos" element={<Psicologos />} />

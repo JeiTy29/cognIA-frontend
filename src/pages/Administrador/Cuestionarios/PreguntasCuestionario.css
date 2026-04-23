@@ -1,0 +1,109 @@
+.preguntas-cuestionario-page .admin-modal {
+    background: #ffffff;
+    border: 1px solid rgba(11, 37, 64, 0.08);
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.preguntas-cuestionario-context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    padding: 14px 0 18px;
+    color: #526476;
+    font-size: 13px;
+}
+
+.preguntas-cuestionario-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 440px) 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.preguntas-form select {
+    padding: 9px 10px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #0b2540;
+    font-family: inherit;
+    background: #ffffff;
+}
+
+.preguntas-inline-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.preguntas-listado {
+    border: 1px solid rgba(11, 37, 64, 0.08);
+    border-radius: 14px;
+    padding: 18px;
+    background: #ffffff;
+    min-height: 100%;
+}
+
+.preguntas-listado h2 {
+    margin: 0 0 12px;
+    color: #0b2540;
+    font-size: 20px;
+}
+
+.preguntas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preguntas-item {
+    border: 1px solid rgba(11, 37, 64, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    background: #f8fbff;
+}
+
+.preguntas-item header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.preguntas-item p {
+    margin: 0 0 8px;
+    color: #1e3952;
+    font-size: 14px;
+}
+
+.preguntas-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    color: #526476;
+    font-size: 12px;
+}
+
+.preguntas-item-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.preguntas-item-options span {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(23, 144, 233, 0.12);
+    color: #165a8a;
+    font-size: 12px;
+}
+
+@media (max-width: 1040px) {
+    .preguntas-cuestionario-grid {
+        grid-template-columns: 1fr;
+    }
+}

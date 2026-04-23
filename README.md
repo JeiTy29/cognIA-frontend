@@ -61,3 +61,8 @@ El deploy self-hosted es **best effort** y depende de disponibilidad del runner/
 Para bootstrap, recuperacion de Docker host, verificacion real y rollback manual:
 
 - [docs/ops/frontend-self-hosted-deploy.md](docs/ops/frontend-self-hosted-deploy.md)
+
+## Documentacion de cambios (obligatoria)
+
+- Registro de implementaciones: [docs/proyecto/12-RegistroCambiosFrontend.md](docs/proyecto/12-RegistroCambiosFrontend.md)
+- Politica de documentacion: [docs/proyecto/13-PoliticaDocumentacionCambios.md](docs/proyecto/13-PoliticaDocumentacionCambios.md)

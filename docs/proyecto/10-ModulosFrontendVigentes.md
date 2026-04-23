@@ -147,17 +147,23 @@ Cada modulo se describe con:
 ## Admin: Cuestionarios
 
 - Proposito: gestion administrativa de templates de cuestionario.
-- Ruta: `/admin/cuestionarios`
+- Rutas:
+  - `/admin/cuestionarios`
+  - `/admin/cuestionarios/:templateId/preguntas`
 - Rol: admin.
 - Componente: `src/pages/Administrador/Cuestionarios/Cuestionarios.tsx`
+- Componente secundario: `src/pages/Administrador/Cuestionarios/PreguntasCuestionario.tsx`
 - Hook/servicio:
   - `useAdminQuestionnaires`
   - `services/admin/questionnaires.ts`
 - Acciones UI:
   - listar y filtrar templates
+  - crear plantilla
   - publicar
   - archivar
   - clonar template
+  - abrir gestion de preguntas por plantilla
+  - agregar pregunta a plantilla
 
 ## Admin: Evaluaciones
 

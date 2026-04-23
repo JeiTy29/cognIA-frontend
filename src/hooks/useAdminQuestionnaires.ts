@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import {
     archiveQuestionnaire,
     cloneQuestionnaire,
+    createQuestionnaireTemplate,
     getAdminQuestionnaires,
     publishQuestionnaire,
     type AdminQuestionnaireItem,
-    type CloneQuestionnairePayload
+    type CloneQuestionnairePayload,
+    type CreateQuestionnaireTemplatePayload
 } from '../services/admin/questionnaires';
 import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';
 
-type ActionType = 'list' | 'publish' | 'archive' | 'clone';
+type ActionType = 'list' | 'publish' | 'archive' | 'clone' | 'create';
 type OrderDirection = 'asc' | 'desc';
 type ToggleFilter = 'all' | 'true' | 'false';
 
@@ -66,6 +68,9 @@ function mapErrorMessage(status: number, action: ActionType, businessCode: strin
     if (status === 400 && action === 'clone') {
         return 'Debes ingresar una version valida para clonar.';
     }
+    if (status === 400 && action === 'create') {
+        return 'Debes completar nombre y version para crear la plantilla.';
+    }
     if (status === 400) return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
     if (status === 401) return 'Sesion expirada o no autenticado. Inicia sesion nuevamente.';
     if (status === 403) return 'No tienes permisos para realizar esta accion.';
@@ -109,6 +114,7 @@ export function useAdminQuestionnaires() {
     const [submittingPublish, setSubmittingPublish] = useState(false);
     const [submittingArchive, setSubmittingArchive] = useState(false);
     const [submittingClone, setSubmittingClone] = useState(false);
+    const [submittingCreate, setSubmittingCreate] = useState(false);
 
     const handleUnauthorized = useCallback(() => {
         logout('expired');
@@ -254,6 +260,30 @@ export function useAdminQuestionnaires() {
         }
     }, [handleUnauthorized, loadQuestionnaires]);
 
+    const createAction = useCallback(async (payload: CreateQuestionnaireTemplatePayload) => {
+        setSubmittingCreate(true);
+        setError(null);
+        setNotice(null);
+        try {
+            const response = await createQuestionnaireTemplate(payload);
+            const createdName = typeof response.name === 'string' && response.name.trim().length > 0
+                ? response.name.trim()
+                : payload.name;
+            setNotice(`Plantilla "${createdName}" creada correctamente.`);
+            await loadQuestionnaires();
+            return true;
+        } catch (actionError) {
+            const status = extractStatus(actionError);
+            setError(mapErrorMessage(status, 'create', extractBusinessCode(actionError)));
+            if (status === 401) {
+                handleUnauthorized();
+            }
+            return false;
+        } finally {
+            setSubmittingCreate(false);
+        }
+    }, [handleUnauthorized, loadQuestionnaires]);
+
     const clearMessages = useCallback(() => {
         setError(null);
         setNotice(null);
@@ -277,6 +307,7 @@ export function useAdminQuestionnaires() {
         submittingPublish,
         submittingArchive,
         submittingClone,
+        submittingCreate,
         setPage,
         setNameFilter,
         setVersionFilter,
@@ -287,6 +318,7 @@ export function useAdminQuestionnaires() {
         publishQuestionnaire: publishAction,
         archiveQuestionnaire: archiveAction,
         cloneQuestionnaire: cloneAction,
+        createQuestionnaireTemplate: createAction,
         reload,
         clearMessages
     };
