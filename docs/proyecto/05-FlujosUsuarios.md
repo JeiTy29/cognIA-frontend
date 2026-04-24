@@ -87,6 +87,7 @@
 ### Restricciones visibles
 
 - Si faltan parametros de navegacion (`challengeId` o `enrollmentToken`) redirige a login.
+- En Mi Cuenta, perfiles `admin` y `psicologo` no exponen accion para desactivar MFA (MFA obligatorio desde UX frontend).
 
 ## 4) Recuperacion y restablecimiento de contrasena
 
@@ -211,7 +212,8 @@
 
 ### Comportamiento observado
 
-- Se permite configurar expiracion, max usos, usuario destino y permisos (tag/pdf).
+- Se permite configurar expiracion, max usos y usuario destino.
+- Ya no se muestran controles de permisos `permitir tags` / `permitir PDF` en la interfaz.
 - El frontend intenta resolver URL compartida en este orden:
   - `url`, `share_url`, `public_url`, `link`, `share_link`, `public_link`
   - fallback inferido: `/cuestionario/compartido/{questionnaire_id}/{share_code}`

@@ -1,27 +1,31 @@
-# Vista: Mi cuenta
+# Vista: Mi Cuenta
 
 ## Objetivo funcional
-- Centralizar perfil y seguridad con acciones activas del backend.
+- Centralizar perfil y seguridad del usuario autenticado.
 
-## Archivo tocado
+## Archivo principal
 - `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
+- `src/pages/Plataforma/MiCuenta/MiCuenta.css`
 
-## Ajuste aplicado
-- Se eliminó completamente el flujo **Cambiar correo** (UI, estado y handlers).
-- Se mantuvieron:
-  - cambio de contraseña
-  - activación/desactivación MFA
-  - cierre de sesión
-  - visualización de datos de cuenta
-
-## Endpoints/acciones que siguen vigentes
+## Endpoints/acciones activos
 - `POST /api/auth/password/change`
-- flujos MFA actuales (`setup/disable`) vía `auth.api.ts`
+- flujo MFA setup (`/api/mfa/setup`, `/api/mfa/confirm` a traves de `MfaSetupView`)
+- `POST /api/mfa/disable` (solo para perfiles permitidos)
 - logout actual
 
-## Pruebas manuales
-1. Abrir `/padre/cuenta` o `/psicologo/cuenta`.
-2. Verificar que no existe opción de cambio de correo.
-3. Cambiar contraseña y validar feedback.
-4. Activar/desactivar MFA y validar comportamiento.
-5. Cerrar sesión.
+## Regla funcional aplicada (ronda 2026-04-24)
+- Para `admin` y `psicologo`, MFA se presenta como obligatorio:
+  - no se muestra accion de `Desactivar MFA`.
+  - se muestra indicador visual `Obligatorio`.
+  - si MFA no esta activo, se prioriza `Activar MFA`.
+- Para guardian, el flujo de desactivacion MFA se mantiene disponible.
+
+## Alcance
+- Este ajuste es de UI/UX y control de acciones permitidas en frontend.
+- La exigencia de MFA en backend no es verificable solo con evidencia frontend.
+
+## Validacion manual sugerida
+1. Abrir cuenta con perfil admin.
+2. Abrir cuenta con perfil psicologo.
+3. Confirmar que no aparece accion para desactivar MFA.
+4. Abrir cuenta con guardian y confirmar que su flujo actual se mantiene.

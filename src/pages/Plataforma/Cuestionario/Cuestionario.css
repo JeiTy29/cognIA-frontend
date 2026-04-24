@@ -44,8 +44,21 @@
 .questionnaire-subtitle {
     font-size: 16px;
     color: #2A2D34;
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     line-height: 1.6;
+}
+
+.questionnaire-role-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(23, 144, 233, 0.12);
+    border: 1px solid rgba(23, 144, 233, 0.26);
+    color: #1a5f8f;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 10px;
 }
 
 .questionnaire-heading {
@@ -251,11 +264,16 @@
 }
 
 .questionnaire-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 12px 24px;
     border-radius: 12px;
     border: 1px solid transparent;
     font-weight: 600;
     font-size: 15px;
+    text-align: center;
+    line-height: 1.1;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -510,6 +528,11 @@
     flex-direction: column;
     gap: 12px;
     align-self: center;
+}
+
+.stack-controls .questionnaire-btn {
+    width: 100%;
+    min-height: 42px;
 }
 
 .question-text {

@@ -353,10 +353,6 @@ export default function Auditoria() {
                                     ))}
                             </div>
 
-                            <details className="auditoria-raw-details">
-                                <summary>Ver datos técnicos completos</summary>
-                                <pre>{JSON.stringify(selectedItem.raw, null, 2)}</pre>
-                            </details>
                         </>
                     ) : null}
                     <div className="admin-modal-actions">
