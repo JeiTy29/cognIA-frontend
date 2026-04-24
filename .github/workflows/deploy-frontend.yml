@@ -18,6 +18,7 @@ jobs:
     name: frontend-deploy-self-hosted
     runs-on: [self-hosted, linux, x64, cognia-frontend]
     timeout-minutes: 60
+
     env:
       DEPLOY_BRANCH: main
       FRONTEND_REPO_DIR: /opt/cognia/frontend
@@ -29,12 +30,77 @@ jobs:
       HEALTHCHECK_INTERVAL_SECONDS: "5"
 
     steps:
-      - name: Checkout workflow repository
-        uses: actions/checkout@v4
+      - name: Record current deployed frontend commit
+        id: prev
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FRONTEND_REPO_DIR"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Run self-hosted deploy orchestration
+      - name: Update deployed frontend checkout
         shell: bash
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: |
-          bash ./scripts/ops/deploy_frontend_self_hosted.sh
+          set -euo pipefail
+          cd "$FRONTEND_REPO_DIR"
+          git fetch origin "$DEPLOY_BRANCH"
+          git checkout "$DEPLOY_BRANCH"
+          git reset --hard "origin/$DEPLOY_BRANCH"
+
+          ACTUAL_COMMIT="$(git rev-parse HEAD)"
+          echo "Expected commit: $EXPECTED_COMMIT"
+          echo "Actual commit:   $ACTUAL_COMMIT"
+
+          if [ "$ACTUAL_COMMIT" != "$EXPECTED_COMMIT" ]; then
+            echo "Deployed checkout does not match workflow commit"
+            exit 1
+          fi
+
+      - name: Rebuild frontend and recreate gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$COMPOSE_DIR"
+          docker compose up -d --build "$FRONTEND_SERVICE"
+          docker compose up -d --force-recreate "$GATEWAY_SERVICE"
+
+      - name: Wait for frontend health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 "$HEALTHCHECK_RETRIES"); do
+            if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+              exit 0
+            fi
+            sleep "$HEALTHCHECK_INTERVAL_SECONDS"
+          done
+          echo "Frontend health check failed"
+          exit 1
+
+      - name: Roll back on failure
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FRONTEND_REPO_DIR"
+          git reset --hard "${{ steps.prev.outputs.sha }}"
+
+          cd "$COMPOSE_DIR"
+          docker compose up -d --build "$FRONTEND_SERVICE"
+          docker compose up -d --force-recreate "$GATEWAY_SERVICE"
+
+      - name: Show deployment status
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$COMPOSE_DIR"
+          docker compose ps
+          echo
+          echo "----- FRONTEND LOGS -----"
+          docker compose logs --tail=80 "$FRONTEND_SERVICE" || true
+          echo
+          echo "----- GATEWAY LOGS -----"
+          docker compose logs --tail=80 "$GATEWAY_SERVICE" || true
