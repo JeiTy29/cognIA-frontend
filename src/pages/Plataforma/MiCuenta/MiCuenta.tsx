@@ -5,7 +5,7 @@ import { validatePassword } from '../../../utils/passwordValidation';
 import './MiCuenta.css';
 import { changePassword, logout, mfaDisable } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
-import { getAccountTypeLabel, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
+import { getAccountTypeLabel, isAdminProfile, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 import { Modal } from '../../../components/Modal/Modal';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
 import { ApiError } from '../../../services/api/httpClient';
@@ -59,6 +59,9 @@ export default function MiCuenta() {
 
     const isPsychologist = isPsychologistProfile(profile);
     const isGuardian = isGuardianProfile(profile);
+    const isAdmin = isAdminProfile(profile);
+    const mfaMandatoryProfile = isAdmin || isPsychologist;
+    const canDisableMfa = isGuardian && !mfaMandatoryProfile;
     const tipoCuenta = getAccountTypeLabel(profile);
     const correo = profile?.email ?? '—';
     const username = profile?.username ?? '—';
@@ -87,6 +90,12 @@ export default function MiCuenta() {
             setHighlightCurrentPassword(false);
         }
     }, [openPanel]);
+
+    useEffect(() => {
+        if (mfaMandatoryProfile && showMfaDisable) {
+            setShowMfaDisable(false);
+        }
+    }, [mfaMandatoryProfile, showMfaDisable]);
 
     const nuevaContrasenaError = useMemo(() => {
         if (!nuevaContrasena) {
@@ -411,23 +420,46 @@ export default function MiCuenta() {
                     </div>
                 </section>
 
-                {isGuardian && (
+                {(isGuardian || isPsychologist || isAdmin) && (
                     <section className="info-card mi-cuenta-section mi-cuenta-mfa">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
-                        {mfaEnabled ? (
+                        {mfaMandatoryProfile ? (
+                            <div className="mi-cuenta-mfa-required">
+                                <span className="mi-cuenta-badge-required">Obligatorio</span>
+                                <p className="mi-cuenta-section-note">
+                                    Para este perfil, la verificación en dos pasos debe permanecer activa.
+                                </p>
+                                {mfaEnabled ? (
+                                    <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                                ) : (
+                                    <>
+                                        <p className="mi-cuenta-section-note">Configura MFA para continuar con la protección obligatoria.</p>
+                                        <button
+                                            type="button"
+                                            className="mi-cuenta-btn primary"
+                                            onClick={() => setShowMfaSetup(true)}
+                                        >
+                                            Activar MFA
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        ) : mfaEnabled ? (
                             <>
                                 <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                                <button
-                                    type="button"
-                                    className="mi-cuenta-btn primary"
-                                    onClick={() => {
-                                        setDisableError(null);
-                                        setDisableSuccess(null);
-                                        setShowMfaDisable(true);
-                                    }}
-                                >
-                                    Desactivar MFA
-                                </button>
+                                {canDisableMfa ? (
+                                    <button
+                                        type="button"
+                                        className="mi-cuenta-btn primary"
+                                        onClick={() => {
+                                            setDisableError(null);
+                                            setDisableSuccess(null);
+                                            setShowMfaDisable(true);
+                                        }}
+                                    >
+                                        Desactivar MFA
+                                    </button>
+                                ) : null}
                             </>
                         ) : (
                             <>

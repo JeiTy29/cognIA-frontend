@@ -7,6 +7,60 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-04-24 - Ajustes funcionales en Auditoria, Cuestionarios, Mi Cuenta, Historial y Cuestionario
+
+### 1) Auditoria: retiro de bloque tecnico en detalle
+
+- Archivos:
+  - `src/pages/Administrador/Auditoria/Auditoria.tsx`
+  - `src/pages/Administrador/Auditoria/Auditoria.css`
+- Cambio:
+  - se elimina el bloque expandible de datos tecnicos completos (raw/JSON) del modal de detalle.
+  - el detalle queda enfocado en informacion humanizada.
+
+### 2) Cuestionarios admin: limpieza de columna de acciones
+
+- Archivos:
+  - `src/pages/Administrador/Cuestionarios/Cuestionarios.tsx`
+  - `src/pages/Administrador/Cuestionarios/Cuestionarios.css`
+- Cambio:
+  - accion principal visible: `Gestionar preguntas`.
+  - acciones secundarias (`Clonar`, `Publicar`, `Archivar`) pasan a menu contextual `Acciones`.
+  - se conserva funcionalidad, mejora jerarquia visual.
+
+### 3) Mi Cuenta: MFA obligatorio para admin/psicologo
+
+- Archivos:
+  - `src/pages/Plataforma/MiCuenta/MiCuenta.tsx`
+  - `src/pages/Plataforma/MiCuenta/MiCuenta.css`
+- Cambio:
+  - perfiles admin y psicologo ya no muestran opcion de `Desactivar MFA`.
+  - se agrega indicador visual `Obligatorio`.
+  - si MFA no esta activo, se mantiene CTA de activacion.
+
+### 4) Historial: lenguaje y flujo share/PDF mas claros
+
+- Archivos:
+  - `src/pages/Plataforma/Historial/HistorialBase.tsx`
+  - `src/pages/Plataforma/Historial/HistorialBase.css`
+- Cambios:
+  - etiquetas y formato de valores mas naturales.
+  - se eliminan controles `Permitir tags` y `Permitir descarga PDF`.
+  - se reorganiza bloque final en dos grupos:
+    - `Compartir resultado` (generar/copiar/abrir/regenerar enlace)
+    - `Documento PDF` (generar/consultar estado/descargar)
+
+### 5) Cuestionario: mejoras de presentacion y validacion
+
+- Archivos:
+  - `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+  - `src/pages/Plataforma/Cuestionario/Cuestionario.css`
+- Cambios:
+  - rol del cuestionario en curso mostrado en chip visual humanizado.
+  - estado `Guardando...` centrado y estable en boton de avance.
+  - restricciones numericas reforzadas con min/max/step (y defaults conservadores si no llegan).
+  - labels de opcion multiple limpian prefijos numericos de codigo interno (solo visual, sin alterar valor enviado).
+
 ## 2026-04-23 - Ajustes visuales MFA/Admin y limpieza Dashboard
 
 ### 1) MFA challenge: control de modo sin checkbox

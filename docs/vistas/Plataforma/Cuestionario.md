@@ -1,78 +1,51 @@
 # Vista: Cuestionario (Usuario)
 
 ## Ubicacion
-- Vista principal: `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
-- Estilos: `src/pages/Plataforma/Cuestionario/Cuestionario.css`
-- Servicios usados: `src/services/questionnaires/questionnaires.api.ts`
-- Tipos usados: `src/services/questionnaires/questionnaires.types.ts`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.css`
 
 ## Objetivo funcional
-Ejecutar el flujo de cuestionario V2 para usuario autenticado (padre o psicologo), incluyendo:
-- seleccion de modo,
-- deteccion de sesion reutilizable,
-- inicio de sesion nueva o continuacion,
-- carga y respuesta de preguntas,
-- guardado de respuestas,
-- submit y procesamiento,
-- presentacion de resultado cuando el backend lo entrega.
+- Ejecutar flujo Questionnaire V2: inicio/reanudacion, respuestas, submit y visualizacion de resultado.
 
 ## Endpoints consumidos por frontend
 - `GET /api/v2/questionnaires/active`
-- `GET /api/v2/questionnaires/history` (filtro `draft` / `in_progress` para reanudar)
+- `GET /api/v2/questionnaires/history` (deteccion de `draft`/`in_progress`)
 - `POST /api/v2/questionnaires/sessions`
 - `GET /api/v2/questionnaires/sessions/{session_id}`
 - `GET /api/v2/questionnaires/sessions/{session_id}/page`
 - `PATCH /api/v2/questionnaires/sessions/{session_id}/answers`
 - `POST /api/v2/questionnaires/sessions/{session_id}/submit`
 
-## Estados de carga y UX (actualizado)
+## Ajustes aplicados (ronda 2026-04-24)
 
-### 1. Carga inicial previa al boton "Comenzar"
-- Cuando `activeLoading` es `true`, se muestra un estado visual de carga estilizado:
-  - bloque centrado,
-  - indicador animado (anillos + punto),
-  - texto de apoyo:
-    - titulo: "Preparando cuestionario"
-    - descripcion: "Estamos cargando la sesion y las preguntas iniciales."
-- Ya no se usa texto plano aislado tipo "Cargando cuestionario...".
+### 1) Presentacion del rol en cuestionario en progreso
+- Se mejoro la cabecera del flujo en curso:
+  - subtitulo con modalidad.
+  - chip visual `Aplicado por: ...` con rol humanizado.
+- Ya no se presenta como texto tecnico aislado.
 
-### 2. Error de carga inicial
-- Si falla la carga inicial, se muestra mensaje de error con boton "Reintentar".
+### 2) Estado `Guardando...` en boton de avance
+- Se ajusto alineacion en botones de control (`stack-controls`):
+  - centrado estable de texto.
+  - ancho consistente en estado normal y loading.
+- Se evita el corrimiento visual al pasar a `Guardando...`.
 
-### 3. Carga/procesamiento luego de submit
-- La vista maneja fases:
-  - `submitting`
-  - `processing`
-  - `processed`
-  - `failed`
-- Mientras procesa, se muestra panel operativo con pasos, estado backend y metadatos de sesion.
-- Si llega `processed`, se muestra resultado estructurado (resumen, dominios y comorbilidad cuando existan).
+### 3) Restricciones para preguntas numericas abiertas
+- Se endurecio validacion usando limites por pregunta cuando existen:
+  - `response_min`
+  - `response_max`
+  - `response_step`
+- Si no vienen limites, se aplican defaults conservadores en frontend para evitar magnitudes absurdas.
+- El input numerico usa min/max/step efectivos y muestra rango esperado al usuario.
 
-## Notas de implementacion relevantes
-- Mapeo de rol frontend a rol API:
-  - `padre -> guardian`
-  - `psicologo -> psychologist`
-- Modo por defecto: `complete`.
-- Tamaño de pagina de sesion: `page_size=20`.
-- El componente consolida preguntas y respuestas en estado local para no perder continuidad de navegacion entre preguntas.
+### 4) Limpieza de prefijos numericos en opciones
+- El render de opcion multiple limpia prefijos tipo codigo interno:
+  - `0 - texto`
+  - `1: texto`
+  - `2) texto`
+- La limpieza es solo visual.
+- El valor enviado al backend no se altera.
 
-## Flujo de continuidad de sesion
-
-Antes de crear una sesion nueva, el frontend consulta historial en dos estados:
-- `in_progress`
-- `draft`
-
-Si encuentra una sesion compatible con modo y rol vigentes:
-- muestra decision de UX:
-  - `Continuar cuestionario`
-  - `Empezar de nuevo`
-- `Continuar cuestionario`:
-  - no crea nueva sesion
-  - carga detalle + paginas de la sesion existente
-  - restaura respuestas guardadas y posiciona el avance
-- `Empezar de nuevo`:
-  - ejecuta `POST /api/v2/questionnaires/sessions` y mantiene flujo base.
-
-## Alcance de esta documentacion
-- Esta ficha describe lo verificable desde el frontend y su consumo de API.
-- No confirma reglas internas de evaluacion del backend mas alla de lo observable por respuestas consumidas.
+## Nota de contrato
+- Reglas exactas de negocio para todos los limites numericos no son verificables solo desde frontend.
+- El endurecimiento implementado es defensivo y basado en metadatos disponibles en preguntas.

@@ -46,6 +46,11 @@ const LIKERT = [
 const SESSION_PAGE_SIZE = 20;
 const PROCESSING_POLL_INTERVAL_MS = 2500;
 const PROCESSING_TIMEOUT_MS = 120000;
+const DEFAULT_INTEGER_MIN = 0;
+const DEFAULT_INTEGER_MAX = 9999;
+const DEFAULT_NUMBER_MIN = 0;
+const DEFAULT_NUMBER_MAX = 9999;
+const DEFAULT_NUMBER_STEP = 0.1;
 
 type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
 type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
@@ -59,6 +64,10 @@ interface ProcessingStep {
 
 function roleToApiRole(role: string | null) {
     return role === 'psicologo' ? 'psychologist' : 'guardian';
+}
+
+function getRolePresentationLabel(role: 'guardian' | 'psychologist') {
+    return role === 'psychologist' ? 'Psicólogo' : 'Padre o tutor';
 }
 
 function getHistorySessionId(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
@@ -137,13 +146,20 @@ function normalizeQuestionType(value: unknown): QuestionnaireResponseType {
     return normalized;
 }
 
+function cleanOptionLabel(rawLabel: string) {
+    const trimmed = rawLabel.trim();
+    if (!trimmed) return '';
+    const withoutPrefix = trimmed.replace(/^\s*\d{1,3}\s*[-:=.)]\s*/u, '');
+    return withoutPrefix.trim() || trimmed;
+}
+
 function normalizeOption(value: unknown): QuestionnaireOptionDTO | null {
     if (value === null || value === undefined) return null;
 
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         return {
             value,
-            label: String(value)
+            label: cleanOptionLabel(String(value))
         };
     }
 
@@ -176,7 +192,7 @@ function normalizeOption(value: unknown): QuestionnaireOptionDTO | null {
 
     return {
         value: optionValue,
-        label
+        label: cleanOptionLabel(label)
     };
 }
 
@@ -204,11 +220,36 @@ function isQuestionRequired(question: QuestionnaireQuestionV2DTO) {
 
 function normalizeNumberInputValue(value: string, question: QuestionnaireQuestionV2DTO) {
     if (value.trim() === '') return null;
-    const parsed = Number(value);
+    const constraints = getNumericConstraints(question);
+    const normalizedValue = value.replace(',', '.');
+    const parsed = Number(normalizedValue);
     if (!Number.isFinite(parsed)) return null;
+    if (parsed < constraints.min || parsed > constraints.max) return null;
     const isIntegerType = question.response_type === 'integer';
     if (isIntegerType) return Math.trunc(parsed);
     return parsed;
+}
+
+function getNumericConstraints(question: QuestionnaireQuestionV2DTO) {
+    const isIntegerType = question.response_type === 'integer';
+
+    const fallbackMin = isIntegerType ? DEFAULT_INTEGER_MIN : DEFAULT_NUMBER_MIN;
+    const fallbackMax = isIntegerType ? DEFAULT_INTEGER_MAX : DEFAULT_NUMBER_MAX;
+    const fallbackStep = isIntegerType ? 1 : DEFAULT_NUMBER_STEP;
+
+    const min = typeof question.response_min === 'number' && Number.isFinite(question.response_min)
+        ? question.response_min
+        : fallbackMin;
+    const maxCandidate = typeof question.response_max === 'number' && Number.isFinite(question.response_max)
+        ? question.response_max
+        : fallbackMax;
+    const max = maxCandidate >= min ? maxCandidate : min;
+
+    const step = typeof question.response_step === 'number' && Number.isFinite(question.response_step) && question.response_step > 0
+        ? question.response_step
+        : fallbackStep;
+
+    return { min, max, step };
 }
 
 function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
@@ -488,8 +529,9 @@ function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
     if (question.response_type === 'integer' || question.response_type === 'number') {
         if (typeof value !== 'number' || !Number.isFinite(value)) return false;
         if (question.response_type === 'integer' && !Number.isInteger(value)) return false;
-        if (question.response_min != null && value < question.response_min) return false;
-        if (question.response_max != null && value > question.response_max) return false;
+        const constraints = getNumericConstraints(question);
+        if (value < constraints.min) return false;
+        if (value > constraints.max) return false;
         return true;
     }
 
@@ -775,6 +817,10 @@ export default function Cuestionario() {
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
     const currentOptions = currentQuestion ? normalizeQuestionOptions(currentQuestion) : [];
+    const currentNumericConstraints =
+        currentQuestion && (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number')
+            ? getNumericConstraints(currentQuestion)
+            : null;
     const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
     const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
 
@@ -1023,8 +1069,11 @@ export default function Cuestionario() {
                             <div className="questionnaire-heading">
                                 <h1 className="questionnaire-title">{templateName}</h1>
                                 <p className="questionnaire-subtitle">
-                                    {modeMeta.label} - Rol {apiRole === 'psychologist' ? 'psicologo' : 'cuidador'}
+                                    {modeMeta.label}
                                 </p>
+                                <div className="questionnaire-role-chip">
+                                    Aplicado por: {getRolePresentationLabel(apiRole)}
+                                </div>
                                 <p className="questionnaire-disclaimer">
                                     Este cuestionario no diagnostica, solo genera una alerta temprana.
                                 </p>
@@ -1215,15 +1264,22 @@ export default function Cuestionario() {
                                                 onChange={(event) => onAnswerChange(event.target.value)}
                                             />
                                         ) : currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number' ? (
-                                            <input
-                                                type="number"
-                                                className="question-input"
-                                                value={typeof currentAnswer === 'number' ? currentAnswer : ''}
-                                                min={currentQuestion.response_min ?? undefined}
-                                                max={currentQuestion.response_max ?? undefined}
-                                                step={currentQuestion.response_step ?? (currentQuestion.response_type === 'integer' ? 1 : 'any')}
-                                                onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
-                                            />
+                                            <>
+                                                <input
+                                                    type="number"
+                                                    className="question-input"
+                                                    value={typeof currentAnswer === 'number' ? currentAnswer : ''}
+                                                    min={currentNumericConstraints?.min ?? undefined}
+                                                    max={currentNumericConstraints?.max ?? undefined}
+                                                    step={currentNumericConstraints?.step ?? undefined}
+                                                    onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
+                                                />
+                                                {currentNumericConstraints ? (
+                                                    <p className="question-input-hint">
+                                                        Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
+                                                    </p>
+                                                ) : null}
+                                            </>
                                         ) : currentOptions.length > 0 ? (
                                             <div className="question-options">
                                                 {currentOptions.map((option) => (

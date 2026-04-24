@@ -25,13 +25,58 @@
 .cuestionarios-actions {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .cuestionarios-action-btn {
     min-height: 36px;
     padding: 8px 12px;
     font-size: 12px;
+}
+
+.cuestionarios-actions-menu {
+    position: relative;
+}
+
+.cuestionarios-more-btn {
+    min-width: 90px;
+}
+
+.cuestionarios-actions-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 5;
+    min-width: 160px;
+    border-radius: 10px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(11, 37, 64, 0.14);
+    padding: 6px;
+    display: grid;
+    gap: 4px;
+}
+
+.cuestionarios-actions-item {
+    min-height: 34px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0b2540;
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.cuestionarios-actions-item:hover {
+    background: rgba(23, 144, 233, 0.08);
+}
+
+.cuestionarios-actions-item:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .admin-status-badge.archived {

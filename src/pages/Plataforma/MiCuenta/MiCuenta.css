@@ -321,6 +321,25 @@
     align-self: flex-start;
 }
 
+.mi-cuenta-mfa-required {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+}
+
+.mi-cuenta-badge-required {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a5208;
+    background: rgba(240, 173, 78, 0.18);
+    border: 1px solid rgba(240, 173, 78, 0.35);
+}
+
 .mi-cuenta-logout {
     display: flex;
     align-items: center;

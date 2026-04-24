@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
@@ -126,12 +126,39 @@ export default function Cuestionarios() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [createForm, setCreateForm] = useState<CreateFormState>(initialCreateForm);
     const [createError, setCreateError] = useState<string | null>(null);
+    const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
+    const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
     const orderValue = useMemo(() => getOrderValue(sort, order), [sort, order]);
+
+    useEffect(() => {
+        if (!openActionsFor) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!actionsMenuRef.current) return;
+            if (!actionsMenuRef.current.contains(event.target as Node)) {
+                setOpenActionsFor(null);
+            }
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpenActionsFor(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [openActionsFor]);
 
     const openConfirmAction = (type: 'publish' | 'archive', item: AdminQuestionnaireItem) => {
         clearMessages();
@@ -366,34 +393,64 @@ export default function Cuestionarios() {
                                     <button
                                         type="button"
                                         className="admin-btn ghost cuestionarios-action-btn"
-                                        onClick={() => handleManageQuestions(item)}
+                                        onClick={() => {
+                                            setOpenActionsFor(null);
+                                            handleManageQuestions(item);
+                                        }}
                                     >
                                         Gestionar preguntas
                                     </button>
-                                    <button
-                                        type="button"
-                                        className="admin-btn ghost cuestionarios-action-btn"
-                                        onClick={() => openConfirmAction('publish', item)}
-                                        disabled={submittingPublish || item.is_active || item.is_archived}
-                                    >
-                                        Publicar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="admin-btn ghost cuestionarios-action-btn"
-                                        onClick={() => openConfirmAction('archive', item)}
-                                        disabled={submittingArchive || item.is_archived}
-                                    >
-                                        Archivar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="admin-btn primary cuestionarios-action-btn"
-                                        onClick={() => openCloneModal(item)}
-                                        disabled={submittingClone}
-                                    >
-                                        Clonar
-                                    </button>
+                                    <div className="cuestionarios-actions-menu" ref={openActionsFor === item.id ? actionsMenuRef : null}>
+                                        <button
+                                            type="button"
+                                            className="admin-btn ghost cuestionarios-action-btn cuestionarios-more-btn"
+                                            aria-haspopup="menu"
+                                            aria-expanded={openActionsFor === item.id}
+                                            onClick={() =>
+                                                setOpenActionsFor((previous) => (previous === item.id ? null : item.id))
+                                            }
+                                        >
+                                            Acciones
+                                        </button>
+
+                                        {openActionsFor === item.id ? (
+                                            <div className="cuestionarios-actions-dropdown" role="menu" aria-label="Acciones del cuestionario">
+                                                <button
+                                                    type="button"
+                                                    className="cuestionarios-actions-item"
+                                                    onClick={() => {
+                                                        setOpenActionsFor(null);
+                                                        openCloneModal(item);
+                                                    }}
+                                                    disabled={submittingClone}
+                                                >
+                                                    Clonar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="cuestionarios-actions-item"
+                                                    onClick={() => {
+                                                        setOpenActionsFor(null);
+                                                        openConfirmAction('publish', item);
+                                                    }}
+                                                    disabled={submittingPublish || item.is_active || item.is_archived}
+                                                >
+                                                    Publicar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="cuestionarios-actions-item"
+                                                    onClick={() => {
+                                                        setOpenActionsFor(null);
+                                                        openConfirmAction('archive', item);
+                                                    }}
+                                                    disabled={submittingArchive || item.is_archived}
+                                                >
+                                                    Archivar
+                                                </button>
+                                            </div>
+                                        ) : null}
+                                    </div>
                                 </div>
                             </div>
                         ))}

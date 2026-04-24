@@ -62,6 +62,34 @@ const tagColorOptions = [
 ];
 const defaultTagColor = tagColorOptions[0].value;
 
+const historyKeyLabelMap: Record<string, string> = {
+    summary: 'Resumen',
+    operational_recommendation: 'Recomendación operativa',
+    completion_quality_score: 'Calidad de completitud',
+    missingness_score: 'Datos faltantes',
+    needs_professional_review: 'Revisión profesional',
+    domain: 'Dominio',
+    probability: 'Probabilidad',
+    confidence_pct: 'Confianza',
+    confidence_band: 'Banda de confianza',
+    alert_level: 'Nivel de alerta',
+    result_summary: 'Resumen del resultado',
+    operational_class: 'Clase operativa',
+    operational_caveat: 'Aclaración operativa',
+    coexistence_key: 'Combinación de dominios',
+    combined_risk_score: 'Riesgo combinado',
+    coexistence_level: 'Nivel de coexistencia',
+    expires_at: 'Vence',
+    max_uses: 'Usos máximos',
+    uses: 'Usos realizados',
+    share_code: 'Código de acceso',
+    status: 'Estado',
+    generated_at: 'Generado',
+    updated_at: 'Actualizado',
+    filename: 'Archivo',
+    size_bytes: 'Tamaño (bytes)'
+};
+
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
 }
@@ -94,8 +122,7 @@ function getModeLabel(mode: string | undefined) {
 
 function getRoleLabel(role: string | undefined) {
     const normalized = (role ?? '').toLowerCase();
-    if (normalized === 'guardian') return 'Tutor';
-    if (normalized === 'caregiver') return 'Cuidador';
+    if (normalized === 'guardian' || normalized === 'caregiver') return 'Padre o tutor';
     if (normalized === 'psychologist') return 'Psicologo';
     return role ?? '--';
 }
@@ -106,6 +133,8 @@ function toRecord(payload: unknown): Record<string, unknown> | null {
 }
 
 function toLabel(key: string) {
+    const mapped = historyKeyLabelMap[key];
+    if (mapped) return mapped;
     const withSpaces = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
     if (!withSpaces) return '--';
     return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
@@ -113,8 +142,20 @@ function toLabel(key: string) {
 
 function formatValue(value: unknown): string {
     if (value === null || value === undefined) return '--';
-    if (typeof value === 'string') return value.trim().length > 0 ? value : '--';
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (typeof value === 'string') {
+        const normalized = value.trim();
+        if (normalized.length === 0) return '--';
+        const asDate = new Date(normalized);
+        if (!Number.isNaN(asDate.getTime())) {
+            return `${asDate.toLocaleDateString('es-CO')} ${asDate.toLocaleTimeString('es-CO')}`;
+        }
+        return normalized;
+    }
+    if (typeof value === 'number') {
+        if (!Number.isFinite(value)) return '--';
+        return Number.isInteger(value) ? String(value) : value.toFixed(2);
+    }
+    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
     if (Array.isArray(value)) {
         if (value.length === 0) return '--';
         const scalarValues = value.filter((item) => ['string', 'number', 'boolean'].includes(typeof item));
@@ -123,6 +164,16 @@ function formatValue(value: unknown): string {
     }
     if (typeof value === 'object') return 'Disponible';
     return '--';
+}
+
+function getPdfStatusLabel(status: string | undefined) {
+    const normalized = (status ?? '').trim().toLowerCase();
+    if (!normalized) return 'Sin generar';
+    if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
+    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
+    if (['processing', 'running', 'building'].includes(normalized)) return 'Generándose';
+    if (['failed', 'error'].includes(normalized)) return 'Error en generación';
+    return status ?? '--';
 }
 
 function extractScalarEntries(record: Record<string, unknown>, exclude: string[] = []) {
@@ -254,8 +305,6 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const [shareExpiresHours, setShareExpiresHours] = useState('24');
     const [shareMaxUses, setShareMaxUses] = useState('');
     const [shareGranteeUserId, setShareGranteeUserId] = useState('');
-    const [shareCanTag, setShareCanTag] = useState(true);
-    const [shareCanDownloadPdf, setShareCanDownloadPdf] = useState(true);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
     const title = role === 'psicologo' ? 'Historial de cuestionarios' : 'Historial de cuestionarios';
@@ -271,10 +320,14 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     );
 
     const isPdfReady = useMemo(() => {
+        if (!pdfPayload) return false;
         const status = getString(pdfPayload?.status, '').toLowerCase();
-        if (!status) return true;
+        if (!status) return false;
         return ['ready', 'completed', 'generated', 'available', 'done'].includes(status);
     }, [pdfPayload]);
+
+    const shareAvailable = useMemo(() => Boolean(shareUrl || sharePayload?.shared_url || sharePayload?.shared_path), [sharePayload, shareUrl]);
+    const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
 
     const openDetail = async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
@@ -319,8 +372,6 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setShareExpiresHours('24');
         setShareMaxUses('');
         setShareGranteeUserId('');
-        setShareCanTag(true);
-        setShareCanDownloadPdf(true);
         setShareUrl(null);
     };
 
@@ -364,9 +415,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
                 expires_in_hours: Number.isFinite(expiresCandidate) && expiresCandidate > 0 ? expiresCandidate : undefined,
                 max_uses: Number.isFinite(maxUsesCandidate) && maxUsesCandidate > 0 ? maxUsesCandidate : undefined,
-                grantee_user_id: shareGranteeUserId.trim() || undefined,
-                grant_can_tag: shareCanTag,
-                grant_can_download_pdf: shareCanDownloadPdf
+                grantee_user_id: shareGranteeUserId.trim() || undefined
             });
             setSharePayload(payload);
             const resolvedUrl = payload.shared_url ?? payload.shared_path ?? null;
@@ -410,6 +459,20 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             setDetailNotice('Descarga iniciada.');
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible descargar el PDF.'));
+        }
+    };
+
+    const handleCopyShareLink = async () => {
+        const candidate = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
+        if (!candidate) {
+            setDetailError('Aún no hay un enlace compartido disponible para copiar.');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(candidate);
+            setDetailNotice('Enlace copiado al portapapeles.');
+        } catch {
+            setDetailError('No fue posible copiar el enlace automáticamente.');
         }
     };
 
@@ -523,9 +586,10 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Resultados</h3>
+                                <h3>Resumen de resultados</h3>
                                 <KeyValueRows
                                     data={toRecord(resultsPayload)}
+                                    exclude={['model_id', 'model_version', 'raw', 'payload', 'metadata']}
                                     emptyText="Sin resultados disponibles."
                                 />
                             </div>
@@ -593,81 +657,100 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Compartir y PDF</h3>
-                                <div className="historial-v2-share-form">
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        placeholder="Expira (horas)"
-                                        value={shareExpiresHours}
-                                        onChange={(event) => setShareExpiresHours(event.target.value)}
-                                    />
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        placeholder="Max usos (opcional)"
-                                        value={shareMaxUses}
-                                        onChange={(event) => setShareMaxUses(event.target.value)}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Grantee user id (opcional)"
-                                        value={shareGranteeUserId}
-                                        onChange={(event) => setShareGranteeUserId(event.target.value)}
-                                    />
-                                </div>
-                                <div className="historial-v2-share-toggles">
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={shareCanTag}
-                                            onChange={(event) => setShareCanTag(event.target.checked)}
+                                <h3>Compartir y documento PDF</h3>
+
+                                <div className="historial-v2-actions-group">
+                                    <div className="historial-v2-actions-card">
+                                        <h4>Compartir resultado</h4>
+                                        <div className="historial-v2-share-form">
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                placeholder="Expira en horas"
+                                                value={shareExpiresHours}
+                                                onChange={(event) => setShareExpiresHours(event.target.value)}
+                                            />
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                placeholder="Límite de usos (opcional)"
+                                                value={shareMaxUses}
+                                                onChange={(event) => setShareMaxUses(event.target.value)}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="ID de destinatario (opcional)"
+                                                value={shareGranteeUserId}
+                                                onChange={(event) => setShareGranteeUserId(event.target.value)}
+                                            />
+                                        </div>
+                                        <div className="historial-v2-section-actions">
+                                            {!shareAvailable ? (
+                                                <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
+                                                    Generar enlace para compartir
+                                                </button>
+                                            ) : (
+                                                <>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => void handleCopyShareLink()}>
+                                                        Copiar enlace
+                                                    </button>
+                                                    <a
+                                                        className="historial-v2-btn historial-v2-btn-link"
+                                                        href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? '#'}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Abrir enlace
+                                                    </a>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
+                                                        Generar nuevo enlace
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                        {shareAvailable ? (
+                                            <div className="historial-v2-share">
+                                                <span>Enlace disponible</span>
+                                                <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? '#'} target="_blank" rel="noreferrer">
+                                                    {shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}
+                                                </a>
+                                            </div>
+                                        ) : (
+                                            <p className="historial-v2-helper-text">Aún no has generado un enlace compartido para esta sesión.</p>
+                                        )}
+                                        <KeyValueRows
+                                            data={toRecord(sharePayload)}
+                                            exclude={['url', 'share_url', 'public_url', 'link', 'shared_url', 'shared_path', 'questionnaire_id']}
+                                            emptyText="Sin información adicional del enlace."
                                         />
-                                        Permitir tags
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={shareCanDownloadPdf}
-                                            onChange={(event) => setShareCanDownloadPdf(event.target.checked)}
-                                        />
-                                        Permitir descarga PDF
-                                    </label>
-                                </div>
-                                <div className="historial-v2-section-actions">
-                                    <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
-                                        Generar enlace
-                                    </button>
-                                    <button type="button" className="historial-v2-btn" onClick={() => void handleGeneratePdf()}>
-                                        Generar PDF
-                                    </button>
-                                    <button type="button" className="historial-v2-btn" onClick={() => void handleFetchPdfInfo()}>
-                                        Ver estado PDF
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="historial-v2-btn"
-                                        onClick={() => void handleDownloadPdf()}
-                                        disabled={!isPdfReady}
-                                    >
-                                        Descargar PDF
-                                    </button>
-                                </div>
-                                {shareUrl ? (
-                                    <div className="historial-v2-share">
-                                        <span>Enlace:</span>
-                                        <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
                                     </div>
-                                ) : null}
-                                <KeyValueRows
-                                    data={toRecord(sharePayload)}
-                                    exclude={['url', 'share_url', 'public_url', 'link']}
-                                    emptyText="Sin metadata adicional de share."
-                                />
-                                <KeyValueRows
-                                    data={toRecord(pdfPayload)}
-                                    emptyText="Sin informacion de PDF."
-                                />
+
+                                    <div className="historial-v2-actions-card">
+                                        <h4>Documento PDF</h4>
+                                        <p className="historial-v2-helper-text">Estado actual: <strong>{pdfStatusText}</strong></p>
+                                        <div className="historial-v2-section-actions">
+                                            <button type="button" className="historial-v2-btn" onClick={() => void handleGeneratePdf()}>
+                                                Generar PDF
+                                            </button>
+                                            <button type="button" className="historial-v2-btn" onClick={() => void handleFetchPdfInfo()}>
+                                                Consultar estado
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="historial-v2-btn"
+                                                onClick={() => void handleDownloadPdf()}
+                                                disabled={!isPdfReady}
+                                            >
+                                                Descargar PDF
+                                            </button>
+                                        </div>
+                                        <KeyValueRows
+                                            data={toRecord(pdfPayload)}
+                                            exclude={['download_url', 'file_id', 'mime_type']}
+                                            emptyText="Todavía no hay información del PDF."
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </>
                     ) : null}
