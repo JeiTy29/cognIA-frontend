@@ -7,6 +7,37 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-04-25 - Reestructuracion integral del README principal del frontend
+
+### 1) README.md reescrito para onboarding tecnico
+
+- Archivos:
+  - `README.md`
+- Cambio:
+  - se reemplaza el README previo (breve y centrado en CI/deploy) por una version completa, autosuficiente y orientada a onboarding tecnico.
+  - el nuevo contenido documenta:
+    - objetivo y alcance del frontend,
+    - stack real del repositorio,
+    - arquitectura y estructura de carpetas,
+    - navegacion por rutas/roles,
+    - modulos funcionales vigentes,
+    - integracion API desde capa de servicios,
+    - instalacion, configuracion y ejecucion local,
+    - validacion local de calidad,
+    - CI/CD y despliegue self-hosted con nombres de workflows/jobs vigentes,
+    - limitaciones y consideraciones de verificabilidad desde frontend.
+
+### 2) Criterio documental aplicado
+
+- Archivos:
+  - `README.md`
+  - `docs/proyecto/12-RegistroCambiosFrontend.md`
+- Cambio:
+  - se mantiene alineacion con la politica de documentacion (`docs/proyecto/13-PoliticaDocumentacionCambios.md`):
+    - sin inventar contratos backend,
+    - diferenciando evidencia visible en frontend de inferencias,
+    - evitando referencias a contexto externo de edicion.
+
 ## 2026-04-24 - Ajustes funcionales en Auditoria, Cuestionarios, Mi Cuenta, Historial y Cuestionario
 
 ### 1) Auditoria: retiro de bloque tecnico en detalle
