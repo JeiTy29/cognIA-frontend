@@ -70,7 +70,10 @@ Payload enviado:
 ## Endpoint de registro
 
 - `POST /api/auth/register`
-- Base URL: `VITE_API_BASE_URL=https://cognia-api.onrender.com`
+- Base URL: `VITE_API_BASE_URL`
+  - puede configurarse con o sin `/api`;
+  - el frontend normaliza la URL antes de consumir el endpoint;
+  - recomendado: usar el origen sin `/api`.
 
 ---
 

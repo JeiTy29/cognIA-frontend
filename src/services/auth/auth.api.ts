@@ -27,15 +27,15 @@ import type {
 import { getCsrfToken } from '../../utils/auth/csrf';
 import { getStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
+import { joinApiUrl } from '../api/url';
 
 export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
 }
 
 export async function login(payload: LoginRequest): Promise<LoginResponse | LoginErrorResponse> {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
     try {
-        const response = await fetch(`${baseUrl}/api/auth/login`, {
+        const response = await fetch(joinApiUrl('/api/auth/login'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',

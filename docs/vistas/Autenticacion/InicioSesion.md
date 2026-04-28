@@ -13,7 +13,10 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 ## Endpoint
 
 - `POST /api/auth/login`
-- Base URL: `VITE_API_BASE_URL=https://cognia-api.onrender.com`
+- Base URL: `VITE_API_BASE_URL`
+  - puede configurarse con o sin `/api`;
+  - el frontend normaliza la URL antes de llamar login;
+  - recomendado: usar el origen sin `/api`, por ejemplo `https://www.cognia.lat`.
 - Body: `{ username, password }`
 
 ## Respuestas posibles (200)
@@ -111,6 +114,12 @@ Formulario de acceso con credenciales (nombre de usuario + contraseña). Inicia 
 - Si el access token expira, el frontend intenta refresh de forma silenciosa.
 - Si falla (401), se limpia la sesión local y se redirige a `/inicio-sesion`.
 - Se reintenta una sola vez en requests protegidos cuando hay 401.
+
+## Nota de entorno
+
+- `VITE_API_BASE_URL` se resuelve en tiempo de desarrollo/build de Vite.
+- Si cambias `.env.local`, debes reiniciar el servidor de desarrollo.
+- Si la app ya fue compilada, cambiar `.env` en servidor no actualiza automaticamente las URLs del bundle.
 
 ## Authorization (Bearer)
 

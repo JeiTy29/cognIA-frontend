@@ -7,6 +7,54 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-04-27 - Normalizacion central de URL base backend
+
+### 1) Utilidad central de resolucion de URLs
+
+- Archivo:
+  - `src/services/api/url.ts`
+- Cambio:
+  - se agrega una utilidad unica para leer y normalizar `VITE_API_BASE_URL`.
+  - expone:
+    - `getConfiguredBackendBaseUrl()`
+    - `joinApiUrl(path)`
+    - `joinBackendRootUrl(path)`
+  - tolera configuracion con o sin `/api`.
+  - evita duplicados como `/api/api/auth/login`.
+  - mantiene endpoints raiz (`/healthz`, `/readyz`) fuera de `/api`.
+
+### 2) Servicios y hooks alineados
+
+- Archivos:
+  - `src/services/api/httpClient.ts`
+  - `src/services/auth/auth.api.ts`
+  - `src/services/auth/auth.refresh.ts`
+  - `src/hooks/metrics/useMetrics.ts`
+- Cambio:
+  - `httpClient` deja de concatenar `${BASE_URL}${path}` y usa `joinApiUrl(path)`.
+  - login y refresh dejan de concatenar manualmente `VITE_API_BASE_URL` y usan la utilidad central.
+  - metricas admin resuelve `/healthz` y `/readyz` con `joinBackendRootUrl(path)`.
+
+### 3) Documentacion alineada al comportamiento real de Vite
+
+- Archivos:
+  - `.env.example`
+  - `README.md`
+  - `docs/proyecto/03-ArquitecturaFrontend.md`
+  - `docs/proyecto/08-MigracionEndpointsActivos.md`
+  - `docs/proyecto/10-ModulosFrontendVigentes.md`
+  - `docs/vistas/Autenticacion/InicioSesion.md`
+  - `docs/vistas/Administrador/Metricas.md`
+- Cambio:
+  - se aclara que `VITE_API_BASE_URL` puede declararse con o sin `/api`.
+  - se recomienda configurar el origen sin `/api`.
+  - se documenta que Vite resuelve `VITE_*` en build/dev, por lo que cambiar `.env` exige reinicio o recompilacion.
+
+### 4) Verificacion
+
+- `npm run build`: exitoso.
+- `npm run lint`: mantiene fallos preexistentes en archivos no intervenidos funcionalmente (`useDashboard.ts`, `Psicologos.tsx`, `questionnaires.api.ts`).
+
 ## 2026-04-27 - Normalizacion de lenguaje natural en vistas de resultados/admin
 
 ### 1) Utilidad transversal de presentacion natural

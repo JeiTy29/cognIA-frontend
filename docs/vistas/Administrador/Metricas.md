@@ -18,6 +18,12 @@
 - `GET /api/admin/metrics`
 - `GET /api/admin/email/health`
 
+## Resolucion de URL
+
+- `/healthz` y `/readyz` se resuelven contra la raiz del backend.
+- Esto se hace con una utilidad central de URL para evitar errores si `VITE_API_BASE_URL` viene configurado con `/api`.
+- Los endpoints `/api/admin/*` siguen resolviendose como rutas API normales desde `httpClient`.
+
 ## Cambios
 - Se retiro ruido visual del encabezado de metricas:
   - sin subtitulo adicional
