@@ -7,6 +7,63 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-04-27 - Normalizacion de lenguaje natural en vistas de resultados/admin
+
+### 1) Utilidad transversal de presentacion natural
+
+- Archivo:
+  - `src/utils/presentation/naturalLanguage.ts`
+- Cambio:
+  - se consolido una capa comun para formateo y traduccion de presentacion:
+    - fechas `es-CO`,
+    - booleanos (`Si/No`),
+    - numeros, porcentajes y tamanos de archivo,
+    - estados, roles, modos, dominios y niveles de alerta/confianza,
+    - traduccion de MIME y modulos de origen,
+    - conversion de claves tecnicas a etiquetas legibles,
+    - construccion de filas seguras para objetos dinamicos,
+    - mapeo de errores API a mensajes entendibles para usuario.
+
+### 2) Resultados compartidos e historial con lenguaje menos tecnico
+
+- Archivos:
+  - `src/pages/Plataforma/CuestionarioCompartido/CuestionarioCompartido.tsx`
+  - `src/pages/Plataforma/CuestionarioCompartido/CuestionarioCompartido.css`
+  - `src/pages/Plataforma/Historial/HistorialBase.tsx`
+  - `src/pages/Plataforma/Historial/HistorialBase.css`
+- Cambio:
+  - se reduce exposicion de campos crudos en primer nivel (IDs/modelos/mode_key).
+  - campos tecnicos se reubican como referencia interna secundaria.
+  - dominios, alertas, bandas de confianza, comorbilidad y puntajes se muestran en espanol claro.
+  - se agrega advertencia visible de uso orientativo (alerta temprana / no diagnostico definitivo).
+  - se sustituyen mensajes tecnicos por mensajes de usuario en errores de carga/acciones.
+
+### 3) Auditoria y dashboard con mejor humanizacion
+
+- Archivos:
+  - `src/pages/Administrador/Auditoria/Auditoria.tsx`
+  - `src/pages/Administrador/Dashboard/Dashboard.tsx`
+- Cambio:
+  - auditoria amplia diccionarios de acciones y etiquetas, y renderiza `raw` con filas traducidas.
+  - dashboard mejora normalizacion de etiquetas/valores y mantiene HTTP como detalle tecnico secundario.
+
+### 4) Cuestionarios admin y reportes con etiquetas naturales
+
+- Archivos:
+  - `src/pages/Administrador/Cuestionarios/PreguntasCuestionario.tsx`
+  - `src/pages/Administrador/Reportes/Reportes.tsx`
+- Cambio:
+  - `Template ID` se presenta como `Referencia de plantilla`.
+  - `response_type` deja de mostrarse crudo en el listado de preguntas agregadas.
+  - `Min/Max` se muestran como `Minimo/Maximo` y se mejora ayuda de opciones (`valor|texto visible`).
+  - reportes traduce `source_module`, `source_path` y MIME de adjuntos.
+  - metadata (si llega) se renderiza con filas seguras en lugar de estructura cruda.
+
+### 5) Verificacion
+
+- `npm run build`: exitoso.
+- `npm run lint`: falla por reglas existentes fuera de este cambio (`react-hooks/set-state-in-effect` en hooks/paginas ya presentes y `no-useless-escape` en `questionnaires.api.ts`).
+
 ## 2026-04-25 - Reestructuracion integral del README principal del frontend
 
 ### 1) README.md reescrito para onboarding tecnico

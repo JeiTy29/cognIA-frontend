@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
 import type { AuditLogItem } from '../../../services/admin/audit';
+import {
+    buildSafeDisplayRows,
+    formatDateTimeEsCO,
+    formatNaturalValue,
+    getHttpMethodLabel,
+    getStatusLabel,
+    humanizeTechnicalKey
+} from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './Auditoria.css';
 
@@ -15,13 +23,42 @@ const pageSizeOptions = [
 ];
 
 const verifiedActionLabels: Record<string, string> = {
-    USER_CREATED: 'Usuario creado'
+    USER_CREATED: 'Usuario creado',
+    USER_UPDATED: 'Usuario actualizado',
+    USER_DEACTIVATED: 'Usuario desactivado',
+    USER_PASSWORD_RESET: 'Contraseña de usuario restablecida',
+    USER_MFA_RESET: 'MFA de usuario restablecido',
+    USER_LOGIN: 'Inicio de sesión',
+    USER_LOGOUT: 'Cierre de sesión',
+    LOGIN_SUCCESS: 'Inicio de sesión exitoso',
+    LOGIN_FAILED: 'Intento de inicio de sesión fallido',
+    MFA_SETUP: 'Configuración de MFA',
+    MFA_CONFIRM: 'Confirmación de MFA',
+    MFA_DISABLE: 'Desactivación de MFA',
+    MFA_RECOVERY_USED: 'Uso de código de recuperación MFA',
+    QUESTIONNAIRE_CREATED: 'Cuestionario creado',
+    QUESTIONNAIRE_PUBLISHED: 'Cuestionario publicado',
+    QUESTIONNAIRE_ARCHIVED: 'Cuestionario archivado',
+    QUESTIONNAIRE_CLONED: 'Cuestionario clonado',
+    QUESTIONNAIRE_QUESTION_CREATED: 'Pregunta de cuestionario agregada',
+    QUESTIONNAIRE_SESSION_CREATED: 'Sesión de cuestionario iniciada',
+    QUESTIONNAIRE_SESSION_SUBMITTED: 'Sesión de cuestionario enviada',
+    QUESTIONNAIRE_PDF_GENERATED: 'PDF de cuestionario generado',
+    QUESTIONNAIRE_SHARED: 'Resultado de cuestionario compartido',
+    EVALUATION_STATUS_UPDATED: 'Estado de evaluación actualizado',
+    PSYCHOLOGIST_APPROVED: 'Psicólogo aprobado',
+    PSYCHOLOGIST_REJECTED: 'Psicólogo rechazado',
+    PROBLEM_REPORT_CREATED: 'Reporte de problema creado',
+    PROBLEM_REPORT_UPDATED: 'Reporte de problema actualizado',
+    AUDIT_LOG_VIEWED: 'Consulta de auditoría'
 };
 
 const actionTokenLabels: Record<string, string> = {
     REGISTER: 'Registro',
-    LOGIN: 'Inicio de sesion',
-    LOGOUT: 'Cierre de sesion',
+    LOGIN: 'Inicio de sesión',
+    LOGOUT: 'Cierre de sesión',
+    AUTH: 'Autenticación',
+    MFA: 'MFA',
     USER: 'Usuario',
     USERS: 'Usuarios',
     CREATED: 'Creado',
@@ -30,32 +67,57 @@ const actionTokenLabels: Record<string, string> = {
     UPDATE: 'Actualizar',
     DELETED: 'Eliminado',
     DELETE: 'Eliminar',
-    PASSWORD: 'Contrasena',
+    DISABLED: 'Desactivado',
+    PASSWORD: 'Contraseña',
     RESET: 'Restablecimiento',
-    MFA: 'MFA',
     APPROVED: 'Aprobado',
     APPROVE: 'Aprobar',
     REJECTED: 'Rechazado',
     REJECT: 'Rechazar',
-    PSYCHOLOGIST: 'Psicologo',
+    PSYCHOLOGIST: 'Psicólogo',
     QUESTIONNAIRE: 'Cuestionario',
-    EVALUATION: 'Evaluacion',
-    SESSION: 'Sesion',
+    QUESTIONNAIRES: 'Cuestionarios',
+    SESSION: 'Sesión',
+    EVALUATION: 'Evaluación',
     PROFILE: 'Perfil',
     ACCOUNT: 'Cuenta',
-    EMAIL: 'Correo'
+    EMAIL: 'Correo',
+    PDF: 'PDF',
+    SHARE: 'Compartir',
+    REPORT: 'Reporte',
+    REPORTS: 'Reportes',
+    AUDIT: 'Auditoría'
+};
+
+const detailFieldLabels: Record<string, string> = {
+    ip: 'Dirección IP',
+    ip_address: 'Dirección IP',
+    user_agent: 'Dispositivo o navegador',
+    request_id: 'ID de solicitud',
+    session_id: 'ID de sesión',
+    status_code: 'Código de estado',
+    http_status: 'Código de estado',
+    method: 'Método HTTP',
+    path: 'Ruta técnica',
+    endpoint: 'Endpoint',
+    resource: 'Recurso',
+    resource_id: 'ID de recurso',
+    reason: 'Motivo',
+    message: 'Mensaje',
+    description: 'Descripción',
+    detail: 'Detalle',
+    outcome: 'Resultado',
+    source_module: 'Módulo de origen',
+    source_path: 'Pantalla o ruta de origen'
 };
 
 function formatDateTime(value: string | null) {
-    if (!value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
+    return formatDateTimeEsCO(value);
 }
 
 function humanizeAction(action: string) {
     const normalized = action.trim();
-    if (!normalized) return 'Sin accion';
+    if (!normalized) return 'Sin acción';
     if (verifiedActionLabels[normalized]) return verifiedActionLabels[normalized];
 
     const tokens = normalized
@@ -77,48 +139,20 @@ function humanizeAction(action: string) {
         .join(' ');
 }
 
-const detailFieldLabels: Record<string, string> = {
-    ip: 'Dirección IP',
-    ip_address: 'Dirección IP',
-    user_agent: 'Dispositivo o navegador',
-    request_id: 'ID de solicitud',
-    session_id: 'ID de sesión',
-    status_code: 'Código de estado',
-    http_status: 'Código de estado',
-    method: 'Método',
-    path: 'Ruta',
-    endpoint: 'Endpoint',
-    resource: 'Recurso',
-    resource_id: 'ID de recurso',
-    reason: 'Motivo',
-    message: 'Mensaje',
-    description: 'Descripción',
-    detail: 'Detalle',
-    outcome: 'Resultado'
-};
-
-function formatDetailValue(value: unknown): string {
-    if (value === null || value === undefined) return '--';
-    if (typeof value === 'string') return value.trim() || '--';
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    if (Array.isArray(value)) {
-        const items = value.map((item) => formatDetailValue(item)).filter((item) => item !== '--');
-        return items.length > 0 ? items.join(', ') : '--';
+function formatDetailValue(key: string, value: unknown): string {
+    const normalizedKey = key.trim().toLowerCase();
+    if (normalizedKey === 'method') return getHttpMethodLabel(value);
+    if (normalizedKey === 'status' || normalizedKey === 'outcome') return getStatusLabel(value);
+    if (normalizedKey === 'status_code' || normalizedKey === 'http_status') {
+        const formatted = formatNaturalValue(key, value, { includeTechnical: true });
+        return formatted === '--' ? '--' : `HTTP ${formatted}`;
     }
-    if (typeof value === 'object') {
-        return Object.entries(value as Record<string, unknown>)
-            .slice(0, 6)
-            .map(([key, entry]) => `${key}: ${formatDetailValue(entry)}`)
-            .join(' · ');
-    }
-    return '--';
+    return formatNaturalValue(key, value, { includeTechnical: true });
 }
 
 function toNaturalLabel(key: string): string {
     if (detailFieldLabels[key]) return detailFieldLabels[key];
-    const normalized = key.replace(/[_\-.]+/g, ' ').trim();
-    if (!normalized) return key;
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    return humanizeTechnicalKey(key);
 }
 
 export default function Auditoria() {
@@ -169,10 +203,6 @@ export default function Auditoria() {
         });
     }, [items, searchTerm, actionFilter, dateOrder]);
 
-    useEffect(() => {
-        setPage(1);
-    }, [searchTerm, actionFilter, pageSize, dateOrder]);
-
     const total = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -180,11 +210,25 @@ export default function Auditoria() {
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
+    const detailRows = useMemo(() => {
+        if (!selectedItem) return [];
+        return buildSafeDisplayRows(selectedItem.raw, {
+            includeTechnical: true,
+            includeEmpty: false,
+            customLabels: detailFieldLabels,
+            hiddenFields: ['action', 'actor', 'target', 'summary', 'timestamp', 'created_at', 'id'],
+            maxRows: 14
+        }).map((row) => ({
+            ...row,
+            value: formatDetailValue(row.key, selectedItem.raw[row.key])
+        }));
+    }, [selectedItem]);
+
     return (
         <div className="admin-page auditoria-page">
             <header className="admin-header">
                 <div className="admin-title">
-                    <h1>Auditoria</h1>
+                    <h1>Auditoría</h1>
                 </div>
             </header>
 
@@ -192,51 +236,60 @@ export default function Auditoria() {
 
             {error ? <div className="admin-alert error">{error}</div> : null}
 
-            <section className="admin-controls" aria-label="Controles de auditoria">
+            <section className="admin-controls" aria-label="Controles de auditoría">
                 <div className="admin-search">
                     <span className="admin-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por accion, actor, objetivo o ID..."
-                        aria-label="Buscar auditoria"
+                        placeholder="Buscar por acción, actor, objetivo o ID..."
+                        aria-label="Buscar auditoría"
                         value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onChange={(event) => {
+                            setSearchTerm(event.target.value);
+                            setPage(1);
+                        }}
                     />
                 </div>
                 <div className="admin-filters">
                     <label>
-                        <span>Accion</span>
+                        <span>Acción</span>
                         <CustomSelect
-                            ariaLabel="Filtrar por accion"
+                            ariaLabel="Filtrar por acción"
                             value={actionFilter}
                             options={actionOptions}
-                            onChange={(value) => setActionFilter(value)}
+                            onChange={(value) => {
+                                setActionFilter(value);
+                                setPage(1);
+                            }}
                             className="auditoria-filter-select"
                         />
                     </label>
                 </div>
             </section>
 
-            <section className="admin-table" aria-label="Listado de auditoria">
+            <section className="admin-table" aria-label="Listado de auditoría">
                 <div className="admin-table-head auditoria-grid">
                     <button
                         type="button"
                         className="auditoria-sort-btn"
-                        onClick={() => setDateOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                        onClick={() => {
+                            setDateOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+                            setPage(1);
+                        }}
                     >
                         Fecha
                         <span aria-hidden="true">{dateOrder === 'desc' ? '↓' : '↑'}</span>
                     </button>
-                    <span>Accion</span>
+                    <span>Acción</span>
                     <span>Actor</span>
                     <span>Objetivo</span>
                     <span>Resumen</span>
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando registros de auditoria...</div> : null}
+                {loading ? <div className="admin-loading">Cargando registros de auditoría...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
                     <div className="admin-empty" role="status">
@@ -272,7 +325,7 @@ export default function Auditoria() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginacion de auditoria">
+            <footer className="admin-pagination" aria-label="Paginación de auditoría">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -280,17 +333,17 @@ export default function Auditoria() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina anterior"
+                        aria-label="Página anterior"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Pagina {currentPage}</span>
+                    <span className="admin-page-current">Página {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina siguiente"
+                        aria-label="Página siguiente"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage >= totalPages}
                     >
@@ -301,10 +354,13 @@ export default function Auditoria() {
                     <label>
                         <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de pagina"
+                            ariaLabel="Tamaño de página"
                             value={String(pageSize)}
                             options={pageSizeOptions}
-                            onChange={(value) => setPageSize(Number(value))}
+                            onChange={(value) => {
+                                setPageSize(Number(value));
+                                setPage(1);
+                            }}
                         />
                     </label>
                 </div>
@@ -312,7 +368,7 @@ export default function Auditoria() {
 
             <Modal isOpen={selectedItem !== null} onClose={() => setSelectedItem(null)}>
                 <div className="admin-modal">
-                    <h2>Detalle de auditoria</h2>
+                    <h2>Detalle de auditoría</h2>
                     {selectedItem ? (
                         <>
                             <div className="admin-detail-list">
@@ -342,17 +398,18 @@ export default function Auditoria() {
                                         <span>{selectedItem.section}</span>
                                     </div>
                                 ) : null}
-                                {Object.entries(selectedItem.raw)
-                                    .filter(([key]) => !['action', 'actor', 'target', 'summary', 'timestamp', 'created_at', 'id'].includes(key))
-                                    .slice(0, 10)
-                                    .map(([key, value]) => (
-                                        <div key={key} className="admin-detail-row">
-                                            <strong>{toNaturalLabel(key)}</strong>
-                                            <span>{formatDetailValue(value)}</span>
-                                        </div>
-                                    ))}
                             </div>
 
+                            {detailRows.length > 0 ? (
+                                <div className="admin-detail-list">
+                                    {detailRows.map((row) => (
+                                        <div key={row.key} className="admin-detail-row">
+                                            <strong>{toNaturalLabel(row.key)}</strong>
+                                            <span>{row.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
                         </>
                     ) : null}
                     <div className="admin-modal-actions">

@@ -29,6 +29,29 @@
 - Se mantienen campos complementarios con etiquetas naturales.
 - Ya no existe bloque de datos tecnicos completos, raw payload ni JSON expandible.
 
+## Ajustes de lenguaje natural (ronda 2026-04-27)
+
+- Se amplio el diccionario de acciones para:
+  - autenticacion,
+  - MFA,
+  - usuarios,
+  - cuestionarios,
+  - evaluaciones,
+  - reportes,
+  - PDF,
+  - compartir y auditoria.
+- Campos de `raw` se renderizan con etiquetas y valores normalizados:
+  - metodo HTTP,
+  - codigo de estado,
+  - estado/outcome,
+  - fechas,
+  - booleanos.
+- Se conserva trazabilidad tecnica con naming legible:
+  - `Ruta tecnica`,
+  - `Endpoint`,
+  - `Codigo de estado`,
+  - `ID de recurso`.
+
 ## Validacion manual sugerida
 1. Abrir `/admin/auditoria`.
 2. Abrir un evento en `Detalle`.

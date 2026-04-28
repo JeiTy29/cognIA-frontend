@@ -6,6 +6,7 @@ import {
     type AdminQuestionnaireItem,
     type CreateQuestionnaireQuestionPayload
 } from '../../../services/admin/questionnaires';
+import { getResponseTypeLabel } from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './PreguntasCuestionario.css';
 
@@ -32,9 +33,9 @@ interface QuestionFormState {
 
 const RESPONSE_TYPE_OPTIONS = [
     { value: 'text', label: 'Texto' },
-    { value: 'integer', label: 'Numero entero' },
-    { value: 'number', label: 'Numero decimal' },
-    { value: 'boolean', label: 'Si / No' },
+    { value: 'integer', label: 'Número entero' },
+    { value: 'number', label: 'Número decimal' },
+    { value: 'boolean', label: 'Sí / No' },
     { value: 'likert', label: 'Likert' }
 ];
 
@@ -50,11 +51,11 @@ const initialForm: QuestionFormState = {
 
 function mapError(error: unknown) {
     if (!(error instanceof ApiError)) return 'No se pudo agregar la pregunta.';
-    if (error.status === 400) return 'Los datos de la pregunta son invalidos.';
-    if (error.status === 401) return 'Sesion expirada o no autenticada.';
+    if (error.status === 400) return 'Los datos de la pregunta son inválidos.';
+    if (error.status === 401) return 'Sesión expirada o no autenticada.';
     if (error.status === 403) return 'No tienes permisos para agregar preguntas.';
-    if (error.status === 404) return 'No se encontro la plantilla seleccionada.';
-    if (error.status >= 500) return 'Error del servidor. Intenta mas tarde.';
+    if (error.status === 404) return 'No se encontró la plantilla seleccionada.';
+    if (error.status >= 500) return 'Error del servidor. Intenta más tarde.';
     return 'No se pudo agregar la pregunta.';
 }
 
@@ -128,11 +129,11 @@ export default function PreguntasCuestionario() {
         setNotice(null);
 
         if (!templateId) {
-            setError('No se encontro el identificador de la plantilla.');
+            setError('No se encontró el identificador de la plantilla.');
             return;
         }
         if (!form.code.trim()) {
-            setError('El codigo es obligatorio.');
+            setError('El código es obligatorio.');
             return;
         }
         if (!form.text.trim()) {
@@ -141,7 +142,7 @@ export default function PreguntasCuestionario() {
         }
         const parsedPosition = Number(form.position);
         if (!Number.isInteger(parsedPosition) || parsedPosition <= 0) {
-            setError('La posicion debe ser un entero mayor que 0.');
+            setError('La posición debe ser un entero mayor que 0.');
             return;
         }
 
@@ -215,9 +216,9 @@ export default function PreguntasCuestionario() {
             <div className="admin-divider" aria-hidden="true" />
 
             <section className="preguntas-cuestionario-context">
-                <div><strong>Template ID:</strong> {templateId || '--'}</div>
-                {template?.version ? <div><strong>Version:</strong> {template.version}</div> : null}
-                {template?.description ? <div><strong>Descripcion:</strong> {template.description}</div> : null}
+                <div><strong>Referencia de plantilla:</strong> {templateId || '--'}</div>
+                {template?.version ? <div><strong>Versión:</strong> {template.version}</div> : null}
+                {template?.description ? <div><strong>Descripción:</strong> {template.description}</div> : null}
             </section>
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
@@ -228,7 +229,7 @@ export default function PreguntasCuestionario() {
                     <h2>Agregar pregunta</h2>
 
                     <label>
-                        <span>Codigo</span>
+                        <span>Código</span>
                         <input
                             type="text"
                             value={form.code}
@@ -260,7 +261,7 @@ export default function PreguntasCuestionario() {
 
                     <div className="preguntas-inline-fields">
                         <label>
-                            <span>Posicion</span>
+                            <span>Posición</span>
                             <input
                                 type="number"
                                 min={1}
@@ -269,7 +270,7 @@ export default function PreguntasCuestionario() {
                             />
                         </label>
                         <label>
-                            <span>Minimo</span>
+                            <span>Mínimo</span>
                             <input
                                 type="number"
                                 value={form.min}
@@ -277,7 +278,7 @@ export default function PreguntasCuestionario() {
                             />
                         </label>
                         <label>
-                            <span>Maximo</span>
+                            <span>Máximo</span>
                             <input
                                 type="number"
                                 value={form.max}
@@ -287,12 +288,16 @@ export default function PreguntasCuestionario() {
                     </div>
 
                     <label>
-                        <span>Opciones (una por linea, formato valor|etiqueta)</span>
+                        <span>Opciones (una por línea)</span>
                         <textarea
                             value={form.optionsText}
                             onChange={(event) => setForm((prev) => ({ ...prev, optionsText: event.target.value }))}
+                            aria-label="Opciones de respuesta"
                             placeholder={'1|Nunca\n2|A veces\n3|Siempre'}
                         />
+                        <small>
+                            Escribe una opción por línea. Puedes usar <code>valor|texto visible</code>, por ejemplo: <code>1|Nunca</code>.
+                        </small>
                     </label>
 
                     <div className="admin-modal-actions">
@@ -305,7 +310,7 @@ export default function PreguntasCuestionario() {
                     </div>
                 </form>
 
-                <section className="preguntas-listado" aria-label="Preguntas agregadas en la sesion actual">
+                <section className="preguntas-listado" aria-label="Preguntas agregadas en la sesión actual">
                     <h2>Preguntas agregadas</h2>
                     {createdQuestions.length === 0 ? (
                         <div className="admin-empty">
@@ -318,13 +323,13 @@ export default function PreguntasCuestionario() {
                                 <article key={question.id} className="preguntas-item">
                                     <header>
                                         <strong>{question.code}</strong>
-                                        <span>Posicion {question.position}</span>
+                                        <span>Posición {question.position}</span>
                                     </header>
                                     <p>{question.text}</p>
                                     <div className="preguntas-item-meta">
-                                        <span>Tipo: {question.response_type}</span>
-                                        <span>Min: {question.response_min ?? '--'}</span>
-                                        <span>Max: {question.response_max ?? '--'}</span>
+                                        <span>Tipo: {getResponseTypeLabel(question.response_type, question.response_type)}</span>
+                                        <span>Mínimo: {question.response_min ?? '--'}</span>
+                                        <span>Máximo: {question.response_max ?? '--'}</span>
                                     </div>
                                     {question.response_options && question.response_options.length > 0 ? (
                                         <div className="preguntas-item-options">

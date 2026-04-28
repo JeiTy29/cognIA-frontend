@@ -33,6 +33,16 @@
     gap: 14px;
 }
 
+.shared-questionnaire-warning {
+    border: 1px solid rgba(23, 144, 233, 0.26);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: rgba(23, 144, 233, 0.1);
+    color: #174f75;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 .shared-questionnaire-meta {
     display: grid;
     gap: 10px;
@@ -60,6 +70,10 @@
 .shared-questionnaire-section h2 {
     margin: 0;
     font-size: 18px;
+}
+
+.shared-questionnaire-secondary h2 {
+    font-size: 16px;
 }
 
 .shared-questionnaire-results {

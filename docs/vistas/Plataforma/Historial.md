@@ -33,6 +33,17 @@
   - **Documento PDF** (generar, consultar estado, descargar)
 - Se mantiene funcionalidad de tags/share/pdf sin exponer JSON crudo en esta vista.
 
+## Ajustes UX aplicados (ronda 2026-04-27)
+
+- Se normalizo la presentacion del detalle con utilidad comun de lenguaje natural:
+  - claves tecnicas pasan a etiquetas legibles,
+  - fechas, estados, modos y roles se muestran en espanol claro.
+- Se ocultan en vista principal campos tecnicos frecuentes (`session_id`, `questionnaire_id`, `mode_key`, `payload`, `metadata`, `model_id`, `model_version`, etc.).
+- Cuando se requiere trazabilidad, los identificadores quedan en bloque secundario `Referencia interna`.
+- Mensajes de error ya no priorizan codigos HTTP ni textos crudos de API.
+- Se agrega advertencia visible:
+  - resultado orientativo para alerta temprana / no diagnostico clinico definitivo.
+
 ## Nota de contrato
 - La resolucion de enlace compartido y algunos campos de metadata siguen siendo inferidos desde el consumo frontend.
 - No es verificable solo con frontend el contrato definitivo de cada payload de resultados.

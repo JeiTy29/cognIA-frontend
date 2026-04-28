@@ -1,36 +1,36 @@
-# Vista: Reportes
+# Vista: Reportes (Admin)
 
-## Propósito
+## Proposito
 
-Permitir que administración consulte, filtre, revise y actualice reportes de problema.
+Permitir que administracion consulte, filtre, revise y actualice reportes de problema.
 
-## Ruta y navegación
+## Ruta y navegacion
 
 - Ruta: `/admin/reportes`
 - Sidebar admin: `Reportes`
 
 ## Estructura de UI
 
-- Encabezado sobrio con título `Reportes`.
-- Filtros superiores:
-  - búsqueda libre `q`
+- Encabezado con titulo `Reportes`.
+- Filtros:
+  - busqueda libre `q`
   - estado
   - tipo
   - rol del reportante
   - fecha desde
   - fecha hasta
   - orden
-- Tabla principal con:
-  - código
+- Tabla principal:
+  - codigo
   - tipo
   - estado
   - reportante
-  - módulo
+  - modulo de origen (normalizado)
   - fecha
   - acciones
-- Modal de detalle con actualización de:
-  - `status`
-  - `admin_notes`
+- Modal de detalle:
+  - lectura contextual del reporte
+  - actualizacion de `status` y `admin_notes`
 
 ## Endpoints usados
 
@@ -38,54 +38,40 @@ Permitir que administración consulte, filtre, revise y actualice reportes de pr
 - `GET /api/admin/problem-reports/{report_id}`
 - `PATCH /api/admin/problem-reports/{report_id}`
 
-## Payloads usados
+## Ajustes de presentacion (ronda 2026-04-27)
 
-- Actualización:
-  - `status?`
-  - `admin_notes?`
-- La vista evita enviar un patch vacío.
+- `source_module` se presenta con etiqueta legible (no cruda).
+- `source_path` se presenta como `Pantalla o ruta de origen`.
+- MIME de adjuntos se traduce a formato natural:
+  - `Imagen PNG`, `Imagen JPEG`, `Imagen WebP`.
+- Tamano de adjuntos se muestra con formato legible (B/KB/MB).
+- Si `metadata` llega en detalle, se renderiza con filas seguras y etiquetas naturales (sin volcar JSON crudo).
 
-## Respuesta modelada
-
-- Listado:
-  - `items`
-  - `pagination.page`
-  - `pagination.page_size`
-  - `pagination.total`
-  - `pagination.pages`
-- Detalle y actualización:
-  - `report`
-
-## Mapeos a español usados
+## Mapeos a espanol usados
 
 - Tipo:
-  - `bug` → `Error`
-  - `ui_issue` → `Interfaz`
-  - `data_issue` → `Datos`
-  - `performance` → `Rendimiento`
-  - `questionnaire` → `Cuestionario`
-  - `model_result` → `Resultado del modelo`
-  - `other` → `Otro`
+  - `bug` -> `Error`
+  - `ui_issue` -> `Interfaz`
+  - `data_issue` -> `Datos`
+  - `performance` -> `Rendimiento`
+  - `questionnaire` -> `Cuestionario`
+  - `model_result` -> `Resultado del modelo`
+  - `other` -> `Otro`
 - Estado:
-  - `open` → `Abierto`
-  - `triaged` → `Triagado`
-  - `in_progress` → `En progreso`
-  - `resolved` → `Resuelto`
-  - `rejected` → `Rechazado`
+  - `open` -> `Abierto`
+  - `triaged` -> `Triagado`
+  - `in_progress` -> `En progreso`
+  - `resolved` -> `Resuelto`
+  - `rejected` -> `Rechazado`
 - Rol reportante:
-  - `ADMIN` → `Administrador`
-  - `PSYCHOLOGIST` → `Psicólogo`
-  - `GUARDIAN` → `Padre/Tutor`
-
-## Decisiones visuales
-
-- Se reutilizó el patrón admin actual de filtros + tabla + modal.
-- No se agregaron cards nuevas ni subtítulos explicativos innecesarios.
+  - `ADMIN` -> `Administrador`
+  - `PSYCHOLOGIST` -> `Psicologo`
+  - `GUARDIAN` -> `Padre/Tutor`
 
 ## Limitaciones conservadoras
 
-- No se implementó descarga de adjuntos porque no se entregó un endpoint para eso.
-- Si llega un valor no mapeado en tipo, estado o rol, la UI lo muestra sin romperse.
+- No se implementa descarga de adjuntos porque no se evidencia endpoint de descarga en el consumo frontend actual.
+- Si llega un valor no mapeado (tipo, estado, modulo), la UI lo muestra sin romper flujo.
 
 ## Archivos relacionados
 
