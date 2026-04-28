@@ -27,7 +27,7 @@ Esto implica que toda la app consume estado de autenticacion desde contexto y en
 2. Navegacion/guardas: `src/App.tsx`, `src/components/ProtectedRoute/*`, `src/components/SidebarLayout/*`, `src/components/Sidebar/*`.
 3. Estado de sesion/autenticacion: `src/context/AuthContext.tsx`.
 4. Orquestacion de casos de uso: `src/hooks/*`.
-5. Integracion HTTP: `src/services/*`, con base comun en `src/services/api/httpClient.ts`.
+5. Integracion HTTP: `src/services/*`, con base comun en `src/services/api/httpClient.ts` y normalizacion de URL en `src/services/api/url.ts`.
 
 ## Autenticacion y sesion
 
@@ -93,6 +93,16 @@ Resumen tecnico:
 - `apiGet`, `apiPost`, `apiPostNoBody`, `apiPostFormData`, `apiPatch`, `apiPut`, `apiDelete`
 - variantes para blob: `apiGetBlob`, `apiGetBlobWithMeta`
 - clase `ApiError` con `status` y `payload`
+- resolucion central de `VITE_API_BASE_URL` via `joinApiUrl(path)`
+
+`src/services/api/url.ts` centraliza:
+
+- lectura y validacion de `VITE_API_BASE_URL`,
+- tolerancia a configuracion con o sin sufijo `/api`,
+- prevencion de duplicados tipo `/api/api/...`,
+- separacion entre:
+  - `joinApiUrl(path)` para endpoints `/api/...`
+  - `joinBackendRootUrl(path)` para endpoints raiz como `/healthz` y `/readyz`
 
 Patron de autenticacion:
 
@@ -121,7 +131,9 @@ El detalle modulo por modulo se documenta en `10-ModulosFrontendVigentes.md`.
 1. Existen normalizadores defensivos (especialmente en `questionnaires.api.ts`) que aceptan multiples variantes de shape.  
    - Esto permite robustez de cliente, pero parte de la semantica es **inferida desde consumo frontend** y no verificable solo con este repositorio.
 2. No se detecta un esquema tipado unico compartido con backend (p. ej. OpenAPI generado en cliente); los contratos se mantienen manualmente por servicio.
-3. El frontend depende de `VITE_API_BASE_URL`; sin esta variable la app lanza error al iniciar `httpClient`.
+3. El frontend depende de `VITE_API_BASE_URL`; sin esta variable la app lanza error al resolver la URL base.
+4. `VITE_API_BASE_URL` se evalua en tiempo de desarrollo/build de Vite.
+   - Cambiar `.env` despues de compilar no actualiza automaticamente el bundle.
 
 ## Referencias relacionadas
 

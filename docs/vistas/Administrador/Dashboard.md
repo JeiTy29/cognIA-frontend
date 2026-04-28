@@ -29,6 +29,14 @@ Presentar lectura ejecutiva y operativa del sistema para administradores.
 4. Se ampliaron labels de campos tecnicos:
    - `count`, `month`, `conversion_created_to_processed`, etc.
 
+## Ajustes de normalizacion (ronda 2026-04-27)
+
+- Se consolido uso de utilidades de presentacion natural para valores dinamicos:
+  - booleans, fechas, porcentajes y estados.
+- `MetricNodeView` evita exponer claves snake_case/camelCase crudas como etiquetas visibles.
+- Los errores de bloque usan mensaje de usuario en primer nivel.
+  - `HTTP xxx` se conserva solo como detalle tecnico secundario para administracion.
+
 ## Estado funcional vigente
 
 - La vista de Dashboard no incluye generacion de reportes.

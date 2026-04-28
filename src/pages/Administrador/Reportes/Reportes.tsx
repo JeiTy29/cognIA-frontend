@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminProblemReports } from '../../../hooks/useAdminProblemReports';
@@ -10,6 +10,13 @@ import {
     getProblemReportStatusLabel,
     type ProblemReportStatus
 } from '../../../services/problemReports/problemReports.types';
+import {
+    buildSafeDisplayRows,
+    formatDateTimeEsCO,
+    formatFileSizeEs,
+    getMimeTypeLabel,
+    getSourceModuleLabel
+} from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './Reportes.css';
 
@@ -49,10 +56,7 @@ const pageSizeOptions = [
 ];
 
 function formatDateTime(value: string | null) {
-    if (!value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
+    return formatDateTimeEsCO(value);
 }
 
 function getStatusBadgeClass(value: string) {
@@ -61,12 +65,6 @@ function getStatusBadgeClass(value: string) {
     if (normalized === 'triaged' || normalized === 'in_progress') return 'pending';
     if (normalized === 'rejected') return 'rejected';
     return 'neutral';
-}
-
-function formatAttachmentSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function ReportesAdmin() {
@@ -109,13 +107,6 @@ export default function ReportesAdmin() {
     const [adminNotesForm, setAdminNotesForm] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!detailItem) return;
-        setStatusForm(detailItem.status);
-        setAdminNotesForm(detailItem.admin_notes ?? '');
-        setFormError(null);
-    }, [detailItem]);
-
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
@@ -124,7 +115,11 @@ export default function ReportesAdmin() {
     const openDetail = async (reportId: string) => {
         clearMessages();
         setFormError(null);
-        await fetchDetail(reportId);
+        const detail = await fetchDetail(reportId);
+        if (detail) {
+            setStatusForm(detail.status);
+            setAdminNotesForm(detail.admin_notes ?? '');
+        }
     };
 
     const closeDetail = () => {
@@ -289,7 +284,7 @@ export default function ReportesAdmin() {
                                     </span>
                                 </div>
                                 <div>{getProblemReportReporterRoleLabel(item.reporter_role)}</div>
-                                <div>{item.source_module ?? '--'}</div>
+                                <div>{getSourceModuleLabel(item.source_module)}</div>
                                 <div>{formatDateTime(item.created_at)}</div>
                                 <div>
                                     <button
@@ -371,10 +366,10 @@ export default function ReportesAdmin() {
                                 </div>
                                 <div className="admin-detail-row">
                                     <strong>Módulo</strong>
-                                    <span>{detailItem.source_module ?? '--'}</span>
+                                    <span>{getSourceModuleLabel(detailItem.source_module)}</span>
                                 </div>
                                 <div className="admin-detail-row">
-                                    <strong>Ruta</strong>
+                                    <strong>Pantalla o ruta de origen</strong>
                                     <span>{detailItem.source_path ?? '--'}</span>
                                 </div>
                                 <div className="admin-detail-row">
@@ -403,11 +398,25 @@ export default function ReportesAdmin() {
                                         {detailItem.attachments.map((attachment) => (
                                             <div key={attachment.attachment_id} className="reportes-admin-attachment-row">
                                                 <span>{attachment.original_filename}</span>
-                                                <span>{attachment.mime_type}</span>
-                                                <span>{formatAttachmentSize(attachment.size_bytes)}</span>
+                                                <span>{getMimeTypeLabel(attachment.mime_type, attachment.mime_type)}</span>
+                                                <span>{formatFileSizeEs(attachment.size_bytes)}</span>
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+                            ) : null}
+
+                            {detailItem.metadata && Object.keys(detailItem.metadata).length > 0 ? (
+                                <div className="admin-detail-list">
+                                    {buildSafeDisplayRows(detailItem.metadata, {
+                                        includeTechnical: false,
+                                        includeEmpty: false
+                                    }).map((row) => (
+                                        <div className="admin-detail-row" key={row.key}>
+                                            <strong>{row.label}</strong>
+                                            <span>{row.value}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             ) : null}
 

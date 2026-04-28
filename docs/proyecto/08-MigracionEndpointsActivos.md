@@ -11,6 +11,7 @@ Este documento formaliza **que consume el frontend** y como lo consume.
 ## Capa comun de integracion HTTP
 
 Archivo base: `src/services/api/httpClient.ts`
+Utilidad de URL: `src/services/api/url.ts`
 
 ### Capacidades comunes observadas
 
@@ -20,6 +21,10 @@ Archivo base: `src/services/api/httpClient.ts`
 - Soporte de `auth: true` para header `Authorization`.
 - Soporte de `credentials: 'include'` para cookies/sesion.
 - Soporte de descarga binaria (`apiGetBlob`, `apiGetBlobWithMeta`).
+- Normalizacion central de URL:
+  - `joinApiUrl(path)` para endpoints bajo `/api`
+  - `joinBackendRootUrl(path)` para endpoints raiz del backend
+  - tolerancia a `VITE_API_BASE_URL` con o sin `/api`
 
 ## Modulo de autenticacion
 
@@ -44,6 +49,7 @@ Servicio principal: `src/services/auth/auth.api.ts`
 ### Observaciones
 
 - El login no usa wrapper generico, implementa `fetch` directo para manejar variantes de respuesta MFA.
+  - La URL igualmente se resuelve con la utilidad central, sin concatenacion manual.
 - El refresh exige CSRF token en cliente (`getCsrfToken`).
 
 ## Cuestionario V2 y comparticion
@@ -90,6 +96,11 @@ Servicios:
 | `/readyz` | GET | Estado/latencia de base de datos |
 | `/api/admin/metrics` | GET | Snapshot de metricas |
 | `/api/admin/email/health` | GET | Salud del servicio de correo |
+
+### Observacion de resolucion
+
+- `/healthz` y `/readyz` se resuelven contra la raiz del backend.
+- Esto evita duplicados o rutas invalidas si `VITE_API_BASE_URL` incluye `/api`.
 
 ## Admin: dashboard analitico
 
@@ -169,3 +180,9 @@ Servicio: `src/services/problemReports/problemReports.api.ts`
 3. Semantica completa de codigos de error fuera de los casos manejados por UI.
 
 Estas limitaciones no invalidan el inventario: solo delimitan su alcance a evidencia del cliente.
+
+## Nota de configuracion Vite
+
+- `VITE_API_BASE_URL` se inyecta en tiempo de desarrollo/build.
+- Cambiar `.env.local` exige reiniciar Vite.
+- Cambiar `.env` en servidor no modifica un bundle ya compilado.

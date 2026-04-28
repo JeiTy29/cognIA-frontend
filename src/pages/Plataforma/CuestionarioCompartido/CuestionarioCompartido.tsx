@@ -2,61 +2,33 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSharedQuestionnaireV2 } from '../../../services/questionnaires/questionnaires.api';
 import type { QuestionnaireSharedDataV2DTO } from '../../../services/questionnaires/questionnaires.types';
-import { ApiError } from '../../../services/api/httpClient';
+import {
+    buildSafeDisplayRows,
+    formatBooleanEs,
+    formatDateTimeEsCO,
+    formatNaturalValue,
+    formatPercentEs,
+    getAlertLevelLabel,
+    getConfidenceBandLabel,
+    getDomainLabel,
+    getModeLabel,
+    getRoleLabel,
+    getStatusLabel,
+    mapApiErrorToUserMessage
+} from '../../../utils/presentation/naturalLanguage';
 import './CuestionarioCompartido.css';
 
 function mapError(error: unknown) {
-    if (!(error instanceof ApiError)) return 'No fue posible cargar el resultado compartido.';
-    if (error.status === 400) return 'El enlace compartido no tiene un formato valido.';
-    if (error.status === 404) return 'El enlace compartido no existe o expiro.';
-    if (error.status === 410) return 'El enlace compartido ya no esta disponible.';
-    if (error.status === 403) return 'No tienes permisos para ver este recurso compartido.';
-    if (error.status >= 500) return 'Error del servidor. Intenta mas tarde.';
-    return 'No fue posible cargar el resultado compartido.';
+    return mapApiErrorToUserMessage(error, 'No fue posible cargar el resultado compartido.', {
+        400: 'El enlace compartido no tiene un formato válido.',
+        403: 'No tienes permisos para consultar este resultado compartido.',
+        404: 'El enlace compartido no existe o ya no está disponible.',
+        410: 'Este enlace compartido ya expiró.'
+    });
 }
 
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
-}
-
-function getNumber(value: unknown, fallback = '--') {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return fallback;
-    return String(parsed);
-}
-
-function getDate(value: unknown) {
-    if (typeof value !== 'string' || !value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
-}
-
-function getModeLabel(mode: string | undefined) {
-    const normalized = (mode ?? '').toLowerCase();
-    if (normalized === 'short') return 'Corto';
-    if (normalized === 'medium') return 'Medio';
-    if (normalized === 'complete') return 'Completo';
-    return mode ?? '--';
-}
-
-function getRoleLabel(role: string | undefined) {
-    const normalized = (role ?? '').toLowerCase();
-    if (normalized === 'guardian') return 'Tutor';
-    if (normalized === 'caregiver') return 'Cuidador';
-    if (normalized === 'psychologist') return 'Psicologo';
-    return role ?? '--';
-}
-
-function getStatusLabel(status: string | undefined) {
-    const normalized = (status ?? '').toLowerCase();
-    if (normalized === 'draft') return 'Borrador';
-    if (normalized === 'in_progress') return 'En progreso';
-    if (normalized === 'submitted') return 'Enviado';
-    if (normalized === 'processed') return 'Procesado';
-    if (normalized === 'failed') return 'Fallido';
-    if (normalized === 'archived') return 'Archivado';
-    return status ?? '--';
 }
 
 export default function CuestionarioCompartido() {
@@ -94,6 +66,28 @@ export default function CuestionarioCompartido() {
     const result = useMemo(() => payload?.result ?? null, [payload]);
     const domains = useMemo(() => payload?.domains ?? [], [payload]);
     const comorbidity = useMemo(() => payload?.comorbidity ?? [], [payload]);
+    const internalReferenceRows = useMemo(
+        () =>
+            buildSafeDisplayRows(
+                {
+                    questionnaire_id: session?.questionnaire_id ?? payload?.questionnaire_id ?? null,
+                    session_id: session?.session_id ?? null,
+                    mode_key: session?.mode_key ?? null,
+                    share_code: payload?.share_code ?? null
+                },
+                {
+                    includeTechnical: true,
+                    includeEmpty: false,
+                    customLabels: {
+                        questionnaire_id: 'ID de cuestionario',
+                        session_id: 'ID de sesión',
+                        mode_key: 'Clave interna de modo',
+                        share_code: 'Código compartido'
+                    }
+                }
+            ),
+        [payload, session]
+    );
     const showNotFoundState = !loading && !error && payload && !session && !result && domains.length === 0 && comorbidity.length === 0;
 
     return (
@@ -105,34 +99,35 @@ export default function CuestionarioCompartido() {
 
                 {!loading && !error && payload ? (
                     <div className="shared-questionnaire-content">
+                        <div className="shared-questionnaire-warning">
+                            Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
+                        </div>
+
                         {showNotFoundState ? (
                             <div className="shared-questionnaire-empty">
-                                No se encontro informacion util para este enlace compartido.
+                                No se encontró información útil para este enlace compartido.
                             </div>
                         ) : null}
 
                         <div className="shared-questionnaire-meta">
-                            <div><strong>Questionnaire ID</strong><span>{getString(session?.questionnaire_id ?? payload.questionnaire_id)}</span></div>
-                            <div><strong>Session ID</strong><span>{getString(session?.session_id)}</span></div>
-                            <div><strong>Estado</strong><span>{getStatusLabel(session?.status)}</span></div>
-                            <div><strong>Modo</strong><span>{getModeLabel(session?.mode)}</span></div>
-                            <div><strong>Rol</strong><span>{getRoleLabel(session?.role)}</span></div>
+                            <div><strong>Estado del resultado</strong><span>{getStatusLabel(session?.status)}</span></div>
+                            <div><strong>Modo de evaluación</strong><span>{getModeLabel(session?.mode)}</span></div>
+                            <div><strong>Perfil que respondió</strong><span>{getRoleLabel(session?.role)}</span></div>
                             <div><strong>Version</strong><span>{getString(session?.version)}</span></div>
-                            <div><strong>Progreso (%)</strong><span>{getNumber(session?.progress_pct)}</span></div>
-                            <div><strong>Mode key</strong><span>{getString(session?.mode_key)}</span></div>
-                            <div><strong>Creado</strong><span>{getDate(session?.created_at)}</span></div>
-                            <div><strong>Actualizado</strong><span>{getDate(session?.updated_at)}</span></div>
+                            <div><strong>Avance reportado</strong><span>{formatPercentEs(session?.progress_pct, { mode: 'percent' })}</span></div>
+                            <div><strong>Creado</strong><span>{formatDateTimeEsCO(session?.created_at)}</span></div>
+                            <div><strong>Última actualización</strong><span>{formatDateTimeEsCO(session?.updated_at)}</span></div>
                         </div>
 
                         <div className="shared-questionnaire-section">
                             <h2>Resultado principal</h2>
                             {result ? (
                                 <div className="shared-questionnaire-results">
-                                    <div><strong>Summary</strong><span>{getString(result.summary)}</span></div>
+                                    <div><strong>Resumen orientativo</strong><span>{getString(result.summary)}</span></div>
                                     <div><strong>Recomendacion operativa</strong><span>{getString(result.operational_recommendation)}</span></div>
-                                    <div><strong>Completion quality score</strong><span>{getNumber(result.completion_quality_score)}</span></div>
-                                    <div><strong>Missingness score</strong><span>{getNumber(result.missingness_score)}</span></div>
-                                    <div><strong>Needs professional review</strong><span>{result.needs_professional_review === null || result.needs_professional_review === undefined ? '--' : result.needs_professional_review ? 'Si' : 'No'}</span></div>
+                                    <div><strong>Calidad de completitud</strong><span>{formatPercentEs(result.completion_quality_score, { mode: 'auto' })}</span></div>
+                                    <div><strong>Nivel de datos faltantes</strong><span>{formatPercentEs(result.missingness_score, { mode: 'auto' })}</span></div>
+                                    <div><strong>Requiere valoración profesional</strong><span>{formatBooleanEs(result.needs_professional_review)}</span></div>
                                 </div>
                             ) : (
                                 <p>No hay resultado principal disponible.</p>
@@ -147,18 +142,15 @@ export default function CuestionarioCompartido() {
                                 <div className="shared-questionnaire-domain-list">
                                     {domains.map((domain, index) => (
                                         <div className="shared-questionnaire-domain" key={`${domain.domain}-${index}`}>
-                                            <div><strong>Domain</strong><span>{getString(domain.domain)}</span></div>
-                                            <div><strong>Alert level</strong><span>{getString(domain.alert_level)}</span></div>
-                                            <div><strong>Confidence (%)</strong><span>{getNumber(domain.confidence_pct)}</span></div>
-                                            <div><strong>Confidence band</strong><span>{getString(domain.confidence_band)}</span></div>
-                                            <div><strong>Probability</strong><span>{getNumber(domain.probability)}</span></div>
-                                            <div><strong>Result summary</strong><span>{getString(domain.result_summary)}</span></div>
-                                            <div><strong>Operational class</strong><span>{getString(domain.operational_class)}</span></div>
-                                            <div><strong>Operational caveat</strong><span>{getString(domain.operational_caveat)}</span></div>
-                                            <div><strong>Needs professional review</strong><span>{domain.needs_professional_review === null || domain.needs_professional_review === undefined ? '--' : domain.needs_professional_review ? 'Si' : 'No'}</span></div>
-                                            <div><strong>Model ID</strong><span>{getString(domain.model_id)}</span></div>
-                                            <div><strong>Model version</strong><span>{getString(domain.model_version)}</span></div>
-                                            <div><strong>Mode</strong><span>{getString(domain.mode)}</span></div>
+                                            <div><strong>Dominio evaluado</strong><span>{getDomainLabel(domain.domain)}</span></div>
+                                            <div><strong>Nivel de alerta</strong><span>{getAlertLevelLabel(domain.alert_level)}</span></div>
+                                            <div><strong>Nivel de confianza</strong><span>{formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span></div>
+                                            <div><strong>Banda de confianza</strong><span>{getConfidenceBandLabel(domain.confidence_band)}</span></div>
+                                            <div><strong>Probabilidad estimada</strong><span>{formatPercentEs(domain.probability, { mode: 'auto' })}</span></div>
+                                            <div><strong>Resultado orientativo</strong><span>{getString(domain.result_summary)}</span></div>
+                                            <div><strong>Clasificación operativa</strong><span>{formatNaturalValue('operational_class', domain.operational_class)}</span></div>
+                                            <div><strong>Aclaración operativa</strong><span>{getString(domain.operational_caveat)}</span></div>
+                                            <div><strong>Requiere valoración profesional</strong><span>{formatBooleanEs(domain.needs_professional_review)}</span></div>
                                         </div>
                                     ))}
                                 </div>
@@ -173,16 +165,30 @@ export default function CuestionarioCompartido() {
                                 <div className="shared-questionnaire-domain-list">
                                     {comorbidity.map((item, index) => (
                                         <div className="shared-questionnaire-domain" key={`${item.coexistence_key}-${index}`}>
-                                            <div><strong>Coexistence key</strong><span>{getString(item.coexistence_key)}</span></div>
-                                            <div><strong>Domains</strong><span>{item.domains.length > 0 ? item.domains.join(', ') : '--'}</span></div>
-                                            <div><strong>Combined risk score</strong><span>{getNumber(item.combined_risk_score)}</span></div>
-                                            <div><strong>Coexistence level</strong><span>{getString(item.coexistence_level)}</span></div>
-                                            <div><strong>Summary</strong><span>{getString(item.summary)}</span></div>
+                                            <div><strong>Relación entre dominios</strong><span>{formatNaturalValue('coexistence_key', item.coexistence_key)}</span></div>
+                                            <div><strong>Dominios relacionados</strong><span>{item.domains.length > 0 ? item.domains.map((domainName) => getDomainLabel(domainName, domainName)).join(', ') : '--'}</span></div>
+                                            <div><strong>Riesgo combinado</strong><span>{formatPercentEs(item.combined_risk_score, { mode: 'auto' })}</span></div>
+                                            <div><strong>Nivel de coexistencia</strong><span>{formatNaturalValue('coexistence_level', item.coexistence_level)}</span></div>
+                                            <div><strong>Resumen orientativo</strong><span>{getString(item.summary)}</span></div>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
+
+                        {internalReferenceRows.length > 0 ? (
+                            <div className="shared-questionnaire-section shared-questionnaire-secondary">
+                                <h2>Referencia interna</h2>
+                                <div className="shared-questionnaire-results">
+                                    {internalReferenceRows.map((row) => (
+                                        <div key={row.key}>
+                                            <strong>{row.label}</strong>
+                                            <span>{row.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
             </div>

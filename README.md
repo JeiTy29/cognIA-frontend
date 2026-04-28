@@ -145,7 +145,14 @@ Caracteristicas observables de la capa API:
 - `ApiError` con `status` y `payload`,
 - refresh automatico ante `401` cuando aplica,
 - soporte de `auth: true` para Bearer token,
-- soporte de `credentials: 'include'`.
+- soporte de `credentials: 'include'`,
+- normalizacion central de URL en `src/services/api/url.ts`.
+
+La normalizacion central:
+
+- tolera `VITE_API_BASE_URL` con o sin `/api`,
+- evita duplicar `/api` cuando los servicios ya usan paths `/api/...`,
+- resuelve endpoints raiz como `/healthz` y `/readyz` fuera de `/api`.
 
 Familias de endpoints consumidas por el frontend:
 
@@ -200,8 +207,18 @@ Copy-Item .env.example .env.local
 Variables relevantes observables:
 
 - `VITE_API_BASE_URL`: base URL del backend.
+  - puede configurarse como `https://www.cognia.lat` o `https://www.cognia.lat/api`;
+  - el frontend normaliza ambas variantes;
+  - recomendado: usar el origen sin `/api`.
 - `VITE_DEV_AUTH_BYPASS`: habilita bypass de autenticacion solo en desarrollo.
 - `VITE_DEV_ROLE`: rol simulado cuando bypass esta activo (`guardian`, `psychologist`, `admin`).
+
+Notas importantes sobre Vite:
+
+- las variables `VITE_*` se resuelven en tiempo de desarrollo/build;
+- cambiar `.env.local` exige reiniciar `npm run dev`;
+- un bundle ya compilado no cambia por editar `.env` en el servidor;
+- en Docker/Nginx, la variable debe estar disponible durante `npm run build` si no existe una configuracion runtime explicita.
 
 ## 10. Ejecucion en desarrollo
 
@@ -214,7 +231,7 @@ npm run dev
 Comportamiento esperado:
 
 - Vite levanta servidor de desarrollo local.
-- la app consume `VITE_API_BASE_URL`.
+- la app consume `VITE_API_BASE_URL` mediante una utilidad central de URLs.
 - con bypass activado, es posible recorrer rutas privadas en modo desarrollo.
 
 Preview de build:
@@ -293,6 +310,8 @@ Documentos clave para onboarding tecnico:
 - Los contratos API documentados aqui describen consumo del frontend, no certificacion integral del backend.
 - Parte de la normalizacion (sobre todo en cuestionarios) es defensiva y puede aceptar variantes de payload inferidas desde cliente.
 - El bypass de autenticacion (`VITE_DEV_AUTH_BYPASS`) es una herramienta de desarrollo local; no es un flujo funcional de produccion.
+- `VITE_API_BASE_URL` no es configuracion runtime del bundle final de Vite.
+  - si la app ya fue compilada, cambiar `.env` en servidor no actualiza automaticamente las URLs embebidas.
 - `vercel.json` puede existir en el repo por compatibilidad historica, pero el despliegue operativo documentado actualmente esta orientado a servidor Ubuntu self-hosted.
 
 ## 15. Creditos y contexto institucional

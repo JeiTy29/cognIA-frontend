@@ -189,6 +189,16 @@
     gap: 10px;
 }
 
+.historial-v2-warning {
+    border: 1px solid rgba(23, 144, 233, 0.26);
+    border-radius: 10px;
+    background: rgba(23, 144, 233, 0.1);
+    color: #174f75;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 .historial-v2-section h3 {
     margin: 0;
     font-size: 16px;

@@ -121,7 +121,8 @@ Cada modulo se describe con:
 - Componente: `src/pages/Administrador/Metricas/Metricas.tsx`
 - Hook/servicios:
   - `useMetrics`
-  - `getAdminMetrics`, `getEmailHealth`, fetch directo a `/healthz` y `/readyz`
+  - `getAdminMetrics`, `getEmailHealth`
+  - resolucion central para `/healthz` y `/readyz` via utilidad de URL del frontend
 - Acciones UI:
   - ver estado servidor, base de datos y correo
   - ver snapshot de latencia/uptime/requests y codigos HTTP

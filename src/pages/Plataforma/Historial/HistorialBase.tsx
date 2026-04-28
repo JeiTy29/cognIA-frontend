@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
-import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
@@ -21,6 +20,14 @@ import type {
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildSafeDisplayRows,
+    formatDateTimeEsCO,
+    getModeLabel,
+    getRoleLabel,
+    getStatusLabel,
+    mapApiErrorToUserMessage
+} from '../../../utils/presentation/naturalLanguage';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -57,130 +64,58 @@ const tagColorOptions = [
     { value: '#7b4bbf', label: 'Violeta' },
     { value: '#c23f5a', label: 'Frambuesa' },
     { value: '#4f7a6a', label: 'Oliva' },
-    { value: '#3e6ea8', label: 'Indigo' },
+    { value: '#3e6ea8', label: 'Índigo' },
     { value: '#6a6f7d', label: 'Gris' }
 ];
+
 const defaultTagColor = tagColorOptions[0].value;
 
-const historyKeyLabelMap: Record<string, string> = {
-    summary: 'Resumen',
-    operational_recommendation: 'Recomendación operativa',
-    completion_quality_score: 'Calidad de completitud',
-    missingness_score: 'Datos faltantes',
-    needs_professional_review: 'Revisión profesional',
-    domain: 'Dominio',
-    probability: 'Probabilidad',
-    confidence_pct: 'Confianza',
-    confidence_band: 'Banda de confianza',
-    alert_level: 'Nivel de alerta',
-    result_summary: 'Resumen del resultado',
-    operational_class: 'Clase operativa',
-    operational_caveat: 'Aclaración operativa',
-    coexistence_key: 'Combinación de dominios',
-    combined_risk_score: 'Riesgo combinado',
-    coexistence_level: 'Nivel de coexistencia',
-    expires_at: 'Vence',
-    max_uses: 'Usos máximos',
-    uses: 'Usos realizados',
-    share_code: 'Código de acceso',
-    status: 'Estado',
-    generated_at: 'Generado',
-    updated_at: 'Actualizado',
-    filename: 'Archivo',
-    size_bytes: 'Tamaño (bytes)'
-};
+const hiddenResultFields = [
+    'id',
+    'session_id',
+    'questionnaire_id',
+    'questionnaire_template_id',
+    'model_id',
+    'model_version',
+    'mode_key',
+    'raw',
+    'payload',
+    'metadata',
+    'download_url',
+    'file_id',
+    'mime_type'
+];
+
+const hiddenShareFields = [
+    'id',
+    'url',
+    'share_url',
+    'public_url',
+    'link',
+    'shared_url',
+    'shared_path',
+    'share_code',
+    'questionnaire_id',
+    'session_id',
+    'mode_key'
+];
+
+const hiddenPdfFields = [
+    'id',
+    'download_url',
+    'file_id',
+    'mime_type',
+    'session_id',
+    'questionnaire_id'
+];
 
 function getString(value: unknown, fallback = '--') {
-    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
-}
-
-function getDate(value: unknown) {
-    if (typeof value !== 'string' || !value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
-}
-
-function getStatusLabel(status: string | undefined) {
-    const normalized = (status ?? '').toLowerCase();
-    if (normalized === 'draft') return 'Borrador';
-    if (normalized === 'in_progress') return 'En progreso';
-    if (normalized === 'submitted') return 'Enviado';
-    if (normalized === 'processed') return 'Procesado';
-    if (normalized === 'failed') return 'Fallido';
-    if (normalized === 'archived') return 'Archivado';
-    return status ?? '--';
-}
-
-function getModeLabel(mode: string | undefined) {
-    const normalized = (mode ?? '').toLowerCase();
-    if (normalized === 'short') return 'Corto';
-    if (normalized === 'medium') return 'Medio';
-    if (normalized === 'complete') return 'Completo';
-    return mode ?? '--';
-}
-
-function getRoleLabel(role: string | undefined) {
-    const normalized = (role ?? '').toLowerCase();
-    if (normalized === 'guardian' || normalized === 'caregiver') return 'Padre o tutor';
-    if (normalized === 'psychologist') return 'Psicologo';
-    return role ?? '--';
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 function toRecord(payload: unknown): Record<string, unknown> | null {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
     return payload as Record<string, unknown>;
-}
-
-function toLabel(key: string) {
-    const mapped = historyKeyLabelMap[key];
-    if (mapped) return mapped;
-    const withSpaces = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
-    if (!withSpaces) return '--';
-    return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
-}
-
-function formatValue(value: unknown): string {
-    if (value === null || value === undefined) return '--';
-    if (typeof value === 'string') {
-        const normalized = value.trim();
-        if (normalized.length === 0) return '--';
-        const asDate = new Date(normalized);
-        if (!Number.isNaN(asDate.getTime())) {
-            return `${asDate.toLocaleDateString('es-CO')} ${asDate.toLocaleTimeString('es-CO')}`;
-        }
-        return normalized;
-    }
-    if (typeof value === 'number') {
-        if (!Number.isFinite(value)) return '--';
-        return Number.isInteger(value) ? String(value) : value.toFixed(2);
-    }
-    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
-    if (Array.isArray(value)) {
-        if (value.length === 0) return '--';
-        const scalarValues = value.filter((item) => ['string', 'number', 'boolean'].includes(typeof item));
-        if (scalarValues.length === value.length) return scalarValues.map(String).join(', ');
-        return `${value.length} elemento(s)`;
-    }
-    if (typeof value === 'object') return 'Disponible';
-    return '--';
-}
-
-function getPdfStatusLabel(status: string | undefined) {
-    const normalized = (status ?? '').trim().toLowerCase();
-    if (!normalized) return 'Sin generar';
-    if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
-    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
-    if (['processing', 'running', 'building'].includes(normalized)) return 'Generándose';
-    if (['failed', 'error'].includes(normalized)) return 'Error en generación';
-    return status ?? '--';
-}
-
-function extractScalarEntries(record: Record<string, unknown>, exclude: string[] = []) {
-    return Object.entries(record)
-        .filter(([key]) => !exclude.includes(key))
-        .map(([key, value]) => ({ key, label: toLabel(key), value: formatValue(value), rawValue: value }))
-        .filter((entry) => entry.value !== '--');
 }
 
 function resolveTagId(tag: QuestionnaireTagDTO) {
@@ -202,20 +137,8 @@ function normalizeTagColor(color: string | null | undefined) {
     return value;
 }
 
-function readApiErrorDetail(error: unknown) {
-    if (!(error instanceof ApiError)) return null;
-    const payload = error.payload;
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    const record = payload as Record<string, unknown>;
-    const detail = [record.detail, record.message, record.msg, record.error, record.code]
-        .find((item) => typeof item === 'string' && item.trim().length > 0);
-    return typeof detail === 'string' ? detail.trim() : null;
-}
-
 function buildActionErrorMessage(error: unknown, fallback: string) {
-    if (!(error instanceof ApiError)) return fallback;
-    const detail = readApiErrorDetail(error);
-    return detail ? `${fallback} (${detail})` : `${fallback} (HTTP ${error.status})`;
+    return mapApiErrorToUserMessage(error, fallback);
 }
 
 function resolveQuestionnaireId(
@@ -248,17 +171,42 @@ function downloadBlob(blob: Blob, filename: string) {
     URL.revokeObjectURL(href);
 }
 
+function getPdfStatusLabel(status: string | undefined) {
+    const normalized = (status ?? '').trim().toLowerCase();
+    if (!normalized) return 'Sin generar';
+    if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
+    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
+    if (['processing', 'running', 'building'].includes(normalized)) return 'Generándose';
+    if (['failed', 'error'].includes(normalized)) return 'Error en generación';
+    return status ?? '--';
+}
+
+function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number) {
+    const named = getString(item.title ?? item.name, '');
+    if (named) return named;
+    const mode = getModeLabel(item.mode, '');
+    const status = getStatusLabel(item.status, '');
+    if (mode && status) return `${mode} · ${status}`;
+    return `Registro ${index + 1}`;
+}
+
 function KeyValueRows({
     data,
     exclude = [],
+    includeTechnical = false,
     emptyText
 }: {
     data: Record<string, unknown> | null;
     exclude?: string[];
+    includeTechnical?: boolean;
     emptyText: string;
 }) {
     if (!data) return <p>{emptyText}</p>;
-    const rows = extractScalarEntries(data, exclude);
+    const rows = buildSafeDisplayRows(data, {
+        includeTechnical,
+        hiddenFields: exclude,
+        includeEmpty: false
+    });
     if (rows.length === 0) return <p>{emptyText}</p>;
 
     return (
@@ -319,19 +267,43 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         [detailPayload, sharePayload]
     );
 
+    const internalReferenceRows = useMemo(
+        () =>
+            buildSafeDisplayRows(
+                {
+                    session_id: detailPayload?.id ?? detailSessionId,
+                    questionnaire_id: questionnaireIdForShare,
+                    mode_key: detailPayload?.mode_key ?? null,
+                    share_code: sharePayload?.share_code ?? null
+                },
+                {
+                    includeTechnical: true,
+                    includeEmpty: false,
+                    customLabels: {
+                        session_id: 'ID de sesión',
+                        questionnaire_id: 'ID de cuestionario',
+                        mode_key: 'Clave interna de modo',
+                        share_code: 'Código de acceso compartido'
+                    }
+                }
+            ),
+        [detailPayload?.id, detailPayload?.mode_key, detailSessionId, questionnaireIdForShare, sharePayload?.share_code]
+    );
+
     const isPdfReady = useMemo(() => {
         if (!pdfPayload) return false;
-        const status = getString(pdfPayload?.status, '').toLowerCase();
+        const status = getString(pdfPayload.status, '').toLowerCase();
         if (!status) return false;
         return ['ready', 'completed', 'generated', 'available', 'done'].includes(status);
     }, [pdfPayload]);
 
-    const shareAvailable = useMemo(() => Boolean(shareUrl || sharePayload?.shared_url || sharePayload?.shared_path), [sharePayload, shareUrl]);
+    const shareLink = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
+    const shareAvailable = useMemo(() => Boolean(shareLink), [shareLink]);
     const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
 
     const openDetail = async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
-            setDetailError('No se encontro un identificador valido para esta sesion.');
+            setDetailError('No se encontró una referencia válida para esta sesión.');
             return;
         }
         setDetailSessionId(sessionId);
@@ -348,8 +320,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             ]);
             setDetailPayload(detailResponse);
             setResultsPayload(resultsResponse);
-        } catch {
-            setDetailError('No fue posible cargar el detalle de la sesion.');
+        } catch (requestError) {
+            setDetailError(mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesión.'));
             setDetailPayload(null);
             setResultsPayload(null);
         } finally {
@@ -423,7 +395,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
             setDetailNotice(
                 resolvedUrl
                     ? 'Enlace compartido generado.'
-                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL publica.'
+                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL pública.'
             );
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el enlace compartido.'));
@@ -434,7 +406,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         if (!detailSessionId) return;
         try {
             await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setDetailNotice('Generacion de PDF solicitada correctamente.');
+            setDetailNotice('Generación de PDF solicitada correctamente.');
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el PDF.'));
         }
@@ -445,7 +417,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         try {
             const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
             setPdfPayload(payload);
-            setDetailNotice('Informacion de PDF cargada.');
+            setDetailNotice('Información de PDF cargada.');
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible consultar el estado del PDF.'));
         }
@@ -463,13 +435,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     };
 
     const handleCopyShareLink = async () => {
-        const candidate = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
-        if (!candidate) {
+        if (!shareLink) {
             setDetailError('Aún no hay un enlace compartido disponible para copiar.');
             return;
         }
         try {
-            await navigator.clipboard.writeText(candidate);
+            await navigator.clipboard.writeText(shareLink);
             setDetailNotice('Enlace copiado al portapapeles.');
         } catch {
             setDetailError('No fue posible copiar el enlace automáticamente.');
@@ -501,7 +472,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
                 <div className="historial-v2-table">
                     <div className="historial-v2-head">
-                        <div>Sesion</div>
+                        <div>Sesión</div>
                         <div>Estado</div>
                         <div>Modo</div>
                         <div>Rol</div>
@@ -515,14 +486,14 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                         ) : items.length === 0 ? (
                             <div className="historial-v2-empty">No hay sesiones para mostrar.</div>
                         ) : (
-                            items.map((item: QuestionnaireHistoryItemV2DTO) => (
+                            items.map((item: QuestionnaireHistoryItemV2DTO, index) => (
                                 <div className="historial-v2-row" key={item.id}>
-                                    <div title={item.id}>{item.id}</div>
+                                    <div title={resolveSessionTitle(item, index)}>{resolveSessionTitle(item, index)}</div>
                                     <div>{getStatusLabel(item.status)}</div>
                                     <div>{getModeLabel(item.mode)}</div>
                                     <div>{getRoleLabel(item.role)}</div>
-                                    <div>{getDate(item.created_at)}</div>
-                                    <div>{getDate(item.updated_at)}</div>
+                                    <div>{formatDateTimeEsCO(item.created_at)}</div>
+                                    <div>{formatDateTimeEsCO(item.updated_at)}</div>
                                     <div className="historial-v2-actions">
                                         <button type="button" className="historial-v2-btn" onClick={() => void openDetail(item.id)}>
                                             Ver
@@ -543,7 +514,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
                                 onChange={(value) => changePageSize(Number(value))}
-                                ariaLabel="Cambiar tamaño de pagina de historial"
+                                ariaLabel="Cambiar tamaño de página de historial"
                             />
                         </label>
                         <button
@@ -554,7 +525,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                         >
                             ‹
                         </button>
-                        <span>Pagina {currentPage} de {totalPages}</span>
+                        <span>Página {currentPage} de {totalPages}</span>
                         <button
                             type="button"
                             className="historial-v2-page-btn"
@@ -569,7 +540,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-v2-modal">
-                    <h2>Detalle de sesion</h2>
+                    <h2>Detalle de sesión</h2>
                     {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
@@ -577,22 +548,38 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                     {!detailLoading && detailPayload ? (
                         <>
                             <div className="historial-v2-modal-grid">
-                                <div><strong>ID</strong><span>{getString(detailPayload.id || detailSessionId)}</span></div>
                                 <div><strong>Estado</strong><span>{getStatusLabel(getString(detailPayload.status, ''))}</span></div>
-                                <div><strong>Modo</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
-                                <div><strong>Rol</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
-                                <div><strong>Cuestionario</strong><span>{getString(questionnaireIdForShare)}</span></div>
-                                <div><strong>Actualizado</strong><span>{getDate(detailPayload.updated_at)}</span></div>
+                                <div><strong>Modo de evaluación</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
+                                <div><strong>Perfil que respondió</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
+                                <div><strong>Última actualización</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
+                            </div>
+
+                            <div className="historial-v2-warning">
+                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Resumen de resultados</h3>
                                 <KeyValueRows
                                     data={toRecord(resultsPayload)}
-                                    exclude={['model_id', 'model_version', 'raw', 'payload', 'metadata']}
+                                    exclude={hiddenResultFields}
                                     emptyText="Sin resultados disponibles."
                                 />
                             </div>
+
+                            {internalReferenceRows.length > 0 ? (
+                                <div className="historial-v2-section">
+                                    <h3>Referencia interna</h3>
+                                    <div className="historial-v2-kv-grid">
+                                        {internalReferenceRows.map((row) => (
+                                            <div key={row.key}>
+                                                <strong>{row.label}</strong>
+                                                <span>{row.value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
 
                             <div className="historial-v2-section">
                                 <h3>Etiquetas</h3>
@@ -696,7 +683,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                                     </button>
                                                     <a
                                                         className="historial-v2-btn historial-v2-btn-link"
-                                                        href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? '#'}
+                                                        href={shareLink ?? '#'}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
@@ -711,8 +698,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         {shareAvailable ? (
                                             <div className="historial-v2-share">
                                                 <span>Enlace disponible</span>
-                                                <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? '#'} target="_blank" rel="noreferrer">
-                                                    {shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}
+                                                <a href={shareLink ?? '#'} target="_blank" rel="noreferrer">
+                                                    {shareLink}
                                                 </a>
                                             </div>
                                         ) : (
@@ -720,7 +707,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         )}
                                         <KeyValueRows
                                             data={toRecord(sharePayload)}
-                                            exclude={['url', 'share_url', 'public_url', 'link', 'shared_url', 'shared_path', 'questionnaire_id']}
+                                            exclude={hiddenShareFields}
                                             emptyText="Sin información adicional del enlace."
                                         />
                                     </div>
@@ -746,7 +733,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         </div>
                                         <KeyValueRows
                                             data={toRecord(pdfPayload)}
-                                            exclude={['download_url', 'file_id', 'mime_type']}
+                                            exclude={hiddenPdfFields}
                                             emptyText="Todavía no hay información del PDF."
                                         />
                                     </div>

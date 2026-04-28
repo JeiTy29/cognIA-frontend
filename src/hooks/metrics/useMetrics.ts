@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getEmailHealth, resolveEmailHealthBlockState, type EmailHealthBlockState } from '../../services/admin/emailHealth';
 import { getAdminMetrics } from '../../services/admin/metrics';
 import { ApiError } from '../../services/api/httpClient';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { joinBackendRootUrl } from '../../services/api/url';
 
 export type ServerState = {
     status: 'loading' | 'ok' | 'error';
@@ -175,7 +174,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
 
     const fetchHealth = useCallback(async () => {
         try {
-            const response = await fetch(`${BASE_URL}/healthz`, { headers: { Accept: 'application/json' } });
+            const response = await fetch(joinBackendRootUrl('/healthz'), { headers: { Accept: 'application/json' } });
             const data = await response.json().catch(() => null);
             if (response.ok && data?.status === 'ok') {
                 setServerState({
@@ -201,7 +200,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
 
     const fetchReady = useCallback(async () => {
         try {
-            const response = await fetch(`${BASE_URL}/readyz`, { headers: { Accept: 'application/json' } });
+            const response = await fetch(joinBackendRootUrl('/readyz'), { headers: { Accept: 'application/json' } });
             const { response: res, data } = await safeJson(response);
             if (res.ok && data?.status === 'ready') {
                 setDbState({

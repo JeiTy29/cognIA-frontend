@@ -3,12 +3,7 @@ import type { RefreshResponse } from '../auth/auth.types';
 import { emitAuthRefresh } from '../../utils/auth/events';
 import { getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-if (!BASE_URL) {
-    throw new Error('VITE_API_BASE_URL no esta configurado.');
-}
+import { joinApiUrl } from './url';
 
 type ApiErrorPayload = unknown;
 
@@ -32,7 +27,7 @@ async function parseJsonSafe(response: Response) {
 }
 
 export async function apiGet<T>(path: string, options?: ApiRequestOptions): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'GET',
         headers: buildHeaders(options, false),
         credentials: options?.credentials
@@ -53,7 +48,7 @@ export async function apiGet<T>(path: string, options?: ApiRequestOptions): Prom
 }
 
 export async function apiGetBlob(path: string, options?: ApiRequestOptions): Promise<Blob> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'GET',
         headers: buildHeaders(options, false),
         credentials: options?.credentials
@@ -79,7 +74,7 @@ export interface ApiBlobWithMeta {
 }
 
 export async function apiGetBlobWithMeta(path: string, options?: ApiRequestOptions): Promise<ApiBlobWithMeta> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'GET',
         headers: buildHeaders(options, false),
         credentials: options?.credentials
@@ -153,7 +148,7 @@ export async function apiPost<T, B = unknown>(
     body: B,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'POST',
         headers: buildHeaders(options, true),
         body: JSON.stringify(body),
@@ -178,7 +173,7 @@ export async function apiPostNoBody<T>(
     path: string,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'POST',
         headers: buildHeaders(options, false),
         credentials: options?.credentials
@@ -204,7 +199,7 @@ export async function apiPostFormData<T>(
     body: FormData,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'POST',
         headers: buildHeaders(options, false),
         body,
@@ -230,7 +225,7 @@ export async function apiPut<T, B = unknown>(
     body: B,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'PUT',
         headers: buildHeaders(options, true),
         body: JSON.stringify(body),
@@ -256,7 +251,7 @@ export async function apiPatch<T, B = unknown>(
     body: B,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'PATCH',
         headers: buildHeaders(options, true),
         body: JSON.stringify(body),
@@ -281,7 +276,7 @@ export async function apiDelete<T>(
     path: string,
     options?: ApiRequestOptions
 ): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(joinApiUrl(path), {
         method: 'DELETE',
         headers: buildHeaders(options, false),
         credentials: options?.credentials

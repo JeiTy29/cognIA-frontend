@@ -9,6 +9,11 @@ import type {
     DashboardSeriesPoint,
     DashboardSeriesResponse
 } from '../../../services/dashboard/dashboard.types';
+import {
+    formatNaturalValue,
+    formatPercentEs,
+    humanizeTechnicalKey
+} from '../../../utils/presentation/naturalLanguage';
 import './Dashboard.css';
 
 const MONTH_OPTIONS = [1, 3, 6, 12, 24, 36, 60, 120].map((value) => ({
@@ -19,25 +24,25 @@ const MONTH_OPTIONS = [1, 3, 6, 12, 24, 36, 60, 120].map((value) => ({
 const LABEL_MAP: Record<string, string> = {
     volume_and_growth: 'Volumen y crecimiento',
     user_growth: 'Crecimiento de usuarios',
-    conversion: 'Conversion',
+    conversion: 'Conversión',
     operational_capacity: 'Capacidad operativa',
-    conversion_created_to_processed: 'Conversion de creados a procesados',
+    conversion_created_to_processed: 'Conversión de creados a procesados',
     created: 'Creados',
     submitted: 'Enviados',
     processed: 'Procesados',
     period: 'Periodo',
     value: 'Valor',
-    confidence_pct: 'Confianza',
-    alert_level: 'Nivel de alerta',
-    result_summary: 'Resumen del resultado',
-    combined_risk_score: 'Riesgo combinado',
-    coexistence_level: 'Nivel de coexistencia',
+    count: 'Total',
+    month: 'Periodo',
+    months: 'Meses',
     processed_sessions: 'Sesiones procesadas',
     registered_users: 'Usuarios registrados',
     processed_per_user: 'Procesadas por usuario',
-    count: 'Total',
-    month: 'Periodo',
-    months: 'Meses'
+    confidence_pct: 'Nivel de confianza',
+    alert_level: 'Nivel de alerta',
+    result_summary: 'Resultado orientativo',
+    combined_risk_score: 'Riesgo combinado',
+    coexistence_level: 'Nivel de coexistencia'
 };
 
 function clampMonths(value: number) {
@@ -49,11 +54,10 @@ function clampMonths(value: number) {
 }
 
 function formatLabel(key: string) {
-    const mapped = LABEL_MAP[key];
+    const normalized = key.trim().toLowerCase();
+    const mapped = LABEL_MAP[normalized];
     if (mapped) return mapped;
-    const normalized = key.replace(/_/g, ' ').replace(/\./g, ' ').trim();
-    if (!normalized) return '--';
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    return humanizeTechnicalKey(key);
 }
 
 function formatPeriodLabel(period: string) {
@@ -82,32 +86,20 @@ function formatPeriodLabel(period: string) {
     return normalized;
 }
 
-function formatPrimitive(value: string | number | boolean | null) {
-    if (value === null) return '--';
-    if (typeof value === 'boolean') return value ? 'Si' : 'No';
-    if (typeof value === 'number') {
-        return Number.isInteger(value)
-            ? new Intl.NumberFormat('es-CO').format(value)
-            : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(value);
-    }
-    return value.trim().length > 0 ? value : '--';
+function formatPrimitive(key: string, value: string | number | boolean | null) {
+    return formatNaturalValue(key, value, { includeTechnical: true });
 }
 
 function formatSeriesValue(point: DashboardSeriesPoint) {
     if (point.raw_value !== null) {
-        if (typeof point.raw_value === 'number') return formatPrimitive(point.raw_value);
-        if (typeof point.raw_value === 'boolean') return point.raw_value ? 'Si' : 'No';
-        const text = String(point.raw_value).trim();
-        return text.length > 0 ? text : '--';
+        return formatPrimitive('value', point.raw_value);
     }
-    if (point.value === null) return '--';
-    return formatPrimitive(point.value);
+    return formatPrimitive('value', point.value);
 }
 
 function formatConversion(value: number | null) {
     if (value === null) return '--';
-    if (value <= 1) return `${(value * 100).toFixed(1)}%`;
-    return `${value.toFixed(1)}%`;
+    return formatPercentEs(value, { mode: 'auto' });
 }
 
 function buildSparklinePath(points: DashboardSeriesPoint[], width: number, height: number) {
@@ -131,12 +123,22 @@ function buildSparklinePath(points: DashboardSeriesPoint[], width: number, heigh
         .join(' ');
 }
 
+function resolveBlockErrorMessage(message: string, status: number | null) {
+    if (status === 400) return 'La solicitud para este bloque no es válida con el rango seleccionado.';
+    if (status === 401) return 'La sesión no es válida para consultar este bloque.';
+    if (status === 403) return 'No tienes permisos para consultar este bloque.';
+    if (status === 404) return 'Este bloque no está disponible en el entorno actual.';
+    if (status === 429) return 'Hay demasiadas consultas en este momento. Intenta nuevamente en unos segundos.';
+    if (status !== null && status >= 500) return 'El servicio presentó un problema interno al generar este bloque.';
+    return message || 'No fue posible cargar este bloque.';
+}
+
 function BlockError({ message, status }: { message: string; status: number | null }) {
     return (
         <div className="dashboard-block-error" role="status" aria-live="polite">
             <strong>No se pudo cargar este bloque</strong>
-            <span>{message}</span>
-            {status ? <small>HTTP {status}</small> : null}
+            <span>{resolveBlockErrorMessage(message, status)}</span>
+            {status ? <small>Código técnico: HTTP {status}</small> : null}
         </div>
     );
 }
@@ -153,14 +155,16 @@ function BlockLoading() {
 
 function MetricNodeView({
     node,
+    keyName = 'value',
     depth = 0
 }: {
     node: DashboardMetricNode;
+    keyName?: string;
     depth?: number;
 }) {
     if (depth > 4) return <span className="dashboard-node-value">--</span>;
     if (node === null || typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
-        return <span className="dashboard-node-value">{formatPrimitive(node as string | number | boolean | null)}</span>;
+        return <span className="dashboard-node-value">{formatPrimitive(keyName, node as string | number | boolean | null)}</span>;
     }
 
     if (Array.isArray(node)) {
@@ -177,7 +181,7 @@ function MetricNodeView({
                 <div className="dashboard-node-inline">
                     {node.map((item, index) => (
                         <span key={`${String(item)}-${index}`} className="dashboard-node-chip">
-                            {formatPrimitive(item as string | number | boolean | null)}
+                            {formatPrimitive(keyName, item as string | number | boolean | null)}
                         </span>
                     ))}
                 </div>
@@ -188,7 +192,7 @@ function MetricNodeView({
             <div className="dashboard-node-array">
                 {node.map((item, index) => (
                     <div className="dashboard-node-array-item" key={index}>
-                        <MetricNodeView node={item} depth={depth + 1} />
+                        <MetricNodeView node={item} keyName={keyName} depth={depth + 1} />
                     </div>
                 ))}
             </div>
@@ -203,7 +207,7 @@ function MetricNodeView({
             {entries.map(([key, value]) => (
                 <div className="dashboard-node-row" key={key}>
                     <span className="dashboard-node-key">{formatLabel(key)}</span>
-                    <MetricNodeView node={value} depth={depth + 1} />
+                    <MetricNodeView node={value} keyName={key} depth={depth + 1} />
                 </div>
             ))}
         </div>
@@ -287,21 +291,21 @@ function SectionFunnel({
                 <div className="dashboard-funnel-row">
                     <span>Creados</span>
                     <div className="dashboard-funnel-track"><i style={{ width: `${(created / max) * 100}%` }} /></div>
-                    <strong>{formatPrimitive(created)}</strong>
+                    <strong>{formatPrimitive('created', created)}</strong>
                 </div>
                 <div className="dashboard-funnel-row">
                     <span>Enviados</span>
                     <div className="dashboard-funnel-track"><i style={{ width: `${(submitted / max) * 100}%` }} /></div>
-                    <strong>{formatPrimitive(submitted)}</strong>
+                    <strong>{formatPrimitive('submitted', submitted)}</strong>
                 </div>
                 <div className="dashboard-funnel-row">
                     <span>Procesados</span>
                     <div className="dashboard-funnel-track"><i style={{ width: `${(processed / max) * 100}%` }} /></div>
-                    <strong>{formatPrimitive(processed)}</strong>
+                    <strong>{formatPrimitive('processed', processed)}</strong>
                 </div>
             </div>
             <div className="dashboard-funnel-conversion">
-                <span>Conversion de creados a procesados</span>
+                <span>Conversión de creados a procesados</span>
                 <strong>{formatConversion(state.data.conversion_created_to_processed)}</strong>
             </div>
         </section>
@@ -340,19 +344,19 @@ function SectionAdoption({
             <div className="dashboard-adoption-grid">
                 <div className="dashboard-adoption-item">
                     <h4>Volumen y crecimiento</h4>
-                    <MetricNodeView node={adoption.volume_and_growth} />
+                    <MetricNodeView node={adoption.volume_and_growth} keyName="volume_and_growth" />
                 </div>
                 <div className="dashboard-adoption-item">
                     <h4>Crecimiento de usuarios</h4>
-                    <MetricNodeView node={adoption.user_growth} />
+                    <MetricNodeView node={adoption.user_growth} keyName="user_growth" />
                 </div>
                 <div className="dashboard-adoption-item">
-                    <h4>Conversion</h4>
-                    <MetricNodeView node={adoption.conversion} />
+                    <h4>Conversión</h4>
+                    <MetricNodeView node={adoption.conversion} keyName="conversion" />
                 </div>
                 <div className="dashboard-adoption-item">
                     <h4>Capacidad operativa</h4>
-                    <MetricNodeView node={adoption.operational_capacity} />
+                    <MetricNodeView node={adoption.operational_capacity} keyName="operational_capacity" />
                 </div>
             </div>
         </section>
@@ -425,7 +429,7 @@ export default function Dashboard() {
 
             {hasCriticalAuthError ? (
                 <div className="dashboard-global-alert" role="status" aria-live="polite">
-                    Algunos bloques requieren permisos adicionales para tu sesion actual.
+                    Algunos bloques requieren permisos adicionales para tu sesión actual.
                 </div>
             ) : null}
 
@@ -436,7 +440,7 @@ export default function Dashboard() {
                 prioritized
             />
             <SectionAdoption
-                title="Evolucion del uso de la plataforma"
+                title="Evolución del uso de la plataforma"
                 description="Seguimiento de volumen, crecimiento y capacidad operativa en el periodo seleccionado."
                 state={blocks.adoptionHistory}
             />
@@ -444,12 +448,12 @@ export default function Dashboard() {
             <section className="dashboard-funnel-grid">
                 <SectionFunnel title="Embudo operativo" state={blocks.funnel} />
                 <SectionFunnel title="Productividad" state={blocks.productivity} />
-                <SectionFunnel title="Revision humana" state={blocks.humanReview} />
+                <SectionFunnel title="Revisión humana" state={blocks.humanReview} />
             </section>
 
             <SectionSeries
                 title="Crecimiento de usuarios"
-                description="Tendencia de nuevas altas y variacion del total de usuarios."
+                description="Tendencia de nuevas altas y variación del total de usuarios."
                 state={blocks.userGrowth}
             />
 
@@ -471,12 +475,12 @@ export default function Dashboard() {
                 />
                 <SectionAdoption
                     title="Comparativas entre grupos"
-                    description="Analisis de consistencia y brechas observables entre segmentos de la poblacion."
+                    description="Análisis de consistencia y brechas observables entre segmentos de la población."
                     state={blocks.equity}
                 />
                 <SectionAdoption
                     title="Monitoreo de modelos"
-                    description="Seguimiento del desempeno y estabilidad de los modelos de apoyo."
+                    description="Seguimiento del desempeño y estabilidad de los modelos de apoyo."
                     state={blocks.modelMonitoring}
                 />
                 <SectionAdoption
