@@ -357,3 +357,26 @@ Toda implementacion nueva debe agregar una entrada en este archivo con:
 3. endpoints consumidos/ajustados
 4. cambios de UI/flujo
 5. archivos principales modificados
+
+## 2026-04-28 - Correccion de continuidad de sesion en Cuestionario V2
+
+### Modulo afectado
+
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+
+### Endpoints involucrados (sin cambios de contrato)
+
+- `GET /api/v2/questionnaires/sessions/{session_id}`
+- `GET /api/v2/questionnaires/sessions/{session_id}/page`
+- `PATCH /api/v2/questionnaires/sessions/{session_id}/answers`
+
+### Ajuste aplicado
+
+- Se corrigio la hidratacion de respuestas al continuar sesion:
+  - antes se priorizaba unicamente `detail.answers` del detalle de sesion
+  - ahora tambien se infieren respuestas desde las preguntas cargadas por pagina cuando estas vienen embebidas en el payload (`answer`, `current_answer`, `response`, `response_value`, `selected_value`, `value`)
+  - se unifican ambas fuentes y luego se calcula el indice de reanudacion sobre la primera pregunta pendiente
+
+### Impacto funcional
+
+- El flujo de `Continuar cuestionario` retoma de forma mas consistente desde el punto real de avance y evita reinicios aparentes por respuestas no hidratadas.

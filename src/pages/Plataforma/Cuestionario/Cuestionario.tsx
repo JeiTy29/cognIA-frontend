@@ -277,6 +277,37 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
+function extractAnswerFromQuestionRecord(question: QuestionnaireQuestionV2DTO): QuestionnaireResponseValue | undefined {
+    const rawQuestion = question as Record<string, unknown>;
+    const candidates = [
+        rawQuestion.answer,
+        rawQuestion.current_answer,
+        rawQuestion.response,
+        rawQuestion.response_value,
+        rawQuestion.selected_value,
+        rawQuestion.value
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate === null) return null;
+        if (typeof candidate === 'string' || typeof candidate === 'number' || typeof candidate === 'boolean') {
+            return candidate;
+        }
+    }
+
+    return undefined;
+}
+
+function buildAnswersFromQuestions(questions: QuestionnaireQuestionV2DTO[]) {
+    return questions.reduce<Record<string, QuestionnaireResponseValue>>((acc, question) => {
+        const inferredAnswer = extractAnswerFromQuestionRecord(question);
+        if (inferredAnswer !== undefined) {
+            acc[question.id] = inferredAnswer;
+        }
+        return acc;
+    }, {});
+}
+
 function mapError(error: unknown, fallback: string) {
     if (!(error instanceof ApiError)) return fallback;
     if (error.status === 400) return 'Revisa los datos e intenta nuevamente.';
@@ -754,7 +785,10 @@ export default function Cuestionario() {
             failedStep = 'validate_questions';
 
             const detailAnswers = (detail as Record<string, unknown>).answers;
-            const initialAnswers = normalizeAnswerDictionary(detailAnswers);
+            const initialAnswers = {
+                ...buildAnswersFromQuestions(allQuestions),
+                ...normalizeAnswerDictionary(detailAnswers)
+            };
             const nextQuestionIndex = allQuestions.findIndex((question) => !isValid(question, initialAnswers[question.id]));
 
             setSessionId(sessionIdToContinue);
