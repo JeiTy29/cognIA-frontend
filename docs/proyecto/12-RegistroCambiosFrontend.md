@@ -376,6 +376,10 @@ Toda implementacion nueva debe agregar una entrada en este archivo con:
   - antes se priorizaba unicamente `detail.answers` del detalle de sesion
   - ahora tambien se infieren respuestas desde las preguntas cargadas por pagina cuando estas vienen embebidas en el payload (`answer`, `current_answer`, `response`, `response_value`, `selected_value`, `value`)
   - se unifican ambas fuentes y luego se calcula el indice de reanudacion sobre la primera pregunta pendiente
+- Se robustecio el identificador de pregunta para guardado y reanudacion:
+  - se aceptan llaves `id`, `question_id`, `item_id`, `questionnaire_item_id`, `code`
+  - el `PATCH /answers` ahora envia `question_id` priorizando identificadores contractuales (`question_id`/`item_id`/`questionnaire_item_id`) antes de `id`
+  - la lectura de respuesta actual en UI busca aliases de la misma pregunta para evitar desalineaciones entre keys del backend y keys de render
 
 ### Impacto funcional
 

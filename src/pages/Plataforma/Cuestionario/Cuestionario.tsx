@@ -258,9 +258,24 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
         .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
         .map((item, index) => {
             const record = item as Record<string, unknown>;
+            const id =
+                toText(record.id) ||
+                toText(record.question_id) ||
+                toText(record.item_id) ||
+                toText(record.questionnaire_item_id) ||
+                toText(record.code);
+            const text =
+                toText(record.text) ||
+                toText(record.prompt) ||
+                toText(record.question_text) ||
+                toText(record.question) ||
+                toText(record.statement) ||
+                toText(record.title) ||
+                toText(record.label);
             return {
-                id: toText(record.id),
-                text: toText(record.text),
+                ...record,
+                id,
+                text,
                 code: toText(record.code),
                 response_type: normalizeQuestionType(record.response_type),
                 position: Number.isFinite(Number(record.position)) ? Number(record.position) : index + 1,
@@ -275,6 +290,66 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
         })
         .filter((q) => q.id && q.text)
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
+
+function getQuestionKeyCandidates(question: QuestionnaireQuestionV2DTO) {
+    const rawQuestion = question as Record<string, unknown>;
+    const candidates = [
+        question.id,
+        question.code,
+        toText(rawQuestion.question_id),
+        toText(rawQuestion.item_id),
+        toText(rawQuestion.questionnaire_item_id)
+    ];
+
+    const normalized: string[] = [];
+    for (const candidate of candidates) {
+        const key = typeof candidate === 'string' ? candidate.trim() : '';
+        if (!key || normalized.includes(key)) continue;
+        normalized.push(key);
+    }
+    return normalized;
+}
+
+function getAnswerForQuestion(
+    answers: Record<string, QuestionnaireResponseValue>,
+    question: QuestionnaireQuestionV2DTO
+): QuestionnaireResponseValue {
+    const keys = getQuestionKeyCandidates(question);
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(answers, key)) {
+            return answers[key] ?? null;
+        }
+    }
+    return null;
+}
+
+function setAnswerForQuestion(
+    prevAnswers: Record<string, QuestionnaireResponseValue>,
+    question: QuestionnaireQuestionV2DTO,
+    value: QuestionnaireResponseValue
+) {
+    const next = { ...prevAnswers };
+    const keys = getQuestionKeyCandidates(question);
+    if (keys.length === 0) return next;
+
+    next[keys[0]] = value;
+    for (let index = 1; index < keys.length; index += 1) {
+        if (Object.prototype.hasOwnProperty.call(next, keys[index])) {
+            next[keys[index]] = value;
+        }
+    }
+    return next;
+}
+
+function getApiQuestionId(question: QuestionnaireQuestionV2DTO) {
+    const rawQuestion = question as Record<string, unknown>;
+    return (
+        toText(rawQuestion.question_id) ||
+        toText(rawQuestion.item_id) ||
+        toText(rawQuestion.questionnaire_item_id) ||
+        question.id
+    );
 }
 
 function extractAnswerFromQuestionRecord(question: QuestionnaireQuestionV2DTO): QuestionnaireResponseValue | undefined {
@@ -789,7 +864,7 @@ export default function Cuestionario() {
                 ...buildAnswersFromQuestions(allQuestions),
                 ...normalizeAnswerDictionary(detailAnswers)
             };
-            const nextQuestionIndex = allQuestions.findIndex((question) => !isValid(question, initialAnswers[question.id]));
+            const nextQuestionIndex = allQuestions.findIndex((question) => !isValid(question, getAnswerForQuestion(initialAnswers, question)));
 
             setSessionId(sessionIdToContinue);
             setQuestions(allQuestions);
@@ -849,7 +924,7 @@ export default function Cuestionario() {
     }, [apiRole, loadAllSessionQuestions, selectedMode, stopPolling]);
 
     const currentQuestion = questions[currentIndex] ?? null;
-    const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
+    const currentAnswer = currentQuestion ? getAnswerForQuestion(answers, currentQuestion) : null;
     const currentOptions = currentQuestion ? normalizeQuestionOptions(currentQuestion) : [];
     const currentNumericConstraints =
         currentQuestion && (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number')
@@ -860,11 +935,13 @@ export default function Cuestionario() {
 
     const saveCurrent = async () => {
         if (!sessionId || !currentQuestion) return false;
-        const value = answers[currentQuestion.id];
+        const value = getAnswerForQuestion(answers, currentQuestion);
         if (!isValid(currentQuestion, value)) return false;
+        const questionId = getApiQuestionId(currentQuestion);
+        if (!questionId) return false;
 
         await patchQuestionnaireSessionAnswersV2(sessionId, {
-            answers: [{ question_id: currentQuestion.id, answer: value ?? null }]
+            answers: [{ question_id: questionId, answer: value ?? null }]
         });
         return true;
     };
@@ -931,7 +1008,7 @@ export default function Cuestionario() {
 
     const onAnswerChange = (value: QuestionnaireResponseValue) => {
         if (!currentQuestion) return;
-        setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
+        setAnswers((prev) => setAnswerForQuestion(prev, currentQuestion, value));
     };
 
     const handlePrevious = () => {
