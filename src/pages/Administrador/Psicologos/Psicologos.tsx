@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
@@ -71,10 +71,6 @@ export default function Psicologos() {
         });
     }, [items, searchTerm, reviewFilter]);
 
-    useEffect(() => {
-        setPage(1);
-    }, [searchTerm, reviewFilter, pageSize]);
-
     const total = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -131,7 +127,10 @@ export default function Psicologos() {
                         placeholder="Buscar por ID, usuario o correo..."
                         aria-label="Buscar psicologos"
                         value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onChange={(event) => {
+                            setSearchTerm(event.target.value);
+                            setPage(1);
+                        }}
                     />
                 </div>
                 <div className="admin-filters">
@@ -141,7 +140,10 @@ export default function Psicologos() {
                             ariaLabel="Estado de revision"
                             value={reviewFilter}
                             options={reviewOptions}
-                            onChange={(value) => setReviewFilter(value as ReviewFilter)}
+                            onChange={(value) => {
+                                setReviewFilter(value as ReviewFilter);
+                                setPage(1);
+                            }}
                         />
                     </label>
                 </div>
@@ -240,7 +242,10 @@ export default function Psicologos() {
                             ariaLabel="Tamaño de pagina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
-                            onChange={(value) => setPageSize(Number(value))}
+                            onChange={(value) => {
+                                setPageSize(Number(value));
+                                setPage(1);
+                            }}
                         />
                     </label>
                 </div>

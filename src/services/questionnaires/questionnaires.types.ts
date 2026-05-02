@@ -1,14 +1,9 @@
 export type QuestionnaireV2Mode = 'short' | 'medium' | 'complete';
 export type QuestionnaireV2Role = 'guardian' | 'psychologist';
+type FlexibleString<T extends string> = T | (string & {});
 export type QuestionnaireV2Status =
-    | 'draft'
-    | 'in_progress'
-    | 'submitted'
-    | 'processed'
-    | 'failed'
-    | 'archived'
-    | string;
-export type QuestionnaireResponseType = 'likert' | 'boolean' | 'integer' | 'number' | 'text' | string;
+    FlexibleString<'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'>;
+export type QuestionnaireResponseType = FlexibleString<'likert' | 'boolean' | 'integer' | 'number' | 'text'>;
 export type QuestionnaireResponseValue = string | number | boolean | null;
 export type QuestionnaireTagVisibility = 'private' | 'shared';
 export type QuestionnairePrimitive = string | number | boolean | null;
@@ -219,8 +214,8 @@ export interface QuestionnaireSharedSessionDTO {
     session_id: string;
     questionnaire_id: string;
     status: string;
-    mode: QuestionnaireV2Mode | string;
-    role: QuestionnaireV2Role | string;
+    mode: FlexibleString<QuestionnaireV2Mode>;
+    role: FlexibleString<QuestionnaireV2Role>;
     mode_key?: string;
     progress_pct?: number | null;
     version?: string | null;

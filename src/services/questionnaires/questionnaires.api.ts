@@ -762,7 +762,7 @@ function extractFilenameFromHeaders(headers: Headers) {
         }
     }
 
-    const basicMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    const basicMatch = disposition.match(/filename="?([^";]+)"?/i);
     return basicMatch?.[1] ?? null;
 }
 

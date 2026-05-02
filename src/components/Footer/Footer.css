@@ -48,12 +48,14 @@
     color: #ffffff;
     text-decoration: none;
     font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: inherit;
+    line-height: inherit;
     transition: opacity 0.3s ease;
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
-    font: inherit;
 }
 
 .footer-link:hover {

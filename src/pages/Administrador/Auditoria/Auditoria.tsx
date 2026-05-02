@@ -165,7 +165,9 @@ export default function Auditoria() {
     const [selectedItem, setSelectedItem] = useState<AuditLogItem | null>(null);
 
     const actionOptions = useMemo(() => {
-        const uniqueActions = Array.from(new Set(items.map((item) => item.action))).sort();
+        const uniqueActions = Array.from(new Set(items.map((item) => item.action))).sort((left, right) =>
+            left.localeCompare(right, 'es', { sensitivity: 'base' })
+        );
         return [
             { value: 'Todos', label: 'Todos' },
             ...uniqueActions.map((action) => ({

@@ -279,7 +279,13 @@ export function useDashboard(): UseDashboardResult {
     }, [loadDashboard, months]);
 
     useEffect(() => {
-        void loadDashboard(months);
+        const timeoutId = window.setTimeout(() => {
+            void loadDashboard(months);
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
     }, [loadDashboard, months]);
 
     useEffect(() => {

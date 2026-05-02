@@ -7,6 +7,134 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-05-02 - Preparacion de SonarCloud y saneamiento local previo
+
+### 1) Configuracion base de Sonar en el repo
+
+- Archivo:
+  - `sonar-project.properties`
+- Cambio:
+  - se agrega configuracion minima para el proyecto frontend:
+    - `sonar.projectKey=JeiTy29_cognIA-frontend`
+    - `sonar.organization=JeiTy29`
+    - `sonar.host.url=https://sonarcloud.io`
+  - se deja fuera cualquier token o secreto.
+
+### 2) Correcciones locales de calidad para despejar el analisis
+
+- Archivos:
+  - `src/hooks/dashboard/useDashboard.ts`
+  - `src/pages/Administrador/Psicologos/Psicologos.tsx`
+  - `src/services/questionnaires/questionnaires.api.ts`
+- Cambio:
+  - se elimina un patron de `setState` sincronico dentro de `useEffect` en Dashboard usando diferimiento seguro.
+  - se elimina el reseteo de pagina por efecto en Psicologos y se mueve a handlers de filtro/paginacion.
+  - se corrige una expresion regular con escapes innecesarios en `questionnaires.api.ts`.
+
+### 3) Verificacion local
+
+- `npm run lint`: exitoso.
+- `npm run build`: exitoso.
+
+### 4) Bloqueo para ciclo remoto completo
+
+- En este workspace no existe archivo `.env` y no hay variables de entorno cargadas para:
+  - `SONAR_PROJECT_KEY`
+  - `SONAR_ORGANIZATION`
+  - `SONAR_HOST_URL`
+  - `SONAR_TOKEN`
+- Por esta razon no fue posible ejecutar desde el entorno local:
+  - `sonar-scanner`
+  - consulta de issues en SonarCloud
+  - verificacion del Quality Gate
+
+## 2026-05-02 - Creacion de `.env` real para herramientas externas
+
+### Alcance
+
+- Archivo creado:
+  - `.env`
+
+### Cambio aplicado
+
+- Se genero un `.env` real a partir de `.env.local` para que herramientas externas al runtime de Vite, como `sonar-scanner`, puedan apoyarse en un archivo de entorno del proyecto.
+- La verificacion se hizo solo por nombres de variables, sin exponer valores sensibles.
+
+### Variables confirmadas por nombre
+
+- `VITE_API_BASE_URL`
+- `VITE_DEV_AUTH_BYPASS`
+- `VITE_DEV_ROLE`
+- `SONAR_HOST_URL`
+- `SONAR_TOKEN`
+- `SONAR_ORGANIZATION`
+- `SONAR_PROJECT_KEY`
+- `SONAR_PROJECT_NAME`
+
+### Observacion operativa
+
+- `.gitignore` ya protege `.env`, por lo que el archivo queda fuera de seguimiento.
+- Tener `.env` en disco no implica automaticamente que PowerShell cargue esas variables al entorno del proceso; si una herramienta lo requiere, debe importarse o leerse explicitamente.
+
+## 2026-05-02 - Ciclo local de saneamiento para SonarCloud
+
+### Preparacion y ejecucion
+
+- Se valido `sonar-project.properties` con:
+  - `sonar.projectKey=JeiTy29_cognIA-frontend`
+  - `sonar.organization=JeiTy29`
+  - `sonar.host.url=https://sonarcloud.io`
+- Se cargaron variables desde `.env` dentro del proceso de terminal sin exponer secretos.
+- Se ejecutaron:
+  - `npm run lint`
+  - `npm run build`
+
+### Correcciones aplicadas por issues seguros
+
+- Archivos:
+  - `src/pages/Administrador/Auditoria/Auditoria.tsx`
+  - `src/components/Footer/Footer.css`
+  - `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+  - `src/services/auth/auth.types.ts`
+  - `src/services/questionnaires/questionnaires.types.ts`
+  - `src/index.css`
+  - `src/pages/Plataforma/HistorialPadre/HistorialPadre.css`
+  - `src/pages/Plataforma/HistorialPsicologo/HistorialPsicologo.css`
+  - `src/pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo.css`
+  - `src/App.tsx`
+  - `src/components/CustomSelect/CustomSelect.tsx`
+  - `src/services/api/httpClient.ts`
+  - `src/pages/Administrador/Dashboard/Dashboard.tsx`
+- Cambios:
+  - comparador explicito en `sort()` de Auditoria
+  - correccion de shorthand `font` en Footer
+  - limpieza de smells puntuales en Cuestionario (`Object.hasOwn`, `Math.max`, asserts redundantes)
+  - normalizacion de tipos flexibles sin `| string` redundante en auth/questionnaires
+  - comentarios minimos en archivos CSS vacios para evitar `Unexpected empty source`
+  - alias PascalCase en ruta MFA de `App.tsx`
+  - props readonly en `CustomSelect` y componentes puntuales de Dashboard
+  - uso de `??=` en `httpClient`
+  - ajustes menores de regex/aliases tipados en Dashboard
+
+### Bloqueos externos detectados
+
+- `sonar-scanner` tradicional fallo por Java 8 local; se valido una via moderna con `@sonar/scan`.
+- El scanner moderno pudo autenticarse y resolver el proyecto, pero la subida de analisis manual fue rechazada porque el proyecto tiene **Automatic Analysis** habilitado en SonarCloud.
+- Adicionalmente, el valor operativo de organizacion en SonarCloud responde como `jeity29` al consultar el proyecto, aunque la configuracion esperada/documentada en repo usa `JeiTy29`.
+
+### Estado remoto observado en SonarCloud
+
+- Issues abiertos observados via API:
+  - `CRITICAL`: 48
+  - `MAJOR`: 181
+  - `MINOR`: 197
+  - `BUG`: 9
+  - `CODE_SMELL`: 415
+  - `VULNERABILITY`: 2
+- `Quality Gate` consultado via API:
+  - `status: NONE`
+- Con el estado actual del proyecto remoto, no fue posible subir un analisis manual nuevo desde el repo local sin una decision humana sobre la configuracion de SonarCloud.
+
 ## 2026-04-27 - Normalizacion central de URL base backend
 
 ### 1) Utilidad central de resolucion de URLs

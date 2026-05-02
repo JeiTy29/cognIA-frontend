@@ -1,4 +1,5 @@
 export type UserType = 'guardian' | 'psychologist';
+type FlexibleString<T extends string> = T | (string & {});
 
 export interface RegisterPayload {
     username: string;
@@ -94,7 +95,7 @@ export interface ChangePasswordRequest {
 }
 
 export interface ChangePasswordResponse {
-    msg: 'ok' | string;
+    msg: FlexibleString<'ok'>;
 }
 
 export interface ForgotPasswordRequest {
@@ -102,7 +103,7 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ForgotPasswordResponse {
-    msg: 'ok' | string;
+    msg: FlexibleString<'ok'>;
 }
 
 export interface VerifyResetTokenResponse {
@@ -116,7 +117,7 @@ export interface ResetPasswordRequest {
 }
 
 export interface ResetPasswordResponse {
-    msg: 'ok' | string;
+    msg: FlexibleString<'ok'>;
 }
 
 export interface LogoutResponse {

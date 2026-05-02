@@ -8,7 +8,7 @@ import Trastornos from './pages/Inicio/Trastornos/Trastornos';
 import InicioSesion from './pages/Autenticacion/InicioSesion/InicioSesion';
 import Registro from './pages/Autenticacion/Registro/Registro';
 import BienvenidaAutenticacion from './pages/Autenticacion/Bienvenida/Bienvenida';
-import MFA from './pages/Autenticacion/MFA/MFA';
+import MfaPage from './pages/Autenticacion/MFA/MFA';
 import RestablecerContraseña from './pages/Autenticacion/RestablecerContraseña/RestablecerContraseña';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
 import Cuestionario from './pages/Plataforma/Cuestionario/Cuestionario';
@@ -71,7 +71,7 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
                 <Route path="/restablecer-contrasena" element={<RestablecerContraseña />} />
-                <Route path="/mfa" element={<MFA />} />
+                <Route path="/mfa" element={<MfaPage />} />
                 <Route path="/cuestionario/compartido/:questionnaireId/:shareCode" element={<CuestionarioCompartido />} />
 
                 {/* Rutas de plataforma con Sidebar */}
