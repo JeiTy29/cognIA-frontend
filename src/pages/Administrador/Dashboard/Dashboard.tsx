@@ -44,6 +44,24 @@ const LABEL_MAP: Record<string, string> = {
     combined_risk_score: 'Riesgo combinado',
     coexistence_level: 'Nivel de coexistencia'
 };
+type PrimitiveValue = string | number | boolean | null;
+type BlockErrorProps = Readonly<{ message: string; status: number | null }>;
+type MetricNodeViewProps = Readonly<{ node: DashboardMetricNode; keyName?: string; depth?: number }>;
+type SectionSeriesProps = Readonly<{
+    title: string;
+    description?: string;
+    state: DashboardBlockState<DashboardSeriesResponse>;
+}>;
+type SectionFunnelProps = Readonly<{
+    title: string;
+    state: DashboardBlockState<DashboardFunnelResponse>;
+}>;
+type SectionAdoptionProps = Readonly<{
+    title: string;
+    description?: string;
+    state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
+    prioritized?: boolean;
+}>;
 
 function clampMonths(value: number) {
     if (!Number.isFinite(value)) return 12;
@@ -64,7 +82,7 @@ function formatPeriodLabel(period: string) {
     const normalized = period.trim();
     if (!normalized) return '--';
 
-    const monthlyMatch = normalized.match(/^(\d{4})-(\d{2})$/);
+    const monthlyMatch = /^(\d{4})-(\d{2})$/.exec(normalized);
     if (monthlyMatch) {
         const year = Number(monthlyMatch[1]);
         const month = Number(monthlyMatch[2]);
@@ -86,7 +104,7 @@ function formatPeriodLabel(period: string) {
     return normalized;
 }
 
-function formatPrimitive(key: string, value: string | number | boolean | null) {
+function formatPrimitive(key: string, value: PrimitiveValue) {
     return formatNaturalValue(key, value, { includeTechnical: true });
 }
 
@@ -133,7 +151,7 @@ function resolveBlockErrorMessage(message: string, status: number | null) {
     return message || 'No fue posible cargar este bloque.';
 }
 
-function BlockError({ message, status }: { message: string; status: number | null }) {
+function BlockError({ message, status }: BlockErrorProps) {
     return (
         <div className="dashboard-block-error" role="status" aria-live="polite">
             <strong>No se pudo cargar este bloque</strong>
@@ -157,14 +175,10 @@ function MetricNodeView({
     node,
     keyName = 'value',
     depth = 0
-}: {
-    node: DashboardMetricNode;
-    keyName?: string;
-    depth?: number;
-}) {
+}: MetricNodeViewProps) {
     if (depth > 4) return <span className="dashboard-node-value">--</span>;
     if (node === null || typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
-        return <span className="dashboard-node-value">{formatPrimitive(keyName, node as string | number | boolean | null)}</span>;
+        return <span className="dashboard-node-value">{formatPrimitive(keyName, node)}</span>;
     }
 
     if (Array.isArray(node)) {
@@ -181,7 +195,7 @@ function MetricNodeView({
                 <div className="dashboard-node-inline">
                     {node.map((item, index) => (
                         <span key={`${String(item)}-${index}`} className="dashboard-node-chip">
-                            {formatPrimitive(keyName, item as string | number | boolean | null)}
+                            {formatPrimitive(keyName, item)}
                         </span>
                     ))}
                 </div>
@@ -218,11 +232,7 @@ function SectionSeries({
     title,
     description,
     state
-}: {
-    title: string;
-    description?: string;
-    state: DashboardBlockState<DashboardSeriesResponse>;
-}) {
+}: SectionSeriesProps) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
     if (state.status === 'error' && state.error) {
         return <BlockError message={state.error.message} status={state.error.status} />;
@@ -265,10 +275,7 @@ function SectionSeries({
 function SectionFunnel({
     title,
     state
-}: {
-    title: string;
-    state: DashboardBlockState<DashboardFunnelResponse>;
-}) {
+}: SectionFunnelProps) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
     if (state.status === 'error' && state.error) {
         return <BlockError message={state.error.message} status={state.error.status} />;
@@ -317,12 +324,7 @@ function SectionAdoption({
     description,
     state,
     prioritized = false
-}: {
-    title: string;
-    description?: string;
-    state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
-    prioritized?: boolean;
-}) {
+}: SectionAdoptionProps) {
     if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
     if (state.status === 'error' && state.error) {
         return <BlockError message={state.error.message} status={state.error.status} />;

@@ -8,7 +8,7 @@ export type CustomSelectOption = {
 
 interface CustomSelectProps {
     value: string;
-    options: CustomSelectOption[];
+    options: readonly CustomSelectOption[];
     onChange: (value: string) => void;
     ariaLabel: string;
     placeholder?: string;
@@ -24,7 +24,7 @@ export function CustomSelect({
     placeholder = 'Selecciona una opcion',
     disabled = false,
     className = ''
-}: CustomSelectProps) {
+}: Readonly<CustomSelectProps>) {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
 

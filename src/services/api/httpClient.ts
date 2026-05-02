@@ -129,9 +129,7 @@ function buildHeaders(options: ApiRequestOptions | undefined, includeJson: boole
 let refreshPromise: Promise<RefreshResponse | { error: string }> | null = null;
 
 async function attemptRefresh() {
-    if (!refreshPromise) {
-        refreshPromise = refreshAccessToken();
-    }
+    refreshPromise ??= refreshAccessToken();
     const result = await refreshPromise;
     refreshPromise = null;
     if ('access_token' in result) {

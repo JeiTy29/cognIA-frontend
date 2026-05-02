@@ -12,9 +12,6 @@ import {
     submitQuestionnaireSessionV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
-    QuestionnaireEvaluationComorbidityDTO,
-    QuestionnaireEvaluationDomainDTO,
-    QuestionnaireEvaluationResultDTO,
     QuestionnaireOptionDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseType,
@@ -243,7 +240,7 @@ function getNumericConstraints(question: QuestionnaireQuestionV2DTO) {
     const maxCandidate = typeof question.response_max === 'number' && Number.isFinite(question.response_max)
         ? question.response_max
         : fallbackMax;
-    const max = maxCandidate >= min ? maxCandidate : min;
+    const max = Math.max(maxCandidate, min);
 
     const step = typeof question.response_step === 'number' && Number.isFinite(question.response_step) && question.response_step > 0
         ? question.response_step
@@ -317,7 +314,7 @@ function getAnswerForQuestion(
 ): QuestionnaireResponseValue {
     const keys = getQuestionKeyCandidates(question);
     for (const key of keys) {
-        if (Object.prototype.hasOwnProperty.call(answers, key)) {
+        if (Object.hasOwn(answers, key)) {
             return answers[key] ?? null;
         }
     }
@@ -335,7 +332,7 @@ function setAnswerForQuestion(
 
     next[keys[0]] = value;
     for (let index = 1; index < keys.length; index += 1) {
-        if (Object.prototype.hasOwnProperty.call(next, keys[index])) {
+        if (Object.hasOwn(next, keys[index])) {
             next[keys[index]] = value;
         }
     }
@@ -480,7 +477,7 @@ function hasText(value: unknown) {
 
 function hasRenderableResult(payload: QuestionnaireSubmitResponseV2DTO | null) {
     if (!payload) return false;
-    const result = payload.result as QuestionnaireEvaluationResultDTO | null | undefined;
+    const result = payload.result;
     const hasResultBlock =
         !!result &&
         (hasText(result.summary) ||
@@ -529,8 +526,8 @@ function sessionToCompletionPayload(session: QuestionnaireSessionV2DTO): Questio
         questionnaire_id: session.questionnaire_id,
         status: session.status,
         result: session.result ?? null,
-        domains: (session.domains as QuestionnaireEvaluationDomainDTO[] | undefined) ?? [],
-        comorbidity: (session.comorbidity as QuestionnaireEvaluationComorbidityDTO[] | undefined) ?? [],
+        domains: session.domains ?? [],
+        comorbidity: session.comorbidity ?? [],
         metadata: session.metadata ?? null
     };
 }
