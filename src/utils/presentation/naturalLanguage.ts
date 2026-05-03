@@ -237,6 +237,14 @@ function normalizeKey(value: string) {
     return value.trim().toLowerCase();
 }
 
+function normalizeText(value: string) {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/[_\-.]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function toRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     return value as Record<string, unknown>;
@@ -287,6 +295,12 @@ function humanizeEnumValue(value: string) {
     return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
+function resolvePercentBase(number: number, mode: FormatPercentOptions['mode']) {
+    if (mode === 'fraction') return number;
+    if (mode === 'percent') return number / 100;
+    return number <= 1 ? number : number / 100;
+}
+
 export function formatDateTimeEsCO(value: unknown, fallback = FALLBACK_VALUE) {
     if (typeof value !== 'string' || !value.trim()) return fallback;
     const parsed = new Date(value);
@@ -319,14 +333,7 @@ export function formatPercentEs(value: unknown, options: FormatPercentOptions = 
     const number = toFiniteNumber(value);
     if (number === null) return fallback;
     const mode = options.mode ?? 'auto';
-    const base =
-        mode === 'fraction'
-            ? number
-            : mode === 'percent'
-                ? number / 100
-                : number <= 1
-                    ? number
-                    : number / 100;
+    const base = resolvePercentBase(number, mode);
     return new Intl.NumberFormat('es-CO', {
         style: 'percent',
         maximumFractionDigits: options.maximumFractionDigits ?? 1
@@ -418,11 +425,7 @@ export function getHttpMethodLabel(value: unknown, fallback = FALLBACK_VALUE) {
 export function humanizeTechnicalKey(key: string) {
     const normalized = normalizeKey(key);
     if (KEY_LABELS[normalized]) return KEY_LABELS[normalized];
-    const prepared = key
-        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-        .replace(/[_\-.]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const prepared = normalizeText(key);
     if (!prepared) return key;
     return prepared.charAt(0).toUpperCase() + prepared.slice(1);
 }
@@ -613,7 +616,8 @@ export function mapApiErrorToUserMessage(
         500: 'Ocurrió un error interno del servicio. Intenta nuevamente más tarde.'
     };
 
-    if (customStatusMessages[status]) return customStatusMessages[status] as string;
+    const customMessage = customStatusMessages[status];
+    if (customMessage) return customMessage;
     if (byStatus[status]) return byStatus[status];
     if (status >= 500) return byStatus[500];
 

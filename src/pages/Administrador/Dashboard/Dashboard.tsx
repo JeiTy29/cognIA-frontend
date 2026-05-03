@@ -141,6 +141,21 @@ function buildSparklinePath(points: DashboardSeriesPoint[], width: number, heigh
         .join(' ');
 }
 
+function buildStableCollectionKeys(items: unknown[], prefix: string) {
+    const occurrences = new Map<string, number>();
+
+    return items.map((item) => {
+        const serialized =
+            item === null || ['string', 'number', 'boolean'].includes(typeof item)
+                ? String(item)
+                : JSON.stringify(item);
+        const baseKey = `${prefix}-${serialized}`;
+        const nextCount = (occurrences.get(baseKey) ?? 0) + 1;
+        occurrences.set(baseKey, nextCount);
+        return `${baseKey}-${nextCount}`;
+    });
+}
+
 function resolveBlockErrorMessage(message: string, status: number | null) {
     if (status === 400) return 'La solicitud para este bloque no es válida con el rango seleccionado.';
     if (status === 401) return 'La sesión no es válida para consultar este bloque.';
@@ -183,6 +198,7 @@ function MetricNodeView({
 
     if (Array.isArray(node)) {
         if (node.length === 0) return <span className="dashboard-node-value">--</span>;
+        const itemKeys = buildStableCollectionKeys(node, `${keyName}-${depth}`);
         const isPrimitive = node.every(
             (item) =>
                 item === null ||
@@ -194,7 +210,7 @@ function MetricNodeView({
             return (
                 <div className="dashboard-node-inline">
                     {node.map((item, index) => (
-                        <span key={`${String(item)}-${index}`} className="dashboard-node-chip">
+                        <span key={itemKeys[index]} className="dashboard-node-chip">
                             {formatPrimitive(keyName, item)}
                         </span>
                     ))}
@@ -205,7 +221,7 @@ function MetricNodeView({
         return (
             <div className="dashboard-node-array">
                 {node.map((item, index) => (
-                    <div className="dashboard-node-array-item" key={index}>
+                    <div className="dashboard-node-array-item" key={itemKeys[index]}>
                         <MetricNodeView node={item} keyName={keyName} depth={depth + 1} />
                     </div>
                 ))}
@@ -242,6 +258,10 @@ function SectionSeries({
     }
 
     const sparklinePath = buildSparklinePath(state.data.series, 240, 46);
+    const pointKeys = buildStableCollectionKeys(
+        state.data.series.map((point) => `${point.period}-${String(point.value)}-${String(point.raw_value)}`),
+        `${title}-series`
+    );
 
     return (
         <div className="dashboard-series">
@@ -262,7 +282,7 @@ function SectionSeries({
                     <span>Valor</span>
                 </div>
                 {state.data.series.map((point, index) => (
-                    <div className="dashboard-table-row" key={`${point.period}-${index}`}>
+                    <div className="dashboard-table-row" key={pointKeys[index]}>
                         <span>{formatPeriodLabel(point.period)}</span>
                         <span>{formatSeriesValue(point)}</span>
                     </div>

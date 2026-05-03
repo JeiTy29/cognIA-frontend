@@ -77,6 +77,9 @@
     left: 50%;
     top: 50%;
     overflow: visible;
+    border: none;
+    appearance: none;
+    font: inherit;
 }
 
 .disorder-circle.hovered {

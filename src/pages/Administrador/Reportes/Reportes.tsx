@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminProblemReports } from '../../../hooks/useAdminProblemReports';
@@ -39,7 +39,7 @@ const issueTypeOptions = [
 const reporterRoleOptions = [
     { value: '', label: 'Todos' },
     { value: 'ADMIN', label: 'Administrador' },
-    { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
+    { value: 'PSYCHOLOGIST', label: 'PsicÃ³logo' },
     { value: 'GUARDIAN', label: 'Padre/Tutor' }
 ];
 
@@ -65,6 +65,10 @@ function getStatusBadgeClass(value: string) {
     if (normalized === 'triaged' || normalized === 'in_progress') return 'pending';
     if (normalized === 'rejected') return 'rejected';
     return 'neutral';
+}
+
+function swallowReportActionError() {
+    return undefined;
 }
 
 export default function ReportesAdmin() {
@@ -156,6 +160,54 @@ export default function ReportesAdmin() {
         }
     };
 
+    const renderTableContent = () => {
+        if (loading) {
+            return <div className="admin-loading">Cargando reportes...</div>;
+        }
+
+        if (items.length === 0) {
+            return (
+                <div className="admin-empty" role="status">
+                    <div className="admin-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" /></svg>
+                    </div>
+                    <h3>Sin reportes</h3>
+                    <p>No hay registros para los filtros actuales.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="admin-table-body">
+                {items.map((item) => (
+                    <div key={item.id} className="admin-row reportes-admin-grid">
+                        <div className="reportes-admin-code">{item.report_code}</div>
+                        <div>{getProblemReportIssueTypeLabel(item.issue_type)}</div>
+                        <div>
+                            <span className={`admin-status-badge ${getStatusBadgeClass(item.status)}`}>
+                                {getProblemReportStatusLabel(item.status)}
+                            </span>
+                        </div>
+                        <div>{getProblemReportReporterRoleLabel(item.reporter_role)}</div>
+                        <div>{getSourceModuleLabel(item.source_module)}</div>
+                        <div>{formatDateTime(item.created_at)}</div>
+                        <div>
+                            <button
+                                type="button"
+                                className="admin-btn ghost reportes-admin-action-btn"
+                                onClick={() => {
+                                    openDetail(item.id).catch(swallowReportActionError);
+                                }}
+                            >
+                                Detalle
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="admin-page reportes-admin-page">
             <header className="admin-header">
@@ -176,7 +228,7 @@ export default function ReportesAdmin() {
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por código, módulo o descripción"
+                        placeholder="Buscar por cÃ³digo, mÃ³dulo o descripciÃ³n"
                         aria-label="Buscar reportes"
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -251,57 +303,19 @@ export default function ReportesAdmin() {
 
             <section className="admin-table" aria-label="Listado de reportes">
                 <div className="admin-table-head reportes-admin-grid">
-                    <span>Código</span>
+                    <span>CÃ³digo</span>
                     <span>Tipo</span>
                     <span>Estado</span>
                     <span>Reportante</span>
-                    <span>Módulo</span>
+                    <span>MÃ³dulo</span>
                     <span>Fecha</span>
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando reportes...</div> : null}
-
-                {!loading && items.length === 0 ? (
-                    <div className="admin-empty" role="status">
-                        <div className="admin-empty-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" /></svg>
-                        </div>
-                        <h3>Sin reportes</h3>
-                        <p>No hay registros para los filtros actuales.</p>
-                    </div>
-                ) : null}
-
-                {!loading && items.length > 0 ? (
-                    <div className="admin-table-body">
-                        {items.map((item) => (
-                            <div key={item.id} className="admin-row reportes-admin-grid">
-                                <div className="reportes-admin-code">{item.report_code}</div>
-                                <div>{getProblemReportIssueTypeLabel(item.issue_type)}</div>
-                                <div>
-                                    <span className={`admin-status-badge ${getStatusBadgeClass(item.status)}`}>
-                                        {getProblemReportStatusLabel(item.status)}
-                                    </span>
-                                </div>
-                                <div>{getProblemReportReporterRoleLabel(item.reporter_role)}</div>
-                                <div>{getSourceModuleLabel(item.source_module)}</div>
-                                <div>{formatDateTime(item.created_at)}</div>
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="admin-btn ghost reportes-admin-action-btn"
-                                        onClick={() => void openDetail(item.id)}
-                                    >
-                                        Detalle
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
+                {renderTableContent()}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginación de reportes">
+            <footer className="admin-pagination" aria-label="PaginaciÃ³n de reportes">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -309,17 +323,17 @@ export default function ReportesAdmin() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página anterior"
+                        aria-label="PÃ¡gina anterior"
                         onClick={() => setPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Página {currentPage}</span>
+                    <span className="admin-page-current">PÃ¡gina {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página siguiente"
+                        aria-label="PÃ¡gina siguiente"
                         onClick={() => setPage(Math.min(pages, currentPage + 1))}
                         disabled={currentPage >= pages}
                     >
@@ -328,9 +342,9 @@ export default function ReportesAdmin() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tamaño</span>
+                        <span>TamaÃ±o</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de página"
+                            ariaLabel="TamaÃ±o de pÃ¡gina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => changePageSize(Number(value))}
@@ -349,7 +363,7 @@ export default function ReportesAdmin() {
                         <>
                             <div className="admin-detail-list">
                                 <div className="admin-detail-row">
-                                    <strong>Código</strong>
+                                    <strong>CÃ³digo</strong>
                                     <span>{detailItem.report_code}</span>
                                 </div>
                                 <div className="admin-detail-row">
@@ -365,7 +379,7 @@ export default function ReportesAdmin() {
                                     <span>{getProblemReportReporterRoleLabel(detailItem.reporter_role)}</span>
                                 </div>
                                 <div className="admin-detail-row">
-                                    <strong>Módulo</strong>
+                                    <strong>MÃ³dulo</strong>
                                     <span>{getSourceModuleLabel(detailItem.source_module)}</span>
                                 </div>
                                 <div className="admin-detail-row">
@@ -387,7 +401,7 @@ export default function ReportesAdmin() {
                             </div>
 
                             <label>
-                                <span>Descripción</span>
+                                <span>DescripciÃ³n</span>
                                 <textarea value={detailItem.description} readOnly />
                             </label>
 
@@ -452,7 +466,9 @@ export default function ReportesAdmin() {
                         <button
                             type="button"
                             className="admin-btn primary"
-                            onClick={() => void handleSubmitUpdate()}
+                            onClick={() => {
+                                handleSubmitUpdate().catch(swallowReportActionError);
+                            }}
                             disabled={loadingDetail || !detailItem || submittingUpdate}
                         >
                             {submittingUpdate ? 'Guardando...' : 'Guardar cambios'}
@@ -463,3 +479,4 @@ export default function ReportesAdmin() {
         </div>
     );
 }
+

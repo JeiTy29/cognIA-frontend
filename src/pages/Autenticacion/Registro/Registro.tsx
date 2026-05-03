@@ -27,6 +27,8 @@ type TipoUsuario = 'padre' | 'psicologo' | null;
 
 type ErrorMessage = string | null;
 
+const LEGAL_LINK_CLASS_NAME = 'link-highlight auth-inline-link';
+
 export default function Registro() {
     const navigate = useNavigate();
     const { submit, loading } = useRegister();
@@ -172,7 +174,7 @@ export default function Registro() {
             }
 
             setSubmitSuccess(true);
-            setTimeout(() => {
+            globalThis.setTimeout(() => {
                 navigate('/inicio-sesion');
             }, 1200);
         } catch (error) {
@@ -216,21 +218,23 @@ export default function Registro() {
 
                     {!rolSeleccionado ? (
                         <div className="role-selection-horizontal">
-                            <div
+                            <button
+                                type="button"
                                 className="role-card-vertical"
                                 onClick={() => handleRolSelect('padre')}
                             >
                                 <div className="role-image-placeholder"></div>
                                 <h3 className="role-text">Soy padre, tutor o guardian</h3>
-                            </div>
+                            </button>
 
-                            <div
+                            <button
+                                type="button"
                                 className="role-card-vertical"
                                 onClick={() => handleRolSelect('psicologo')}
                             >
                                 <div className="role-image-placeholder"></div>
                                 <h3 className="role-text">Soy psicólogo</h3>
-                            </div>
+                            </button>
                         </div>
                     ) : (
                         <div className="form-container-animated">
@@ -358,9 +362,27 @@ export default function Registro() {
                                         <div className="terms-text-wrapper">
                                             <label htmlFor="terms">
                                                 Confirmo haber leído y acepto los{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
+                                                <button
+                                                    type="button"
+                                                    className={LEGAL_LINK_CLASS_NAME}
+                                                    onClick={() => {
+                                                        setShowTerms(true);
+                                                        setHasOpenedTerms(true);
+                                                    }}
+                                                >
+                                                    Términos de uso
+                                                </button>
                                                 {' '}y{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
+                                                <button
+                                                    type="button"
+                                                    className={LEGAL_LINK_CLASS_NAME}
+                                                    onClick={() => {
+                                                        setShowPrivacy(true);
+                                                        setHasOpenedPrivacy(true);
+                                                    }}
+                                                >
+                                                    Políticas de privacidad
+                                                </button>
                                             </label>
                                             {!hasOpenedTerms || !hasOpenedPrivacy ? (
                                                 <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
@@ -510,9 +532,27 @@ export default function Registro() {
                                         <div className="terms-text-wrapper">
                                             <label htmlFor="terms">
                                                 Confirmo haber leído y acepto los{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowTerms(true); setHasOpenedTerms(true); }}>Términos de uso</a>
+                                                <button
+                                                    type="button"
+                                                    className={LEGAL_LINK_CLASS_NAME}
+                                                    onClick={() => {
+                                                        setShowTerms(true);
+                                                        setHasOpenedTerms(true);
+                                                    }}
+                                                >
+                                                    Términos de uso
+                                                </button>
                                                 {' '}y{' '}
-                                                <a href="#" className="link-highlight" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); setHasOpenedPrivacy(true); }}>Políticas de privacidad</a>
+                                                <button
+                                                    type="button"
+                                                    className={LEGAL_LINK_CLASS_NAME}
+                                                    onClick={() => {
+                                                        setShowPrivacy(true);
+                                                        setHasOpenedPrivacy(true);
+                                                    }}
+                                                >
+                                                    Políticas de privacidad
+                                                </button>
                                             </label>
                                             {!hasOpenedTerms || !hasOpenedPrivacy ? (
                                                 <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
