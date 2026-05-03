@@ -3,6 +3,12 @@ import { useLocation } from 'react-router-dom';
 import './Metricas.css';
 import { useMetrics } from '../../../hooks/metrics/useMetrics';
 
+type ServiceState = 'ok' | 'loading' | 'error';
+type DatabaseState = 'ready' | 'not_ready' | 'error' | 'loading';
+type StatusDonutProps = Readonly<{
+    counts: Record<'200' | '401' | '500', number>;
+}>;
+
 function formatUptime(seconds: number) {
     if (seconds < 60) return `${seconds} s`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
@@ -24,7 +30,43 @@ function buildSparklinePath(values: number[], width: number, height: number) {
         .join(' ');
 }
 
-function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number> }) {
+function resolveServiceAccentClass(status: ServiceState) {
+    if (status === 'ok') return 'accent-green';
+    if (status === 'error') return 'accent-red';
+    return 'accent-blue';
+}
+
+function resolveServiceStatusDotClass(status: ServiceState) {
+    if (status === 'ok') return 'status-ok';
+    if (status === 'error') return 'status-error';
+    return 'status-warn';
+}
+
+function resolveServiceStatusLabel(status: ServiceState) {
+    if (status === 'ok') return 'OK';
+    if (status === 'loading') return 'Cargando';
+    return 'No disponible';
+}
+
+function resolveDatabaseBadgeLabel(status: DatabaseState) {
+    if (status === 'ready') return 'OK';
+    if (status === 'loading') return 'Cargando';
+    return 'No disponible';
+}
+
+function resolveDatabaseStatusDotClass(status: DatabaseState) {
+    if (status === 'ready') return 'status-ok';
+    if (status === 'loading') return 'status-warn';
+    return 'status-error';
+}
+
+function resolveDatabaseAccentClass(status: DatabaseState) {
+    if (status === 'ready') return 'accent-green';
+    if (status === 'loading') return 'accent-blue';
+    return 'accent-red';
+}
+
+function StatusDonut({ counts }: StatusDonutProps) {
     const total = counts['200'] + counts['401'] + counts['500'];
     const radius = 28;
     const circumference = 2 * Math.PI * radius;
@@ -36,7 +78,7 @@ function StatusDonut({ counts }: { counts: Record<'200' | '401' | '500', number>
     let offset = 0;
 
     return (
-        <svg className="metricas-donut" viewBox="0 0 80 80" role="img" aria-label="Conteo de estados HTTP">
+        <svg className="metricas-donut" viewBox="0 0 80 80" aria-label="Conteo de estados HTTP">
             {segments.map((segment) => {
                 const dash = total > 0 ? (segment.value / total) * circumference : 0;
                 const strokeDasharray = `${dash} ${circumference - dash}`;
@@ -98,38 +140,14 @@ export default function Metricas() {
         return 'status-error';
     }, [latencyMax]);
 
-    const dbBadgeLabel = dbState.status === 'ready'
-        ? 'OK'
-        : dbState.status === 'not_ready'
-            ? 'No disponible'
-            : dbState.status === 'error'
-                ? 'No disponible'
-                : 'Cargando';
-    const dbStatusDot = dbState.status === 'ready'
-        ? 'status-ok'
-        : dbState.status === 'not_ready' || dbState.status === 'error'
-            ? 'status-error'
-            : 'status-warn';
-    const dbAccentClass = dbState.status === 'ready'
-        ? 'accent-green'
-        : dbState.status === 'not_ready' || dbState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const serverAccentClass = serverState.status === 'ok'
-        ? 'accent-green'
-        : serverState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const emailAccentClass = emailState.status === 'ok'
-        ? 'accent-green'
-        : emailState.status === 'error'
-            ? 'accent-red'
-            : 'accent-blue';
-    const emailStatusDot = emailState.status === 'ok'
-        ? 'status-ok'
-        : emailState.status === 'error'
-            ? 'status-error'
-            : 'status-warn';
+    const dbBadgeLabel = resolveDatabaseBadgeLabel(dbState.status);
+    const dbStatusDot = resolveDatabaseStatusDotClass(dbState.status);
+    const dbAccentClass = resolveDatabaseAccentClass(dbState.status);
+    const serverAccentClass = resolveServiceAccentClass(serverState.status);
+    const serverStatusDot = resolveServiceStatusDotClass(serverState.status);
+    const serverStatusLabel = resolveServiceStatusLabel(serverState.status);
+    const emailAccentClass = resolveServiceAccentClass(emailState.status);
+    const emailStatusDot = resolveServiceStatusDotClass(emailState.status);
 
     return (
         <div className="metricas">
@@ -144,10 +162,8 @@ export default function Metricas() {
                 <div className={`metricas-block ${serverAccentClass}`}>
                     <div className="metricas-block-title">Estado del servidor</div>
                     <div className="metricas-status">
-                        <span className={`status-dot ${serverState.status === 'ok' ? 'status-ok' : 'status-error'}`} aria-hidden="true" />
-                        <span className="status-label">
-                            {serverState.status === 'ok' ? 'OK' : serverState.status === 'loading' ? 'Cargando' : 'No disponible'}
-                        </span>
+                        <span className={`status-dot ${serverStatusDot}`} aria-hidden="true" />
+                        <span className="status-label">{serverStatusLabel}</span>
                     </div>
                     <div className="metricas-small">
                         {serverState.status === 'ok' ? 'Servidor operativo' : 'No disponible'}
@@ -201,7 +217,7 @@ export default function Metricas() {
                                 <span className="metricas-label">Latencia promedio</span>
                                 <div className="metricas-value">{latencyAvg !== null ? `${latencyAvg.toFixed(1)} ms` : '--'}</div>
                                 {latencyHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" role="img" aria-label="Tendencia de latencia">
+                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" aria-label="Tendencia de latencia">
                                         <path
                                             className="sparkline-path"
                                             d={buildSparklinePath(latencyHistory, 120, 40)}
@@ -218,7 +234,7 @@ export default function Metricas() {
                                 <span className="metricas-label">Solicitudes totales</span>
                                 <div className="metricas-value">{requestsTotal ?? '--'}</div>
                                 {requestHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" role="img" aria-label="Tendencia de solicitudes">
+                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" aria-label="Tendencia de solicitudes">
                                         <path
                                             className="sparkline-path"
                                             d={buildSparklinePath(requestHistory, 120, 40)}

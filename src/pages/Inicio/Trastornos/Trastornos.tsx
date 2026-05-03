@@ -55,8 +55,9 @@ export default function Trastornos() {
                     <div className="circle-diagram">
                         <div className="large-circle"></div>
                         {disorders.map((disorder, index) => (
-                            <div
-                                key={index}
+                            <button
+                                type="button"
+                                key={disorder.title}
                                 className={`disorder-circle ${expandedDisorder === index ? 'expanded' : ''} ${hoveredDisorder === index && expandedDisorder !== index ? 'hovered' : ''}`}
                                 data-position={disorder.position}
                                 onClick={(event) => {
@@ -69,7 +70,7 @@ export default function Trastornos() {
                                 <img className="disorder-icon" src={disorder.icon} alt={disorder.title} />
                                 <h3 className="disorder-title">{disorder.title}</h3>
                                 <p className="disorder-full-description">{disorder.fullDescription}</p>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>

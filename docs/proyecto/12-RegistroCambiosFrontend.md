@@ -556,6 +556,35 @@ Toda implementacion nueva debe agregar una entrada en este archivo con:
 - `npm run lint`
 - `npm run build`
 
+## 2026-05-03 - Reduccion adicional de deuda tecnica de bajo riesgo
+
+### Modulos afectados
+
+- `src/pages/Inicio/Trastornos/Trastornos.tsx`
+- `src/pages/Inicio/Trastornos/Trastornos.css`
+- `src/pages/Autenticacion/Registro/Registro.tsx`
+- `src/pages/Autenticacion/Registro/Registro.css`
+- `src/utils/presentation/naturalLanguage.ts`
+- `src/pages/Administrador/Metricas/Metricas.tsx`
+- `src/utils/auth/jwt.ts`
+- `src/pages/Administrador/Reportes/Reportes.tsx`
+- `src/pages/Administrador/Dashboard/Dashboard.tsx`
+
+### Ajuste aplicado
+
+- La vista de trastornos convierte sus tarjetas interactivas a botones semanticos y reemplaza la `key` por indice con una clave estable basada en el titulo, manteniendo el mismo comportamiento visual.
+- Registro convierte la seleccion de rol en botones reales, reemplaza los enlaces simulados de terminos y privacidad por botones estilizados y usa `globalThis.setTimeout` en la redireccion tras crear cuenta.
+- `naturalLanguage.ts` reduce deuda mecanica extrayendo helpers de normalizacion y resolucion de porcentajes, ademas de eliminar una assertion innecesaria.
+- Metricas extrae resolvedores de estado reutilizables, marca props como `Readonly` y elimina `role="img"` redundante en SVGs informativos.
+- `jwt.ts` reemplaza dos regex globales simples por `replaceAll` en la normalizacion Base64.
+- Reportes evita promesas flotantes en acciones visibles del listado y del modal, y extrae el render del contenido tabular.
+- Dashboard mejora claves React de colecciones renderizadas para no depender del indice puro cuando existe contenido estable reutilizable.
+
+### Validacion local
+
+- `npm run lint`
+- `npm run build`
+
 ## 2026-05-03 - Correcciones puntuales para bloqueadores de Sonar
 
 ### Modulos afectados
