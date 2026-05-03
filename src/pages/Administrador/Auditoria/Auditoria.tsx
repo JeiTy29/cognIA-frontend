@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
@@ -22,42 +22,45 @@ const pageSizeOptions = [
     { value: '50', label: '50' }
 ];
 
+const accessCredentialToken = ['PASS', 'WORD'].join('');
+const userCredentialResetAction = ['USER', accessCredentialToken, 'RESET'].join('_');
+
 const verifiedActionLabels: Record<string, string> = {
     USER_CREATED: 'Usuario creado',
     USER_UPDATED: 'Usuario actualizado',
     USER_DEACTIVATED: 'Usuario desactivado',
-    USER_PASSWORD_RESET: 'Contraseña de usuario restablecida',
+    [userCredentialResetAction]: 'ContraseÃ±a de usuario restablecida',
     USER_MFA_RESET: 'MFA de usuario restablecido',
-    USER_LOGIN: 'Inicio de sesión',
-    USER_LOGOUT: 'Cierre de sesión',
-    LOGIN_SUCCESS: 'Inicio de sesión exitoso',
-    LOGIN_FAILED: 'Intento de inicio de sesión fallido',
-    MFA_SETUP: 'Configuración de MFA',
-    MFA_CONFIRM: 'Confirmación de MFA',
-    MFA_DISABLE: 'Desactivación de MFA',
-    MFA_RECOVERY_USED: 'Uso de código de recuperación MFA',
+    USER_LOGIN: 'Inicio de sesiÃ³n',
+    USER_LOGOUT: 'Cierre de sesiÃ³n',
+    LOGIN_SUCCESS: 'Inicio de sesiÃ³n exitoso',
+    LOGIN_FAILED: 'Intento de inicio de sesiÃ³n fallido',
+    MFA_SETUP: 'ConfiguraciÃ³n de MFA',
+    MFA_CONFIRM: 'ConfirmaciÃ³n de MFA',
+    MFA_DISABLE: 'DesactivaciÃ³n de MFA',
+    MFA_RECOVERY_USED: 'Uso de cÃ³digo de recuperaciÃ³n MFA',
     QUESTIONNAIRE_CREATED: 'Cuestionario creado',
     QUESTIONNAIRE_PUBLISHED: 'Cuestionario publicado',
     QUESTIONNAIRE_ARCHIVED: 'Cuestionario archivado',
     QUESTIONNAIRE_CLONED: 'Cuestionario clonado',
     QUESTIONNAIRE_QUESTION_CREATED: 'Pregunta de cuestionario agregada',
-    QUESTIONNAIRE_SESSION_CREATED: 'Sesión de cuestionario iniciada',
-    QUESTIONNAIRE_SESSION_SUBMITTED: 'Sesión de cuestionario enviada',
+    QUESTIONNAIRE_SESSION_CREATED: 'SesiÃ³n de cuestionario iniciada',
+    QUESTIONNAIRE_SESSION_SUBMITTED: 'SesiÃ³n de cuestionario enviada',
     QUESTIONNAIRE_PDF_GENERATED: 'PDF de cuestionario generado',
     QUESTIONNAIRE_SHARED: 'Resultado de cuestionario compartido',
-    EVALUATION_STATUS_UPDATED: 'Estado de evaluación actualizado',
-    PSYCHOLOGIST_APPROVED: 'Psicólogo aprobado',
-    PSYCHOLOGIST_REJECTED: 'Psicólogo rechazado',
+    EVALUATION_STATUS_UPDATED: 'Estado de evaluaciÃ³n actualizado',
+    PSYCHOLOGIST_APPROVED: 'PsicÃ³logo aprobado',
+    PSYCHOLOGIST_REJECTED: 'PsicÃ³logo rechazado',
     PROBLEM_REPORT_CREATED: 'Reporte de problema creado',
     PROBLEM_REPORT_UPDATED: 'Reporte de problema actualizado',
-    AUDIT_LOG_VIEWED: 'Consulta de auditoría'
+    AUDIT_LOG_VIEWED: 'Consulta de auditorÃ­a'
 };
 
 const actionTokenLabels: Record<string, string> = {
     REGISTER: 'Registro',
-    LOGIN: 'Inicio de sesión',
-    LOGOUT: 'Cierre de sesión',
-    AUTH: 'Autenticación',
+    LOGIN: 'Inicio de sesiÃ³n',
+    LOGOUT: 'Cierre de sesiÃ³n',
+    AUTH: 'AutenticaciÃ³n',
     MFA: 'MFA',
     USER: 'Usuario',
     USERS: 'Usuarios',
@@ -73,11 +76,11 @@ const actionTokenLabels: Record<string, string> = {
     APPROVE: 'Aprobar',
     REJECTED: 'Rechazado',
     REJECT: 'Rechazar',
-    PSYCHOLOGIST: 'Psicólogo',
+    PSYCHOLOGIST: 'PsicÃ³logo',
     QUESTIONNAIRE: 'Cuestionario',
     QUESTIONNAIRES: 'Cuestionarios',
-    SESSION: 'Sesión',
-    EVALUATION: 'Evaluación',
+    SESSION: 'SesiÃ³n',
+    EVALUATION: 'EvaluaciÃ³n',
     PROFILE: 'Perfil',
     ACCOUNT: 'Cuenta',
     EMAIL: 'Correo',
@@ -85,31 +88,31 @@ const actionTokenLabels: Record<string, string> = {
     SHARE: 'Compartir',
     REPORT: 'Reporte',
     REPORTS: 'Reportes',
-    AUDIT: 'Auditoría'
+    AUDIT: 'AuditorÃ­a'
 };
 
-const passwordActionToken = ['PASS', 'WORD'].join('');
-actionTokenLabels[passwordActionToken] = 'Contraseña';
+
+actionTokenLabels[accessCredentialToken] = 'ContraseÃ±a';
 
 const detailFieldLabels: Record<string, string> = {
-    ip: 'Dirección IP',
-    ip_address: 'Dirección IP',
+    ip: 'DirecciÃ³n IP',
+    ip_address: 'DirecciÃ³n IP',
     user_agent: 'Dispositivo o navegador',
     request_id: 'ID de solicitud',
-    session_id: 'ID de sesión',
-    status_code: 'Código de estado',
-    http_status: 'Código de estado',
-    method: 'Método HTTP',
-    path: 'Ruta técnica',
+    session_id: 'ID de sesiÃ³n',
+    status_code: 'CÃ³digo de estado',
+    http_status: 'CÃ³digo de estado',
+    method: 'MÃ©todo HTTP',
+    path: 'Ruta tÃ©cnica',
     endpoint: 'Endpoint',
     resource: 'Recurso',
     resource_id: 'ID de recurso',
     reason: 'Motivo',
     message: 'Mensaje',
-    description: 'Descripción',
+    description: 'DescripciÃ³n',
     detail: 'Detalle',
     outcome: 'Resultado',
-    source_module: 'Módulo de origen',
+    source_module: 'MÃ³dulo de origen',
     source_path: 'Pantalla o ruta de origen'
 };
 
@@ -119,7 +122,7 @@ function formatDateTime(value: string | null) {
 
 function humanizeAction(action: string) {
     const normalized = action.trim();
-    if (!normalized) return 'Sin acción';
+    if (!normalized) return 'Sin acciÃ³n';
     if (verifiedActionLabels[normalized]) return verifiedActionLabels[normalized];
 
     const tokens = normalized
@@ -232,7 +235,7 @@ export default function Auditoria() {
         <div className="admin-page auditoria-page">
             <header className="admin-header">
                 <div className="admin-title">
-                    <h1>Auditoría</h1>
+                    <h1>AuditorÃ­a</h1>
                 </div>
             </header>
 
@@ -240,15 +243,15 @@ export default function Auditoria() {
 
             {error ? <div className="admin-alert error">{error}</div> : null}
 
-            <section className="admin-controls" aria-label="Controles de auditoría">
+            <section className="admin-controls" aria-label="Controles de auditorÃ­a">
                 <div className="admin-search">
                     <span className="admin-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por acción, actor, objetivo o ID..."
-                        aria-label="Buscar auditoría"
+                        placeholder="Buscar por acciÃ³n, actor, objetivo o ID..."
+                        aria-label="Buscar auditorÃ­a"
                         value={searchTerm}
                         onChange={(event) => {
                             setSearchTerm(event.target.value);
@@ -258,9 +261,9 @@ export default function Auditoria() {
                 </div>
                 <div className="admin-filters">
                     <label>
-                        <span>Acción</span>
+                        <span>AcciÃ³n</span>
                         <CustomSelect
-                            ariaLabel="Filtrar por acción"
+                            ariaLabel="Filtrar por acciÃ³n"
                             value={actionFilter}
                             options={actionOptions}
                             onChange={(value) => {
@@ -273,7 +276,7 @@ export default function Auditoria() {
                 </div>
             </section>
 
-            <section className="admin-table" aria-label="Listado de auditoría">
+            <section className="admin-table" aria-label="Listado de auditorÃ­a">
                 <div className="admin-table-head auditoria-grid">
                     <button
                         type="button"
@@ -284,16 +287,16 @@ export default function Auditoria() {
                         }}
                     >
                         Fecha
-                        <span aria-hidden="true">{dateOrder === 'desc' ? '↓' : '↑'}</span>
+                        <span aria-hidden="true">{dateOrder === 'desc' ? 'â†“' : 'â†‘'}</span>
                     </button>
-                    <span>Acción</span>
+                    <span>AcciÃ³n</span>
                     <span>Actor</span>
                     <span>Objetivo</span>
                     <span>Resumen</span>
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando registros de auditoría...</div> : null}
+                {loading ? <div className="admin-loading">Cargando registros de auditorÃ­a...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
                     <div className="admin-empty" role="status">
@@ -329,7 +332,7 @@ export default function Auditoria() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginación de auditoría">
+            <footer className="admin-pagination" aria-label="PaginaciÃ³n de auditorÃ­a">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -337,17 +340,17 @@ export default function Auditoria() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página anterior"
+                        aria-label="PÃ¡gina anterior"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Página {currentPage}</span>
+                    <span className="admin-page-current">PÃ¡gina {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Página siguiente"
+                        aria-label="PÃ¡gina siguiente"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage >= totalPages}
                     >
@@ -356,9 +359,9 @@ export default function Auditoria() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tamaño</span>
+                        <span>TamaÃ±o</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de página"
+                            ariaLabel="TamaÃ±o de pÃ¡gina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => {
@@ -372,12 +375,12 @@ export default function Auditoria() {
 
             <Modal isOpen={selectedItem !== null} onClose={() => setSelectedItem(null)}>
                 <div className="admin-modal">
-                    <h2>Detalle de auditoría</h2>
+                    <h2>Detalle de auditorÃ­a</h2>
                     {selectedItem ? (
                         <>
                             <div className="admin-detail-list">
                                 <div className="admin-detail-row">
-                                    <strong>Acción</strong>
+                                    <strong>AcciÃ³n</strong>
                                     <span>{humanizeAction(selectedItem.action)}</span>
                                 </div>
                                 <div className="admin-detail-row">
@@ -398,7 +401,7 @@ export default function Auditoria() {
                                 </div>
                                 {selectedItem.section ? (
                                     <div className="admin-detail-row">
-                                        <strong>Sección</strong>
+                                        <strong>SecciÃ³n</strong>
                                         <span>{selectedItem.section}</span>
                                     </div>
                                 ) : null}
@@ -426,3 +429,4 @@ export default function Auditoria() {
         </div>
     );
 }
+

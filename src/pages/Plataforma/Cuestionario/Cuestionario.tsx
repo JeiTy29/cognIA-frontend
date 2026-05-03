@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import '../Plataforma.css';
 import './Cuestionario.css';
 import { ApiError } from '../../../services/api/httpClient';
@@ -51,12 +51,31 @@ const DEFAULT_NUMBER_STEP = 0.1;
 
 type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
 type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
+type PollTimer = ReturnType<typeof globalThis.setTimeout> | null;
 
 interface ProcessingStep {
     id: 'receive' | 'analyze' | 'generate';
     title: string;
     description: string;
     state: ProcessingStepState;
+}
+
+function swallowQuestionnaireAsyncError() {
+    return undefined;
+}
+
+function runQuestionnaireTask(task: () => Promise<void>) {
+    task().catch(swallowQuestionnaireAsyncError);
+}
+
+function scheduleQuestionnairePoll(
+    timerRef: MutableRefObject<PollTimer>,
+    task: () => Promise<void>,
+    delay: number
+) {
+    timerRef.current = globalThis.setTimeout(() => {
+        runQuestionnaireTask(task);
+    }, delay);
 }
 
 function roleToApiRole(role: string | null) {
@@ -674,7 +693,7 @@ export default function Cuestionario() {
     const [sessionSnapshot, setSessionSnapshot] = useState<QuestionnaireSessionV2DTO | null>(null);
     const activeRef = useRef<HTMLDivElement | null>(null);
     const isMountedRef = useRef(true);
-    const pollingTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+    const pollingTimerRef = useRef<PollTimer>(null);
     const pollingTokenRef = useRef(0);
     const pollingStartedAtRef = useRef<number | null>(null);
     const completionPayloadRef = useRef<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -805,9 +824,7 @@ export default function Cuestionario() {
                     return;
                 }
 
-                pollingTimerRef.current = globalThis.setTimeout(() => {
-                    poll().catch(() => undefined);
-                }, PROCESSING_POLL_INTERVAL_MS);
+                scheduleQuestionnairePoll(pollingTimerRef, poll, PROCESSING_POLL_INTERVAL_MS);
             } catch (requestError) {
                 if (!isMountedRef.current || pollingTokenRef.current !== currentToken) return;
                 setCompletionPhase('failed');
@@ -816,7 +833,7 @@ export default function Cuestionario() {
             }
         };
 
-        poll().catch(() => undefined);
+        runQuestionnaireTask(poll);
     }, [stopPolling]);
 
     useEffect(() => {

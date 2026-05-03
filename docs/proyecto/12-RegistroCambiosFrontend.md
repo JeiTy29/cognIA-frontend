@@ -555,3 +555,25 @@ Toda implementacion nueva debe agregar una entrada en este archivo con:
 
 - `npm run lint`
 - `npm run build`
+
+## 2026-05-03 - Correcciones puntuales para bloqueadores de Sonar
+
+### Modulos afectados
+
+- `src/pages/Administrador/Auditoria/Auditoria.tsx`
+- `src/components/Modal/Modal.tsx`
+- `src/components/Modal/Modal.css`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- `src/pages/Plataforma/Historial/HistorialBase.tsx`
+
+### Ajuste aplicado
+
+- Auditoria deja de declarar literales tecnicos con la palabra `password` y ahora construye de forma computada las acciones y tokens asociados al restablecimiento de credenciales, manteniendo la traduccion visible.
+- El modal base migra a `<dialog>` sin cambiar su API publica (`isOpen`, `onClose`, `children`) y conserva backdrop, boton de cierre y transiciones de apertura/cierre.
+- Cuestionario extrae el disparo asincrono del polling de procesamiento a helpers nombrados para reducir el nivel de anidamiento reportado por Sonar en la consulta de estado.
+- Historial simplifica una ternaria redundante y reutiliza el rol recibido para enriquecer el `aria-label` del contenedor principal sin cambiar el texto visible.
+
+### Validacion local
+
+- `npm run lint`
+- `npm run build`

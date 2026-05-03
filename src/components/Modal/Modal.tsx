@@ -40,33 +40,42 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
                 globalThis.clearTimeout(closeEndTimer);
             };
         }
+
         return undefined;
     }, [isOpen, isVisible]);
 
     if (!isVisible) return null;
 
     return (
-        <div className={`modal-overlay ${isClosing ? 'is-closing' : ''} ${isOpening ? 'is-opening' : ''}`}>
+        <dialog
+            className={`modal-dialog ${isClosing ? 'is-closing' : ''} ${isOpening ? 'is-opening' : ''}`}
+            open={isVisible}
+            aria-modal="true"
+            onCancel={(event) => {
+                event.preventDefault();
+                onClose();
+            }}
+        >
             <button
                 type="button"
                 className="modal-backdrop"
                 aria-label="Cerrar modal"
                 onClick={onClose}
             />
-            <div
-                className="modal-content"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={dialogTitleId}
-            >
+            <div className="modal-content" aria-labelledby={dialogTitleId}>
                 <span id={dialogTitleId} className="modal-visually-hidden">
                     Contenido modal
                 </span>
-                <button type="button" className="modal-close" aria-label="Cerrar modal" onClick={onClose}>
+                <button
+                    type="button"
+                    className="modal-close"
+                    aria-label="Cerrar modal"
+                    onClick={onClose}
+                >
                     &times;
                 </button>
                 {children}
             </div>
-        </div>
+        </dialog>
     );
 }
