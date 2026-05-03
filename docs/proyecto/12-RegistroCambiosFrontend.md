@@ -512,3 +512,46 @@ Toda implementacion nueva debe agregar una entrada en este archivo con:
 ### Impacto funcional
 
 - El flujo de `Continuar cuestionario` retoma de forma mas consistente desde el punto real de avance y evita reinicios aparentes por respuestas no hidratadas.
+
+## 2026-05-02 - Endurecimiento de auth y accesibilidad para Sonar
+
+### Modulos afectados
+
+- `src/utils/auth/storage.ts`
+- `src/components/ProtectedRoute/ProtectedRoute.tsx`
+- `src/components/Modal/Modal.tsx`
+- `src/components/Modal/Modal.css`
+- `src/pages/Autenticacion/MFA/MFA.tsx`
+- `src/pages/Autenticacion/MFA/MFA.css`
+- `src/pages/Administrador/Auditoria/Auditoria.tsx`
+- `src/utils/auth/events.ts`
+- `src/hooks/useUsers.ts`
+- `src/hooks/usePsychologists.ts`
+- `src/hooks/useMyProblemReports.ts`
+- `src/hooks/useAuditLogs.ts`
+- `src/hooks/useAdminQuestionnaires.ts`
+- `src/hooks/useAdminProblemReports.ts`
+- `src/hooks/useAdminEvaluations.ts`
+- `src/hooks/questionnaires/useQuestionnaireHistoryV2.ts`
+- `src/hooks/dashboard/useDashboard.ts`
+- `src/hooks/metrics/useMetrics.ts`
+- `src/components/MFA/MfaSetupView.tsx`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- `scripts/ops/deploy_frontend_self_hosted.sh`
+
+### Ajuste aplicado
+
+- El storage de autenticacion ahora conserva el access token en memoria y valida formato antes de aceptarlo, reduciendo exposicion innecesaria en `sessionStorage` sin cambiar contratos del backend.
+- `ProtectedRoute` evita promesas flotantes al intentar el refresh silencioso de sesion.
+- El modal base usa semantica accesible de dialogo, backdrop interactivo real y timers basados en `globalThis`.
+- La pantalla MFA reemplaza el agrupador ARIA generico por `fieldset/legend`, evita `key` por indice y normaliza el saneado de digitos con `replaceAll`.
+- Auditoria deja de exponer la clave literal `PASSWORD` para evitar falso positivo de secreto hardcodeado sin perder la traduccion de eventos de contrasena.
+- Se unificaron timers y disparos asincronos de hooks/pantallas a `globalThis` + `catch(() => undefined)` para reducir promesas flotantes y usos de `window` reportados por Sonar sin cambiar el comportamiento de carga.
+- `useMetrics` y `Cuestionario` ajustan refs de polling a `ReturnType<typeof globalThis.setTimeout>` y simplifican `slice(next.length - 30)` a `slice(-30)`.
+- `MfaSetupView` elimina otro saneado con regex global tradicional en favor de `replaceAll`.
+- El script Bash de despliegue migra comparaciones a `[[ ... ]]` manteniendo intacta la logica operativa.
+
+### Validacion local
+
+- `npm run lint`
+- `npm run build`

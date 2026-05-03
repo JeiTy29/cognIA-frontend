@@ -175,10 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (devAuthActive) {
-            const timeoutId = window.setTimeout(() => {
+            const timeoutId = globalThis.setTimeout(() => {
                 setIsAuthLoading(false);
             }, 0);
-            return () => window.clearTimeout(timeoutId);
+            return () => globalThis.clearTimeout(timeoutId);
         }
         const invalidToken = !!storedToken && !storedPayload;
         const expired = invalidToken
@@ -192,61 +192,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (invalidToken || expired) {
             removeStoredToken();
             removeStoredExpiresAt();
-            const timeoutId = window.setTimeout(() => {
-                                setAccessToken(null);
-                                setRoles([]);
-                                setUserId(null);
-                                setExpiresAt(null);
+            const timeoutId = globalThis.setTimeout(() => {
+                setAccessToken(null);
+                setRoles([]);
+                setUserId(null);
+                setExpiresAt(null);
             }, 0);
-            return () => window.clearTimeout(timeoutId);
+            return () => globalThis.clearTimeout(timeoutId);
         }
 
         if (!storedToken || invalidToken || expired) {
             if (!refreshAttemptedRef.current) {
                 refreshAttemptedRef.current = true;
-                const timeoutId = window.setTimeout(() => {
-                    void refreshSession();
+                const timeoutId = globalThis.setTimeout(() => {
+                    refreshSession().catch(() => false);
                 }, 0);
-                return () => window.clearTimeout(timeoutId);
+                return () => globalThis.clearTimeout(timeoutId);
             }
-            const timeoutId = window.setTimeout(() => {
+            const timeoutId = globalThis.setTimeout(() => {
                 setIsAuthLoading(false);
             }, 0);
-            return () => window.clearTimeout(timeoutId);
+            return () => globalThis.clearTimeout(timeoutId);
         }
 
-        const timeoutId = window.setTimeout(() => {
+        const timeoutId = globalThis.setTimeout(() => {
             setIsAuthLoading(false);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [devAuthActive, storedToken, storedPayload, storedExpiresAt, refreshSession]);
 
     useEffect(() => {
         if (devAuthActive) {
             if (devProfile) {
-                const timeoutId = window.setTimeout(() => {
+                const timeoutId = globalThis.setTimeout(() => {
                     setProfile(devProfile);
                     setProfileStatus('success');
                     setProfileErrorStatus(null);
                 }, 0);
-                return () => window.clearTimeout(timeoutId);
+                return () => globalThis.clearTimeout(timeoutId);
             }
             return;
         }
         if (!accessToken) {
-            const timeoutId = window.setTimeout(() => {
+            const timeoutId = globalThis.setTimeout(() => {
                 setProfile(null);
                 setProfileStatus('idle');
                 setProfileErrorStatus(null);
             }, 0);
-            return () => window.clearTimeout(timeoutId);
+            return () => globalThis.clearTimeout(timeoutId);
         }
         if (isAuthLoading) return;
         if (expiresAt && Date.now() >= expiresAt) return;
-        const timeoutId = window.setTimeout(() => {
-            void reloadProfile();
+        const timeoutId = globalThis.setTimeout(() => {
+            reloadProfile().catch(() => undefined);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [accessToken, isAuthLoading, expiresAt, reloadProfile, devProfile, devAuthActive]);
 
     useEffect(() => {
@@ -261,15 +261,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!expiresAt) return;
         const timeLeft = expiresAt - Date.now();
         if (timeLeft <= 0) {
-            const timeoutId = window.setTimeout(() => {
-                void refreshSession({ silent: true });
+            const timeoutId = globalThis.setTimeout(() => {
+                refreshSession({ silent: true }).catch(() => false);
             }, 0);
-            return () => window.clearTimeout(timeoutId);
+            return () => globalThis.clearTimeout(timeoutId);
         }
-        const timeoutId = window.setTimeout(() => {
-            void refreshSession({ silent: true });
+        const timeoutId = globalThis.setTimeout(() => {
+            refreshSession({ silent: true }).catch(() => false);
         }, timeLeft);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [expiresAt, refreshSession, devAuthActive]);
 
     const effectiveRoles = devAuthActive && devProfile?.roles ? devProfile.roles : roles;

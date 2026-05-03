@@ -82,10 +82,10 @@ export function useAuditLogs() {
     }, [handleUnauthorized]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadAuditLogs();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadAuditLogs().catch(() => undefined);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadAuditLogs]);
 
     return {

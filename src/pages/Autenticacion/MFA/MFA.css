@@ -90,6 +90,21 @@
     gap: 8px;
 }
 
+.mfa-code-fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.mfa-code-legend {
+    padding: 0;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4f6377;
+}
+
 .mfa-code-digit {
     width: 100%;
     height: 48px;

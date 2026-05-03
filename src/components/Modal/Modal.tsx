@@ -1,42 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import './Modal.css';
 
-interface ModalProps {
+type ModalProps = Readonly<{
     isOpen: boolean;
     onClose: () => void;
-    children: React.ReactNode;
-}
+    children: ReactNode;
+}>;
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+export function Modal({ isOpen, onClose, children }: ModalProps) {
     const [isVisible, setIsVisible] = useState(isOpen);
     const [isClosing, setIsClosing] = useState(false);
     const [isOpening, setIsOpening] = useState(false);
+    const dialogTitleId = useId();
 
     useEffect(() => {
         if (isOpen) {
-            const openTimer = window.setTimeout(() => {
+            const openTimer = globalThis.setTimeout(() => {
                 setIsVisible(true);
                 setIsClosing(false);
                 setIsOpening(true);
             }, 0);
-            const openEndTimer = window.setTimeout(() => setIsOpening(false), 420);
+            const openEndTimer = globalThis.setTimeout(() => setIsOpening(false), 420);
             return () => {
-                window.clearTimeout(openTimer);
-                window.clearTimeout(openEndTimer);
+                globalThis.clearTimeout(openTimer);
+                globalThis.clearTimeout(openEndTimer);
             };
         }
 
         if (isVisible) {
-            const closeTimer = window.setTimeout(() => {
+            const closeTimer = globalThis.setTimeout(() => {
                 setIsClosing(true);
             }, 0);
-            const closeEndTimer = window.setTimeout(() => {
+            const closeEndTimer = globalThis.setTimeout(() => {
                 setIsVisible(false);
                 setIsClosing(false);
             }, 380);
             return () => {
-                window.clearTimeout(closeTimer);
-                window.clearTimeout(closeEndTimer);
+                globalThis.clearTimeout(closeTimer);
+                globalThis.clearTimeout(closeEndTimer);
             };
         }
         return undefined;
@@ -45,11 +46,27 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
     if (!isVisible) return null;
 
     return (
-        <div className={`modal-overlay ${isClosing ? 'is-closing' : ''} ${isOpening ? 'is-opening' : ''}`} onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="modal-close" onClick={onClose}>&times;</button>
+        <div className={`modal-overlay ${isClosing ? 'is-closing' : ''} ${isOpening ? 'is-opening' : ''}`}>
+            <button
+                type="button"
+                className="modal-backdrop"
+                aria-label="Cerrar modal"
+                onClick={onClose}
+            />
+            <div
+                className="modal-content"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={dialogTitleId}
+            >
+                <span id={dialogTitleId} className="modal-visually-hidden">
+                    Contenido modal
+                </span>
+                <button type="button" className="modal-close" aria-label="Cerrar modal" onClick={onClose}>
+                    &times;
+                </button>
                 {children}
             </div>
         </div>
     );
-};
+}

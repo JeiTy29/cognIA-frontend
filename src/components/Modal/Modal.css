@@ -13,6 +13,15 @@
     transition: opacity 0.42s ease;
 }
 
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+}
+
 .modal-content {
     background: white;
     padding: 2rem;
@@ -22,6 +31,7 @@
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    z-index: 1;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transform: translateY(0) scale(1);
     opacity: 1;
@@ -64,4 +74,16 @@
 .modal-close:hover {
     background-color: #f0f0f0;
     color: #333;
+}
+
+.modal-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

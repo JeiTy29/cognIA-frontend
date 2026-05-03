@@ -132,7 +132,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const pollingRef = useRef<number | null>(null);
+    const pollingRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
     const backoffRef = useRef<number>(0);
     const errorCountRef = useRef<number>(0);
     const visibilityRef = useRef<boolean>(typeof document !== 'undefined' ? document.visibilityState === 'visible' : true);
@@ -144,10 +144,10 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
         if (!enabled || !isMountedRef.current) return;
         if (!visibilityRef.current) return;
         if (pollingRef.current) {
-            window.clearTimeout(pollingRef.current);
+            globalThis.clearTimeout(pollingRef.current);
         }
-        pollingRef.current = window.setTimeout(() => {
-            void fetchAllRef.current();
+        pollingRef.current = globalThis.setTimeout(() => {
+            fetchAllRef.current().catch(() => undefined);
         }, delay);
     }, [enabled]);
 
@@ -155,7 +155,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
         setter((prev) => {
             const next = [...prev, value];
             if (next.length > 30) {
-                return next.slice(next.length - 30);
+                return next.slice(-30);
             }
             return next;
         });
@@ -320,7 +320,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     }, [enabled, fetchHealth, fetchReady, fetchEmail, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
 
     const reload = useCallback(() => {
-        void fetchAll();
+        fetchAll().catch(() => undefined);
     }, [fetchAll]);
 
     useEffect(() => {
@@ -329,10 +329,10 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
 
     useEffect(() => {
         if (!enabled) return;
-        void fetchAll();
+        fetchAll().catch(() => undefined);
         return () => {
             if (pollingRef.current) {
-                window.clearTimeout(pollingRef.current);
+                globalThis.clearTimeout(pollingRef.current);
             }
         };
     }, [enabled, fetchAll]);
@@ -344,7 +344,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
             if (visibilityRef.current) {
                 scheduleNext(0);
             } else if (pollingRef.current) {
-                window.clearTimeout(pollingRef.current);
+                globalThis.clearTimeout(pollingRef.current);
             }
         };
         document.addEventListener('visibilitychange', handleVisibility);
@@ -355,7 +355,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
         return () => {
             isMountedRef.current = false;
             if (pollingRef.current) {
-                window.clearTimeout(pollingRef.current);
+                globalThis.clearTimeout(pollingRef.current);
             }
         };
     }, []);

@@ -46,12 +46,12 @@ ensure_prerequisites() {
     command -v docker >/dev/null
     command -v curl >/dev/null
 
-    if [ ! -d "$FRONTEND_REPO_DIR/.git" ]; then
+    if [[ ! -d "$FRONTEND_REPO_DIR/.git" ]]; then
         log "ERROR: Missing git repository at $FRONTEND_REPO_DIR"
         exit 1
     fi
 
-    if [ ! -f "$COMPOSE_DIR/docker-compose.yml" ] && [ ! -f "$COMPOSE_DIR/compose.yml" ] && [ ! -f "$COMPOSE_DIR/compose.yaml" ]; then
+    if [[ ! -f "$COMPOSE_DIR/docker-compose.yml" && ! -f "$COMPOSE_DIR/compose.yml" && ! -f "$COMPOSE_DIR/compose.yaml" ]]; then
         log "ERROR: No docker compose file found in $COMPOSE_DIR"
         exit 1
     fi
@@ -89,12 +89,12 @@ update_repository_to_main() {
     local origin_commit
     origin_commit="$(git rev-parse "origin/$DEPLOY_BRANCH")"
 
-    if [ "$TARGET_COMMIT" != "$origin_commit" ]; then
+    if [[ "$TARGET_COMMIT" != "$origin_commit" ]]; then
         log "ERROR: Local HEAD does not match origin/$DEPLOY_BRANCH after reset."
         return 1
     fi
 
-    if [ -n "$EXPECTED_COMMIT" ] && [ "$TARGET_COMMIT" != "$EXPECTED_COMMIT" ]; then
+    if [[ -n "$EXPECTED_COMMIT" && "$TARGET_COMMIT" != "$EXPECTED_COMMIT" ]]; then
         log "ERROR: Expected commit mismatch."
         log "ERROR: Workflow expected commit: $EXPECTED_COMMIT"
         log "ERROR: Commit resolved from origin/$DEPLOY_BRANCH: $TARGET_COMMIT"
@@ -183,7 +183,7 @@ verify_checked_out_commit() {
     local current
     current="$(git -C "$FRONTEND_REPO_DIR" rev-parse HEAD)"
 
-    if [ "$current" != "$expected" ]; then
+    if [[ "$current" != "$expected" ]]; then
         log "ERROR: Commit verification failed. Expected=$expected Current=$current"
         return 1
     fi
@@ -192,7 +192,7 @@ verify_checked_out_commit() {
 }
 
 rollback_to_previous_commit() {
-    if [ -z "$PREVIOUS_COMMIT" ]; then
+    if [[ -z "$PREVIOUS_COMMIT" ]]; then
         log "ERROR: Cannot rollback because previous commit was not captured."
         return 1
     fi

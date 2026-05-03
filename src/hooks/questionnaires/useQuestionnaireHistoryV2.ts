@@ -65,10 +65,10 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
             setLoading(false);
             return;
         }
-        const timeoutId = window.setTimeout(() => {
-            void loadHistory();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadHistory().catch(() => undefined);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [enabled, loadHistory]);
 
     const setStatusFilter = useCallback((value: string) => {
