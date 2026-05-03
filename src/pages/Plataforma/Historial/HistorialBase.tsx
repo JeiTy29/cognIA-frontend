@@ -255,7 +255,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const [shareGranteeUserId, setShareGranteeUserId] = useState('');
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
-    const title = role === 'psicologo' ? 'Historial de cuestionarios' : 'Historial de cuestionarios';
+    const title = 'Historial de cuestionarios';
+    const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';
     const totalPages = Math.max(1, pages);
     const currentPage = Math.min(Math.max(page, 1), totalPages);
     const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -449,7 +450,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
     return (
         <div className="plataforma-view">
-            <section className="historial-v2">
+            <section className="historial-v2" aria-label={`Historial de cuestionarios para ${historyContextLabel}`}>
                 <div className="historial-v2-header">
                     <h1>{title}</h1>
                 </div>

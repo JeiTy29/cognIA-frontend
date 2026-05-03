@@ -1,16 +1,25 @@
-.modal-overlay {
+.modal-dialog {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
     z-index: 1000;
     opacity: 1;
     transition: opacity 0.42s ease;
+}
+
+.modal-dialog::backdrop {
+    background: transparent;
 }
 
 .modal-backdrop {
@@ -38,20 +47,20 @@
     transition: transform 0.42s ease, opacity 0.42s ease;
 }
 
-.modal-overlay.is-closing {
+.modal-dialog.is-closing {
     opacity: 0;
 }
 
-.modal-overlay.is-closing .modal-content {
+.modal-dialog.is-closing .modal-content {
     transform: translateY(6px) scale(0.97);
     opacity: 0;
 }
 
-.modal-overlay.is-opening {
+.modal-dialog.is-opening {
     opacity: 0;
 }
 
-.modal-overlay.is-opening .modal-content {
+.modal-dialog.is-opening .modal-content {
     transform: translateY(10px) scale(0.98);
     opacity: 0;
 }
