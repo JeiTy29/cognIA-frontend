@@ -674,7 +674,7 @@ export default function Cuestionario() {
     const [sessionSnapshot, setSessionSnapshot] = useState<QuestionnaireSessionV2DTO | null>(null);
     const activeRef = useRef<HTMLDivElement | null>(null);
     const isMountedRef = useRef(true);
-    const pollingTimerRef = useRef<number | null>(null);
+    const pollingTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
     const pollingTokenRef = useRef(0);
     const pollingStartedAtRef = useRef<number | null>(null);
     const completionPayloadRef = useRef<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -691,7 +691,7 @@ export default function Cuestionario() {
 
     const stopPolling = useCallback(() => {
         if (pollingTimerRef.current !== null) {
-            window.clearTimeout(pollingTimerRef.current);
+            globalThis.clearTimeout(pollingTimerRef.current);
             pollingTimerRef.current = null;
         }
     }, []);
@@ -805,8 +805,8 @@ export default function Cuestionario() {
                     return;
                 }
 
-                pollingTimerRef.current = window.setTimeout(() => {
-                    void poll();
+                pollingTimerRef.current = globalThis.setTimeout(() => {
+                    poll().catch(() => undefined);
                 }, PROCESSING_POLL_INTERVAL_MS);
             } catch (requestError) {
                 if (!isMountedRef.current || pollingTokenRef.current !== currentToken) return;
@@ -816,12 +816,14 @@ export default function Cuestionario() {
             }
         };
 
-        void poll();
+        poll().catch(() => undefined);
     }, [stopPolling]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => void loadActive(), 0);
-        return () => window.clearTimeout(timeoutId);
+        const timeoutId = globalThis.setTimeout(() => {
+            loadActive().catch(() => undefined);
+        }, 0);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadActive]);
 
     useEffect(() => {
@@ -1028,7 +1030,7 @@ export default function Cuestionario() {
         setCompletionError(null);
         setSessionSnapshot(null);
         setReusableSession(null);
-        void loadActive();
+        loadActive().catch(() => undefined);
     };
 
     const handleRetryProcessing = () => {
@@ -1081,7 +1083,7 @@ export default function Cuestionario() {
                 ) : activeError ? (
                     <div className="questionnaire-state">
                         <p>{activeError}</p>
-                        <button type="button" className="questionnaire-retry" onClick={() => void loadActive()}>
+                        <button type="button" className="questionnaire-retry" onClick={() => loadActive().catch(() => undefined)}>
                             Reintentar
                         </button>
                     </div>
@@ -1144,7 +1146,7 @@ export default function Cuestionario() {
                                         <button
                                             type="button"
                                             className="questionnaire-btn primary questionnaire-start"
-                                            onClick={() => void continueSession(reusableSessionId)}
+                                            onClick={() => continueSession(reusableSessionId).catch(() => undefined)}
                                             disabled={working}
                                         >
                                             {working ? 'Cargando...' : 'Continuar cuestionario'}
@@ -1152,7 +1154,7 @@ export default function Cuestionario() {
                                         <button
                                             type="button"
                                             className="questionnaire-btn ghost"
-                                            onClick={() => void startSession()}
+                                            onClick={() => startSession().catch(() => undefined)}
                                             disabled={working}
                                         >
                                             Empezar de nuevo
@@ -1163,7 +1165,7 @@ export default function Cuestionario() {
                                 <button
                                     type="button"
                                     className="questionnaire-btn primary questionnaire-start"
-                                    onClick={() => void startSession()}
+                                    onClick={() => startSession().catch(() => undefined)}
                                     disabled={working}
                                 >
                                     {working ? 'Iniciando...' : 'Comenzar'}
@@ -1436,7 +1438,7 @@ export default function Cuestionario() {
                                             <button
                                                 type="button"
                                                 className="questionnaire-btn primary"
-                                                onClick={() => void handleFinish()}
+                                                onClick={() => handleFinish().catch(() => undefined)}
                                                 disabled={!canContinue || working}
                                             >
                                                 {working ? 'Enviando...' : 'Enviar'}
@@ -1445,7 +1447,7 @@ export default function Cuestionario() {
                                             <button
                                                 type="button"
                                                 className="questionnaire-btn primary"
-                                                onClick={() => void handleNext()}
+                                                onClick={() => handleNext().catch(() => undefined)}
                                                 disabled={!canContinue || working}
                                             >
                                                 {working ? 'Guardando...' : 'Siguiente'}

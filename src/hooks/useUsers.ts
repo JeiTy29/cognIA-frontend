@@ -85,10 +85,10 @@ export function useUsers() {
     }, [handleUnauthorized]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadUsers(1, 10);
+        const timeoutId = globalThis.setTimeout(() => {
+            loadUsers(1, 10).catch(() => undefined);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadUsers]);
 
     const goToPage = useCallback(async (nextPage: number) => {

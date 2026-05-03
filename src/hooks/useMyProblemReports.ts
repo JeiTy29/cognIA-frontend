@@ -90,10 +90,10 @@ export function useMyProblemReports(options?: UseMyProblemReportsOptions) {
             setLoading(false);
             return;
         }
-        const timeoutId = window.setTimeout(() => {
-            void loadReports();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadReports().catch(() => undefined);
         }, 150);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [enabled, loadReports]);
 
     const setStatusFilter = useCallback((value: string) => {

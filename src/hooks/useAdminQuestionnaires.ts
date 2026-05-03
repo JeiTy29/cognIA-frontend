@@ -156,10 +156,10 @@ export function useAdminQuestionnaires() {
     }, [activeFilter, archivedFilter, handleUnauthorized, nameFilter, order, page, pageSize, sort, versionFilter]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadQuestionnaires();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadQuestionnaires().catch(() => undefined);
         }, 200);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadQuestionnaires]);
 
     const setNameFilter = useCallback((value: string) => {

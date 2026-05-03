@@ -6,7 +6,7 @@ type RefreshDetail = {
 };
 
 export function emitAuthRefresh(detail: RefreshDetail) {
-    window.dispatchEvent(new CustomEvent<RefreshDetail>(AUTH_REFRESH_EVENT, { detail }));
+    globalThis.dispatchEvent(new CustomEvent<RefreshDetail>(AUTH_REFRESH_EVENT, { detail }));
 }
 
 export function onAuthRefresh(handler: (detail: RefreshDetail) => void) {
@@ -16,6 +16,6 @@ export function onAuthRefresh(handler: (detail: RefreshDetail) => void) {
             handler(custom.detail);
         }
     };
-    window.addEventListener(AUTH_REFRESH_EVENT, listener);
-    return () => window.removeEventListener(AUTH_REFRESH_EVENT, listener);
+    globalThis.addEventListener(AUTH_REFRESH_EVENT, listener);
+    return () => globalThis.removeEventListener(AUTH_REFRESH_EVENT, listener);
 }

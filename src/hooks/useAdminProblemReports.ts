@@ -160,10 +160,10 @@ export function useAdminProblemReports() {
     ]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadReports();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadReports().catch(() => undefined);
         }, 150);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadReports]);
 
     const fetchDetail = useCallback(async (reportId: string) => {

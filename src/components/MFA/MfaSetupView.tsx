@@ -151,7 +151,7 @@ export function MfaSetupView({
                 setLoadingSetup(false);
             }
         };
-        void loadQr();
+        loadQr().catch(() => undefined);
     }, [token]);
 
     useEffect(() => {
@@ -170,7 +170,7 @@ export function MfaSetupView({
                 setLoadingQr(false);
             }
         };
-        void generateQr();
+        generateQr().catch(() => undefined);
     }, [computedOtpAuthUri]);
 
     useEffect(() => {
@@ -296,7 +296,7 @@ export function MfaSetupView({
                                 inputMode="numeric"
                                 maxLength={6}
                                 value={codigo}
-                                onChange={(event) => setCodigo(event.target.value.replace(/\D/g, ''))}
+                                onChange={(event) => setCodigo(event.target.value.replaceAll(/\D/g, ''))}
                                 placeholder="000000"
                                 disabled={submitting}
                             />

@@ -150,10 +150,10 @@ export function useAdminEvaluations() {
     ]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadEvaluations();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadEvaluations().catch(() => undefined);
         }, 200);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadEvaluations]);
 
     const setStatusFilter = useCallback((value: string) => {

@@ -275,16 +275,16 @@ export function useDashboard(): UseDashboardResult {
     }, []);
 
     const reload = useCallback(() => {
-        void loadDashboard(months);
+        loadDashboard(months).catch(() => undefined);
     }, [loadDashboard, months]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadDashboard(months);
+        const timeoutId = globalThis.setTimeout(() => {
+            loadDashboard(months).catch(() => undefined);
         }, 0);
 
         return () => {
-            window.clearTimeout(timeoutId);
+            globalThis.clearTimeout(timeoutId);
         };
     }, [loadDashboard, months]);
 

@@ -19,6 +19,7 @@ type MFANavigationState = {
 };
 
 const MFA_CODE_LENGTH = 6;
+const MFA_DIGIT_KEYS = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => `mfa-digit-${index + 1}`);
 
 export default function MFA() {
     const [codeDigits, setCodeDigits] = useState<string[]>(() => Array.from({ length: MFA_CODE_LENGTH }, () => ''));
@@ -76,7 +77,7 @@ export default function MFA() {
     };
 
     const applyPastedCode = (pastedValue: string) => {
-        const onlyDigits = pastedValue.replace(/\D/g, '').slice(0, MFA_CODE_LENGTH);
+        const onlyDigits = pastedValue.replaceAll(/\D/g, '').slice(0, MFA_CODE_LENGTH);
         if (!onlyDigits) return;
         const nextDigits = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => onlyDigits[index] ?? '');
         setCodeDigits(nextDigits);
@@ -84,7 +85,7 @@ export default function MFA() {
     };
 
     const handleDigitChange = (index: number, value: string) => {
-        const onlyDigits = value.replace(/\D/g, '');
+        const onlyDigits = value.replaceAll(/\D/g, '');
         if (!onlyDigits) {
             setDigit(index, '');
             return;
@@ -210,28 +211,31 @@ export default function MFA() {
 
                                 {!useRecovery ? (
                                     <div className="form-group">
-                                        <div className="mfa-code-grid" role="group" aria-label="Codigo MFA de 6 digitos">
-                                            {codeDigits.map((digit, index) => (
-                                                <input
-                                                    key={index}
-                                                    ref={(element) => {
-                                                        digitRefs.current[index] = element;
-                                                    }}
-                                                    type="text"
-                                                    className="mfa-code-digit"
-                                                    inputMode="numeric"
-                                                    pattern="[0-9]*"
-                                                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                                                    maxLength={1}
-                                                    value={digit}
-                                                    onChange={(event) => handleDigitChange(index, event.target.value)}
-                                                    onKeyDown={(event) => handleDigitKeyDown(index, event)}
-                                                    onPaste={handleDigitPaste}
-                                                    aria-label={`Digito ${index + 1} de 6`}
-                                                    required
-                                                />
-                                            ))}
-                                        </div>
+                                        <fieldset className="mfa-code-fieldset">
+                                            <legend className="mfa-code-legend">Codigo MFA de 6 digitos</legend>
+                                            <div className="mfa-code-grid">
+                                                {codeDigits.map((digit, index) => (
+                                                    <input
+                                                        key={MFA_DIGIT_KEYS[index]}
+                                                        ref={(element) => {
+                                                            digitRefs.current[index] = element;
+                                                        }}
+                                                        type="text"
+                                                        className="mfa-code-digit"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
+                                                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                                                        maxLength={1}
+                                                        value={digit}
+                                                        onChange={(event) => handleDigitChange(index, event.target.value)}
+                                                        onKeyDown={(event) => handleDigitKeyDown(index, event)}
+                                                        onPaste={handleDigitPaste}
+                                                        aria-label={`Digito ${index + 1} de 6`}
+                                                        required
+                                                    />
+                                                ))}
+                                            </div>
+                                        </fieldset>
                                     </div>
                                 ) : null}
 

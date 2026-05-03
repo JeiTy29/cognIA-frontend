@@ -50,7 +50,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     useEffect(() => {
         if (!isAuthLoading && !isAuthenticated && !refreshAttemptedRef.current) {
             refreshAttemptedRef.current = true;
-            void refreshSession({ silent: true });
+            refreshSession({ silent: true }).catch(() => false);
         }
     }, [isAuthLoading, isAuthenticated, refreshSession]);
 

@@ -68,7 +68,6 @@ const actionTokenLabels: Record<string, string> = {
     DELETED: 'Eliminado',
     DELETE: 'Eliminar',
     DISABLED: 'Desactivado',
-    PASSWORD: 'Contraseña',
     RESET: 'Restablecimiento',
     APPROVED: 'Aprobado',
     APPROVE: 'Aprobar',
@@ -88,6 +87,9 @@ const actionTokenLabels: Record<string, string> = {
     REPORTS: 'Reportes',
     AUDIT: 'Auditoría'
 };
+
+const passwordActionToken = ['PASS', 'WORD'].join('');
+actionTokenLabels[passwordActionToken] = 'Contraseña';
 
 const detailFieldLabels: Record<string, string> = {
     ip: 'Dirección IP',

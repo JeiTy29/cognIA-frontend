@@ -94,10 +94,10 @@ export function usePsychologists() {
     }, [handleUnauthorized]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadPsychologists();
+        const timeoutId = globalThis.setTimeout(() => {
+            loadPsychologists().catch(() => undefined);
         }, 0);
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [loadPsychologists]);
 
     const approveAction = useCallback(async (userId: string) => {
