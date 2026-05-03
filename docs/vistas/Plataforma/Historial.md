@@ -11,14 +11,17 @@
 - `src/services/questionnaires/questionnaires.types.ts`
 
 ## Endpoints activos usados
-- `GET /api/v2/questionnaires/history`
+- `POST /api/v2/questionnaires/history/secure` cuando el transporte cifrado esta activo
+- `GET /api/v2/questionnaires/history` como fallback tecnico no sensible
 - `GET /api/v2/questionnaires/history/{session_id}`
-- `GET /api/v2/questionnaires/history/{session_id}/results`
+- `POST /api/v2/questionnaires/history/{session_id}/results-secure`
+- `POST /api/v2/questionnaires/history/{session_id}/clinical-summary`
 - `POST /api/v2/questionnaires/history/{session_id}/tags`
 - `DELETE /api/v2/questionnaires/history/{session_id}/tags/{tag_id}`
 - `POST /api/v2/questionnaires/history/{session_id}/share`
 - `POST /api/v2/questionnaires/history/{session_id}/pdf/generate`
-- `GET /api/v2/questionnaires/history/{session_id}/pdf`
+- `POST /api/v2/questionnaires/history/{session_id}/pdf/secure` cuando aplica transporte cifrado
+- `GET /api/v2/questionnaires/history/{session_id}/pdf` como fallback tecnico para consulta no sensible
 - `GET /api/v2/questionnaires/history/{session_id}/pdf/download`
 
 ## Ajustes UX aplicados (ronda 2026-04-24)
@@ -43,6 +46,18 @@
 - Mensajes de error ya no priorizan codigos HTTP ni textos crudos de API.
 - Se agrega advertencia visible:
   - resultado orientativo para alerta temprana / no diagnostico clinico definitivo.
+
+## Ajustes de seguridad aplicados (ronda 2026-05-03)
+
+- El detalle de historial consulta `results-secure` y `clinical-summary` cuando la sesion ya fue enviada/procesada.
+- El resultado final se muestra como informe orientativo con:
+  - sintesis general,
+  - niveles de compatibilidad,
+  - indicadores principales observados,
+  - impacto funcional,
+  - recomendacion profesional,
+  - aclaracion importante.
+- El disclaimer de no diagnostico se mantiene visible aunque el backend no lo devuelva.
 
 ## Nota de contrato
 - La resolucion de enlace compartido y algunos campos de metadata siguen siendo inferidos desde el consumo frontend.

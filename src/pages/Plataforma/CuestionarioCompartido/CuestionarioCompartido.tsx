@@ -38,8 +38,8 @@ export default function CuestionarioCompartido() {
     const [payload, setPayload] = useState<QuestionnaireSharedDataV2DTO | null>(null);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void (async () => {
+        const timeoutId = globalThis.setTimeout(() => {
+            (async () => {
                 if (!questionnaireId || !shareCode) {
                     setPayload(null);
                     setError('El enlace compartido no es valido.');
@@ -56,10 +56,10 @@ export default function CuestionarioCompartido() {
                 } finally {
                     setLoading(false);
                 }
-            })();
+            })().catch(() => undefined);
         }, 0);
 
-        return () => window.clearTimeout(timeoutId);
+        return () => globalThis.clearTimeout(timeoutId);
     }, [questionnaireId, shareCode]);
 
     const session = useMemo(() => payload?.session ?? null, [payload]);

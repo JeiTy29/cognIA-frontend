@@ -32,6 +32,7 @@ import DevAuthBadge from './components/DevAuthBadge/DevAuthBadge';
 import DevAuthToggle from './components/DevAuthToggle/DevAuthToggle';
 import { useAuth } from './hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from './utils/auth/roles';
+import { assertApiClientConfig } from './services/api/url';
 
 function FallbackRedirect() {
     const { isAuthenticated, roles } = useAuth();
@@ -39,9 +40,21 @@ function FallbackRedirect() {
     return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
 }
 
+function ApiClientConfigBanner() {
+    const assertion = assertApiClientConfig();
+    if (assertion.ok) return null;
+
+    return (
+        <div className="app-config-banner" role="alert">
+            No fue posible inicializar la conexión con el backend. Revisa la variable de entorno del API y vuelve a desplegar esta compilación.
+        </div>
+    );
+}
+
 export default function App() {
     return (
         <>
+            <ApiClientConfigBanner />
             <Routes>
                 {/* Rutas con Header y Footer */}
                 <Route path="/" element={<BienvenidaInicio />} />

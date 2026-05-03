@@ -11,10 +11,12 @@
 - `GET /api/v2/questionnaires/active`
 - `GET /api/v2/questionnaires/history` (deteccion de `draft`/`in_progress`)
 - `POST /api/v2/questionnaires/sessions`
-- `GET /api/v2/questionnaires/sessions/{session_id}`
-- `GET /api/v2/questionnaires/sessions/{session_id}/page`
+- `POST /api/v2/questionnaires/sessions/{session_id}/secure` cuando el transporte cifrado esta activo
+- `POST /api/v2/questionnaires/sessions/{session_id}/page-secure` cuando el transporte cifrado esta activo
 - `PATCH /api/v2/questionnaires/sessions/{session_id}/answers`
 - `POST /api/v2/questionnaires/sessions/{session_id}/submit`
+- `POST /api/v2/questionnaires/history/{session_id}/results-secure`
+- `POST /api/v2/questionnaires/history/{session_id}/clinical-summary`
 
 ## Ajustes aplicados (ronda 2026-04-24)
 
@@ -45,6 +47,27 @@
   - `2) texto`
 - La limpieza es solo visual.
 - El valor enviado al backend no se altera.
+
+## Ajustes de seguridad y resultado final (ronda 2026-05-03)
+
+- Las operaciones sensibles del flujo V2 usan transporte cifrado cuando el backend lo requiere:
+  - creacion de sesion,
+  - guardado de respuestas,
+  - submit,
+  - lectura segura de sesion/pagina,
+  - resultados finales.
+- La pantalla final deja de depender del endpoint legacy plaintext de resultados y usa:
+  - `results-secure`
+  - `clinical-summary`
+- El informe final renderiza seis secciones fijas:
+  - sintesis general
+  - niveles de compatibilidad
+  - indicadores principales observados
+  - impacto funcional
+  - recomendacion profesional
+  - aclaracion importante
+- El disclaimer de no diagnostico se muestra siempre, incluso si el backend no entrega la seccion completa.
+- Si el backend reporta posible comorbilidad, el frontend la presenta con lenguaje prudente y sin reinterpretacion clinica.
 
 ## Nota de contrato
 - Reglas exactas de negocio para todos los limites numericos no son verificables solo desde frontend.

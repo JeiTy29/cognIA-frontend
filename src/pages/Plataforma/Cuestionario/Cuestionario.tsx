@@ -5,23 +5,47 @@ import { ApiError } from '../../../services/api/httpClient';
 import {
     createQuestionnaireSessionV2,
     getActiveQuestionnairesV2,
+    getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryV2,
+    getQuestionnaireHistoryResultsV2,
     getQuestionnaireSessionPageV2,
     getQuestionnaireSessionV2,
     patchQuestionnaireSessionAnswersV2,
     submitQuestionnaireSessionV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireClinicalDomainV2DTO,
+    QuestionnaireClinicalSummaryV2DTO,
+    QuestionnaireEvaluationComorbidityDTO,
+    QuestionnaireEvaluationDomainDTO,
+    QuestionnaireEvaluationResultDTO,
     QuestionnaireOptionDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseType,
     QuestionnaireResponseValue,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnaireRiskLevel,
+    QuestionnaireSecureResultsV2DTO,
     QuestionnaireSessionV2DTO,
     QuestionnaireSubmitResponseV2DTO,
     QuestionnaireV2Mode,
     QuestionnaireV2Status
 } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildClinicalSummarySections,
+    getClinicalComorbiditySummary,
+    getRiskLevelPresentation,
+    getSafeClinicalDisclaimer,
+    type ClinicalSummarySection,
+    type RiskLevelPresentation
+} from '../../../services/questionnaires/clinicalSummary';
+import {
+    formatDateTimeEsCO,
+    formatPercentEs,
+    getAlertLevelLabel,
+    getConfidenceBandLabel,
+    getDomainLabel
+} from '../../../utils/presentation/naturalLanguage';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
 
@@ -631,6 +655,267 @@ function formatPercent(value: number | null | undefined) {
     return `${Math.round(value * 100) / 100}%`;
 }
 
+function getQuestionnaireReportNotice(error: unknown, target: 'results' | 'clinical-summary') {
+    if (!(error instanceof ApiError)) {
+        return target === 'clinical-summary'
+            ? 'No fue posible generar el informe orientativo en este momento.'
+            : 'No fue posible recuperar el resultado seguro del cuestionario.';
+    }
+
+    const payload = typeof error.payload === 'object' && error.payload && !Array.isArray(error.payload)
+        ? error.payload as Record<string, unknown>
+        : null;
+    const errorCode = typeof payload?.error === 'string' ? payload.error.trim().toLowerCase() : '';
+
+    if (errorCode === 'session_not_submitted' || errorCode === 'results_not_available') {
+        return 'Debes completar y enviar el cuestionario antes de consultar el informe final.';
+    }
+
+    if (errorCode === 'clinical_summary_failed') {
+        return 'No fue posible generar el informe orientativo en este momento.';
+    }
+
+    if (errorCode === 'insufficient_data') {
+        return 'No hubo suficientes datos para generar el informe orientativo completo.';
+    }
+
+    if (errorCode === 'runtime_artifact_unavailable') {
+        return 'El artefacto de resultados todavia no esta disponible. Intenta nuevamente en unos minutos.';
+    }
+
+    if (
+        errorCode === 'plaintext_not_allowed' ||
+        errorCode === 'encrypted_payload_invalid' ||
+        errorCode === 'encryption_required' ||
+        errorCode === 'decryption_failed' ||
+        errorCode === 'invalid_crypto_version' ||
+        errorCode === 'transport_key_failed' ||
+        errorCode === 'key_expired' ||
+        errorCode === 'key_id_mismatch'
+    ) {
+        return 'No fue posible completar el intercambio seguro de datos con el backend. Intenta nuevamente.';
+    }
+
+    return target === 'clinical-summary'
+        ? mapError(error, 'No fue posible generar el informe orientativo en este momento.')
+        : mapError(error, 'No fue posible recuperar el resultado seguro del cuestionario.');
+}
+
+function getClinicalDomainCardKey(domain: QuestionnaireClinicalDomainV2DTO, index: number) {
+    return `${toText(domain.domain, 'clinical-domain')}-${toText(domain.compatibility_level, 'level')}-${index}`;
+}
+
+function getEvaluationDomainCardKey(domain: QuestionnaireEvaluationDomainDTO, index: number) {
+    return `${toText(domain.domain, 'domain')}-${toText(domain.alert_level, 'alert')}-${index}`;
+}
+
+function getEvaluationComorbiditySummary(items: QuestionnaireEvaluationComorbidityDTO[]) {
+    const firstSummary = items.find((item) => hasText(item.summary))?.summary;
+    if (hasText(firstSummary)) {
+        return toText(firstSummary);
+    }
+
+    const domains = items
+        .flatMap((item) => Array.isArray(item.domains) ? item.domains : [])
+        .filter((domain): domain is string => typeof domain === 'string' && domain.trim().length > 0);
+
+    if (domains.length > 0) {
+        return `Se observan posibles senales compartidas entre ${domains.join(', ')}.`;
+    }
+
+    return '';
+}
+
+function getQuestionnaireStatusChipLabel(phase: CompletionPhase) {
+    if (phase === 'processed') return 'Resultado listo';
+    if (phase === 'failed') return 'Procesamiento interrumpido';
+    return 'Procesando evaluacion';
+}
+
+function getQuestionnaireStatusTitle(phase: CompletionPhase) {
+    if (phase === 'processed') return 'Evaluacion completada';
+    if (phase === 'failed') return 'No pudimos completar la evaluacion';
+    return 'Estamos analizando tus respuestas';
+}
+
+interface QuestionnaireProcessedViewProps {
+    riskPresentation: RiskLevelPresentation;
+    generatedAt: string;
+    reportNotice: string | null;
+    summarySections: ClinicalSummarySection[];
+    clinicalDomains: QuestionnaireClinicalDomainV2DTO[];
+    evaluationDomains: QuestionnaireEvaluationDomainDTO[];
+    resultBlock: QuestionnaireEvaluationResultDTO | null;
+    comorbiditySummary: string;
+    disclaimer: string;
+    onClose: () => void;
+}
+
+function QuestionnaireProcessedView({
+    riskPresentation,
+    generatedAt,
+    reportNotice,
+    summarySections,
+    clinicalDomains,
+    evaluationDomains,
+    resultBlock,
+    comorbiditySummary,
+    disclaimer,
+    onClose
+}: Readonly<QuestionnaireProcessedViewProps>) {
+    const showClinicalDomains = clinicalDomains.length > 0;
+    const showEvaluationDomains = !showClinicalDomains && evaluationDomains.length > 0;
+    const hasComplementaryMetrics =
+        !!resultBlock &&
+        (typeof resultBlock.completion_quality_score === 'number' ||
+            typeof resultBlock.missingness_score === 'number' ||
+            typeof resultBlock.needs_professional_review === 'boolean' ||
+            hasText(resultBlock.summary) ||
+            hasText(resultBlock.operational_recommendation));
+
+    return (
+        <div className="questionnaire-result-view">
+            <div className="questionnaire-report-banner">
+                <div className={`questionnaire-risk-chip is-${riskPresentation.tone}`}>
+                    <strong>Nivel de alerta</strong>
+                    <span>{riskPresentation.label}</span>
+                </div>
+                <div className="questionnaire-report-banner-copy">
+                    <h3>Informe final orientativo</h3>
+                    <p>{riskPresentation.hint}</p>
+                    {generatedAt !== '--' ? (
+                        <span className="questionnaire-report-generated-at">Generado: {generatedAt}</span>
+                    ) : null}
+                </div>
+            </div>
+
+            {reportNotice ? (
+                <div className="questionnaire-inline-notice" role="status">
+                    {reportNotice}
+                </div>
+            ) : null}
+
+            {comorbiditySummary ? (
+                <div className="questionnaire-comorbidity-banner">
+                    <strong>Posible coexistencia de senales</strong>
+                    <p>{comorbiditySummary}</p>
+                </div>
+            ) : null}
+
+            <div className="questionnaire-clinical-sections">
+                {summarySections.map((section) => (
+                    <article
+                        key={section.key}
+                        className={`questionnaire-report-section ${section.key === 'aclaracion_importante' ? 'is-disclaimer' : ''}`}
+                    >
+                        <h4>{section.title}</h4>
+                        <p>{section.content}</p>
+                    </article>
+                ))}
+            </div>
+
+            {showClinicalDomains ? (
+                <div className="questionnaire-result-section">
+                    <h4>Compatibilidad por area evaluada</h4>
+                    <div className="questionnaire-result-list">
+                        {clinicalDomains.map((domain, index) => {
+                            const compatibility = domain.compatibility_level ?? domain.risk_level ?? riskPresentation.key;
+                            const presentation = getRiskLevelPresentation(compatibility as QuestionnaireRiskLevel);
+                            return (
+                                <article key={getClinicalDomainCardKey(domain, index)} className="questionnaire-result-item">
+                                    <header>
+                                        <strong>{getDomainLabel(domain.domain, `Dominio ${index + 1}`)}</strong>
+                                        <span className={`questionnaire-domain-chip is-${presentation.tone}`}>
+                                            {presentation.label}
+                                        </span>
+                                    </header>
+                                    <p>
+                                        {Array.isArray(domain.main_indicators) && domain.main_indicators.length > 0
+                                            ? domain.main_indicators.join(', ')
+                                            : 'No se recibieron indicadores principales para esta area.'}
+                                    </p>
+                                    <div className="questionnaire-result-item-meta">
+                                        <span>Probabilidad: {formatPercentEs(domain.probability, { mode: 'auto' })}</span>
+                                        <span>Confianza: {formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span>
+                                        <span>Banda: {getConfidenceBandLabel(domain.confidence_band)}</span>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : null}
+
+            {showEvaluationDomains ? (
+                <div className="questionnaire-result-section">
+                    <h4>Hallazgos complementarios por dominio</h4>
+                    <div className="questionnaire-result-list">
+                        {evaluationDomains.map((domain, index) => (
+                            <article key={getEvaluationDomainCardKey(domain, index)} className="questionnaire-result-item">
+                                <header>
+                                    <strong>{getDomainLabel(domain.domain, `Dominio ${index + 1}`)}</strong>
+                                    <span className="questionnaire-domain-chip is-neutral">
+                                        {getAlertLevelLabel(domain.alert_level)}
+                                    </span>
+                                </header>
+                                <p>{toText(domain.result_summary, 'Sin resumen operativo para este dominio.')}</p>
+                                <div className="questionnaire-result-item-meta">
+                                    <span>Probabilidad: {formatPercentEs(domain.probability, { mode: 'auto' })}</span>
+                                    <span>Confianza: {formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span>
+                                    <span>Banda: {getConfidenceBandLabel(domain.confidence_band)}</span>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
+            {hasComplementaryMetrics ? (
+                <div className="questionnaire-result-section">
+                    <h4>Datos complementarios del procesamiento</h4>
+                    <div className="questionnaire-result-grid">
+                        <div>
+                            <strong>Resumen orientativo</strong>
+                            <p>{toText(resultBlock?.summary, 'Sin resumen disponible.')}</p>
+                        </div>
+                        <div>
+                            <strong>Recomendacion operativa</strong>
+                            <p>{toText(resultBlock?.operational_recommendation, 'Sin recomendacion registrada.')}</p>
+                        </div>
+                        <div>
+                            <strong>Calidad de completitud</strong>
+                            <p>{formatPercentEs(resultBlock?.completion_quality_score, { mode: 'auto' })}</p>
+                        </div>
+                        <div>
+                            <strong>Nivel de datos faltantes</strong>
+                            <p>{formatPercentEs(resultBlock?.missingness_score, { mode: 'auto' })}</p>
+                        </div>
+                        <div>
+                            <strong>Valoracion profesional</strong>
+                            <p>
+                                {typeof resultBlock?.needs_professional_review === 'boolean'
+                                    ? resultBlock.needs_professional_review ? 'Recomendada' : 'No requerida'
+                                    : '--'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            <div className="questionnaire-disclaimer-card">
+                <strong>Aclaracion importante</strong>
+                <p>{disclaimer}</p>
+            </div>
+
+            <div className="questionnaire-result-actions">
+                <button type="button" className="questionnaire-btn primary" onClick={onClose}>
+                    Finalizar
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
     const required = isQuestionRequired(question);
     if (!required && (value === null || value === undefined || value === '')) {
@@ -691,6 +976,9 @@ export default function Cuestionario() {
     const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
     const [completionError, setCompletionError] = useState<string | null>(null);
     const [sessionSnapshot, setSessionSnapshot] = useState<QuestionnaireSessionV2DTO | null>(null);
+    const [secureResults, setSecureResults] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
+    const [clinicalSummary, setClinicalSummary] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
     const activeRef = useRef<HTMLDivElement | null>(null);
     const isMountedRef = useRef(true);
     const pollingTimerRef = useRef<PollTimer>(null);
@@ -780,6 +1068,31 @@ export default function Cuestionario() {
         return Array.from(uniqueById.values()).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     }, []);
 
+    const loadProcessedArtifacts = useCallback(async (sessionIdToLoad: string) => {
+        const [resultsState, summaryState] = await Promise.allSettled([
+            getQuestionnaireHistoryResultsV2(sessionIdToLoad),
+            getQuestionnaireClinicalSummaryV2(sessionIdToLoad)
+        ]);
+
+        let nextNotice: string | null = null;
+
+        if (resultsState.status === 'fulfilled') {
+            setSecureResults(resultsState.value);
+        } else {
+            setSecureResults(null);
+            nextNotice = getQuestionnaireReportNotice(resultsState.reason, 'results');
+        }
+
+        if (summaryState.status === 'fulfilled') {
+            setClinicalSummary(summaryState.value);
+        } else {
+            setClinicalSummary(null);
+            nextNotice = nextNotice ?? getQuestionnaireReportNotice(summaryState.reason, 'clinical-summary');
+        }
+
+        setReportNotice(nextNotice);
+    }, []);
+
     const startStatusPolling = useCallback((sessionIdToPoll: string) => {
         stopPolling();
         pollingTokenRef.current += 1;
@@ -811,6 +1124,7 @@ export default function Cuestionario() {
                 if (isTerminalStatus(latestStatus)) {
                     stopPolling();
                     if ((latestStatus ?? '').toLowerCase() === 'processed') {
+                        await loadProcessedArtifacts(sessionIdToPoll);
                         setCompletionPhase('processed');
                         setCompletionError(null);
                     } else {
@@ -834,7 +1148,7 @@ export default function Cuestionario() {
         };
 
         runQuestionnaireTask(poll);
-    }, [stopPolling]);
+    }, [loadProcessedArtifacts, stopPolling]);
 
     useEffect(() => {
         const timeoutId = globalThis.setTimeout(() => {
@@ -867,6 +1181,9 @@ export default function Cuestionario() {
         setCompletionError(null);
         setBackendStatus(null);
         setSessionSnapshot(null);
+        setSecureResults(null);
+        setClinicalSummary(null);
+        setReportNotice(null);
         let failedStep: StartSessionStep = 'load_questions';
         try {
             const allQuestions = await loadAllSessionQuestions(sessionIdToContinue);
@@ -905,6 +1222,9 @@ export default function Cuestionario() {
         setCompletionError(null);
         setBackendStatus(null);
         setSessionSnapshot(null);
+        setSecureResults(null);
+        setClinicalSummary(null);
+        setReportNotice(null);
         let failedStep: StartSessionStep = 'create_session';
         try {
             const created = await createQuestionnaireSessionV2({
@@ -985,6 +1305,7 @@ export default function Cuestionario() {
         setError(null);
         setCompletionError(null);
         setCompletionPhase('submitting');
+        setReportNotice(null);
         try {
             const saved = await saveCurrent();
             if (!saved) {
@@ -1007,7 +1328,8 @@ export default function Cuestionario() {
                 return;
             }
 
-            if (normalizedStatus === 'processed' && hasRenderableResult(mergedPayload)) {
+            if (normalizedStatus === 'processed') {
+                await loadProcessedArtifacts(sessionId);
                 setCompletionPhase('processed');
                 return;
             }
@@ -1046,6 +1368,9 @@ export default function Cuestionario() {
         setCompletionPayload(null);
         setCompletionError(null);
         setSessionSnapshot(null);
+        setSecureResults(null);
+        setClinicalSummary(null);
+        setReportNotice(null);
         setReusableSession(null);
         loadActive().catch(() => undefined);
     };
@@ -1054,6 +1379,7 @@ export default function Cuestionario() {
         if (!sessionId) return;
         setCompletionPhase('processing');
         setCompletionError(null);
+        setReportNotice(null);
         startStatusPolling(sessionId);
     };
 
@@ -1065,11 +1391,35 @@ export default function Cuestionario() {
         () => getProcessingMessage(completionPhase, backendStatus),
         [backendStatus, completionPhase]
     );
-    const resultBlock = completionPayload?.result ?? null;
-    const domains = completionPayload?.domains ?? [];
-    const comorbidity = completionPayload?.comorbidity ?? [];
-    const resultSessionId = completionPayload?.session_id ?? sessionSnapshot?.session_id ?? sessionId ?? '--';
-    const resultQuestionnaireId = completionPayload?.questionnaire_id ?? sessionSnapshot?.questionnaire_id ?? '--';
+    const resultBlock = secureResults?.result ?? completionPayload?.result ?? sessionSnapshot?.result ?? null;
+    const evaluationDomains = useMemo(
+        () => secureResults?.domains ?? completionPayload?.domains ?? sessionSnapshot?.domains ?? [],
+        [completionPayload?.domains, secureResults?.domains, sessionSnapshot?.domains]
+    );
+    const evaluationComorbidity = useMemo(
+        () => secureResults?.comorbidity ?? completionPayload?.comorbidity ?? sessionSnapshot?.comorbidity ?? [],
+        [completionPayload?.comorbidity, secureResults?.comorbidity, sessionSnapshot?.comorbidity]
+    );
+    const clinicalDomains = clinicalSummary?.domains ?? [];
+    const summarySections = useMemo(
+        () => buildClinicalSummarySections(clinicalSummary),
+        [clinicalSummary]
+    );
+    const riskPresentation = useMemo(
+        () => getRiskLevelPresentation(clinicalSummary?.overall_risk_level ?? null),
+        [clinicalSummary?.overall_risk_level]
+    );
+    const clinicalDisclaimer = useMemo(
+        () => getSafeClinicalDisclaimer(clinicalSummary),
+        [clinicalSummary]
+    );
+    const comorbiditySummary = useMemo(
+        () => getClinicalComorbiditySummary(clinicalSummary) || getEvaluationComorbiditySummary(evaluationComorbidity),
+        [clinicalSummary, evaluationComorbidity]
+    );
+    const resultSessionId = secureResults?.session?.session_id ?? completionPayload?.session_id ?? sessionSnapshot?.session_id ?? sessionId ?? '--';
+    const resultQuestionnaireId = secureResults?.session?.questionnaire_id ?? completionPayload?.questionnaire_id ?? sessionSnapshot?.questionnaire_id ?? '--';
+    const reportGeneratedAt = formatDateTimeEsCO(clinicalSummary?.generated_at);
     const reusableSessionId = getHistorySessionId(reusableSession);
     const reusableUpdatedAt =
         reusableSession?.updated_at ??
@@ -1216,19 +1566,9 @@ export default function Cuestionario() {
                                     tabIndex={-1}
                                 >
                                     <div className={`questionnaire-processing-chip ${statusChipClass}`}>
-                                        {completionPhase === 'submitting' || completionPhase === 'processing'
-                                            ? 'Procesando evaluacion'
-                                            : completionPhase === 'processed'
-                                                ? 'Resultado listo'
-                                                : 'Procesamiento interrumpido'}
+                                        {getQuestionnaireStatusChipLabel(completionPhase)}
                                     </div>
-                                    <h2 className="questionnaire-processing-title">
-                                        {completionPhase === 'processed'
-                                            ? 'Evaluacion completada'
-                                            : completionPhase === 'failed'
-                                                ? 'No pudimos completar la evaluacion'
-                                                : 'Estamos analizando tus respuestas'}
-                                    </h2>
+                                    <h2 className="questionnaire-processing-title">{getQuestionnaireStatusTitle(completionPhase)}</h2>
                                     <p className="questionnaire-processing-description">{processingMessage}</p>
 
                                     {completionPhase === 'submitting' || completionPhase === 'processing' ? (
@@ -1271,96 +1611,18 @@ export default function Cuestionario() {
                                     </div>
 
                                     {completionPhase === 'processed' ? (
-                                        <div className="questionnaire-result-view">
-                                            <h3>Resultado principal</h3>
-                                            {resultBlock ? (
-                                                <div className="questionnaire-result-grid">
-                                                    <div>
-                                                        <strong>Resumen</strong>
-                                                        <p>{toText(resultBlock.summary, 'Sin resumen disponible.')}</p>
-                                                    </div>
-                                                    <div>
-                                                        <strong>Recomendacion operativa</strong>
-                                                        <p>{toText(resultBlock.operational_recommendation, 'Sin recomendacion registrada.')}</p>
-                                                    </div>
-                                                    <div>
-                                                        <strong>Calidad de completitud</strong>
-                                                        <p>{formatPercent(resultBlock.completion_quality_score)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <strong>Nivel de datos faltantes</strong>
-                                                        <p>{formatPercent(resultBlock.missingness_score)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <strong>Revision profesional</strong>
-                                                        <p>
-                                                            {typeof resultBlock.needs_professional_review === 'boolean'
-                                                                ? resultBlock.needs_professional_review ? 'Si recomendada' : 'No requerida'
-                                                                : '--'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p className="questionnaire-result-empty">
-                                                    El estado llego a procesado, pero no hay resumen estructurado para mostrar.
-                                                </p>
-                                            )}
-
-                                            {domains.length > 0 ? (
-                                                <div className="questionnaire-result-section">
-                                                    <h4>Dominios evaluados</h4>
-                                                    <div className="questionnaire-result-list">
-                                                        {domains.map((domain, index) => (
-                                                            <article key={`${domain.domain ?? 'domain'}-${index}`} className="questionnaire-result-item">
-                                                                <header>
-                                                                    <strong>{toText(domain.domain, `Dominio ${index + 1}`)}</strong>
-                                                                    <span className={`domain-alert is-${toText(domain.alert_level, 'unknown').toLowerCase()}`}>
-                                                                        {toText(domain.alert_level, '--')}
-                                                                    </span>
-                                                                </header>
-                                                                <p>{toText(domain.result_summary, 'Sin resumen operativo para este dominio.')}</p>
-                                                                <div className="questionnaire-result-item-meta">
-                                                                    <span>Probabilidad: {formatPercent(domain.probability)}</span>
-                                                                    <span>Confianza: {formatPercent(domain.confidence_pct)}</span>
-                                                                    <span>Banda: {toText(domain.confidence_band, '--')}</span>
-                                                                </div>
-                                                                <div className="questionnaire-result-item-meta">
-                                                                    <span>Clase operativa: {toText(domain.operational_class, '--')}</span>
-                                                                    <span>Caveat: {toText(domain.operational_caveat, '--')}</span>
-                                                                </div>
-                                                            </article>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : null}
-
-                                            {comorbidity.length > 0 ? (
-                                                <div className="questionnaire-result-section">
-                                                    <h4>Comorbilidad</h4>
-                                                    <div className="questionnaire-result-list">
-                                                        {comorbidity.map((item, index) => (
-                                                            <article key={`${item.coexistence_key ?? 'co'}-${index}`} className="questionnaire-result-item">
-                                                                <header>
-                                                                    <strong>{toText(item.coexistence_key, `Relacion ${index + 1}`)}</strong>
-                                                                </header>
-                                                                <p>{toText(item.summary, 'Sin resumen de coexistencia.')}</p>
-                                                                <div className="questionnaire-result-item-meta">
-                                                                    <span>Dominios: {Array.isArray(item.domains) && item.domains.length > 0 ? item.domains.join(', ') : '--'}</span>
-                                                                    <span>Riesgo combinado: {formatPercent(item.combined_risk_score)}</span>
-                                                                    <span>Nivel: {toText(item.coexistence_level, '--')}</span>
-                                                                </div>
-                                                            </article>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : null}
-
-                                            <div className="questionnaire-result-actions">
-                                                <button type="button" className="questionnaire-btn primary" onClick={handleSuccessClose}>
-                                                    Finalizar
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <QuestionnaireProcessedView
+                                            riskPresentation={riskPresentation}
+                                            generatedAt={reportGeneratedAt}
+                                            reportNotice={reportNotice}
+                                            summarySections={summarySections}
+                                            clinicalDomains={clinicalDomains}
+                                            evaluationDomains={evaluationDomains}
+                                            resultBlock={resultBlock}
+                                            comorbiditySummary={comorbiditySummary}
+                                            disclaimer={clinicalDisclaimer}
+                                            onClose={handleSuccessClose}
+                                        />
                                     ) : null}
 
                                     {completionPhase === 'failed' ? (

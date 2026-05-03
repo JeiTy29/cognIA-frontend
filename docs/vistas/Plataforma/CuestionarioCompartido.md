@@ -15,7 +15,8 @@ Mostrar resultados compartidos de cuestionario V2 para consulta externa con lect
 
 ## Endpoint consumido por frontend
 
-- `GET /api/v2/questionnaires/shared/{questionnaire_id}/{share_code}`
+- `POST /api/v2/questionnaires/shared/access-secure` cuando el transporte cifrado esta activo
+- `GET /api/v2/questionnaires/shared/{questionnaire_id}/{share_code}` como fallback tecnico si el transporte cifrado esta deshabilitado
 
 ## Presentacion vigente
 

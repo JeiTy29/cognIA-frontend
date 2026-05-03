@@ -1,6 +1,7 @@
 export type QuestionnaireV2Mode = 'short' | 'medium' | 'complete';
 export type QuestionnaireV2Role = 'guardian' | 'psychologist';
 type FlexibleString<T extends string> = T | (string & {});
+export type QuestionnaireRiskLevel = FlexibleString<'baja' | 'intermedia' | 'relevante' | 'alta'>;
 export type QuestionnaireV2Status =
     FlexibleString<'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'>;
 export type QuestionnaireResponseType = FlexibleString<'likert' | 'boolean' | 'integer' | 'number' | 'text'>;
@@ -99,6 +100,65 @@ export interface QuestionnaireSubmitResponseV2DTO {
     domains?: QuestionnaireEvaluationDomainDTO[];
     comorbidity?: QuestionnaireEvaluationComorbidityDTO[];
     metadata?: Record<string, unknown> | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireSecureResultsV2DTO {
+    session: QuestionnaireSessionV2DTO;
+    result: QuestionnaireEvaluationResultDTO | null;
+    domains: QuestionnaireEvaluationDomainDTO[];
+    comorbidity: QuestionnaireEvaluationComorbidityDTO[];
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireClinicalNarrativeV2DTO {
+    sintesis_general?: string | null;
+    niveles_de_compatibilidad?: string | null;
+    indicadores_principales_observados?: string | null;
+    impacto_funcional?: string | null;
+    recomendacion_profesional?: string | null;
+    aclaracion_importante?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireClinicalDomainV2DTO {
+    domain?: string | null;
+    probability?: number | null;
+    compatibility_level?: QuestionnaireRiskLevel | null;
+    risk_level?: QuestionnaireRiskLevel | null;
+    confidence_pct?: number | null;
+    confidence_band?: string | null;
+    operational_class?: string | null;
+    caveat?: string | null;
+    main_indicators?: string[] | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireClinicalComorbidityV2DTO {
+    has_comorbidity_signal?: boolean | null;
+    severity?: string | null;
+    domains?: string[] | null;
+    summary?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireClinicalSectionV2DTO {
+    key?: string | null;
+    title?: string | null;
+    content?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireClinicalSummaryV2DTO {
+    session_id?: string | null;
+    report_version?: string | null;
+    generated_at?: string | null;
+    overall_risk_level?: QuestionnaireRiskLevel | null;
+    simulated_diagnostic_text?: QuestionnaireClinicalNarrativeV2DTO | null;
+    sections?: QuestionnaireClinicalSectionV2DTO[] | Record<string, string | null> | null;
+    domains?: QuestionnaireClinicalDomainV2DTO[];
+    comorbidity?: QuestionnaireClinicalComorbidityV2DTO | null;
+    disclaimer?: string | null;
     [key: string]: unknown;
 }
 
