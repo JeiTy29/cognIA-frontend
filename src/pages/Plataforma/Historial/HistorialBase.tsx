@@ -7,19 +7,28 @@ import {
     deleteQuestionnaireHistoryTagV2,
     downloadQuestionnaireHistoryPdfV2,
     generateQuestionnaireHistoryPdfV2,
+    getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryPdfV2,
     getQuestionnaireHistoryResultsV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
     QuestionnairePdfInfoV2DTO,
+    QuestionnaireSecureResultsV2DTO,
     QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildClinicalSummarySections,
+    getClinicalComorbiditySummary,
+    getRiskLevelPresentation,
+    getSafeClinicalDisclaimer
+} from '../../../services/questionnaires/clinicalSummary';
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
@@ -141,6 +150,11 @@ function buildActionErrorMessage(error: unknown, fallback: string) {
     return mapApiErrorToUserMessage(error, fallback);
 }
 
+function canLoadClinicalArtifacts(status: string | null | undefined) {
+    const normalized = (status ?? '').trim().toLowerCase();
+    return normalized === 'submitted' || normalized === 'processed';
+}
+
 function resolveQuestionnaireId(
     detail: QuestionnaireHistoryDetailV2DTO | null,
     sharePayload: QuestionnaireShareResponseDTO | null
@@ -239,7 +253,8 @@ export function HistorialBase({ role }: HistorialBaseProps) {
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
-    const [resultsPayload, setResultsPayload] = useState<Record<string, unknown> | null>(null);
+    const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
+    const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
     const [sharePayload, setSharePayload] = useState<QuestionnaireShareResponseDTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -301,6 +316,22 @@ export function HistorialBase({ role }: HistorialBaseProps) {
     const shareLink = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
     const shareAvailable = useMemo(() => Boolean(shareLink), [shareLink]);
     const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
+    const clinicalSections = useMemo(
+        () => buildClinicalSummarySections(clinicalSummaryPayload),
+        [clinicalSummaryPayload]
+    );
+    const clinicalRisk = useMemo(
+        () => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null),
+        [clinicalSummaryPayload?.overall_risk_level]
+    );
+    const clinicalDisclaimer = useMemo(
+        () => getSafeClinicalDisclaimer(clinicalSummaryPayload),
+        [clinicalSummaryPayload]
+    );
+    const clinicalComorbiditySummary = useMemo(
+        () => getClinicalComorbiditySummary(clinicalSummaryPayload),
+        [clinicalSummaryPayload]
+    );
 
     const openDetail = async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
@@ -314,17 +345,35 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setShareUrl(null);
         setSharePayload(null);
         setPdfPayload(null);
+        setClinicalSummaryPayload(null);
         try {
-            const [detailResponse, resultsResponse] = await Promise.all([
-                getQuestionnaireHistoryDetailV2(sessionId),
-                getQuestionnaireHistoryResultsV2(sessionId)
-            ]);
+            const detailResponse = await getQuestionnaireHistoryDetailV2(sessionId);
             setDetailPayload(detailResponse);
-            setResultsPayload(resultsResponse);
+            setResultsPayload(null);
+
+            if (!canLoadClinicalArtifacts(detailResponse.status)) {
+                return;
+            }
+
+            const [resultsResponse, summaryResponse] = await Promise.allSettled([
+                getQuestionnaireHistoryResultsV2(sessionId),
+                getQuestionnaireClinicalSummaryV2(sessionId)
+            ]);
+
+            if (resultsResponse.status === 'fulfilled') {
+                setResultsPayload(resultsResponse.value);
+            }
+
+            if (summaryResponse.status === 'fulfilled') {
+                setClinicalSummaryPayload(summaryResponse.value);
+            } else if (resultsResponse.status === 'fulfilled') {
+                setDetailNotice('No fue posible generar el informe orientativo en este momento.');
+            }
         } catch (requestError) {
             setDetailError(mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesión.'));
             setDetailPayload(null);
             setResultsPayload(null);
+            setClinicalSummaryPayload(null);
         } finally {
             setDetailLoading(false);
         }
@@ -334,6 +383,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
         setDetailSessionId(null);
         setDetailPayload(null);
         setResultsPayload(null);
+        setClinicalSummaryPayload(null);
         setPdfPayload(null);
         setSharePayload(null);
         setDetailLoading(false);
@@ -496,7 +546,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                     <div>{formatDateTimeEsCO(item.created_at)}</div>
                                     <div>{formatDateTimeEsCO(item.updated_at)}</div>
                                     <div className="historial-v2-actions">
-                                        <button type="button" className="historial-v2-btn" onClick={() => void openDetail(item.id)}>
+                                        <button type="button" className="historial-v2-btn" onClick={() => { openDetail(item.id).catch(() => undefined); }}>
                                             Ver
                                         </button>
                                     </div>
@@ -560,12 +610,42 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Resumen de resultados</h3>
+                                <h3>Informe final orientativo</h3>
+                                {clinicalSummaryPayload ? (
+                                    <>
+                                        <div className="historial-v2-modal-grid">
+                                            <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
+                                            <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
+                                        </div>
+                                        {clinicalComorbiditySummary ? (
+                                            <div className="historial-v2-warning">
+                                                <strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}
+                                            </div>
+                                        ) : null}
+                                        <div className="historial-v2-kv-grid">
+                                            {clinicalSections.map((section) => (
+                                                <div key={section.key}>
+                                                    <strong>{section.title}</strong>
+                                                    <span>{section.content}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p>No fue posible cargar el informe orientativo completo para esta sesión.</p>
+                                )}
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Resultados estructurados complementarios</h3>
                                 <KeyValueRows
-                                    data={toRecord(resultsPayload)}
+                                    data={toRecord(resultsPayload?.result ?? resultsPayload)}
                                     exclude={hiddenResultFields}
-                                    emptyText="Sin resultados disponibles."
+                                    emptyText="Sin resultados estructurados adicionales."
                                 />
+                                {clinicalSummaryPayload ? (
+                                    <p className="historial-v2-helper-text">{clinicalDisclaimer}</p>
+                                ) : null}
                             </div>
 
                             {internalReferenceRows.length > 0 ? (
@@ -600,7 +680,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                                     <span className="historial-v2-tag-name">{tagName}</span>
                                                     <span className="historial-v2-tag-meta">{visibilityLabel}</span>
                                                     {tagId !== '' ? (
-                                                        <button type="button" onClick={() => void handleDeleteTag(tagId)}>
+                                                        <button type="button" onClick={() => { handleDeleteTag(tagId).catch(() => undefined); }}>
                                                             Eliminar
                                                         </button>
                                                     ) : null}
@@ -638,7 +718,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                             />
                                         ))}
                                     </div>
-                                    <button type="button" className="historial-v2-btn" onClick={() => void handleAddTag()}>
+                                    <button type="button" className="historial-v2-btn" onClick={() => { handleAddTag().catch(() => undefined); }}>
                                         Agregar
                                     </button>
                                 </div>
@@ -674,12 +754,12 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         </div>
                                         <div className="historial-v2-section-actions">
                                             {!shareAvailable ? (
-                                                <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
+                                                <button type="button" className="historial-v2-btn" onClick={() => { handleGenerateShare().catch(() => undefined); }}>
                                                     Generar enlace para compartir
                                                 </button>
                                             ) : (
                                                 <>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => void handleCopyShareLink()}>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => { handleCopyShareLink().catch(() => undefined); }}>
                                                         Copiar enlace
                                                     </button>
                                                     <a
@@ -690,7 +770,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                                     >
                                                         Abrir enlace
                                                     </a>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => void handleGenerateShare()}>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => { handleGenerateShare().catch(() => undefined); }}>
                                                         Generar nuevo enlace
                                                     </button>
                                                 </>
@@ -717,16 +797,16 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         <h4>Documento PDF</h4>
                                         <p className="historial-v2-helper-text">Estado actual: <strong>{pdfStatusText}</strong></p>
                                         <div className="historial-v2-section-actions">
-                                            <button type="button" className="historial-v2-btn" onClick={() => void handleGeneratePdf()}>
+                                            <button type="button" className="historial-v2-btn" onClick={() => { handleGeneratePdf().catch(() => undefined); }}>
                                                 Generar PDF
                                             </button>
-                                            <button type="button" className="historial-v2-btn" onClick={() => void handleFetchPdfInfo()}>
+                                            <button type="button" className="historial-v2-btn" onClick={() => { handleFetchPdfInfo().catch(() => undefined); }}>
                                                 Consultar estado
                                             </button>
                                             <button
                                                 type="button"
                                                 className="historial-v2-btn"
-                                                onClick={() => void handleDownloadPdf()}
+                                                onClick={() => { handleDownloadPdf().catch(() => undefined); }}
                                                 disabled={!isPdfReady}
                                             >
                                                 Descargar PDF

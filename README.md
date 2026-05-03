@@ -142,17 +142,27 @@ La integracion se concentra en `src/services/**` sobre una capa HTTP comun (`htt
 Caracteristicas observables de la capa API:
 
 - wrappers `apiGet/apiPost/apiPatch/apiPut/apiDelete`,
+- variantes seguras `apiSecurePost/apiSecurePatch/apiSecurePostNoBody`,
 - `ApiError` con `status` y `payload`,
 - refresh automatico ante `401` cuando aplica,
 - soporte de `auth: true` para Bearer token,
 - soporte de `credentials: 'include'`,
-- normalizacion central de URL en `src/services/api/url.ts`.
+- normalizacion central de URL en `src/services/api/url.ts`,
+- transporte cifrado hibrido para payloads clinicos sensibles en `src/services/api/encryptedTransport.ts`.
 
 La normalizacion central:
 
 - tolera `VITE_API_BASE_URL` con o sin `/api`,
 - evita duplicar `/api` cuando los servicios ya usan paths `/api/...`,
 - resuelve endpoints raiz como `/healthz` y `/readyz` fuera de `/api`.
+
+Para endpoints clinicos sensibles de Questionnaire V2, el frontend:
+
+- obtiene la clave publica con `GET /api/v2/security/transport-key`,
+- cifra requests con `RSA-OAEP-256 + AES-256-GCM`,
+- usa `credentials: 'include'`,
+- evita persistir respuestas y resultados clinicos en storage del navegador,
+- privilegia endpoints seguros como `results-secure`, `clinical-summary`, `page-secure`, `history/secure`, `pdf/secure` y `shared/access-secure` cuando el backend los expone.
 
 Familias de endpoints consumidas por el frontend:
 
@@ -207,9 +217,14 @@ Copy-Item .env.example .env.local
 Variables relevantes observables:
 
 - `VITE_API_BASE_URL`: base URL del backend.
-  - puede configurarse como `https://www.cognia.lat` o `https://www.cognia.lat/api`;
+  - puede configurarse como `https://cognia-api.onrender.com`, `https://www.cognia.lat/api` o `/api`;
   - el frontend normaliza ambas variantes;
-  - recomendado: usar el origen sin `/api`.
+  - recomendado:
+    - Vercel + Render: `https://cognia-api.onrender.com`
+    - self-hosted con proxy mismo origen: `/api`
+- `VITE_COGNIA_ENCRYPTED_TRANSPORT`: habilita transporte cifrado para payloads sensibles.
+- `VITE_COGNIA_REQUIRE_ENCRYPTED_SENSITIVE_PAYLOADS`: obliga a usar endpoints/requests cifrados para datos clinicos sensibles.
+- `VITE_DEBUG_API_CLIENT`: activa logs seguros de metodo + endpoint, sin payloads ni respuestas clinicas.
 - `VITE_DEV_AUTH_BYPASS`: habilita bypass de autenticacion solo en desarrollo.
 - `VITE_DEV_ROLE`: rol simulado cuando bypass esta activo (`guardian`, `psychologist`, `admin`).
 
@@ -312,6 +327,13 @@ Documentos clave para onboarding tecnico:
 - El bypass de autenticacion (`VITE_DEV_AUTH_BYPASS`) es una herramienta de desarrollo local; no es un flujo funcional de produccion.
 - `VITE_API_BASE_URL` no es configuracion runtime del bundle final de Vite.
   - si la app ya fue compilada, cambiar `.env` en servidor no actualiza automaticamente las URLs embebidas.
+- en despliegues self-hosted, la compilacion debe recibir la URL final del backend durante el build.
+  - si el dominio propio usa proxy reverso mismo origen, el valor recomendado es `/api`;
+  - si consume Render directo, el valor recomendado es `https://cognia-api.onrender.com`.
+- si un despliegue self-hosted aparentemente no hace requests, revisar primero:
+  - que el build servido corresponda al commit esperado,
+  - que `VITE_API_BASE_URL` no haya quedado vacia o invalida,
+  - y que `GET /api/v2/security/transport-key` responda desde el origen configurado.
 - `vercel.json` puede existir en el repo por compatibilidad historica, pero el despliegue operativo documentado actualmente esta orientado a servidor Ubuntu self-hosted.
 
 ## 15. Creditos y contexto institucional

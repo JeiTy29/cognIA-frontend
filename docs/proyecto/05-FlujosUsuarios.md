@@ -124,8 +124,8 @@
 - `getActiveQuestionnairesV2` -> `GET /api/v2/questionnaires/active`
 - `getQuestionnaireHistoryV2` -> `GET /api/v2/questionnaires/history` (draft/in_progress)
 - `createQuestionnaireSessionV2` -> `POST /api/v2/questionnaires/sessions`
-- `getQuestionnaireSessionPageV2` -> `GET /api/v2/questionnaires/sessions/{session_id}/page`
-- `getQuestionnaireSessionV2` -> `GET /api/v2/questionnaires/sessions/{session_id}`
+- `getQuestionnaireSessionPageV2` -> `POST /api/v2/questionnaires/sessions/{session_id}/page-secure` cuando el transporte cifrado esta activo
+- `getQuestionnaireSessionV2` -> `POST /api/v2/questionnaires/sessions/{session_id}/secure` cuando el transporte cifrado esta activo
 
 ### Secuencia funcional observada
 
@@ -164,7 +164,9 @@
 ### Servicios/endpoints consumidos
 
 - `submitQuestionnaireSessionV2` -> `POST /api/v2/questionnaires/sessions/{session_id}/submit`
-- polling de sesion -> `GET /api/v2/questionnaires/sessions/{session_id}`
+- polling de sesion -> `POST /api/v2/questionnaires/sessions/{session_id}/secure` cuando el transporte cifrado esta activo
+- resultados finales -> `POST /api/v2/questionnaires/history/{session_id}/results-secure`
+- informe orientativo -> `POST /api/v2/questionnaires/history/{session_id}/clinical-summary`
 
 ### Estados observables en frontend
 
@@ -175,9 +177,9 @@
 
 1. Frontend guarda respuesta final pendiente.
 2. Ejecuta `submit`.
-3. Si payload submit trae resultado suficiente, puede renderizarlo sin esperar.
-4. Si no, inicia polling de estado hasta estado terminal o timeout.
-5. En `processed` muestra resultado; en `failed` muestra error accionable.
+3. Si el backend confirma estado terminal `processed`, el frontend consulta artefactos seguros de resultados.
+4. Si todavia no hay estado terminal, inicia polling de estado hasta estado terminal o timeout.
+5. En `processed` muestra informe orientativo con disclaimer obligatorio; en `failed` muestra error accionable.
 
 ## 8) Historial
 
@@ -189,9 +191,10 @@
 
 ### Servicios/endpoints consumidos
 
-- `getQuestionnaireHistoryV2` -> `GET /api/v2/questionnaires/history`
+- `getQuestionnaireHistoryV2` -> `POST /api/v2/questionnaires/history/secure` cuando el transporte cifrado esta activo
 - `getQuestionnaireHistoryDetailV2` -> `GET /api/v2/questionnaires/history/{session_id}`
-- `getQuestionnaireHistoryResultsV2` -> `GET /api/v2/questionnaires/history/{session_id}/results`
+- `getQuestionnaireHistoryResultsV2` -> `POST /api/v2/questionnaires/history/{session_id}/results-secure`
+- `getQuestionnaireClinicalSummaryV2` -> `POST /api/v2/questionnaires/history/{session_id}/clinical-summary`
 
 ### Acciones visibles
 
@@ -247,7 +250,7 @@
 
 ### Servicio/endpoint consumido
 
-- `getSharedQuestionnaireV2` -> `GET /api/v2/questionnaires/shared/{questionnaire_id}/{share_code}`
+- `getSharedQuestionnaireV2` -> `POST /api/v2/questionnaires/shared/access-secure` cuando el transporte cifrado esta activo
 
 ### Bloques que renderiza la UI
 

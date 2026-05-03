@@ -7,6 +7,80 @@ Este documento consolida cambios implementados en el frontend que afectan compor
 - Fuente: evidencia del repositorio frontend local.
 - Si un cambio no puede verificarse solo con frontend, se marca como inferido.
 
+## 2026-05-03 - Integracion de transporte cifrado, results-secure y clinical summary
+
+### Modulos afectados
+
+- `src/services/api/url.ts`
+- `src/services/api/policy.ts`
+- `src/services/api/httpClient.ts`
+- `src/services/api/encryptedTransport.ts`
+- `src/services/questionnaires/questionnaires.api.ts`
+- `src/services/questionnaires/questionnaires.types.ts`
+- `src/services/questionnaires/clinicalSummary.ts`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.tsx`
+- `src/pages/Plataforma/Cuestionario/Cuestionario.css`
+- `src/pages/Plataforma/Historial/HistorialBase.tsx`
+- `src/pages/Plataforma/CuestionarioCompartido/CuestionarioCompartido.tsx`
+- `src/App.tsx`
+- `src/styles/globals.css`
+- `.env.example`
+- `README.md`
+- `docs/vistas/Plataforma/Cuestionario.md`
+- `docs/vistas/Plataforma/Historial.md`
+- `docs/proyecto/05-FlujosUsuarios.md`
+- `docs/proyecto/08-MigracionEndpointsActivos.md`
+
+### Ajuste aplicado
+
+- Se integra cliente de transporte cifrado hibrido con:
+  - `GET /api/v2/security/transport-key` publico
+  - AES-256-GCM por request
+  - RSA-OAEP SHA-256 para cifrar la clave AES
+  - envelope `transport_envelope_v1`
+- La capa HTTP central mantiene `credentials: 'include'` por defecto y agrega wrappers seguros para payload sensible.
+- Questionnaire V2 migra endpoints sensibles a variantes cifradas o replacements seguros cuando el backend los expone:
+  - `sessions`
+  - `sessions/{id}/secure`
+  - `sessions/{id}/page-secure`
+  - `answers`
+  - `submit`
+  - `history/secure`
+  - `results-secure`
+  - `clinical-summary`
+  - `pdf/secure`
+  - `shared/access-secure`
+- La pantalla final de Cuestionario deja de depender del endpoint legacy plaintext de resultados y renderiza:
+  - sintesis general
+  - niveles de compatibilidad
+  - indicadores principales observados
+  - impacto funcional
+  - recomendacion profesional
+  - aclaracion importante
+- El disclaimer de no diagnostico se muestra siempre, incluso si el backend no devuelve la seccion completa.
+- Historial incorpora `clinical-summary` en el detalle cuando la sesion ya fue enviada o procesada.
+- La app agrega validacion temprana de configuracion API para evitar fallos silenciosos cuando `VITE_API_BASE_URL` queda vacia o invalida en builds self-hosted.
+- Se documenta el uso recomendado de:
+  - `VITE_COGNIA_ENCRYPTED_TRANSPORT`
+  - `VITE_COGNIA_REQUIRE_ENCRYPTED_SENSITIVE_PAYLOADS`
+  - `VITE_DEBUG_API_CLIENT`
+
+### Diagnostico self-hosted documentado
+
+- Se confirma como causa mas probable del dominio propio sin requests una combinacion de:
+  - build distinto/stale respecto a Vercel,
+  - `VITE_API_BASE_URL` mal inyectada en build self-hosted,
+  - y soporte insuficiente de la version anterior del frontend para una base relativa `/api`.
+- La evidencia remota observada fue:
+  - `https://www.cognia.lat/api/v2/security/transport-key` devolviendo `transport_key_failed`,
+  - mientras `https://cognia-api.onrender.com/api/v2/security/transport-key` responde correctamente.
+
+### Validacion local
+
+- `npm run test`
+- `npm run lint`
+- `npm run build`
+
 ## 2026-05-02 - Preparacion de SonarCloud y saneamiento local previo
 
 ### 1) Configuracion base de Sonar en el repo

@@ -4,8 +4,15 @@ import {
     apiGetBlobWithMeta,
     apiPatch,
     apiPost,
-    apiPostNoBody
+    apiPostNoBody,
+    apiSecurePatch,
+    apiSecurePost,
+    apiSecurePostNoBody
 } from '../api/httpClient';
+import {
+    getEncryptedTransportEnabled,
+    getRequireEncryptedSensitivePayloads
+} from '../api/policy';
 import type {
     ActiveQuestionnairesV2Response,
     AddQuestionnaireTagPayload,
@@ -15,7 +22,13 @@ import type {
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryListV2Response,
     QuestionnaireHistoryStatusFilter,
+    QuestionnaireClinicalComorbidityV2DTO,
+    QuestionnaireClinicalDomainV2DTO,
+    QuestionnaireClinicalNarrativeV2DTO,
+    QuestionnaireClinicalSectionV2DTO,
+    QuestionnaireClinicalSummaryV2DTO,
     QuestionnairePdfInfoV2DTO,
+    QuestionnaireSecureResultsV2DTO,
     QuestionnaireSubmitResponseV2DTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireSessionPageV2Response,
@@ -37,6 +50,14 @@ const requestOptions = {
     auth: true,
     credentials: 'include' as const
 };
+
+const publicRequestOptions = {
+    credentials: 'include' as const
+};
+
+const encryptedTransportEnabled = getEncryptedTransportEnabled();
+const requireEncryptedSensitivePayloads = getRequireEncryptedSensitivePayloads();
+const sensitiveTransportEnabled = encryptedTransportEnabled || requireEncryptedSensitivePayloads;
 
 const defaultPageSize = 20;
 const sessionDefaultPageSize = 20;
@@ -499,9 +520,115 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
     } as QuestionnaireHistoryDetailV2DTO;
 }
 
-function normalizeResults(payload: unknown): Record<string, unknown> {
+function normalizeSecureResults(payload: unknown): QuestionnaireSecureResultsV2DTO {
     const root = pickRecord(payload, ['results', 'result', 'data']);
-    return root ?? {};
+    if (!root) {
+        return {
+            session: { id: '' },
+            result: null,
+            domains: [],
+            comorbidity: []
+        };
+    }
+
+    const sessionSource = asRecord(root.session) ?? root;
+    return {
+        ...root,
+        session: normalizeSession(sessionSource),
+        result: normalizeEvaluationResult(asRecord(root.result) ?? asRecord(root.results) ?? null),
+        domains: normalizeEvaluationDomains(root.domains),
+        comorbidity: normalizeEvaluationComorbidity(root.comorbidity)
+    };
+}
+
+function normalizeClinicalNarrative(value: unknown): QuestionnaireClinicalNarrativeV2DTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+
+    return {
+        ...record,
+        sintesis_general: firstNonEmptyString([record.sintesis_general]),
+        niveles_de_compatibilidad: firstNonEmptyString([record.niveles_de_compatibilidad]),
+        indicadores_principales_observados: firstNonEmptyString([record.indicadores_principales_observados]),
+        impacto_funcional: firstNonEmptyString([record.impacto_funcional]),
+        recomendacion_profesional: firstNonEmptyString([record.recomendacion_profesional]),
+        aclaracion_importante: firstNonEmptyString([record.aclaracion_importante])
+    };
+}
+
+function normalizeClinicalDomain(value: unknown): QuestionnaireClinicalDomainV2DTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+
+    return {
+        ...record,
+        domain: firstNonEmptyString([record.domain]),
+        probability: toNumberOrNull(record.probability),
+        compatibility_level: firstNonEmptyString([record.compatibility_level]) as QuestionnaireClinicalDomainV2DTO['compatibility_level'],
+        risk_level: firstNonEmptyString([record.risk_level]) as QuestionnaireClinicalDomainV2DTO['risk_level'],
+        confidence_pct: toNumberOrNull(record.confidence_pct),
+        confidence_band: firstNonEmptyString([record.confidence_band]),
+        operational_class: firstNonEmptyString([record.operational_class]),
+        caveat: firstNonEmptyString([record.caveat]),
+        main_indicators: asArray(record.main_indicators).map((item) => String(item))
+    };
+}
+
+function normalizeClinicalComorbidity(value: unknown): QuestionnaireClinicalComorbidityV2DTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+
+    return {
+        ...record,
+        has_comorbidity_signal: toBooleanOrNull(record.has_comorbidity_signal),
+        severity: firstNonEmptyString([record.severity]),
+        domains: asArray(record.domains).map((item) => String(item)),
+        summary: firstNonEmptyString([record.summary])
+    };
+}
+
+function normalizeClinicalSections(
+    value: unknown
+): QuestionnaireClinicalSectionV2DTO[] | Record<string, string | null> | null {
+    if (Array.isArray(value)) {
+        return value
+            .map<QuestionnaireClinicalSectionV2DTO | null>((item) => {
+                const record = asRecord(item);
+                if (!record) return null;
+                return {
+                    ...record,
+                    key: firstNonEmptyString([record.key]),
+                    title: firstNonEmptyString([record.title]),
+                    content: firstNonEmptyString([record.content])
+                };
+            })
+            .filter((item): item is QuestionnaireClinicalSectionV2DTO => Boolean(item));
+    }
+
+    const record = asRecord(value);
+    if (!record) return null;
+    return Object.entries(record).reduce<Record<string, string | null>>((acc, [key, entryValue]) => {
+        acc[key] = typeof entryValue === 'string' ? entryValue : null;
+        return acc;
+    }, {});
+}
+
+function normalizeClinicalSummary(payload: unknown): QuestionnaireClinicalSummaryV2DTO {
+    const root = pickRecord(payload, ['data', 'result', 'summary']);
+    if (!root) return {};
+
+    return {
+        ...root,
+        session_id: firstNonEmptyString([root.session_id]),
+        report_version: firstNonEmptyString([root.report_version]),
+        generated_at: firstNonEmptyString([root.generated_at]),
+        overall_risk_level: firstNonEmptyString([root.overall_risk_level]) as QuestionnaireClinicalSummaryV2DTO['overall_risk_level'],
+        simulated_diagnostic_text: normalizeClinicalNarrative(root.simulated_diagnostic_text),
+        sections: normalizeClinicalSections(root.sections),
+        domains: asArray(root.domains).map(normalizeClinicalDomain).filter((item): item is QuestionnaireClinicalDomainV2DTO => Boolean(item)),
+        comorbidity: normalizeClinicalComorbidity(root.comorbidity),
+        disclaimer: firstNonEmptyString([root.disclaimer])
+    };
 }
 
 function normalizeShareResponse(payload: unknown): QuestionnaireShareResponseDTO {
@@ -786,28 +913,61 @@ export function getActiveQuestionnairesV2(params: {
 }
 
 export function createQuestionnaireSessionV2(payload: CreateQuestionnaireSessionV2Payload) {
-    return apiPost<unknown, CreateQuestionnaireSessionV2Payload>(
-        '/api/v2/questionnaires/sessions',
-        payload,
-        requestOptions
-    ).then(normalizeSession);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, CreateQuestionnaireSessionV2Payload>(
+            '/api/v2/questionnaires/sessions',
+            payload,
+            requestOptions
+        )
+        : apiPost<unknown, CreateQuestionnaireSessionV2Payload>(
+            '/api/v2/questionnaires/sessions',
+            payload,
+            requestOptions
+        );
+
+    return request.then(normalizeSession);
 }
 
 export function getQuestionnaireSessionV2(sessionId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/sessions/${sessionId}`, requestOptions).then(normalizeSession);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, Record<string, never>>(
+            `/api/v2/questionnaires/sessions/${sessionId}/secure`,
+            {},
+            requestOptions
+        )
+        : apiGet<unknown>(`/api/v2/questionnaires/sessions/${sessionId}`, requestOptions);
+
+    return request.then(normalizeSession);
 }
 
 export function getQuestionnaireSessionPageV2(sessionId: string, params?: { page?: number; page_size?: number }) {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? sessionDefaultPageSize;
-    const queryWithPageSize = buildSearch({ page, page_size: pageSize });
-    const pathWithPageSize = `/api/v2/questionnaires/sessions/${sessionId}/page?${queryWithPageSize}`;
-    return apiGet<unknown>(pathWithPageSize, requestOptions).then((payload) =>
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, { page: number; page_size: number }>(
+            `/api/v2/questionnaires/sessions/${sessionId}/page-secure`,
+            { page, page_size: pageSize },
+            requestOptions
+        )
+        : apiGet<unknown>(
+            `/api/v2/questionnaires/sessions/${sessionId}/page?${buildSearch({ page, page_size: pageSize })}`,
+            requestOptions
+        );
+
+    return request.then((payload) =>
         normalizeSessionPageResponse(payload, page, pageSize)
     );
 }
 
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
+    if (sensitiveTransportEnabled) {
+        return apiSecurePatch<unknown, PatchSessionAnswersV2Payload>(
+            `/api/v2/questionnaires/sessions/${sessionId}/answers`,
+            payload,
+            requestOptions
+        );
+    }
+
     return apiPatch<unknown, PatchSessionAnswersV2Payload>(
         `/api/v2/questionnaires/sessions/${sessionId}/answers`,
         payload,
@@ -816,10 +976,17 @@ export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: P
 }
 
 export function submitQuestionnaireSessionV2(sessionId: string) {
-    return apiPostNoBody<unknown>(
-        `/api/v2/questionnaires/sessions/${sessionId}/submit`,
-        requestOptions
-    ).then(normalizeSubmitResponse);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePostNoBody<unknown>(
+            `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestOptions
+        )
+        : apiPostNoBody<unknown>(
+            `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestOptions
+        );
+
+    return request.then(normalizeSubmitResponse);
 }
 
 export function getQuestionnaireHistoryV2(params?: {
@@ -834,9 +1001,23 @@ export function getQuestionnaireHistoryV2(params?: {
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions).then(
-        (payload) => normalizeHistoryResponse(payload, page, pageSize)
-    );
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, {
+            status?: QuestionnaireHistoryStatusFilter;
+            page: number;
+            page_size: number;
+        }>(
+            '/api/v2/questionnaires/history/secure',
+            {
+                status: params?.status,
+                page,
+                page_size: pageSize
+            },
+            requestOptions
+        )
+        : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions);
+
+    return request.then((payload) => normalizeHistoryResponse(payload, page, pageSize));
 }
 
 export function getQuestionnaireHistoryDetailV2(sessionId: string) {
@@ -844,7 +1025,21 @@ export function getQuestionnaireHistoryDetailV2(sessionId: string) {
 }
 
 export function getQuestionnaireHistoryResultsV2(sessionId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/results`, requestOptions).then(normalizeResults);
+    if (!sensitiveTransportEnabled) {
+        return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/results`, requestOptions).then(normalizeSecureResults);
+    }
+
+    return apiSecurePostNoBody<unknown>(
+        `/api/v2/questionnaires/history/${sessionId}/results-secure`,
+        requestOptions
+    ).then(normalizeSecureResults);
+}
+
+export function getQuestionnaireClinicalSummaryV2(sessionId: string) {
+    return apiSecurePostNoBody<unknown>(
+        `/api/v2/questionnaires/history/${sessionId}/clinical-summary`,
+        requestOptions
+    ).then(normalizeClinicalSummary);
 }
 
 export function addQuestionnaireHistoryTagV2(sessionId: string, payload: AddQuestionnaireTagPayload) {
@@ -885,7 +1080,14 @@ export function generateQuestionnaireHistoryPdfV2(sessionId: string) {
 }
 
 export function getQuestionnaireHistoryPdfV2(sessionId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/pdf`, requestOptions).then(normalizePdfInfo);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePostNoBody<unknown>(
+            `/api/v2/questionnaires/history/${sessionId}/pdf/secure`,
+            requestOptions
+        )
+        : apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/pdf`, requestOptions);
+
+    return request.then(normalizePdfInfo);
 }
 
 export async function downloadQuestionnaireHistoryPdfV2(sessionId: string): Promise<DownloadPdfResult> {
@@ -901,7 +1103,16 @@ export async function downloadQuestionnaireHistoryPdfV2(sessionId: string): Prom
 }
 
 export function getSharedQuestionnaireV2(questionnaireId: string, shareCode: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/shared/${questionnaireId}/${shareCode}`).then(
-        normalizeSharedQuestionnaire
-    );
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, { questionnaire_id: string; share_code: string }>(
+            '/api/v2/questionnaires/shared/access-secure',
+            {
+                questionnaire_id: questionnaireId,
+                share_code: shareCode
+            },
+            publicRequestOptions
+        )
+        : apiGet<unknown>(`/api/v2/questionnaires/shared/${questionnaireId}/${shareCode}`, publicRequestOptions);
+
+    return request.then(normalizeSharedQuestionnaire);
 }

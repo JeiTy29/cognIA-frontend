@@ -16,6 +16,7 @@ Utilidad de URL: `src/services/api/url.ts`
 ### Capacidades comunes observadas
 
 - Wrappers HTTP: `apiGet`, `apiPost`, `apiPatch`, `apiPut`, `apiDelete`, `apiPostNoBody`, `apiPostFormData`.
+- Wrappers seguros para payload sensible: `apiSecurePost`, `apiSecurePatch`, `apiSecurePostNoBody`.
 - Manejo de errores unificado con `ApiError(status, payload)`.
 - Retry de autenticacion por refresh para respuestas `401`.
 - Soporte de `auth: true` para header `Authorization`.
@@ -25,6 +26,10 @@ Utilidad de URL: `src/services/api/url.ts`
   - `joinApiUrl(path)` para endpoints bajo `/api`
   - `joinBackendRootUrl(path)` para endpoints raiz del backend
   - tolerancia a `VITE_API_BASE_URL` con o sin `/api`
+- Transporte cifrado hibrido para endpoints clinicos sensibles:
+  - `GET /api/v2/security/transport-key`
+  - `RSA-OAEP-256 + AES-256-GCM`
+  - envelope version `transport_envelope_v1`
 
 ## Modulo de autenticacion
 
@@ -60,27 +65,29 @@ Servicio principal: `src/services/questionnaires/questionnaires.api.ts`
 |---|---|---|
 | `/api/v2/questionnaires/active` | GET | Cargar cuestionario activo por modo/rol |
 | `/api/v2/questionnaires/sessions` | POST | Crear sesion de cuestionario |
-| `/api/v2/questionnaires/sessions/{session_id}` | GET | Consultar sesion (incluye polling post-submit) |
-| `/api/v2/questionnaires/sessions/{session_id}/page` | GET | Cargar preguntas/paginas |
+| `/api/v2/questionnaires/sessions/{session_id}/secure` | POST | Consultar sesion segura (polling post-submit) |
+| `/api/v2/questionnaires/sessions/{session_id}/page-secure` | POST | Cargar preguntas/paginas seguras |
 | `/api/v2/questionnaires/sessions/{session_id}/answers` | PATCH | Guardar respuestas |
 | `/api/v2/questionnaires/sessions/{session_id}/submit` | POST | Finalizar y disparar procesamiento |
-| `/api/v2/questionnaires/history` | GET | Listar historial |
+| `/api/v2/questionnaires/history/secure` | POST | Listar historial con transporte cifrado |
 | `/api/v2/questionnaires/history/{session_id}` | GET | Detalle de historial |
-| `/api/v2/questionnaires/history/{session_id}/results` | GET | Resultados asociados |
+| `/api/v2/questionnaires/history/{session_id}/results-secure` | POST | Resultados asociados seguros |
+| `/api/v2/questionnaires/history/{session_id}/clinical-summary` | POST | Informe orientativo/clinical summary |
 | `/api/v2/questionnaires/history/{session_id}/tags` | POST | Crear tag |
 | `/api/v2/questionnaires/history/{session_id}/tags/{tag_id}` | DELETE | Eliminar tag |
 | `/api/v2/questionnaires/history/{session_id}/share` | POST | Generar recurso compartido |
 | `/api/v2/questionnaires/history/{session_id}/pdf/generate` | POST | Solicitar generacion de PDF |
-| `/api/v2/questionnaires/history/{session_id}/pdf` | GET | Consultar estado/info de PDF |
+| `/api/v2/questionnaires/history/{session_id}/pdf/secure` | POST | Consultar estado/info de PDF seguro |
 | `/api/v2/questionnaires/history/{session_id}/pdf/download` | GET | Descargar PDF |
-| `/api/v2/questionnaires/shared/{questionnaire_id}/{share_code}` | GET | Vista publica compartida |
+| `/api/v2/questionnaires/shared/access-secure` | POST | Vista publica compartida segura |
 
 ### Observaciones de contrato
 
 1. El servicio aplica normalizadores extensivos para tolerar distintas llaves (`data`, `result`, `session`, aliases de ids, etc.).  
    - Esto es **inferido desde el consumo del frontend**.
-2. El frontend resuelve URL compartida con distintos campos (`url/share_url/public_url/link`) y fallback de ruta publica.
-3. No es verificable solo con frontend cual shape exacto es canonico en backend.
+2. El frontend evita el endpoint legacy plaintext `/results` en produccion cuando el transporte cifrado esta habilitado o es obligatorio.
+3. El frontend resuelve URL compartida con distintos campos (`url/share_url/public_url/link`) y fallback de ruta publica.
+4. No es verificable solo con frontend cual shape exacto es canonico en backend.
 
 ## Admin: metricas operativas tradicionales
 
