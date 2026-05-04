@@ -1,0 +1,930 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Copy/Paste Detector Report</title><link href="styles/tailwind.css" rel="stylesheet"><link href="styles/prism.css" rel="stylesheet"></head><body class="bg-gray-100"><header class="bg-white shadow py-4"><div class="container mx-auto px-4"><h1 class="text-3xl font-semibold text-gray-800">jscpd - copy/paste report</h1></div></header><main class="container mx-auto my-8 p-4 bg-white shadow rounded"><section class="mb-8" id="dashboard"><h2 class="text-2xl font-semibold text-gray-700 mb-4">Dashboard</h2><div class="grid grid-cols-4 gap-4"><div class="bg-blue-200 p-4 rounded text-center"><h3 class="text-lg font-semibold text-blue-800 mb-2">Total Files</h3><span class="text-4xl font-bold text-blue-800">113</span></div><div class="bg-green-200 p-4 rounded text-center"><h3 class="text-lg font-semibold text-green-800 mb-2">Total Lines of Code</h3><span class="text-4xl font-bold text-green-800">23461</span></div><div class="bg-yellow-200 p-4 rounded text-center"><h3 class="text-lg font-semibold text-yellow-800 mb-2">Number of Clones</h3><span class="text-4xl font-bold text-yellow-800">53</span></div><div class="bg-red-200 p-4 rounded text-center"><h3 class="text-lg font-semibold text-red-800 mb-2">Duplicated Lines</h3><span class="text-4xl font-bold text-red-800">921 (3.93%)</span></div></div></section><section class="mb-8" id="formats"><h2 class="text-2xl font-semibold text-gray-700 mb-4">Formats with Duplications</h2><table class="w-full table-auto"><thead><tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal"><th class="py-3 px-6 text-left">Format</th><th class="py-3 px-6 text-left">Files</th><th class="py-3 px-6 text-left">Lines</th><th class="py-3 px-6 text-left">Clones</th><th class="py-3 px-6 text-left">Duplicated Lines</th><th class="py-3 px-6 text-left">Duplicated Tokens</th></tr></thead><tbody><tr class="bg-white border-b border-gray-200 text-gray-800 text-sm"><td class="py-3 px-6"><a class="text-blue-600 hover:underline" href="#tsx-clones">tsx</a></td><td class="py-3 px-6">42</td><td class="py-3 px-6">10348</td><td class="py-3 px-6">39</td><td class="py-3 px-6">492</td><td class="py-3 px-6">5740</td></tr><tr class="bg-white border-b border-gray-200 text-gray-800 text-sm"><td class="py-3 px-6"><a class="text-blue-600 hover:underline" href="#javascript-clones">javascript</a></td><td class="py-3 px-6">33</td><td class="py-3 px-6">5128</td><td class="py-3 px-6">5</td><td class="py-3 px-6">256</td><td class="py-3 px-6">2277</td></tr><tr class="bg-white border-b border-gray-200 text-gray-800 text-sm"><td class="py-3 px-6"><a class="text-blue-600 hover:underline" href="#css-clones">css</a></td><td class="py-3 px-6">38</td><td class="py-3 px-6">7985</td><td class="py-3 px-6">9</td><td class="py-3 px-6">173</td><td class="py-3 px-6">1245</td></tr></tbody></table></section><section class="mb-8" id="txt-clones"><a name="tsx-clones"></a><h2 class="text-2xl font-semibold text-gray-700 mb-4">tsx</h2><div class="divide-y divide-gray-200 border-b-2"><div class="py-4"><p class="text-gray-600">src\pages\Plataforma\MiCuenta\MiCuenta.tsx (Line 437:2 - Line 460:25), src\pages\Plataforma\MiCuenta\MiCuenta.tsx (Line 395:2 - Line 418:21)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn0" onclick="toggleCodeBlock('cloneGroup0', 'expandBtn0', 'collapseBtn0')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn0" onclick="toggleCodeBlock('cloneGroup0', 'expandBtn0', 'collapseBtn0')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup0"><code class="language-tsx text-sm text-gray-800">contraseña&lt;/span&gt;
+                                    &lt;div className=&quot;mi-cuenta-input-wrapper&quot;&gt;
+                                        &lt;input
+                                            className=&quot;mi-cuenta-input&quot;
+                                            type={mostrarConfirmar ? 'text' : 'password'}
+                                            value={confirmarNueva}
+                                            disabled={passwordSubmitting}
+                                            onChange={(event) =&gt; {
+                                                setConfirmarNueva(event.target.value);
+                                                setPasswordSaved(false);
+                                                setPasswordGeneralError('');
+                                            }}
+                                        /&gt;
+                                        &lt;button
+                                            type=&quot;button&quot;
+                                            className=&quot;mi-cuenta-toggle-visibility&quot;
+                                            disabled={passwordSubmitting}
+                                            onClick={() =&gt; setMostrarConfirmar((prev) =&gt; !prev)}
+                                            aria-label={mostrarConfirmar ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+                                        &gt;
+                                            &lt;VisibilityIcon isVisible={mostrarConfirmar} /&gt;
+                                        &lt;/button&gt;
+                                    &lt;/div&gt;
+                                    {confirmarContrasenaError</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Plataforma\CuestionarioCompartido\CuestionarioCompartido.tsx (Line 200:29 - Line 210:3), src\pages\Plataforma\Historial\HistorialBase.tsx (Line 661:21 - Line 672:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn1" onclick="toggleCodeBlock('cloneGroup1', 'expandBtn1', 'collapseBtn1')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn1" onclick="toggleCodeBlock('cloneGroup1', 'expandBtn1', 'collapseBtn1')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup1"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                                    {internalReferenceRows.map((row) =&gt; (
+                                        &lt;div key={row.key}&gt;
+                                            &lt;strong&gt;{row.label}&lt;/strong&gt;
+                                            &lt;span&gt;{row.value}&lt;/span&gt;
+                                        &lt;/div&gt;
+                                    ))}
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        ) : null}
+                    &lt;/</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Inicio\NuestroSistema\NuestroSistema.tsx (Line 217:8 - Line 230:151), src\pages\Inicio\NuestroSistema\NuestroSistema.tsx (Line 198:5 - Line 211:127)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn2" onclick="toggleCodeBlock('cloneGroup2', 'expandBtn2', 'collapseBtn2')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn2" onclick="toggleCodeBlock('cloneGroup2', 'expandBtn2', 'collapseBtn2')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup2"><code class="language-tsx text-sm text-gray-800">.
+          &lt;/p&gt;
+        &lt;/div&gt;
+
+        &lt;div className=&quot;flow-arrow&quot;&gt;
+          &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;
+            &lt;path d=&quot;M5 12h14M12 5l7 7-7 7&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot; strokeLinecap=&quot;round&quot; strokeLinejoin=&quot;round&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+
+        &lt;div className=&quot;card&quot;&gt;
+          &lt;div className=&quot;icon&quot;&gt;
+            &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;
+              &lt;path d=&quot;M17 10h-4v4h4v-4zm0-8h-4v4h4V2zM7 18H3v4h4v-4zm10 0h-4v4h4v-4zm0-4h-4v4h4v-4zM7 10H3v4h4v-4zm10-4h-4v4h4V6zM7 2H3v4h4V2zm4 16h4v-4h-4v4zm0-8h4V6h-4v4z</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Inicio\NuestroSistema\NuestroSistema.tsx (Line 236:7 - Line 249:289), src\pages\Inicio\NuestroSistema\NuestroSistema.tsx (Line 198:5 - Line 211:127)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn3" onclick="toggleCodeBlock('cloneGroup3', 'expandBtn3', 'collapseBtn3')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn3" onclick="toggleCodeBlock('cloneGroup3', 'expandBtn3', 'collapseBtn3')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup3"><code class="language-tsx text-sm text-gray-800">.
+          &lt;/p&gt;
+        &lt;/div&gt;
+
+        &lt;div className=&quot;flow-arrow&quot;&gt;
+          &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;
+            &lt;path d=&quot;M5 12h14M12 5l7 7-7 7&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot; strokeLinecap=&quot;round&quot; strokeLinejoin=&quot;round&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+
+        &lt;div className=&quot;card&quot;&gt;
+          &lt;div className=&quot;icon&quot;&gt;
+            &lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;
+              &lt;path d=&quot;M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 017 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 243:2 - Line 253:4), src\pages\Plataforma\MiCuenta\MiCuenta.tsx (Line 427:45 - Line 436:6)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn4" onclick="toggleCodeBlock('cloneGroup4', 'expandBtn4', 'collapseBtn4')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn4" onclick="toggleCodeBlock('cloneGroup4', 'expandBtn4', 'collapseBtn4')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup4"><code class="language-tsx text-sm text-gray-800">&gt;
+                                        &lt;span className=&quot;password-check-indicator&quot; aria-hidden=&quot;true&quot;&gt;
+                                            {check.valid ? '✓' : '•'}
+                                        &lt;/span&gt;
+                                        &lt;span&gt;{check.label}&lt;/span&gt;
+                                    &lt;/div&gt;
+                                ))}
+                            &lt;/div&gt;
+                        &lt;/div&gt;
+
+                        &lt;div</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 274:2 - Line 286:16), src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 224:2 - Line 236:17)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn5" onclick="toggleCodeBlock('cloneGroup5', 'expandBtn5', 'collapseBtn5')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn5" onclick="toggleCodeBlock('cloneGroup5', 'expandBtn5', 'collapseBtn5')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup5"><code class="language-tsx text-sm text-gray-800">? (
+                                    &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+                                        &lt;path d=&quot;M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24&quot;&gt;&lt;/path&gt;
+                                        &lt;line x1=&quot;1&quot; y1=&quot;1&quot; x2=&quot;23&quot; y2=&quot;23&quot;&gt;&lt;/line&gt;
+                                    &lt;/svg&gt;
+                                ) : (
+                                    &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+                                        &lt;path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot;&gt;&lt;/path&gt;
+                                        &lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                                    &lt;/svg&gt;
+                                )}
+                            &lt;/button&gt;
+                            {confirmPassword</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.tsx (Line 13:25 - Line 26:5), src\pages\Plataforma\MiCuenta\MiCuenta.tsx (Line 11:35 - Line 25:9)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn7" onclick="toggleCodeBlock('cloneGroup7', 'expandBtn7', 'collapseBtn7')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn7" onclick="toggleCodeBlock('cloneGroup7', 'expandBtn7', 'collapseBtn7')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup7"><code class="language-tsx text-sm text-gray-800">;
+const passwordRules = [
+    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) =&gt; value.length &gt;= 8 },
+    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) =&gt; /[A-Z]/.test(value) },
+    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) =&gt; /[a-z]/.test(value) },
+    { id: 'number', label: 'Al menos un número', test: (value: string) =&gt; /[0-9]/.test(value) },
+    {
+        id: 'special',
+        label: 'Al menos un carácter especial (!@#$...)',
+        test: (value: string) =&gt; /[!@#$%^&amp;*()_+\-=[\]{};':&quot;\\|,.&lt;&gt;/?]/.test(value)
+    }
+];
+
+type</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.tsx (Line 57:2 - Line 62:2), src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 224:2 - Line 229:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn8" onclick="toggleCodeBlock('cloneGroup8', 'expandBtn8', 'collapseBtn8')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn8" onclick="toggleCodeBlock('cloneGroup8', 'expandBtn8', 'collapseBtn8')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup8"><code class="language-tsx text-sm text-gray-800">(
+            &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+                &lt;path d=&quot;M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24&quot;&gt;&lt;/path&gt;
+                &lt;line x1=&quot;1&quot; y1=&quot;1&quot; x2=&quot;23&quot; y2=&quot;23&quot;&gt;&lt;/line&gt;
+            &lt;/svg&gt;
+        );</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.tsx (Line 65:2 - Line 70:2), src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 229:2 - Line 234:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn9" onclick="toggleCodeBlock('cloneGroup9', 'expandBtn9', 'collapseBtn9')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn9" onclick="toggleCodeBlock('cloneGroup9', 'expandBtn9', 'collapseBtn9')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup9"><code class="language-tsx text-sm text-gray-800">(
+        &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+            &lt;path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot;&gt;&lt;/path&gt;
+            &lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+        &lt;/svg&gt;
+    );</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.tsx (Line 103:11 - Line 115:2), src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 240:11 - Line 436:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn10" onclick="toggleCodeBlock('cloneGroup10', 'expandBtn10', 'collapseBtn10')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn10" onclick="toggleCodeBlock('cloneGroup10', 'expandBtn10', 'collapseBtn10')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup10"><code class="language-tsx text-sm text-gray-800">&lt;/span&gt;
+            &lt;div className=&quot;password-checklist-grid&quot;&gt;
+                {checks.map((check) =&gt; (
+                    &lt;div key={check.id} className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}&gt;
+                        &lt;span className=&quot;password-check-indicator&quot; aria-hidden=&quot;true&quot;&gt;
+                            {check.valid ? '✓' : '•'}
+                        &lt;/span&gt;
+                        &lt;span&gt;{check.label}&lt;/span&gt;
+                    &lt;/div&gt;
+                ))}
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.tsx (Line 461:15 - Line 482:2), src\pages\Autenticacion\Registro\Registro.tsx (Line 424:15 - Line 445:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn11" onclick="toggleCodeBlock('cloneGroup11', 'expandBtn11', 'collapseBtn11')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn11" onclick="toggleCodeBlock('cloneGroup11', 'expandBtn11', 'collapseBtn11')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup11"><code class="language-tsx text-sm text-gray-800">&quot;
+                                                type=&quot;text&quot;
+                                                className=&quot;form-input&quot;
+                                                placeholder=&quot;Nombre de usuario&quot;
+                                                value={username}
+                                                onChange={(event) =&gt; setUsername(event.target.value)}
+                                                title=&quot;Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo.&quot;
+                                                autoCapitalize=&quot;none&quot;
+                                                required
+                                            /&gt;
+                                        &lt;/div&gt;
+                                        &lt;div className=&quot;form-group&quot;&gt;
+                                            &lt;input
+                                                type=&quot;email&quot;
+                                                className=&quot;form-input&quot;
+                                                placeholder=&quot;Correo electrónico&quot;
+                                                value={email}
+                                                onChange={(event) =&gt; setEmail(event.target.value)}
+                                                required
+                                            /&gt;
+                                        &lt;/div&gt;
+                                        &lt;</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\MFA\MFA.tsx (Line 181:2 - Line 194:2), src\pages\Autenticacion\Registro\Registro.tsx (Line 372:2 - Line 384:11)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn13" onclick="toggleCodeBlock('cloneGroup13', 'expandBtn13', 'collapseBtn13')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn13" onclick="toggleCodeBlock('cloneGroup13', 'expandBtn13', 'collapseBtn13')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup13"><code class="language-tsx text-sm text-gray-800">&gt;
+            &lt;div className=&quot;auth-left-panel&quot;&gt;&lt;/div&gt;
+
+            &lt;div className=&quot;auth-right-panel&quot;&gt;
+                &lt;div className=&quot;auth-content&quot;&gt;
+                    &lt;div className=&quot;header-brand&quot;&gt;
+                        &lt;Link to=&quot;/&quot; className=&quot;brand-link&quot;&gt;
+                            &lt;div className=&quot;brand-icon&quot;&gt;c&lt;/div&gt;
+                            &lt;span className=&quot;brand-text&quot;&gt;cognIA&lt;/span&gt;
+                        &lt;/Link&gt;
+                    &lt;/div&gt;
+
+                    &lt;h1 className=&quot;auth-title&quot;&gt;
+                        {</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\InicioSesion\InicioSesion.tsx (Line 191:15 - Line 203:8), src\pages\Autenticacion\Registro\Registro.tsx (Line 372:34 - Line 384:11)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn14" onclick="toggleCodeBlock('cloneGroup14', 'expandBtn14', 'collapseBtn14')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn14" onclick="toggleCodeBlock('cloneGroup14', 'expandBtn14', 'collapseBtn14')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup14"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+            &lt;div className=&quot;auth-left-panel&quot;&gt;&lt;/div&gt;
+
+            &lt;div className=&quot;auth-right-panel&quot;&gt;
+                &lt;div className=&quot;auth-content&quot;&gt;
+                    &lt;div className=&quot;header-brand&quot;&gt;
+                        &lt;Link to=&quot;/&quot; className=&quot;brand-link&quot;&gt;
+                            &lt;div className=&quot;brand-icon&quot;&gt;c&lt;/div&gt;
+                            &lt;span className=&quot;brand-text&quot;&gt;cognIA&lt;/span&gt;
+                        &lt;/Link&gt;
+                    &lt;/div&gt;
+
+                    &lt;h1 className=&quot;auth-title&quot;&gt;Iniciar</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\InicioSesion\InicioSesion.tsx (Line 249:2 - Line 261:3), src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.tsx (Line 224:2 - Line 236:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn15" onclick="toggleCodeBlock('cloneGroup15', 'expandBtn15', 'collapseBtn15')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn15" onclick="toggleCodeBlock('cloneGroup15', 'expandBtn15', 'collapseBtn15')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup15"><code class="language-tsx text-sm text-gray-800">? (
+                                    &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+                                        &lt;path d=&quot;M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24&quot;&gt;&lt;/path&gt;
+                                        &lt;line x1=&quot;1&quot; y1=&quot;1&quot; x2=&quot;23&quot; y2=&quot;23&quot;&gt;&lt;/line&gt;
+                                    &lt;/svg&gt;
+                                ) : (
+                                    &lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;
+                                        &lt;path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot;&gt;&lt;/path&gt;
+                                        &lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                                    &lt;/svg&gt;
+                                )}
+                            &lt;/button&gt;
+                        &lt;/</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Bienvenida\Bienvenida.tsx (Line 5:5 - Line 18:11), src\pages\Autenticacion\InicioSesion\InicioSesion.tsx (Line 190:5 - Line 384:11)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn18" onclick="toggleCodeBlock('cloneGroup18', 'expandBtn18', 'collapseBtn18')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn18" onclick="toggleCodeBlock('cloneGroup18', 'expandBtn18', 'collapseBtn18')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup18"><code class="language-tsx text-sm text-gray-800">return (
+        &lt;div className=&quot;auth-container&quot;&gt;
+            &lt;div className=&quot;auth-left-panel&quot;&gt;&lt;/div&gt;
+
+            &lt;div className=&quot;auth-right-panel&quot;&gt;
+                &lt;div className=&quot;auth-content&quot;&gt;
+                    &lt;div className=&quot;header-brand&quot;&gt;
+                        &lt;Link to=&quot;/&quot; className=&quot;brand-link&quot;&gt;
+                            &lt;div className=&quot;brand-icon&quot;&gt;c&lt;/div&gt;
+                            &lt;span className=&quot;brand-text&quot;&gt;cognIA&lt;/span&gt;
+                        &lt;/Link&gt;
+                    &lt;/div&gt;
+
+                    &lt;h1 className=&quot;auth-title&quot;&gt;Bienvenido</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Reportes\Reportes.tsx (Line 46:2 - Line 58:15), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 52:2 - Line 64:20)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn20" onclick="toggleCodeBlock('cloneGroup20', 'expandBtn20', 'collapseBtn20')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn20" onclick="toggleCodeBlock('cloneGroup20', 'expandBtn20', 'collapseBtn20')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup20"><code class="language-tsx text-sm text-gray-800">= [
+    { value: 'created_at:desc', label: 'Recientes' },
+    { value: 'created_at:asc', label: 'Antiguos' },
+    { value: 'updated_at:desc', label: 'Actualizados' }
+];
+
+const pageSizeOptions = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' }
+];
+
+function formatDateTime</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Reportes\Reportes.tsx (Line 169:5 - Line 174:11), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 183:2 - Line 188:16)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn21" onclick="toggleCodeBlock('cloneGroup21', 'expandBtn21', 'collapseBtn21')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn21" onclick="toggleCodeBlock('cloneGroup21', 'expandBtn21', 'collapseBtn21')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup21"><code class="language-tsx text-sm text-gray-800">);
+
+    const currentPage = Math.min(page, Math.max(1, pages));
+    const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const orderValue</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Psicologos\Psicologos.tsx (Line 111:11 - Line 120:24), src\pages\Administrador\Reportes\Reportes.tsx (Line 237:9 - Line 246:22)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn22" onclick="toggleCodeBlock('cloneGroup22', 'expandBtn22', 'collapseBtn22')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn22" onclick="toggleCodeBlock('cloneGroup22', 'expandBtn22', 'collapseBtn22')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup22"><code class="language-tsx text-sm text-gray-800">&lt;/h1&gt;
+                &lt;/div&gt;
+            &lt;/header&gt;
+
+            &lt;div className=&quot;admin-divider&quot; aria-hidden=&quot;true&quot; /&gt;
+
+            {notice ? &lt;div className=&quot;admin-alert success&quot;&gt;{notice}&lt;/div&gt; : null}
+            {error ? &lt;div className=&quot;admin-alert error&quot;&gt;{error}&lt;/div&gt; : null}
+
+            &lt;section className=&quot;admin-controls&quot; aria-label=&quot;Controles de psicologos</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Psicologos\Psicologos.tsx (Line 120:24 - Line 127:35), src\pages\Administrador\Reportes\Reportes.tsx (Line 246:22 - Line 253:43)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn23" onclick="toggleCodeBlock('cloneGroup23', 'expandBtn23', 'collapseBtn23')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn23" onclick="toggleCodeBlock('cloneGroup23', 'expandBtn23', 'collapseBtn23')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup23"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                &lt;div className=&quot;admin-search&quot;&gt;
+                    &lt;span className=&quot;admin-search-icon&quot; aria-hidden=&quot;true&quot;&gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z&quot; /&gt;&lt;/svg&gt;
+                    &lt;/span&gt;
+                    &lt;input
+                        type=&quot;search&quot;
+                        placeholder=&quot;Buscar por ID, usuario o correo...</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Psicologos\Psicologos.tsx (Line 233:17 - Line 242:7), src\pages\Administrador\Reportes\Reportes.tsx (Line 358:18 - Line 367:8)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn24" onclick="toggleCodeBlock('cloneGroup24', 'expandBtn24', 'collapseBtn24')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn24" onclick="toggleCodeBlock('cloneGroup24', 'expandBtn24', 'collapseBtn24')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup24"><code class="language-tsx text-sm text-gray-800">&quot;
+                        onClick={() =&gt; setPage((prev) =&gt; Math.min(totalPages, prev + 1))}
+                        disabled={currentPage &gt;= totalPages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;Tamaño</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 35:2 - Line 42:6), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 19:2 - Line 26:5)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn26" onclick="toggleCodeBlock('cloneGroup26', 'expandBtn26', 'collapseBtn26')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn26" onclick="toggleCodeBlock('cloneGroup26', 'expandBtn26', 'collapseBtn26')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup26"><code class="language-tsx text-sm text-gray-800">},
+    { value: '50', label: '50' }
+];
+
+function formatDate(value: string | null) {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 94:2 - Line 99:14), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 183:2 - Line 174:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn27" onclick="toggleCodeBlock('cloneGroup27', 'expandBtn27', 'collapseBtn27')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn27" onclick="toggleCodeBlock('cloneGroup27', 'expandBtn27', 'collapseBtn27')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup27"><code class="language-tsx text-sm text-gray-800">);
+
+    const currentPage = Math.min(page, Math.max(1, pages));
+    const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const orderValue = useMemo(() =&gt; getOrderValue</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 124:13 - Line 133:26), src\pages\Administrador\Reportes\Reportes.tsx (Line 237:9 - Line 246:22)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn28" onclick="toggleCodeBlock('cloneGroup28', 'expandBtn28', 'collapseBtn28')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn28" onclick="toggleCodeBlock('cloneGroup28', 'expandBtn28', 'collapseBtn28')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup28"><code class="language-tsx text-sm text-gray-800">&lt;/h1&gt;
+                &lt;/div&gt;
+            &lt;/header&gt;
+
+            &lt;div className=&quot;admin-divider&quot; aria-hidden=&quot;true&quot; /&gt;
+
+            {notice ? &lt;div className=&quot;admin-alert success&quot;&gt;{notice}&lt;/div&gt; : null}
+            {error ? &lt;div className=&quot;admin-alert error&quot;&gt;{error}&lt;/div&gt; : null}
+
+            &lt;section className=&quot;admin-controls&quot; aria-label=&quot;Controles de evaluaciones</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 260:27 - Line 300:8), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 215:25 - Line 258:9)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn29" onclick="toggleCodeBlock('cloneGroup29', 'expandBtn29', 'collapseBtn29')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn29" onclick="toggleCodeBlock('cloneGroup29', 'expandBtn29', 'collapseBtn29')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup29"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina anterior&quot;
+                        onClick={() =&gt; setPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;Pagina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina siguiente&quot;
+                        onClick={() =&gt; setPage(Math.min(pages, currentPage + 1))}
+                        disabled={currentPage &gt;= pages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;Tamaño&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;Tamaño de pagina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; changePageSize(Number(value))}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={selectedItem !== null} onClose={closeStatusModal}&gt;
+                &lt;div className=&quot;admin-modal&quot;&gt;
+                    &lt;h2&gt;Cambiar</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 313:2 - Line 328:17), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 267:2 - Line 280:17)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn30" onclick="toggleCodeBlock('cloneGroup30', 'expandBtn30', 'collapseBtn30')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn30" onclick="toggleCodeBlock('cloneGroup30', 'expandBtn30', 'collapseBtn30')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup30"><code class="language-tsx text-sm text-gray-800">
+                        /&gt;
+                    &lt;/label&gt;
+                    &lt;div className=&quot;admin-modal-actions&quot;&gt;
+                        &lt;button type=&quot;button&quot; className=&quot;admin-btn ghost&quot; onClick={closeStatusModal}&gt;
+                            Cancelar
+                        &lt;/button&gt;
+                        &lt;button
+                            type=&quot;button&quot;
+                            className=&quot;admin-btn primary&quot;
+                            onClick={() =&gt; {
+                                handleStatusSubmit().catch(() =&gt; undefined);
+                            }}
+                            disabled={submittingStatus}
+                        &gt;
+                            {submittingStatus</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 68:1 - Line 75:11), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 97:1 - Line 104:21)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn33" onclick="toggleCodeBlock('cloneGroup33', 'expandBtn33', 'collapseBtn33')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn33" onclick="toggleCodeBlock('cloneGroup33', 'expandBtn33', 'collapseBtn33')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup33"><code class="language-tsx text-sm text-gray-800">function formatDateTime(value: string | null) {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return `${date.toLocaleDateString('es-CO')} ${date.toLocaleTimeString('es-CO')}`;
+}
+
+function SearchIcon</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 138:2 - Line 146:10), src\pages\Administrador\Reportes\Reportes.tsx (Line 169:2 - Line 101:6)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn34" onclick="toggleCodeBlock('cloneGroup34', 'expandBtn34', 'collapseBtn34')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn34" onclick="toggleCodeBlock('cloneGroup34', 'expandBtn34', 'collapseBtn34')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup34"><code class="language-tsx text-sm text-gray-800">| null&gt;(null);
+
+    const currentPage = Math.min(page, Math.max(1, pages));
+    const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+
+    const orderValue = useMemo(() =&gt; getOrderValue(sort, order), [sort, order]);
+
+    useEffect</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 286:7 - Line 295:27), src\pages\Administrador\Reportes\Reportes.tsx (Line 237:3 - Line 246:22)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn35" onclick="toggleCodeBlock('cloneGroup35', 'expandBtn35', 'collapseBtn35')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn35" onclick="toggleCodeBlock('cloneGroup35', 'expandBtn35', 'collapseBtn35')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup35"><code class="language-tsx text-sm text-gray-800">&gt;
+                &lt;/div&gt;
+            &lt;/header&gt;
+
+            &lt;div className=&quot;admin-divider&quot; aria-hidden=&quot;true&quot; /&gt;
+
+            {notice ? &lt;div className=&quot;admin-alert success&quot;&gt;{notice}&lt;/div&gt; : null}
+            {error ? &lt;div className=&quot;admin-alert error&quot;&gt;{error}&lt;/div&gt; : null}
+
+            &lt;section className=&quot;admin-controls&quot; aria-label=&quot;Controles de cuestionarios</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 367:14 - Line 374:14), src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 214:13 - Line 221:13)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn36" onclick="toggleCodeBlock('cloneGroup36', 'expandBtn36', 'collapseBtn36')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn36" onclick="toggleCodeBlock('cloneGroup36', 'expandBtn36', 'collapseBtn36')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup36"><code class="language-tsx text-sm text-gray-800">...&lt;/div&gt; : null}
+
+                {!loading &amp;&amp; items.length === 0 ? (
+                    &lt;div className=&quot;admin-empty&quot; role=&quot;status&quot;&gt;
+                        &lt;div className=&quot;admin-empty-icon&quot; aria-hidden=&quot;true&quot;&gt;
+                            &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z&quot; /&gt;&lt;/svg&gt;
+                        &lt;/div&gt;
+                        &lt;h3&gt;Sin cuestionarios</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 374:14 - Line 382:29), src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 221:13 - Line 229:28)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn37" onclick="toggleCodeBlock('cloneGroup37', 'expandBtn37', 'collapseBtn37')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn37" onclick="toggleCodeBlock('cloneGroup37', 'expandBtn37', 'collapseBtn37')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup37"><code class="language-tsx text-sm text-gray-800">&lt;/h3&gt;
+                        &lt;p&gt;No hay registros para los filtros actuales.&lt;/p&gt;
+                    &lt;/div&gt;
+                ) : null}
+
+                {!loading &amp;&amp; items.length &gt; 0 ? (
+                    &lt;div className=&quot;admin-table-body&quot;&gt;
+                        {items.map((item) =&gt; (
+                            &lt;div key={item.id} className=&quot;admin-row cuestionarios-grid</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 471:28 - Line 511:2), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 215:25 - Line 258:9)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn38" onclick="toggleCodeBlock('cloneGroup38', 'expandBtn38', 'collapseBtn38')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn38" onclick="toggleCodeBlock('cloneGroup38', 'expandBtn38', 'collapseBtn38')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup38"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina anterior&quot;
+                        onClick={() =&gt; setPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;Pagina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina siguiente&quot;
+                        onClick={() =&gt; setPage(Math.min(pages, currentPage + 1))}
+                        disabled={currentPage &gt;= pages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;Tamaño&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;Tamaño de pagina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; changePageSize(Number(value))}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={pendingAction !== null} onClose={closeConfirmAction}&gt;
+                &lt;div className=&quot;admin-modal&quot;&gt;
+                    &lt;h2&gt;{</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 516:2 - Line 529:18), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 269:6 - Line 280:17)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn39" onclick="toggleCodeBlock('cloneGroup39', 'expandBtn39', 'collapseBtn39')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn39" onclick="toggleCodeBlock('cloneGroup39', 'expandBtn39', 'collapseBtn39')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup39"><code class="language-tsx text-sm text-gray-800">&gt;
+                    &lt;div className=&quot;admin-modal-actions&quot;&gt;
+                        &lt;button type=&quot;button&quot; className=&quot;admin-btn ghost&quot; onClick={closeConfirmAction}&gt;
+                            Cancelar
+                        &lt;/button&gt;
+                        &lt;button
+                            type=&quot;button&quot;
+                            className=&quot;admin-btn primary&quot;
+                            onClick={() =&gt; {
+                                handleConfirmAction().catch(() =&gt; undefined);
+                            }}
+                            disabled={submittingPublish || submittingArchive}
+                        &gt;
+                            {submittingPublish</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 620:12 - Line 627:17), src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 571:11 - Line 578:16)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn40" onclick="toggleCodeBlock('cloneGroup40', 'expandBtn40', 'collapseBtn40')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn40" onclick="toggleCodeBlock('cloneGroup40', 'expandBtn40', 'collapseBtn40')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup40"><code class="language-tsx text-sm text-gray-800">}&lt;/div&gt; : null}
+
+                    &lt;div className=&quot;admin-modal-actions&quot;&gt;
+                        &lt;button type=&quot;button&quot; className=&quot;admin-btn ghost&quot; onClick={closeCreateModal}&gt;
+                            Cancelar
+                        &lt;/button&gt;
+                        &lt;button type=&quot;submit&quot; className=&quot;admin-btn primary&quot; disabled={submittingCreate}&gt;
+                            {submittingCreate</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Auditoria\Auditoria.tsx (Line 211:10 - Line 220:11), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 72:13 - Line 81:14)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn42" onclick="toggleCodeBlock('cloneGroup42', 'expandBtn42', 'collapseBtn42')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn42" onclick="toggleCodeBlock('cloneGroup42', 'expandBtn42', 'collapseBtn42')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup42"><code class="language-tsx text-sm text-gray-800">]);
+
+    const total = filteredRows.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const paginatedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+
+    const detailRows</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Auditoria\Auditoria.tsx (Line 246:24 - Line 253:44), src\pages\Administrador\Reportes\Reportes.tsx (Line 246:22 - Line 253:43)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn43" onclick="toggleCodeBlock('cloneGroup43', 'expandBtn43', 'collapseBtn43')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn43" onclick="toggleCodeBlock('cloneGroup43', 'expandBtn43', 'collapseBtn43')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup43"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                &lt;div className=&quot;admin-search&quot;&gt;
+                    &lt;span className=&quot;admin-search-icon&quot; aria-hidden=&quot;true&quot;&gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z&quot; /&gt;&lt;/svg&gt;
+                    &lt;/span&gt;
+                    &lt;input
+                        type=&quot;search&quot;
+                        placeholder=&quot;Buscar por acciÃ³n, actor, objetivo o ID...</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Auditoria\Auditoria.tsx (Line 307:2 - Line 314:25), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 170:2 - Line 177:26)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn44" onclick="toggleCodeBlock('cloneGroup44', 'expandBtn44', 'collapseBtn44')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn44" onclick="toggleCodeBlock('cloneGroup44', 'expandBtn44', 'collapseBtn44')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup44"><code class="language-tsx text-sm text-gray-800">con los filtros actuales.&lt;/p&gt;
+                    &lt;/div&gt;
+                ) : null}
+
+                {!loading &amp;&amp; paginatedRows.length &gt; 0 ? (
+                    &lt;div className=&quot;admin-table-body&quot;&gt;
+                        {paginatedRows.map((item) =&gt; (
+                            &lt;div key={item.id} className=&quot;admin-row auditoria-grid</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Auditoria\Auditoria.tsx (Line 335:26 - Line 377:12), src\pages\Administrador\Reportes\Reportes.tsx (Line 340:24 - Line 379:34)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn45" onclick="toggleCodeBlock('cloneGroup45', 'expandBtn45', 'collapseBtn45')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn45" onclick="toggleCodeBlock('cloneGroup45', 'expandBtn45', 'collapseBtn45')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup45"><code class="language-tsx text-sm text-gray-800">&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina anterior&quot;
+                        onClick={() =&gt; setPage((prev) =&gt; Math.max(1, prev - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;PÃ¡gina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina siguiente&quot;
+                        onClick={() =&gt; setPage((prev) =&gt; Math.min(totalPages, prev + 1))}
+                        disabled={currentPage &gt;= totalPages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;TamaÃ±o&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;TamaÃ±o de pÃ¡gina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; {
+                                setPageSize(Number(value));
+                                setPage(1);
+                            }}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={selectedItem !== null} onClose={() =&gt; setSelectedItem(null)}&gt;
+                &lt;div className=&quot;admin-modal</code></pre></div><div class="py-4"><p class="text-gray-600">src\components\SupportContact\SupportContact.tsx (Line 35:2 - Line 49:3), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 484:3 - Line 490:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn48" onclick="toggleCodeBlock('cloneGroup48', 'expandBtn48', 'collapseBtn48')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn48" onclick="toggleCodeBlock('cloneGroup48', 'expandBtn48', 'collapseBtn48')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup48"><code class="language-tsx text-sm text-gray-800">&gt;
+            &lt;div className=&quot;ayuda-actions&quot;&gt;
+                &lt;a className=&quot;ayuda-btn whatsapp&quot; href={whatsappLink} target=&quot;_blank&quot; rel=&quot;noreferrer&quot;&gt;
+                    Escribir por WhatsApp
+                &lt;/a&gt;
+                &lt;a className=&quot;ayuda-btn gmail&quot; href={gmailLink} target=&quot;_blank&quot; rel=&quot;noreferrer&quot;&gt;
+                    Escribir por Gmail
+                &lt;/a&gt;
+                &lt;a className=&quot;ayuda-btn outlook&quot; href={outlookLink} target=&quot;_blank&quot; rel=&quot;noreferrer&quot;&gt;
+                    Escribir por Outlook
+                &lt;/a&gt;
+                &lt;button type=&quot;button&quot; className=&quot;ayuda-btn copy&quot; onClick={handleCopyEmail}&gt;
+                    Copiar correo
+                &lt;/button&gt;
+                {copied &amp;&amp;</code></pre></div><div class="py-4"><p class="text-gray-600">src\context\AuthContext.tsx (Line 213:2 - Line 222:2), src\context\AuthContext.tsx (Line 208:2 - Line 218:6)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn52" onclick="toggleCodeBlock('cloneGroup52', 'expandBtn52', 'collapseBtn52')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn52" onclick="toggleCodeBlock('cloneGroup52', 'expandBtn52', 'collapseBtn52')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup52"><code class="language-tsx text-sm text-gray-800">false);
+            }, 0);
+            return () =&gt; globalThis.clearTimeout(timeoutId);
+        }
+
+        const timeoutId = globalThis.setTimeout(() =&gt; {
+            setIsAuthLoading(false);
+        }, 0);
+        return () =&gt; globalThis.clearTimeout(timeoutId);
+    },</code></pre></div><!-- Add more clone groups for .txt format as needed         // Add more clone groups for .txt format as needed--></div><a name="javascript-clones"></a><h2 class="text-2xl font-semibold text-gray-700 mb-4">javascript</h2><div class="divide-y divide-gray-200 border-b-2"><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Reportes\Reportes.tsx (Line 320:2 - Line 378:12), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 454:2 - Line 486:13)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn19" onclick="toggleCodeBlock('cloneGroup19', 'expandBtn19', 'collapseBtn19')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn19" onclick="toggleCodeBlock('cloneGroup19', 'expandBtn19', 'collapseBtn19')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup19"><code class="language-javascript text-sm text-gray-800">}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/section&gt;
+
+            &lt;section className=&quot;admin-table&quot; aria-label=&quot;Listado de reportes&quot;&gt;
+                &lt;div className=&quot;admin-table-head reportes-admin-grid&quot;&gt;
+                    &lt;span&gt;CÃ³digo&lt;/span&gt;
+                    &lt;span&gt;Tipo&lt;/span&gt;
+                    &lt;span&gt;Estado&lt;/span&gt;
+                    &lt;span&gt;Reportante&lt;/span&gt;
+                    &lt;span&gt;MÃ³dulo&lt;/span&gt;
+                    &lt;span&gt;Fecha&lt;/span&gt;
+                    &lt;span&gt;Acciones&lt;/span&gt;
+                &lt;/div&gt;
+
+                {renderTableContent()}
+            &lt;/section&gt;
+
+            &lt;footer className=&quot;admin-pagination&quot; aria-label=&quot;PaginaciÃ³n de reportes&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina anterior&quot;
+                        onClick={() =&gt; setPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;PÃ¡gina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina siguiente&quot;
+                        onClick={() =&gt; setPage(Math.min(pages, currentPage + 1))}
+                        disabled={currentPage &gt;= pages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;TamaÃ±o&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;TamaÃ±o de pÃ¡gina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; changePageSize(Number(value))}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={detailItem </code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Evaluaciones\Evaluaciones.tsx (Line 249:16 - Line 298:14), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 454:18 - Line 486:13)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn25" onclick="toggleCodeBlock('cloneGroup25', 'expandBtn25', 'collapseBtn25')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn25" onclick="toggleCodeBlock('cloneGroup25', 'expandBtn25', 'collapseBtn25')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup25"><code class="language-javascript text-sm text-gray-800">(item)}
+                                    &gt;
+                                        Cambiar estado
+                                    &lt;/button&gt;
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        ))}
+                    &lt;/div&gt;
+                ) : null}
+            &lt;/section&gt;
+
+            &lt;footer className=&quot;admin-pagination&quot; aria-label=&quot;Paginacion de evaluaciones&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina anterior&quot;
+                        onClick={() =&gt; setPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;Pagina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina siguiente&quot;
+                        onClick={() =&gt; setPage(Math.min(pages, currentPage + 1))}
+                        disabled={currentPage &gt;= pages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;Tamaño&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;Tamaño de pagina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; changePageSize(Number(value))}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={selectedItem </code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 337:14 - Line 382:5), src\pages\Administrador\Reportes\Reportes.tsx (Line 307:6 - Line 349:2)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn31" onclick="toggleCodeBlock('cloneGroup31', 'expandBtn31', 'collapseBtn31')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn31" onclick="toggleCodeBlock('cloneGroup31', 'expandBtn31', 'collapseBtn31')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup31"><code class="language-javascript text-sm text-gray-800">)}
+                        /&gt;
+                    &lt;/label&gt;
+
+                    &lt;label&gt;
+                        &lt;span&gt;Orden&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;Ordenar cuestionarios&quot;
+                            value={orderValue}
+                            options={orderOptions}
+                            onChange={(value) =&gt; {
+                                const [nextSort, nextOrder] = value.split(':');
+                                setOrdering(nextSort, resolveOrderDirection(nextOrder));
+                            }}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/section&gt;
+
+            &lt;section className=&quot;admin-table&quot; aria-label=&quot;Listado de cuestionarios&quot;&gt;
+                &lt;div className=&quot;admin-table-head cuestionarios-grid&quot;&gt;
+                    &lt;span&gt;Nombre&lt;/span&gt;
+                    &lt;span&gt;Version&lt;/span&gt;
+                    &lt;span&gt;Estado&lt;/span&gt;
+                    &lt;span&gt;Archivado&lt;/span&gt;
+                    &lt;span&gt;Creacion&lt;/span&gt;
+                    &lt;span&gt;Actualizacion&lt;/span&gt;
+                    &lt;span&gt;Acciones&lt;/span&gt;
+                &lt;/div&gt;
+
+                {loading ? &lt;div className=&quot;admin-loading&quot;&gt;Cargando cuestionarios...&lt;/div&gt; : null}
+
+                {!loading &amp;&amp; items.length === 0 ? (
+                    &lt;div className=&quot;admin-empty&quot; role=&quot;status&quot;&gt;
+                        &lt;div className=&quot;admin-empty-icon&quot; aria-hidden=&quot;true&quot;&gt;
+                            &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z&quot; /&gt;&lt;/svg&gt;
+                        &lt;/div&gt;
+                        &lt;h3&gt;Sin cuestionarios&lt;/h3&gt;
+                        &lt;p&gt;No hay registros para los filtros actuales.&lt;/p&gt;
+                    &lt;/div&gt;
+                ) : null}
+
+                {!loading &amp;&amp; items.length &gt; 0 ? (
+                    &lt;div className=&quot;admin-table-body&quot;&gt;
+                        {items.map((item) =&gt; (
+                            &lt;div key={item</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Cuestionarios\Cuestionarios.tsx (Line 457:12 - Line 509:15), src\pages\Plataforma\Ayuda\AyudaBase.tsx (Line 454:2 - Line 486:13)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn32" onclick="toggleCodeBlock('cloneGroup32', 'expandBtn32', 'collapseBtn32')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn32" onclick="toggleCodeBlock('cloneGroup32', 'expandBtn32', 'collapseBtn32')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup32"><code class="language-javascript text-sm text-gray-800">}
+                                                &gt;
+                                                    Archivar
+                                                &lt;/button&gt;
+                                            &lt;/div&gt;
+                                        ) : null}
+                                    &lt;/div&gt;
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        ))}
+                    &lt;/div&gt;
+                ) : null}
+            &lt;/section&gt;
+
+            &lt;footer className=&quot;admin-pagination&quot; aria-label=&quot;Paginacion de cuestionarios&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina anterior&quot;
+                        onClick={() =&gt; setPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;Pagina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;Pagina siguiente&quot;
+                        onClick={() =&gt; setPage(Math.min(pages, currentPage + 1))}
+                        disabled={currentPage &gt;= pages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;Tamaño&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;Tamaño de pagina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; changePageSize(Number(value))}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={pendingAction </code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\Auditoria\Auditoria.tsx (Line 324:16 - Line 376:14), src\pages\Administrador\Psicologos\Psicologos.tsx (Line 204:16 - Line 256:13)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn41" onclick="toggleCodeBlock('cloneGroup41', 'expandBtn41', 'collapseBtn41')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn41" onclick="toggleCodeBlock('cloneGroup41', 'expandBtn41', 'collapseBtn41')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup41"><code class="language-javascript text-sm text-gray-800">(item)}
+                                    &gt;
+                                        Detalle
+                                    &lt;/button&gt;
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        ))}
+                    &lt;/div&gt;
+                ) : null}
+            &lt;/section&gt;
+
+            &lt;footer className=&quot;admin-pagination&quot; aria-label=&quot;PaginaciÃ³n de auditorÃ­a&quot;&gt;
+                &lt;div&gt;
+                    Mostrando {displayFrom}-{displayTo} de {total}
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-pagination-controls&quot;&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina anterior&quot;
+                        onClick={() =&gt; setPage((prev) =&gt; Math.max(1, prev - 1))}
+                        disabled={currentPage &lt;= 1}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m15 5-7 7 7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                    &lt;span className=&quot;admin-page-current&quot;&gt;PÃ¡gina {currentPage}&lt;/span&gt;
+                    &lt;button
+                        type=&quot;button&quot;
+                        className=&quot;admin-page-nav-btn&quot;
+                        aria-label=&quot;PÃ¡gina siguiente&quot;
+                        onClick={() =&gt; setPage((prev) =&gt; Math.min(totalPages, prev + 1))}
+                        disabled={currentPage &gt;= totalPages}
+                    &gt;
+                        &lt;svg viewBox=&quot;0 0 24 24&quot;&gt;&lt;path d=&quot;m9 5 7 7-7 7&quot; /&gt;&lt;/svg&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className=&quot;admin-page-size&quot;&gt;
+                    &lt;label&gt;
+                        &lt;span&gt;TamaÃ±o&lt;/span&gt;
+                        &lt;CustomSelect
+                            ariaLabel=&quot;TamaÃ±o de pÃ¡gina&quot;
+                            value={String(pageSize)}
+                            options={pageSizeOptions}
+                            onChange={(value) =&gt; {
+                                setPageSize(Number(value));
+                                setPage(1);
+                            }}
+                        /&gt;
+                    &lt;/label&gt;
+                &lt;/div&gt;
+            &lt;/footer&gt;
+
+            &lt;Modal isOpen={selectedItem </code></pre></div><!-- Add more clone groups for .txt format as needed         // Add more clone groups for .txt format as needed--></div><a name="css-clones"></a><h2 class="text-2xl font-semibold text-gray-700 mb-4">css</h2><div class="divide-y divide-gray-200 border-b-2"><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\RestablecerContraseña\RestablecerContraseña.css (Line 36:5 - Line 56:21), src\pages\Plataforma\MiCuenta\MiCuenta.css (Line 234:5 - Line 254:17)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn6" onclick="toggleCodeBlock('cloneGroup6', 'expandBtn6', 'collapseBtn6')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn6" onclick="toggleCodeBlock('cloneGroup6', 'expandBtn6', 'collapseBtn6')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup6"><code class="language-css text-sm text-gray-800">;
+    color: #5a6b7c;
+}
+
+.password-check.is-valid {
+    color: #1f8f4e;
+}
+
+.password-check-indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.reset-modal-overlay</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\Registro\Registro.css (Line 356:5 - Line 391:7), src\pages\Plataforma\MiCuenta\MiCuenta.css (Line 219:5 - Line 254:17)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn12" onclick="toggleCodeBlock('cloneGroup12', 'expandBtn12', 'collapseBtn12')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn12" onclick="toggleCodeBlock('cloneGroup12', 'expandBtn12', 'collapseBtn12')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup12"><code class="language-css text-sm text-gray-800">;
+    font-weight: 700;
+    color: #215F8F;
+}
+
+.password-checklist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+}
+
+.password-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #5a6b7c;
+}
+
+.password-check.is-valid {
+    color: #1f8f4e;
+}
+
+.password-check-indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+@media</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\InicioSesion\InicioSesion.css (Line 47:1 - Line 62:12), src\pages\Autenticacion\Registro\Registro.css (Line 66:1 - Line 81:12)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn16" onclick="toggleCodeBlock('cloneGroup16', 'expandBtn16', 'collapseBtn16')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn16" onclick="toggleCodeBlock('cloneGroup16', 'expandBtn16', 'collapseBtn16')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup16"><code class="language-css text-sm text-gray-800">.brand-icon {
+    width: 36px;
+    height: 36px;
+    background-color: #51C2F4;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: 'Segoe UI', sans-serif;
+    line-height: 1;
+}
+
+.brand-text</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Autenticacion\InicioSesion\InicioSesion.css (Line 180:5 - Line 222:8), src\pages\Autenticacion\Registro\Registro.css (Line 152:4 - Line 194:8)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn17" onclick="toggleCodeBlock('cloneGroup17', 'expandBtn17', 'collapseBtn17')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn17" onclick="toggleCodeBlock('cloneGroup17', 'expandBtn17', 'collapseBtn17')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup17"><code class="language-css text-sm text-gray-800">;
+}
+
+/* Password Toggle */
+.password-group {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: #1790E9;
+}
+
+.password-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Validation Messages */
+.validation-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 6px;
+    text-align: left;
+}
+
+.validation-success {
+    color: #28a745</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\AdminShared.css (Line 32:2 - Line 46:19), src\pages\Administrador\Usuarios\Usuarios.css (Line 36:2 - Line 50:22)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn46" onclick="toggleCodeBlock('cloneGroup46', 'expandBtn46', 'collapseBtn46')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn46" onclick="toggleCodeBlock('cloneGroup46', 'expandBtn46', 'collapseBtn46')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup46"><code class="language-css text-sm text-gray-800">{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    padding: 11px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-btn.primary</code></pre></div><div class="py-4"><p class="text-gray-600">src\pages\Administrador\AdminShared.css (Line 103:2 - Line 116:20), src\pages\Administrador\Usuarios\Usuarios.css (Line 127:2 - Line 140:23)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn47" onclick="toggleCodeBlock('cloneGroup47', 'expandBtn47', 'collapseBtn47')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn47" onclick="toggleCodeBlock('cloneGroup47', 'expandBtn47', 'collapseBtn47')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup47"><code class="language-css text-sm text-gray-800">{
+    flex: 1 1 280px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 10px 14px;
+    border: 1px solid rgba(11, 37, 64, 0.16);
+    border-radius: 12px;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.admin-search input</code></pre></div><div class="py-4"><p class="text-gray-600">src\components\MFA\MfaSetupView.css (Line 160:5 - Line 171:2), src\pages\Plataforma\Ayuda\Ayuda.css (Line 218:5 - Line 229:3)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn49" onclick="toggleCodeBlock('cloneGroup49', 'expandBtn49', 'collapseBtn49')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn49" onclick="toggleCodeBlock('cloneGroup49', 'expandBtn49', 'collapseBtn49')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup49"><code class="language-css text-sm text-gray-800">);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+    z-index: 5</code></pre></div><div class="py-4"><p class="text-gray-600">src\components\DevAuthBadge\DevAuthBadge.css (Line 28:2 - Line 39:31), src\components\DevAuthToggle\DevAuthToggle.css (Line 27:2 - Line 38:32)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn50" onclick="toggleCodeBlock('cloneGroup50', 'expandBtn50', 'collapseBtn50')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn50" onclick="toggleCodeBlock('cloneGroup50', 'expandBtn50', 'collapseBtn50')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup50"><code class="language-css text-sm text-gray-800">{
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: transparent;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.dev-auth-badge__btn.is-active</code></pre></div><div class="py-4"><p class="text-gray-600">src\components\CustomSelect\CustomSelect.css (Line 70:3 - Line 82:11), src\components\MFA\MfaSetupView.css (Line 156:4 - Line 168:9)</p><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2" id="expandBtn51" onclick="toggleCodeBlock('cloneGroup51', 'expandBtn51', 'collapseBtn51')">Show code</button><button class="bg-gray-500 text-white px-1 py-0.5 text-xs rounded focus:outline-none ml-2 hidden" id="collapseBtn51" onclick="toggleCodeBlock('cloneGroup51', 'expandBtn51', 'collapseBtn51')">Hide code</button><pre class="bg-gray-100 border border-gray-200 p-4 rounded mt-2 hidden" id="cloneGroup51"><code class="language-css text-sm text-gray-800">;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.25);
+    box-shadow: 0 12px 18px rgba(33, 95, 143, 0.18);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    overflow-y</code></pre></div><!-- Add more clone groups for .txt format as needed         // Add more clone groups for .txt format as needed--></div></section><!-- Add more sections for other formats and clone groups as needed--></main><footer class="bg-white shadow mt-8 py-4"><div class="container mx-auto px-4 text-center"><p class="text-sm text-gray-600">This report is generated by jscpd, an open-source copy/paste detector.</p><p class="text-sm text-gray-600">jscpd is licensed under the MIT License.</p><a class="text-blue-500 text-sm" href="https://github.com/kucherenko/jscpd" target="_blank" rel="noopener noreferrer">View jscpd on GitHub</a></div></footer><script src="js/prism.js"></script><script>function toggleCodeBlock(codeBlockId, expandBtnId, collapseBtnId) {
+  const codeBlock = document.getElementById(codeBlockId);
+  const expandBtn = document.getElementById(expandBtnId);
+  const collapseBtn = document.getElementById(collapseBtnId);
+
+  codeBlock.classList.toggle('hidden');
+  expandBtn.classList.toggle('hidden');
+  collapseBtn.classList.toggle('hidden');
+}</script></body></html>

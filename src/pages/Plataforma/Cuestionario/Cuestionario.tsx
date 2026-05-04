@@ -1563,7 +1563,7 @@ export default function Cuestionario() {
                         <div className="questionnaire-intro-content">
                             <div className="questionnaire-intro-text">
                                 <h1 className="questionnaire-title">
-                                    Cuestionario de observacion
+                                    <span>Cuestionario de observacion</span>
                                     <span className="questionnaire-title-accent" aria-hidden="true"></span>
                                 </h1>
                                 <p className="questionnaire-subtitle">

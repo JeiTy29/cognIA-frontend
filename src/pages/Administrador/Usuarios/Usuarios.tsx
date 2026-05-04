@@ -375,7 +375,7 @@ export default function Usuarios() {
         try {
             await navigator.clipboard.writeText(value);
         } catch {
-            window.prompt('Copia el identificador', value);
+            globalThis.prompt('Copia el identificador', value);
         }
     };
 
@@ -450,6 +450,83 @@ export default function Usuarios() {
             </UserActionButton>
         </div>
     );
+
+    const renderUsersTableContent = () => {
+        if (loading) {
+            return (
+                <div className="usuarios-skeleton">
+                    {Array.from({ length: 6 }, (_, rowIndex) => (
+                        <div className="usuarios-skeleton-row" key={`skeleton-row-${rowIndex + 1}`}>
+                            {Array.from({ length: 7 }, (_, columnIndex) => (
+                                <span key={`skeleton-cell-${rowIndex + 1}-${columnIndex + 1}`} />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (filteredItems.length === 0) {
+            return (
+                <div className="usuarios-empty">
+                    <div className="usuarios-empty-icon">
+                        <EmptyIcon />
+                    </div>
+                    <div>No hay usuarios para mostrar.</div>
+                </div>
+            );
+        }
+
+        return filteredItems.map((user) => (
+            <div className="usuarios-row" key={user.id}>
+                <div className="usuarios-cell">
+                    <div className="usuarios-name">{user.full_name || user.username}</div>
+                    <div className="usuarios-sub">{user.created_at ? 'Registrado' : 'Sin fecha registrada'}</div>
+                </div>
+
+                <div className="usuarios-cell id">
+                    <div className="usuarios-name">{user.username}</div>
+                    <div className="usuarios-id-wrap">
+                        <button
+                            type="button"
+                            className="icon-btn usuarios-id-copy has-tooltip"
+                            data-tooltip="Copiar ID"
+                            onClick={() => {
+                                handleCopyId(user.id).catch(() => undefined);
+                            }}
+                        >
+                            <CopyIcon />
+                        </button>
+                        <span className="usuarios-id-value" title={user.id}>
+                            {user.id}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="usuarios-cell">
+                    <div>{user.email}</div>
+                </div>
+
+                <div className="usuarios-cell">
+                    <div className="usuarios-type">{mapUserTypeLabel(user.user_type)}</div>
+                    {String(user.user_type).toLowerCase() === 'psychologist' && user.professional_card_number ? (
+                        <div className="usuarios-sub">{user.professional_card_number}</div>
+                    ) : null}
+                </div>
+
+                <div className="usuarios-cell">
+                    {user.roles.length > 0 ? user.roles.map(mapRoleLabel).join(', ') : '-'}
+                </div>
+
+                <div className="usuarios-cell status">
+                    <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} />
+                    <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
+                </div>
+
+                {renderUserActions(user)}
+            </div>
+        ));
+    };
 
     return (
         <section className="usuarios">
@@ -539,74 +616,7 @@ export default function Usuarios() {
                 </div>
 
                 <div className="usuarios-table-body">
-                    {loading ? (
-                        <div className="usuarios-skeleton">
-                            {Array.from({ length: 6 }, (_, rowIndex) => (
-                                <div className="usuarios-skeleton-row" key={`skeleton-row-${rowIndex + 1}`}>
-                                    {Array.from({ length: 7 }, (_, columnIndex) => (
-                                        <span key={`skeleton-cell-${rowIndex + 1}-${columnIndex + 1}`} />
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    ) : filteredItems.length === 0 ? (
-                        <div className="usuarios-empty">
-                            <div className="usuarios-empty-icon">
-                                <EmptyIcon />
-                            </div>
-                            <div>No hay usuarios para mostrar.</div>
-                        </div>
-                    ) : (
-                        filteredItems.map((user) => (
-                            <div className="usuarios-row" key={user.id}>
-                                <div className="usuarios-cell">
-                                    <div className="usuarios-name">{user.full_name || user.username}</div>
-                                    <div className="usuarios-sub">{user.created_at ? 'Registrado' : 'Sin fecha registrada'}</div>
-                                </div>
-
-                                <div className="usuarios-cell id">
-                                    <div className="usuarios-name">{user.username}</div>
-                                    <div className="usuarios-id-wrap">
-                                        <button
-                                            type="button"
-                                            className="icon-btn usuarios-id-copy has-tooltip"
-                                            data-tooltip="Copiar ID"
-                                            onClick={() => {
-                                                handleCopyId(user.id).catch(() => undefined);
-                                            }}
-                                        >
-                                            <CopyIcon />
-                                        </button>
-                                        <span className="usuarios-id-value" title={user.id}>
-                                            {user.id}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="usuarios-cell">
-                                    <div>{user.email}</div>
-                                </div>
-
-                                <div className="usuarios-cell">
-                                    <div className="usuarios-type">{mapUserTypeLabel(user.user_type)}</div>
-                                    {String(user.user_type).toLowerCase() === 'psychologist' && user.professional_card_number ? (
-                                        <div className="usuarios-sub">{user.professional_card_number}</div>
-                                    ) : null}
-                                </div>
-
-                                <div className="usuarios-cell">
-                                    {user.roles.length > 0 ? user.roles.map(mapRoleLabel).join(', ') : '-'}
-                                </div>
-
-                                <div className="usuarios-cell status">
-                                    <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} />
-                                    <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
-                                </div>
-
-                                {renderUserActions(user)}
-                            </div>
-                        ))
-                    )}
+                    {renderUsersTableContent()}
                 </div>
             </div>
 
@@ -665,7 +675,7 @@ export default function Usuarios() {
                     <h2>Editar usuario</h2>
 
                     <label>
-                        Correo
+                        <span>Correo</span>
                         <input
                             type="email"
                             value={editForm.email}
@@ -675,7 +685,7 @@ export default function Usuarios() {
                     </label>
 
                     <label>
-                        Nombre completo
+                        <span>Nombre completo</span>
                         <input
                             type="text"
                             value={editForm.full_name}
@@ -720,7 +730,7 @@ export default function Usuarios() {
 
                     {editForm.user_type === 'psychologist' ? (
                         <label>
-                            Tarjeta profesional
+                            <span>Tarjeta profesional</span>
                             <input
                                 type="text"
                                 value={editForm.professional_card_number}
@@ -745,7 +755,7 @@ export default function Usuarios() {
                                 setEditForm((prev) => ({ ...prev, is_active: event.target.checked }))
                             }
                         />
-                        Usuario activo
+                        <span>Usuario activo</span>
                     </label>
 
                     <div className="usuarios-modal-actions">

@@ -16,14 +16,14 @@ function normalizeRole(value?: string | null) {
 }
 
 function resolveRoleFromQuery() {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
+    if (typeof globalThis.window === 'undefined') return null;
+    const params = new URLSearchParams(globalThis.window.location.search);
     return normalizeRole(params.get('devRole'));
 }
 
 function resolveAuthFromQuery() {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
+    if (typeof globalThis.window === 'undefined') return null;
+    const params = new URLSearchParams(globalThis.window.location.search);
     const value = params.get('devAuth');
     if (!value) return null;
     const normalized = value.trim().toLowerCase();
@@ -33,22 +33,22 @@ function resolveAuthFromQuery() {
 }
 
 function readStoredDevAuthActive() {
-    if (typeof window === 'undefined') return false;
+    if (typeof globalThis.window === 'undefined') return false;
     return sessionStorage.getItem(DEV_AUTH_ACTIVE_KEY) === 'true';
 }
 
 function readStoredDevRole() {
-    if (typeof window === 'undefined') return null;
+    if (typeof globalThis.window === 'undefined') return null;
     return normalizeRole(sessionStorage.getItem(DEV_ROLE_KEY));
 }
 
 function writeStoredDevAuthActive(active: boolean) {
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis.window === 'undefined') return;
     sessionStorage.setItem(DEV_AUTH_ACTIVE_KEY, active ? 'true' : 'false');
 }
 
 function writeStoredDevRole(role: DevRole) {
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis.window === 'undefined') return;
     sessionStorage.setItem(DEV_ROLE_KEY, role);
 }
 
@@ -82,7 +82,7 @@ export function setDevRole(role: DevRole) {
 }
 
 export function clearDevAuthActive() {
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis.window === 'undefined') return;
     sessionStorage.removeItem(DEV_AUTH_ACTIVE_KEY);
 }
 

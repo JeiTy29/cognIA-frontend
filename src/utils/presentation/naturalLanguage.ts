@@ -239,11 +239,11 @@ function normalizeKey(value: string) {
 
 function normalizeText(value: string) {
     return value
-        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
         .replaceAll('_', ' ')
         .replaceAll('-', ' ')
         .replaceAll('.', ' ')
-        .replace(/\s+/g, ' ')
+        .replaceAll(/\s+/g, ' ')
         .trim();
 }
 
@@ -491,6 +491,16 @@ function formatCoexistenceKey(value: string) {
         .join(' + ');
 }
 
+function resolveStringValueByKnownKey(normalizedKey: string, trimmed: string, fallback: string) {
+    if (normalizedKey === 'domain') return getDomainLabel(trimmed, fallback);
+    if (normalizedKey === 'alert_level') return getAlertLevelLabel(trimmed, fallback);
+    if (normalizedKey === 'confidence_band') return getConfidenceBandLabel(trimmed, fallback);
+    if (normalizedKey === 'coexistence_level') return getCoexistenceLevelLabel(trimmed, fallback);
+    if (normalizedKey === 'operational_class') return getOperationalClassLabel(trimmed, fallback);
+    if (normalizedKey === 'coexistence_key') return formatCoexistenceKey(trimmed);
+    return null;
+}
+
 function formatNaturalStringValue(normalizedKey: string, value: string, fallback: string) {
     const trimmed = value.trim();
     if (!trimmed) return fallback;
@@ -505,12 +515,8 @@ function formatNaturalStringValue(normalizedKey: string, value: string, fallback
         if (asBool === 'true' || asBool === 'false') return asBool === 'true' ? 'Sí' : 'No';
     }
 
-    if (normalizedKey === 'domain') return getDomainLabel(trimmed, fallback);
-    if (normalizedKey === 'alert_level') return getAlertLevelLabel(trimmed, fallback);
-    if (normalizedKey === 'confidence_band') return getConfidenceBandLabel(trimmed, fallback);
-    if (normalizedKey === 'coexistence_level') return getCoexistenceLevelLabel(trimmed, fallback);
-    if (normalizedKey === 'operational_class') return getOperationalClassLabel(trimmed, fallback);
-    if (normalizedKey === 'coexistence_key') return formatCoexistenceKey(trimmed);
+    const knownStringValue = resolveStringValueByKnownKey(normalizedKey, trimmed, fallback);
+    if (knownStringValue !== null) return knownStringValue;
     if (shouldHumanizeEnumString(normalizedKey, trimmed)) return humanizeEnumValue(trimmed);
     return trimmed;
 }
@@ -547,124 +553,11 @@ function formatNaturalObjectValue(
     return nestedRows.map((row) => `${row.label}: ${row.value}`).join(' · ');
 }
 
-function legacyFormatNaturalValue(
-    key: string,
-    value: unknown,
-    options: { fallback?: string; includeTechnical?: boolean; depth?: number } = {}
-): string {
-    if (key || value || options) {
-        return FALLBACK_VALUE;
-    }
-    return FALLBACK_VALUE;
-    /*
-    const fallback = options.fallback ?? FALLBACK_VALUE;
-    const depth = options.depth ?? 0;
-
-    if (value === null || value === undefined) return fallback;
-    if (typeof value === 'boolean') return formatBooleanEs(value, fallback);
-
-    const normalizedKey = normalizeKey(key);
-
-    if (normalizedKey === 'mode') return getModeLabel(value, fallback);
-    if (normalizedKey === 'role' || normalizedKey === 'reporter_role') return getRoleLabel(value, fallback);
-    if (normalizedKey === 'status') return getStatusLabel(value, fallback);
-    if (normalizedKey === 'response_type') return getResponseTypeLabel(value, fallback);
-    if (normalizedKey === 'domain') return getDomainLabel(value, fallback);
-    if (normalizedKey === 'alert_level') return getAlertLevelLabel(value, fallback);
-    if (normalizedKey === 'confidence_band') return getConfidenceBandLabel(value, fallback);
-    if (normalizedKey === 'coexistence_level') return getCoexistenceLevelLabel(value, fallback);
-    if (normalizedKey === 'operational_class') return getOperationalClassLabel(value, fallback);
-    if (normalizedKey === 'mime_type') return getMimeTypeLabel(value, fallback);
-    if (normalizedKey === 'source_module') return getSourceModuleLabel(value, fallback);
-    if (normalizedKey === 'method') return getHttpMethodLabel(value, fallback);
-    if (normalizedKey === 'size_bytes') return formatFileSizeEs(value, fallback);
-    if (normalizedKey === 'source_path') return typeof value === 'string' && value.trim() ? value.trim() : fallback;
-    if (normalizedKey === 'probability') return formatPercentEs(value, { mode: 'auto' }, fallback);
-    if (normalizedKey === 'combined_risk_score') return formatPercentEs(value, { mode: 'auto' }, fallback);
-    if (normalizedKey === 'confidence_pct') return formatPercentEs(value, { mode: 'percent' }, fallback);
-    if (normalizedKey === 'completion_quality_score') return formatPercentEs(value, { mode: 'auto' }, fallback);
-    if (normalizedKey === 'missingness_score') return formatPercentEs(value, { mode: 'auto' }, fallback);
-    if (normalizedKey === 'progress_pct') return formatPercentEs(value, { mode: 'percent' }, fallback);
-    if (normalizedKey.includes('conversion')) return formatPercentEs(value, { mode: 'auto' }, fallback);
-
-    if (typeof value === 'number') {
-        if (isPercentLikeKey(normalizedKey)) return formatPercentEs(value, { mode: 'auto' }, fallback);
-        return formatNumberEs(value, { maximumFractionDigits: 2 }, fallback);
-    }
-
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (!trimmed) return fallback;
-        if (isDateLikeKey(normalizedKey) || isDateString(trimmed)) {
-            const dateTime = formatDateTimeEsCO(trimmed, '');
-            if (dateTime) return dateTime;
-        }
-        if (normalizedKey === 'needs_professional_review') {
-            const asBool = normalizeKey(trimmed);
-            if (asBool === 'true' || asBool === 'false') return asBool === 'true' ? 'Sí' : 'No';
-        }
-        if (normalizedKey === 'domain') return getDomainLabel(trimmed, fallback);
-        if (normalizedKey === 'alert_level') return getAlertLevelLabel(trimmed, fallback);
-        if (normalizedKey === 'confidence_band') return getConfidenceBandLabel(trimmed, fallback);
-        if (normalizedKey === 'coexistence_level') return getCoexistenceLevelLabel(trimmed, fallback);
-        if (normalizedKey === 'operational_class') return getOperationalClassLabel(trimmed, fallback);
-        if (normalizedKey === 'coexistence_key') {
-            return trimmed
-                .split('+')
-                .map((segment) => getDomainLabel(segment, segment))
-                .join(' + ');
-        }
-        if (
-            (trimmed.includes('_') || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(trimmed)) &&
-            !normalizedKey.includes('id') &&
-            !normalizedKey.includes('path') &&
-            !normalizedKey.includes('url') &&
-            !normalizedKey.includes('code')
-        ) {
-            return humanizeEnumValue(trimmed);
-        }
-        return trimmed;
-    }
-
-    if (Array.isArray(value)) {
-        if (value.length === 0) return fallback;
-        const mapped = value
-            .map((item) => formatNaturalValue(key, item, { ...options, depth: depth + 1 }))
-            .filter((item) => item !== fallback);
-        if (mapped.length === 0) return fallback;
-        return mapped.join(', ');
-    }
-
-    const record = toRecord(value);
-    if (!record) return fallback;
-    if (depth >= 2) return 'Información disponible';
-
-    const nestedRows = buildSafeDisplayRows(record, {
-        includeTechnical: Boolean(options.includeTechnical),
-        includeEmpty: false,
-        maxRows: 3
-    });
-
-    if (nestedRows.length === 0) return 'Información disponible';
-
-    return nestedRows
-        .map((row) => `${row.label}: ${row.value}`)
-        .join(' · ');
-}
-
-    */
-}
-
 export function formatNaturalValue(
     key: string,
     value: unknown,
     options: { fallback?: string; includeTechnical?: boolean; depth?: number } = {}
 ): string {
-    const fallbackFromLegacy = legacyFormatNaturalValue(key, value, options);
-    if (fallbackFromLegacy !== FALLBACK_VALUE) {
-        return fallbackFromLegacy;
-    }
-
     const fallback = options.fallback ?? FALLBACK_VALUE;
 
     if (value === null || value === undefined) return fallback;
