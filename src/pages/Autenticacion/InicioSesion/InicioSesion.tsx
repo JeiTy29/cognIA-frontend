@@ -9,7 +9,26 @@ import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { Modal } from '../../../components/Modal/Modal';
 import { ApiError } from '../../../services/api/httpClient';
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(value: string) {
+    const trimmed = value.trim();
+    if (trimmed.length < 5 || trimmed.length > 254) return false;
+    if (trimmed.includes(' ')) return false;
+
+    const atIndex = trimmed.indexOf('@');
+    if (atIndex <= 0 || atIndex !== trimmed.lastIndexOf('@') || atIndex >= trimmed.length - 1) {
+        return false;
+    }
+
+    const localPart = trimmed.slice(0, atIndex);
+    const domainPart = trimmed.slice(atIndex + 1);
+    if (!localPart || !domainPart) return false;
+    if (domainPart.startsWith('.') || domainPart.endsWith('.')) return false;
+
+    const dotIndex = domainPart.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex >= domainPart.length - 1) return false;
+
+    return true;
+}
 
 export default function InicioSesion() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
@@ -139,7 +158,7 @@ export default function InicioSesion() {
     const handleForgotSubmit = async () => {
         setForgotError('');
         setForgotGeneralError('');
-        if (!emailPattern.test(forgotEmail)) {
+        if (!isValidEmail(forgotEmail)) {
             setForgotError('Ingresa un correo válido.');
             return;
         }

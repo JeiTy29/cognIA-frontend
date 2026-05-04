@@ -41,7 +41,12 @@ function getRawBackendBaseUrl() {
 
 function normalizeTrailingSlash(value: string) {
     if (value === '/') return value;
-    return value.replace(/\/+$/u, '');
+    let endIndex = value.length;
+    while (endIndex > 0 && value[endIndex - 1] === '/') {
+        endIndex -= 1;
+    }
+    if (endIndex === 0) return '/';
+    return value.slice(0, endIndex);
 }
 
 function normalizeRelativeBase(value: string) {
