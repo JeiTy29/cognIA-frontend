@@ -45,6 +45,10 @@ interface HistorialBaseProps {
     role: HistorialRole;
 }
 
+function runHistoryTask(task: () => Promise<void>) {
+    task().catch(() => undefined);
+}
+
 const statusOptions = [
     { value: '', label: 'Todos' },
     { value: 'draft', label: 'Borrador' },
@@ -209,12 +213,12 @@ function KeyValueRows({
     exclude = [],
     includeTechnical = false,
     emptyText
-}: {
+}: Readonly<{
     data: Record<string, unknown> | null;
     exclude?: string[];
     includeTechnical?: boolean;
     emptyText: string;
-}) {
+}>) {
     if (!data) return <p>{emptyText}</p>;
     const rows = buildSafeDisplayRows(data, {
         includeTechnical,
@@ -235,7 +239,7 @@ function KeyValueRows({
     );
 }
 
-export function HistorialBase({ role }: HistorialBaseProps) {
+export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const {
         items,
         page,
@@ -537,21 +541,24 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                         ) : items.length === 0 ? (
                             <div className="historial-v2-empty">No hay sesiones para mostrar.</div>
                         ) : (
-                            items.map((item: QuestionnaireHistoryItemV2DTO, index) => (
-                                <div className="historial-v2-row" key={item.id}>
-                                    <div title={resolveSessionTitle(item, index)}>{resolveSessionTitle(item, index)}</div>
-                                    <div>{getStatusLabel(item.status)}</div>
-                                    <div>{getModeLabel(item.mode)}</div>
-                                    <div>{getRoleLabel(item.role)}</div>
-                                    <div>{formatDateTimeEsCO(item.created_at)}</div>
-                                    <div>{formatDateTimeEsCO(item.updated_at)}</div>
-                                    <div className="historial-v2-actions">
-                                        <button type="button" className="historial-v2-btn" onClick={() => { openDetail(item.id).catch(() => undefined); }}>
-                                            Ver
-                                        </button>
+                            items.map((item: QuestionnaireHistoryItemV2DTO, index) => {
+                                const sessionTitle = resolveSessionTitle(item, index);
+                                return (
+                                    <div className="historial-v2-row" key={item.id}>
+                                        <div title={sessionTitle}>{sessionTitle}</div>
+                                        <div>{getStatusLabel(item.status)}</div>
+                                        <div>{getModeLabel(item.mode)}</div>
+                                        <div>{getRoleLabel(item.role)}</div>
+                                        <div>{formatDateTimeEsCO(item.created_at)}</div>
+                                        <div>{formatDateTimeEsCO(item.updated_at)}</div>
+                                        <div className="historial-v2-actions">
+                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(() => openDetail(item.id)); }}>
+                                                Ver
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -666,21 +673,22 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                 <h3>Etiquetas</h3>
                                 {tags.length === 0 ? <p>Sin etiquetas.</p> : (
                                     <div className="historial-v2-tags">
-                                        {tags.map((tag, index) => {
+                                        {tags.map((tag) => {
                                             const tagName = getString(tag.label ?? tag.tag, '--');
                                             const tagId = resolveTagId(tag);
                                             const tagColor = normalizeTagColor(tag.color);
                                             const visibilityLabel = getString(tag.visibility_label, getTagVisibilityLabel(tag.visibility));
+                                            const tagKey = tagId || `${tagName}-${visibilityLabel}-${tagColor}`;
                                             return (
                                                 <div
                                                     className="historial-v2-tag"
-                                                    key={`${tagId || index}-${tagName}`}
+                                                    key={tagKey}
                                                     style={{ borderLeftColor: tagColor }}
                                                 >
                                                     <span className="historial-v2-tag-name">{tagName}</span>
                                                     <span className="historial-v2-tag-meta">{visibilityLabel}</span>
-                                                    {tagId !== '' ? (
-                                                        <button type="button" onClick={() => { handleDeleteTag(tagId).catch(() => undefined); }}>
+                                                    {tagId.length > 0 ? (
+                                                        <button type="button" onClick={() => { runHistoryTask(() => handleDeleteTag(tagId)); }}>
                                                             Eliminar
                                                         </button>
                                                     ) : null}
@@ -718,7 +726,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                             />
                                         ))}
                                     </div>
-                                    <button type="button" className="historial-v2-btn" onClick={() => { handleAddTag().catch(() => undefined); }}>
+                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleAddTag); }}>
                                         Agregar
                                     </button>
                                 </div>
@@ -754,23 +762,23 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         </div>
                                         <div className="historial-v2-section-actions">
                                             {!shareAvailable ? (
-                                                <button type="button" className="historial-v2-btn" onClick={() => { handleGenerateShare().catch(() => undefined); }}>
+                                                <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
                                                     Generar enlace para compartir
                                                 </button>
                                             ) : (
                                                 <>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { handleCopyShareLink().catch(() => undefined); }}>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
                                                         Copiar enlace
                                                     </button>
                                                     <a
                                                         className="historial-v2-btn historial-v2-btn-link"
-                                                        href={shareLink ?? '#'}
+                                                        href={shareLink ?? undefined}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
                                                         Abrir enlace
                                                     </a>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { handleGenerateShare().catch(() => undefined); }}>
+                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
                                                         Generar nuevo enlace
                                                     </button>
                                                 </>
@@ -779,7 +787,7 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         {shareAvailable ? (
                                             <div className="historial-v2-share">
                                                 <span>Enlace disponible</span>
-                                                <a href={shareLink ?? '#'} target="_blank" rel="noreferrer">
+                                                <a href={shareLink ?? undefined} target="_blank" rel="noreferrer">
                                                     {shareLink}
                                                 </a>
                                             </div>
@@ -797,16 +805,16 @@ export function HistorialBase({ role }: HistorialBaseProps) {
                                         <h4>Documento PDF</h4>
                                         <p className="historial-v2-helper-text">Estado actual: <strong>{pdfStatusText}</strong></p>
                                         <div className="historial-v2-section-actions">
-                                            <button type="button" className="historial-v2-btn" onClick={() => { handleGeneratePdf().catch(() => undefined); }}>
+                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGeneratePdf); }}>
                                                 Generar PDF
                                             </button>
-                                            <button type="button" className="historial-v2-btn" onClick={() => { handleFetchPdfInfo().catch(() => undefined); }}>
+                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleFetchPdfInfo); }}>
                                                 Consultar estado
                                             </button>
                                             <button
                                                 type="button"
                                                 className="historial-v2-btn"
-                                                onClick={() => { handleDownloadPdf().catch(() => undefined); }}
+                                                onClick={() => { runHistoryTask(handleDownloadPdf); }}
                                                 disabled={!isPdfReady}
                                             >
                                                 Descargar PDF

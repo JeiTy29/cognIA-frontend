@@ -166,7 +166,7 @@ function isNodeEmpty(node: DashboardMetricNode): boolean {
     if (typeof node === 'string') return node.trim().length === 0;
     if (typeof node === 'number' || typeof node === 'boolean') return false;
     if (Array.isArray(node)) {
-        return node.length === 0 || node.every((item) => isNodeEmpty(item));
+        return node.every((item) => isNodeEmpty(item));
     }
     const entries = Object.entries(node);
     if (entries.length === 0) return true;

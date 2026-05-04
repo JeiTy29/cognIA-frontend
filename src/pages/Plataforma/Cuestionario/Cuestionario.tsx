@@ -599,34 +599,45 @@ function getProcessingMessage(phase: CompletionPhase, status: QuestionnaireV2Sta
     return 'Estamos consolidando la informacion para generar un resultado util.';
 }
 
+function resolveReceiveStepState(phase: CompletionPhase): ProcessingStepState {
+    if (phase === 'submitting') return 'active';
+    if (phase === 'processing' || phase === 'processed') return 'done';
+    return 'pending';
+}
+
+function buildAnalyzeGenerateState(
+    phase: CompletionPhase,
+    normalizedStatus: string
+): Readonly<{ analyze: ProcessingStepState; generate: ProcessingStepState }> {
+    if (phase === 'submitting') {
+        return { analyze: 'pending', generate: 'pending' };
+    }
+
+    if (phase === 'processing') {
+        if (normalizedStatus === 'submitted') {
+            return { analyze: 'done', generate: 'active' };
+        }
+        return { analyze: 'active', generate: 'pending' };
+    }
+
+    if (phase === 'processed') {
+        return { analyze: 'done', generate: 'done' };
+    }
+
+    if (phase === 'failed') {
+        return {
+            analyze: normalizedStatus === 'failed' ? 'error' : 'done',
+            generate: 'error'
+        };
+    }
+
+    return { analyze: 'pending', generate: 'pending' };
+}
+
 function buildProcessingSteps(phase: CompletionPhase, status: QuestionnaireV2Status | null | undefined): ProcessingStep[] {
     const normalized = (status ?? '').toLowerCase();
-    const receiveState: ProcessingStepState =
-        phase === 'submitting' ? 'active' : phase === 'processing' || phase === 'processed' ? 'done' : 'pending';
-    let analyzeState: ProcessingStepState = 'pending';
-    let generateState: ProcessingStepState = 'pending';
-
-    if (phase === 'submitting') {
-        analyzeState = 'pending';
-        generateState = 'pending';
-    } else if (phase === 'processing') {
-        if (normalized === 'draft' || normalized === 'in_progress') {
-            analyzeState = 'active';
-            generateState = 'pending';
-        } else if (normalized === 'submitted') {
-            analyzeState = 'done';
-            generateState = 'active';
-        } else {
-            analyzeState = 'active';
-            generateState = 'pending';
-        }
-    } else if (phase === 'processed') {
-        analyzeState = 'done';
-        generateState = 'done';
-    } else if (phase === 'failed') {
-        analyzeState = normalized === 'failed' ? 'error' : 'done';
-        generateState = 'error';
-    }
+    const receiveState = resolveReceiveStepState(phase);
+    const { analyze, generate } = buildAnalyzeGenerateState(phase, normalized);
 
     return [
         {
@@ -639,13 +650,13 @@ function buildProcessingSteps(phase: CompletionPhase, status: QuestionnaireV2Sta
             id: 'analyze',
             title: 'Analisis de evaluacion',
             description: 'Corremos validaciones y consistencia del cuestionario.',
-            state: analyzeState
+            state: analyze
         },
         {
             id: 'generate',
             title: 'Generacion de resultado',
             description: 'Consolidamos hallazgos para mostrar un resumen accionable.',
-            state: generateState
+            state: generate
         }
     ];
 }
@@ -736,6 +747,17 @@ function getQuestionnaireStatusTitle(phase: CompletionPhase) {
     if (phase === 'processed') return 'Evaluacion completada';
     if (phase === 'failed') return 'No pudimos completar la evaluacion';
     return 'Estamos analizando tus respuestas';
+}
+
+function getProcessingChipClass(phase: CompletionPhase) {
+    if (phase === 'processed') return 'is-processed';
+    if (phase === 'failed') return 'is-failed';
+    return 'is-processing';
+}
+
+function getSubmitActionLabel(working: boolean, isLastQuestion: boolean) {
+    if (working) return isLastQuestion ? 'Enviando...' : 'Guardando...';
+    return isLastQuestion ? 'Enviar' : 'Siguiente';
 }
 
 interface QuestionnaireProcessedViewProps {
@@ -892,11 +914,7 @@ function QuestionnaireProcessedView({
                         </div>
                         <div>
                             <strong>Valoracion profesional</strong>
-                            <p>
-                                {typeof resultBlock?.needs_professional_review === 'boolean'
-                                    ? resultBlock.needs_professional_review ? 'Recomendada' : 'No requerida'
-                                    : '--'}
-                            </p>
+                            <p>{getProfessionalReviewLabel(resultBlock?.needs_professional_review)}</p>
                         </div>
                     </div>
                 </div>
@@ -952,6 +970,24 @@ function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
     }
 
     return value !== null && value !== undefined && value !== '';
+}
+
+function getProfessionalReviewLabel(value: boolean | null | undefined) {
+    if (typeof value !== 'boolean') return '--';
+    return value ? 'Recomendada' : 'No requerida';
+}
+
+function findFirstInvalidQuestionIndex(
+    questions: QuestionnaireQuestionV2DTO[],
+    answers: Record<string, QuestionnaireResponseValue>
+) {
+    for (let index = 0; index < questions.length; index += 1) {
+        const question = questions[index];
+        if (!isValid(question, getAnswerForQuestion(answers, question))) {
+            return index;
+        }
+    }
+    return -1;
 }
 
 export default function Cuestionario() {
@@ -1197,7 +1233,7 @@ export default function Cuestionario() {
                 ...buildAnswersFromQuestions(allQuestions),
                 ...normalizeAnswerDictionary(detailAnswers)
             };
-            const nextQuestionIndex = allQuestions.findIndex((question) => !isValid(question, getAnswerForQuestion(initialAnswers, question)));
+            const nextQuestionIndex = findFirstInvalidQuestionIndex(allQuestions, initialAnswers);
 
             setSessionId(sessionIdToContinue);
             setQuestions(allQuestions);
@@ -1383,6 +1419,77 @@ export default function Cuestionario() {
         startStatusPolling(sessionId);
     };
 
+    const renderAnswerControl = () => {
+        if (!currentQuestion) return null;
+
+        if (currentQuestion.response_type === 'text') {
+            return (
+                <textarea
+                    className="question-textarea"
+                    rows={5}
+                    value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                    onChange={(event) => onAnswerChange(event.target.value)}
+                />
+            );
+        }
+
+        if (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number') {
+            return (
+                <>
+                    <input
+                        type="number"
+                        className="question-input"
+                        value={typeof currentAnswer === 'number' ? currentAnswer : ''}
+                        min={currentNumericConstraints?.min ?? undefined}
+                        max={currentNumericConstraints?.max ?? undefined}
+                        step={currentNumericConstraints?.step ?? undefined}
+                        onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
+                    />
+                    {currentNumericConstraints ? (
+                        <p className="question-input-hint">
+                            Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
+                        </p>
+                    ) : null}
+                </>
+            );
+        }
+
+        if (currentOptions.length > 0) {
+            return (
+                <div className="question-options">
+                    {currentOptions.map((option) => (
+                        <button
+                            key={String(option.value)}
+                            type="button"
+                            className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
+                            onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
+                        >
+                            <span className="answer-indicator" aria-hidden="true"></span>
+                            <span className="answer-label">{option.label}</span>
+                        </button>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <input
+                type="text"
+                className="question-input"
+                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                onChange={(event) => onAnswerChange(event.target.value)}
+            />
+        );
+    };
+
+    const handlePrimaryActionClick = () => {
+        if (isLastQuestion) {
+            handleFinish().catch(() => undefined);
+            return;
+        }
+        handleNext().catch(() => undefined);
+    };
+
     const processingSteps = useMemo(
         () => buildProcessingSteps(completionPhase, backendStatus),
         [backendStatus, completionPhase]
@@ -1425,12 +1532,9 @@ export default function Cuestionario() {
         reusableSession?.updated_at ??
         reusableSession?.created_at ??
         null;
-    const statusChipClass =
-        completionPhase === 'processed'
-            ? 'is-processed'
-            : completionPhase === 'failed'
-                ? 'is-failed'
-                : 'is-processing';
+    const statusChipClass = getProcessingChipClass(completionPhase);
+    const isLastQuestion = currentIndex === questions.length - 1;
+    const submitActionLabel = getSubmitActionLabel(working, isLastQuestion);
 
     return (
         <div className="plataforma-view">
@@ -1645,52 +1749,7 @@ export default function Cuestionario() {
                                 <div className="stack-active">
                                     <div className="stack-item is-active" ref={activeRef}>
                                         <h2 className="question-text">{currentQuestion.text}</h2>
-                                        {currentQuestion.response_type === 'text' ? (
-                                            <textarea
-                                                className="question-textarea"
-                                                rows={5}
-                                                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
-                                                onChange={(event) => onAnswerChange(event.target.value)}
-                                            />
-                                        ) : currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number' ? (
-                                            <>
-                                                <input
-                                                    type="number"
-                                                    className="question-input"
-                                                    value={typeof currentAnswer === 'number' ? currentAnswer : ''}
-                                                    min={currentNumericConstraints?.min ?? undefined}
-                                                    max={currentNumericConstraints?.max ?? undefined}
-                                                    step={currentNumericConstraints?.step ?? undefined}
-                                                    onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
-                                                />
-                                                {currentNumericConstraints ? (
-                                                    <p className="question-input-hint">
-                                                        Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
-                                                    </p>
-                                                ) : null}
-                                            </>
-                                        ) : currentOptions.length > 0 ? (
-                                            <div className="question-options">
-                                                {currentOptions.map((option) => (
-                                                    <button
-                                                        key={String(option.value)}
-                                                        type="button"
-                                                        className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
-                                                        onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
-                                                    >
-                                                        <span className="answer-indicator" aria-hidden="true"></span>
-                                                        <span className="answer-label">{option.label}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <input
-                                                type="text"
-                                                className="question-input"
-                                                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
-                                                onChange={(event) => onAnswerChange(event.target.value)}
-                                            />
-                                        )}
+                                        {renderAnswerControl()}
 
                                         {error ? <div className="question-warning">{error}</div> : null}
 
@@ -1713,25 +1772,14 @@ export default function Cuestionario() {
                                         >
                                             Anterior
                                         </button>
-                                        {currentIndex === questions.length - 1 ? (
-                                            <button
-                                                type="button"
-                                                className="questionnaire-btn primary"
-                                                onClick={() => handleFinish().catch(() => undefined)}
-                                                disabled={!canContinue || working}
-                                            >
-                                                {working ? 'Enviando...' : 'Enviar'}
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="questionnaire-btn primary"
-                                                onClick={() => handleNext().catch(() => undefined)}
-                                                disabled={!canContinue || working}
-                                            >
-                                                {working ? 'Guardando...' : 'Siguiente'}
-                                            </button>
-                                        )}
+                                        <button
+                                            type="button"
+                                            className="questionnaire-btn primary"
+                                            onClick={handlePrimaryActionClick}
+                                            disabled={!canContinue || working}
+                                        >
+                                            {submitActionLabel}
+                                        </button>
                                     </div>
                                 </div>
                             ) : null}

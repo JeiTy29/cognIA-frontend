@@ -62,6 +62,9 @@ type SectionAdoptionProps = Readonly<{
     state: DashboardBlockState<DashboardAdoptionHistoryResponse>;
     prioritized?: boolean;
 }>;
+type DashboardFallbackOptions<TData> = Readonly<{
+    isEmptyData?: (data: TData) => boolean;
+}>;
 
 function clampMonths(value: number) {
     if (!Number.isFinite(value)) return 12;
@@ -156,6 +159,14 @@ function buildStableCollectionKeys(items: unknown[], prefix: string) {
     });
 }
 
+function buildStableCollectionEntries<T>(items: T[], prefix: string) {
+    const keys = buildStableCollectionKeys(items, prefix);
+    return items.map((item, index) => ({
+        item,
+        key: keys[index]
+    }));
+}
+
 function resolveBlockErrorMessage(message: string, status: number | null) {
     if (status === 400) return 'La solicitud para este bloque no es válida con el rango seleccionado.';
     if (status === 401) return 'La sesión no es válida para consultar este bloque.';
@@ -186,6 +197,23 @@ function BlockLoading() {
     );
 }
 
+function renderDashboardFallback<TData>(
+    state: DashboardBlockState<TData>,
+    options?: DashboardFallbackOptions<TData>
+) {
+    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
+    if (state.status === 'error' && state.error) {
+        return <BlockError message={state.error.message} status={state.error.status} />;
+    }
+    if (!state.data || state.status === 'empty') {
+        return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
+    }
+    if (options?.isEmptyData && options.isEmptyData(state.data)) {
+        return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
+    }
+    return null;
+}
+
 function MetricNodeView({
     node,
     keyName = 'value',
@@ -198,7 +226,7 @@ function MetricNodeView({
 
     if (Array.isArray(node)) {
         if (node.length === 0) return <span className="dashboard-node-value">--</span>;
-        const itemKeys = buildStableCollectionKeys(node, `${keyName}-${depth}`);
+        const nodeEntries = buildStableCollectionEntries(node, `${keyName}-${depth}`);
         const isPrimitive = node.every(
             (item) =>
                 item === null ||
@@ -209,9 +237,9 @@ function MetricNodeView({
         if (isPrimitive) {
             return (
                 <div className="dashboard-node-inline">
-                    {node.map((item, index) => (
-                        <span key={itemKeys[index]} className="dashboard-node-chip">
-                            {formatPrimitive(keyName, item)}
+                    {nodeEntries.map(({ item, key }) => (
+                        <span key={key} className="dashboard-node-chip">
+                            {formatPrimitive(keyName, item as PrimitiveValue)}
                         </span>
                     ))}
                 </div>
@@ -220,8 +248,8 @@ function MetricNodeView({
 
         return (
             <div className="dashboard-node-array">
-                {node.map((item, index) => (
-                    <div className="dashboard-node-array-item" key={itemKeys[index]}>
+                {nodeEntries.map(({ item, key }) => (
+                    <div className="dashboard-node-array-item" key={key}>
                         <MetricNodeView node={item} keyName={keyName} depth={depth + 1} />
                     </div>
                 ))}
@@ -249,19 +277,14 @@ function SectionSeries({
     description,
     state
 }: SectionSeriesProps) {
-    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
-    if (state.status === 'error' && state.error) {
-        return <BlockError message={state.error.message} status={state.error.status} />;
-    }
-    if (state.status === 'empty' || !state.data || state.data.series.length === 0) {
-        return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
-    }
+    const fallback = renderDashboardFallback(state, {
+        isEmptyData: (data) => data.series.length === 0
+    });
+    if (fallback) return fallback;
+    const seriesData = state.data as DashboardSeriesResponse;
 
-    const sparklinePath = buildSparklinePath(state.data.series, 240, 46);
-    const pointKeys = buildStableCollectionKeys(
-        state.data.series.map((point) => `${point.period}-${String(point.value)}-${String(point.raw_value)}`),
-        `${title}-series`
-    );
+    const sparklinePath = buildSparklinePath(seriesData.series, 240, 46);
+    const seriesEntries = buildStableCollectionEntries(seriesData.series, `${title}-series`);
 
     return (
         <div className="dashboard-series">
@@ -281,8 +304,8 @@ function SectionSeries({
                     <span>Periodo</span>
                     <span>Valor</span>
                 </div>
-                {state.data.series.map((point, index) => (
-                    <div className="dashboard-table-row" key={pointKeys[index]}>
+                {seriesEntries.map(({ item: point, key }) => (
+                    <div className="dashboard-table-row" key={key}>
                         <span>{formatPeriodLabel(point.period)}</span>
                         <span>{formatSeriesValue(point)}</span>
                     </div>
@@ -296,17 +319,13 @@ function SectionFunnel({
     title,
     state
 }: SectionFunnelProps) {
-    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
-    if (state.status === 'error' && state.error) {
-        return <BlockError message={state.error.message} status={state.error.status} />;
-    }
-    if (state.status === 'empty' || !state.data) {
-        return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
-    }
+    const fallback = renderDashboardFallback(state);
+    if (fallback) return fallback;
+    const funnelData = state.data as DashboardFunnelResponse;
 
-    const created = state.data.created ?? 0;
-    const submitted = state.data.submitted ?? 0;
-    const processed = state.data.processed ?? 0;
+    const created = funnelData.created ?? 0;
+    const submitted = funnelData.submitted ?? 0;
+    const processed = funnelData.processed ?? 0;
     const max = Math.max(created, submitted, processed, 1);
 
     return (
@@ -333,7 +352,7 @@ function SectionFunnel({
             </div>
             <div className="dashboard-funnel-conversion">
                 <span>Conversión de creados a procesados</span>
-                <strong>{formatConversion(state.data.conversion_created_to_processed)}</strong>
+                <strong>{formatConversion(funnelData.conversion_created_to_processed)}</strong>
             </div>
         </section>
     );
@@ -345,15 +364,9 @@ function SectionAdoption({
     state,
     prioritized = false
 }: SectionAdoptionProps) {
-    if (state.status === 'loading' || state.status === 'idle') return <BlockLoading />;
-    if (state.status === 'error' && state.error) {
-        return <BlockError message={state.error.message} status={state.error.status} />;
-    }
-    if (state.status === 'empty' || !state.data) {
-        return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
-    }
-
-    const adoption = state.data.adoption_history;
+    const fallback = renderDashboardFallback(state);
+    if (fallback) return fallback;
+    const adoption = (state.data as DashboardAdoptionHistoryResponse).adoption_history;
 
     return (
         <section className={`dashboard-adoption ${prioritized ? 'is-prioritized' : ''}`}>
@@ -415,7 +428,7 @@ export default function Dashboard() {
                 </div>
                 <div className="dashboard-controls">
                     <label>
-                        Rango (meses)
+                        <span>Rango (meses)</span>
                         <input
                             type="number"
                             min={1}
@@ -432,7 +445,7 @@ export default function Dashboard() {
                         />
                     </label>
                     <label>
-                        Atajo
+                        <span>Atajo</span>
                         <CustomSelect
                             value={String(months)}
                             options={MONTH_OPTIONS}

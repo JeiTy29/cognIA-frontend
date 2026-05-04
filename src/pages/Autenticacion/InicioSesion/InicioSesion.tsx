@@ -300,7 +300,14 @@ export default function InicioSesion() {
                                 <button type="button" className="btn-secondary" onClick={handleForgotClose} disabled={forgotLoading}>
                                     Cancelar
                                 </button>
-                                <button type="button" className="btn-primary" onClick={() => void handleForgotSubmit()} disabled={forgotLoading}>
+                                <button
+                                    type="button"
+                                    className="btn-primary"
+                                    onClick={() => {
+                                        handleForgotSubmit().catch(() => undefined);
+                                    }}
+                                    disabled={forgotLoading}
+                                >
                                     {forgotLoading ? 'Enviando...' : 'Enviar'}
                                 </button>
                             </div>

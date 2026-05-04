@@ -67,6 +67,63 @@ function getStatusBadgeClass(value: string) {
     return 'neutral';
 }
 
+function resolveOrderDirection(value: string): 'asc' | 'desc' {
+    return value === 'asc' ? 'asc' : 'desc';
+}
+
+function LoadingReports() {
+    return <div className="admin-loading">Cargando reportes...</div>;
+}
+
+function EmptyReports() {
+    return (
+        <div className="admin-empty" role="status">
+            <div className="admin-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" /></svg>
+            </div>
+            <h3>Sin reportes</h3>
+            <p>No hay registros para los filtros actuales.</p>
+        </div>
+    );
+}
+
+type ReportRowsProps = Readonly<{
+    items: ReturnType<typeof useAdminProblemReports>['items'];
+    onOpenDetail: (reportId: string) => void;
+}>;
+
+function ReportRows({ items, onOpenDetail }: ReportRowsProps) {
+    return (
+        <div className="admin-table-body">
+            {items.map((item) => (
+                <div key={item.id} className="admin-row reportes-admin-grid">
+                    <div className="reportes-admin-code">{item.report_code}</div>
+                    <div>{getProblemReportIssueTypeLabel(item.issue_type)}</div>
+                    <div>
+                        <span className={`admin-status-badge ${getStatusBadgeClass(item.status)}`}>
+                            {getProblemReportStatusLabel(item.status)}
+                        </span>
+                    </div>
+                    <div>{getProblemReportReporterRoleLabel(item.reporter_role)}</div>
+                    <div>{getSourceModuleLabel(item.source_module)}</div>
+                    <div>{formatDateTime(item.created_at)}</div>
+                    <div>
+                        <button
+                            type="button"
+                            className="admin-btn ghost reportes-admin-action-btn"
+                            onClick={() => {
+                                onOpenDetail(item.id);
+                            }}
+                        >
+                            Detalle
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function swallowReportActionError() {
     return undefined;
 }
@@ -161,50 +218,15 @@ export default function ReportesAdmin() {
     };
 
     const renderTableContent = () => {
-        if (loading) {
-            return <div className="admin-loading">Cargando reportes...</div>;
-        }
-
-        if (items.length === 0) {
-            return (
-                <div className="admin-empty" role="status">
-                    <div className="admin-empty-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" /></svg>
-                    </div>
-                    <h3>Sin reportes</h3>
-                    <p>No hay registros para los filtros actuales.</p>
-                </div>
-            );
-        }
-
+        if (loading) return <LoadingReports />;
+        if (items.length === 0) return <EmptyReports />;
         return (
-            <div className="admin-table-body">
-                {items.map((item) => (
-                    <div key={item.id} className="admin-row reportes-admin-grid">
-                        <div className="reportes-admin-code">{item.report_code}</div>
-                        <div>{getProblemReportIssueTypeLabel(item.issue_type)}</div>
-                        <div>
-                            <span className={`admin-status-badge ${getStatusBadgeClass(item.status)}`}>
-                                {getProblemReportStatusLabel(item.status)}
-                            </span>
-                        </div>
-                        <div>{getProblemReportReporterRoleLabel(item.reporter_role)}</div>
-                        <div>{getSourceModuleLabel(item.source_module)}</div>
-                        <div>{formatDateTime(item.created_at)}</div>
-                        <div>
-                            <button
-                                type="button"
-                                className="admin-btn ghost reportes-admin-action-btn"
-                                onClick={() => {
-                                    openDetail(item.id).catch(swallowReportActionError);
-                                }}
-                            >
-                                Detalle
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <ReportRows
+                items={items}
+                onOpenDetail={(reportId) => {
+                    openDetail(reportId).catch(swallowReportActionError);
+                }}
+            />
         );
     };
 
@@ -294,7 +316,7 @@ export default function ReportesAdmin() {
                             options={orderOptions}
                             onChange={(value) => {
                                 const [nextSort, nextOrder] = value.split(':');
-                                setOrdering(nextSort, nextOrder === 'asc' ? 'asc' : 'desc');
+                                setOrdering(nextSort, resolveOrderDirection(nextOrder));
                             }}
                         />
                     </label>

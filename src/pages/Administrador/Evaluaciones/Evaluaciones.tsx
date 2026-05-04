@@ -320,7 +320,9 @@ export default function Evaluaciones() {
                         <button
                             type="button"
                             className="admin-btn primary"
-                            onClick={() => void handleStatusSubmit()}
+                            onClick={() => {
+                                handleStatusSubmit().catch(() => undefined);
+                            }}
                             disabled={submittingStatus}
                         >
                             {submittingStatus ? 'Guardando...' : 'Confirmar'}

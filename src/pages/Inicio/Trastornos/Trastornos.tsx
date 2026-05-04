@@ -48,9 +48,17 @@ export default function Trastornos() {
     };
 
     return (
-        <div className="trastornos-container" onClick={() => setExpandedDisorder(null)}>
+        <div className="trastornos-container">
             <h1 className="section-title">Trastornos</h1>
             <div className="circle-section">
+                {expandedDisorder !== null ? (
+                    <button
+                        type="button"
+                        className="circle-dismiss-layer"
+                        aria-label="Cerrar detalle del trastorno"
+                        onClick={() => setExpandedDisorder(null)}
+                    />
+                ) : null}
                 <div className={`circle-diagram-wrapper ${expandedDisorder !== null ? 'is-expanded' : ''}`}>
                     <div className="circle-diagram">
                         <div className="large-circle"></div>

@@ -127,7 +127,7 @@ export default function RestablecerContraseña() {
             }
         };
 
-        void runVerify();
+        runVerify().catch(() => undefined);
 
         return () => {
             cancelled = true;
@@ -197,7 +197,7 @@ export default function RestablecerContraseña() {
                         </div>
                     ) : null}
 
-                    <form className="auth-form" onSubmit={(event) => void handleSubmit(event)}>
+                    <form className="auth-form" onSubmit={(event) => { handleSubmit(event).catch(() => undefined); }}>
                         {submitError ? <div className="validation-error">{submitError}</div> : null}
 
                         <div className="form-group password-group">

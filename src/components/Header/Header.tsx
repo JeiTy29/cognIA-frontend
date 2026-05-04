@@ -26,15 +26,15 @@ export default function Header() {
             <div className="auth-buttons">
                 {isAuthenticated ? (
                     <Link to={platformRoute}>
-                        <button className="register">Empezar cuestionario</button>
+                        <button type="button" className="register">Empezar cuestionario</button>
                     </Link>
                 ) : (
                     <>
                         <Link to="/inicio-sesion">
-                            <button className="login">Iniciar sesión</button>
+                            <button type="button" className="login">Iniciar sesión</button>
                         </Link>
                         <Link to="/registro">
-                            <button className="register">Registrarse</button>
+                            <button type="button" className="register">Registrarse</button>
                         </Link>
                     </>
                 )}

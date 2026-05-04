@@ -197,6 +197,15 @@
     text-align: left;
 }
 
+.registro-inline-error {
+    margin-top: -12px;
+    margin-bottom: 16px;
+}
+
+.registro-inline-message {
+    margin-bottom: 16px;
+}
+
 /* Forms layout */
 .form-row {
     display: grid;

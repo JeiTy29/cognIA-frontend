@@ -59,27 +59,33 @@ function extractBusinessCode(error: unknown) {
 }
 
 function mapErrorMessage(status: number, action: ActionType, businessCode: string | null) {
-    if (action === 'publish' && businessCode === 'template_empty') {
-        return 'No es posible publicar un cuestionario vacio.';
+    const publishBusinessCodeMessages: Record<string, string> = {
+        template_empty: 'No es posible publicar un cuestionario vacio.',
+        template_archived: 'No es posible publicar un cuestionario archivado.'
+    };
+    if (action === 'publish' && businessCode) {
+        const publishMessage = publishBusinessCodeMessages[businessCode];
+        if (publishMessage) return publishMessage;
     }
-    if (action === 'publish' && businessCode === 'template_archived') {
-        return 'No es posible publicar un cuestionario archivado.';
+
+    if (status === 400) {
+        if (action === 'clone') return 'Debes ingresar una version valida para clonar.';
+        if (action === 'create') return 'Debes completar nombre y version para crear la plantilla.';
+        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
     }
-    if (status === 400 && action === 'clone') {
-        return 'Debes ingresar una version valida para clonar.';
-    }
-    if (status === 400 && action === 'create') {
-        return 'Debes completar nombre y version para crear la plantilla.';
-    }
-    if (status === 400) return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    if (status === 401) return 'Sesion expirada o no autenticado. Inicia sesion nuevamente.';
-    if (status === 403) return 'No tienes permisos para realizar esta accion.';
+
     if (status === 404) {
         return action === 'list'
             ? 'No se encontraron cuestionarios.'
             : 'No se encontro el cuestionario seleccionado.';
     }
-    if (status === 409) return 'No fue posible completar la accion por conflicto de estado.';
+
+    const statusMessages: Record<number, string> = {
+        401: 'Sesion expirada o no autenticado. Inicia sesion nuevamente.',
+        403: 'No tienes permisos para realizar esta accion.',
+        409: 'No fue posible completar la accion por conflicto de estado.'
+    };
+    if (statusMessages[status]) return statusMessages[status];
     if (status >= 500) return 'Error del servidor. Intenta mas tarde.';
     return 'Ocurrio un error inesperado.';
 }
