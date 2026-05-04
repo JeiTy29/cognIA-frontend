@@ -126,7 +126,7 @@ function humanizeAction(action: string) {
     if (verifiedActionLabels[normalized]) return verifiedActionLabels[normalized];
 
     const tokens = normalized
-        .replace(/([a-z])([A-Z])/g, '$1_$2')
+        .replaceAll(/([a-z])([A-Z])/g, '$1_$2')
         .split(/[_\s-]+/)
         .filter((token) => token.length > 0);
 
@@ -299,7 +299,7 @@ export default function Auditoria() {
                 {loading ? <div className="admin-loading">Cargando registros de auditorÃ­a...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
-                    <div className="admin-empty" role="status">
+                    <div className="admin-empty">
                         <div className="admin-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M5 3h10a2 2 0 0 1 2 2v2h2v14H5Zm2 4h10V5H7Zm0 4h10v2H7Zm0 4h7v2H7Z" /></svg>
                         </div>

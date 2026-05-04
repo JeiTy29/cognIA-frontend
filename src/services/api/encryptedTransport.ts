@@ -20,12 +20,12 @@ export interface TransportKeyResponse {
     expires_at: string;
     key_id: string;
     public_key_jwk: JsonWebKey;
-    version: typeof TRANSPORT_VERSION | string;
+    version: string;
 }
 
 export interface TransportEncryptedRequestEnvelope {
     encrypted: true;
-    version: typeof TRANSPORT_VERSION | string;
+    version: string;
     key_id: string;
     alg: string;
     encrypted_key: string;
@@ -36,7 +36,7 @@ export interface TransportEncryptedRequestEnvelope {
 
 export interface TransportEncryptedResponseEnvelope {
     encrypted: true;
-    version: typeof TRANSPORT_VERSION | string;
+    version: string;
     key_id: string;
     alg: string;
     iv: string;
@@ -112,8 +112,8 @@ function decodeBase64ToBinary(base64: string) {
 export function encodeBase64Url(value: ArrayBuffer | Uint8Array) {
     const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
     let binary = '';
-    for (let index = 0; index < bytes.length; index += 1) {
-        binary += String.fromCharCode(bytes[index]);
+    for (const byte of bytes) {
+        binary += String.fromCodePoint(byte);
     }
 
     return encodeBinaryToBase64(binary)
@@ -127,7 +127,7 @@ export function decodeBase64Url(value: string) {
     const binary = decodeBase64ToBinary(base64);
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
+        bytes[index] = binary.codePointAt(index) ?? 0;
     }
     return bytes;
 }
@@ -317,6 +317,19 @@ function getEnvelopeHeaders(version: string, headers?: Record<string, string>) {
     };
 }
 
+function getErrorCodeFromPayload(payload: unknown) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return null;
+    }
+
+    const errorValue = (payload as Record<string, unknown>).error;
+    return typeof errorValue === 'string' ? errorValue : null;
+}
+
+function shouldRetryCryptoRequest(hasRetried: boolean, errorCode: string | null) {
+    return !hasRetried && Boolean(errorCode && RETRYABLE_CRYPTO_ERRORS.has(errorCode));
+}
+
 async function executeEncryptedJsonFetch<T>(
     url: string,
     options: EncryptedFetchOptions,
@@ -339,12 +352,9 @@ async function executeEncryptedJsonFetch<T>(
     const shouldDecrypt = encryptedHeader || encryptedBody;
 
     if (!response.ok) {
-        const errorRecord = payload && typeof payload === 'object' && !Array.isArray(payload)
-            ? payload as Record<string, unknown>
-            : null;
-        const errorCode = typeof errorRecord?.error === 'string' ? errorRecord.error : null;
+        const errorCode = getErrorCodeFromPayload(payload);
 
-        if (!hasRetried && errorCode && RETRYABLE_CRYPTO_ERRORS.has(errorCode)) {
+        if (shouldRetryCryptoRequest(hasRetried, errorCode)) {
             clearTransportKeyCache();
             return executeEncryptedJsonFetch<T>(url, options, true);
         }

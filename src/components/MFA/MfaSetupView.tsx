@@ -6,14 +6,14 @@ import { ApiError } from '../../services/api/httpClient';
 
 type MfaSetupMode = 'enrollment' | 'setup';
 
-interface MfaSetupViewProps {
+type MfaSetupViewProps = Readonly<{
     mode: MfaSetupMode;
     enrollmentToken?: string | null;
     accessToken?: string | null;
     username?: string | null;
     initialDeviceLabel?: string | null;
     onComplete?: () => void;
-}
+}>;
 
 type MfaErrorStatus = 400 | 401 | 404 | 409 | 500;
 
@@ -112,7 +112,7 @@ export function MfaSetupView({
     const isTokenMissing = !token;
     const codeValid = useMemo(() => /^\d{6}$/.test(codigo), [codigo]);
     const displayDate = useMemo(() => formatDate(setupDate ?? new Date()), [setupDate]);
-    const effectiveUsername = useMemo(() => (username && username.trim() ? username.trim() : 'Usuario'), [username]);
+    const effectiveUsername = useMemo(() => username?.trim() || 'Usuario', [username]);
     const displayLabel = useMemo(() => {
         const labelDevice = deviceLabel?.trim() ? deviceLabel.trim() : 'Dispositivo';
         return `CogniaApp: ${effectiveUsername} (${labelDevice} - ${displayDate})`;
@@ -225,6 +225,16 @@ export function MfaSetupView({
         onComplete?.();
     };
 
+    const renderQrContent = () => {
+        if (loadingSetup || loadingQr) {
+            return <div className="mfa-qr-placeholder">Cargando...</div>;
+        }
+        if (qrDataUrl) {
+            return <img src={qrDataUrl} alt="QR para MFA" className="mfa-qr-image" />;
+        }
+        return <div className="mfa-qr-placeholder">QR</div>;
+    };
+
     return (
         <div className="mfa-setup">
             <h2 className="mfa-setup-title" id="mfa-setup-title">Configurar verificación en dos pasos</h2>
@@ -237,13 +247,7 @@ export function MfaSetupView({
             ) : (
                 <>
                     <div className="mfa-qr-card">
-                        {loadingSetup || loadingQr ? (
-                            <div className="mfa-qr-placeholder">Cargando...</div>
-                        ) : qrDataUrl ? (
-                            <img src={qrDataUrl} alt="QR para MFA" className="mfa-qr-image" />
-                        ) : (
-                            <div className="mfa-qr-placeholder">QR</div>
-                        )}
+                        {renderQrContent()}
                     </div>
 
                     <div className="mfa-label-block">
@@ -252,7 +256,7 @@ export function MfaSetupView({
                     </div>
 
                     <div className="mfa-device-input">
-                        <label className="mfa-input-label">Dispositivo</label>
+                        <span className="mfa-input-label">Dispositivo</span>
                         <div className="mfa-select" ref={selectRef}>
                             <button
                                 type="button"
@@ -289,8 +293,9 @@ export function MfaSetupView({
                     <form className="mfa-form" onSubmit={handleConfirm}>
                         {submitError ? <div className="mfa-setup-error">{submitError}</div> : null}
                         <div className="mfa-input-group">
-                            <label className="mfa-input-label">Código de 6 dígitos</label>
+                            <label className="mfa-input-label" htmlFor="mfa-setup-code">Código de 6 dígitos</label>
                             <input
+                                id="mfa-setup-code"
                                 type="text"
                                 className="mfa-input mfa-input-code"
                                 inputMode="numeric"
@@ -313,7 +318,7 @@ export function MfaSetupView({
             )}
 
             {recoveryCodes ? (
-                <div className="mfa-recovery-overlay" role="dialog" aria-modal="true">
+                <dialog className="mfa-recovery-overlay" open aria-modal="true">
                     <div className="mfa-recovery-modal">
                         <h3>Guarda estos códigos de recuperación</h3>
                         <p>
@@ -336,7 +341,7 @@ export function MfaSetupView({
                             </button>
                         </div>
                     </div>
-                </div>
+                </dialog>
             ) : null}
         </div>
     );

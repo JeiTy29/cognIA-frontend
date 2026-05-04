@@ -22,7 +22,7 @@ import '../Plataforma.css';
 import './Ayuda.css';
 
 type HelpRole = 'padre' | 'psicologo';
-type AyudaBaseProps = { role?: HelpRole };
+type AyudaBaseProps = Readonly<{ role?: HelpRole }>;
 type IssueOption = { label: string; value: string };
 
 const WHATSAPP_NUMBER = '0000000000';
@@ -115,6 +115,11 @@ function getStatusTone(value: string) {
     return 'open';
 }
 
+function resolveHelpRole(role: HelpRole | undefined, pathname: string): HelpRole {
+    if (role) return role;
+    return pathname.includes('/psicologo') ? 'psicologo' : 'padre';
+}
+
 const faqsPadre = [
     { id: 'padre-1', question: '¿Qué significa la alerta que muestra el sistema?', answer: 'La alerta indica un posible trastorno según el cuestionario. No es un diagnóstico clínico.' },
     { id: 'padre-2', question: '¿Cómo diligencio el cuestionario correctamente?', answer: 'Responde con honestidad y completa todas las preguntas para obtener un resultado confiable.' },
@@ -131,7 +136,7 @@ const faqsPsicologo = [
 
 export default function AyudaBase({ role }: AyudaBaseProps) {
     const location = useLocation();
-    const resolvedRole: HelpRole = role ? role : location.pathname.includes('/psicologo') ? 'psicologo' : 'padre';
+    const resolvedRole: HelpRole = resolveHelpRole(role, location.pathname);
 
     const [openFaqId, setOpenFaqId] = useState<string | null>(null);
     const [showReportForm, setShowReportForm] = useState(false);
@@ -180,7 +185,8 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
-    const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, necesito ayuda con CognIA. Mi tipo de cuenta es: ${roleLabel}.`)}`;
+    const whatsappMessage = `Hola, necesito ayuda con CognIA. Mi tipo de cuenta es: ${roleLabel}.`;
+    const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
     const mailSubject = 'Soporte CognIA';
     const mailBody = `Hola, necesito ayuda con CognIA.\nTipo de cuenta: ${roleLabel}.\nMódulo: Ayuda.\nDescripción: `;
     const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT_EMAIL)}&su=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
@@ -261,7 +267,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
         try {
             await navigator.clipboard.writeText(SUPPORT_EMAIL);
             setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
+            globalThis.setTimeout(() => setCopied(false), 2000);
         } catch {
             setCopied(false);
         }
@@ -332,7 +338,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                         </button>
                         <div className={`ayuda-report ${showReportForm ? 'is-open' : ''}`}>
                             <form className="ayuda-report-form" onSubmit={handleReportSubmit}>
-                                <label className="ayuda-input-group">
+                                <div className="ayuda-input-group">
                                     <span className="ayuda-label">Tipo de problema</span>
                                     <div className="ayuda-select" ref={selectRef}>
                                         <button type="button" className="ayuda-select-trigger" onClick={handleSelectToggle} aria-expanded={selectOpen}>
@@ -347,7 +353,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                             ))}
                                         </div>
                                     </div>
-                                </label>
+                                </div>
                                 <label className="ayuda-input-group">
                                     <span className="ayuda-label">Descripción</span>
                                     <textarea
