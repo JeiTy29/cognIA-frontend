@@ -28,7 +28,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [statusFilter, setStatusFilterState] = useState<QuestionnaireHistoryStatusFilter | ''>('');
+    const [statusFilter, setStatusFilter] = useState<QuestionnaireHistoryStatusFilter | ''>('');
     const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState<string | null>(null);
 
@@ -71,8 +71,8 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
         return () => globalThis.clearTimeout(timeoutId);
     }, [enabled, loadHistory]);
 
-    const setStatusFilter = useCallback((value: string) => {
-        setStatusFilterState(value as QuestionnaireHistoryStatusFilter | '');
+    const updateStatusFilter = useCallback((value: string) => {
+        setStatusFilter(value as QuestionnaireHistoryStatusFilter | '');
         setPage(1);
     }, []);
 
@@ -95,7 +95,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
         loading,
         error,
         setPage,
-        setStatusFilter,
+        setStatusFilter: updateStatusFilter,
         changePageSize,
         reload
     };

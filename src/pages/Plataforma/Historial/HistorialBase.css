@@ -109,12 +109,12 @@
 
 .historial-v2-alert.error {
     background: rgba(215, 44, 44, 0.12);
-    color: #a12424;
+    color: #7f1d1d;
 }
 
 .historial-v2-alert.success {
     background: rgba(25, 142, 80, 0.12);
-    color: #1b7244;
+    color: #14532d;
 }
 
 .historial-v2-pagination {
@@ -193,7 +193,7 @@
     border: 1px solid rgba(23, 144, 233, 0.26);
     border-radius: 10px;
     background: rgba(23, 144, 233, 0.1);
-    color: #0f3e5f;
+    color: #0f3a59;
     padding: 10px 12px;
     font-size: 13px;
     line-height: 1.45;
@@ -226,7 +226,7 @@
 
 .historial-v2-tag-meta {
     font-size: 12px;
-    color: #215f8f;
+    color: #1e3a8a;
     background: rgba(33, 95, 143, 0.1);
     border-radius: 999px;
     padding: 3px 8px;

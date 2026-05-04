@@ -269,7 +269,7 @@ export default function RestablecerContraseña() {
             </div>
 
             {showSuccess ? (
-                <div className="reset-modal-overlay" role="dialog" aria-modal="true">
+                <dialog className="reset-modal-overlay" open aria-modal="true">
                     <div className="reset-modal-content">
                         <p className="reset-modal-text">Contrasena actualizada.</p>
                         <button
@@ -280,7 +280,7 @@ export default function RestablecerContraseña() {
                             Iniciar sesion
                         </button>
                     </div>
-                </div>
+                </dialog>
             ) : null}
         </div>
     );

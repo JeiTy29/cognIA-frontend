@@ -4,21 +4,20 @@ import type { Role } from '../Sidebar/SidebarConfig';
 import './SidebarLayout.css';
 import { useAuth } from '../../hooks/auth/useAuth';
 
+function resolveLayoutRole(primaryRole: string | null, pathname: string): Role {
+    if (primaryRole === 'admin') return 'admin';
+    if (primaryRole === 'psicologo') return 'psicologo';
+    if (primaryRole === 'padre') return 'padre';
+    if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/psicologo')) return 'psicologo';
+    return 'padre';
+}
+
 export default function SidebarLayout() {
     const location = useLocation();
     const { primaryRole } = useAuth();
 
-    const role: Role = primaryRole === 'admin'
-        ? 'admin'
-        : primaryRole === 'psicologo'
-            ? 'psicologo'
-            : primaryRole === 'padre'
-                ? 'padre'
-                : location.pathname.startsWith('/admin')
-                    ? 'admin'
-                    : location.pathname.startsWith('/psicologo')
-                        ? 'psicologo'
-                        : 'padre';
+    const role = resolveLayoutRole(primaryRole, location.pathname);
 
     return (
         <div className="app-shell">

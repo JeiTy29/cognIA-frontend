@@ -491,9 +491,7 @@ export default function Usuarios() {
                             type="button"
                             className="icon-btn usuarios-id-copy has-tooltip"
                             data-tooltip="Copiar ID"
-                            onClick={() => {
-                                handleCopyId(user.id).catch(() => undefined);
-                            }}
+                            onClick={() => handleCopyId(user.id).catch(() => undefined)}
                         >
                             <CopyIcon />
                         </button>

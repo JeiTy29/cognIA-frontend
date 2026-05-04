@@ -367,13 +367,13 @@ export default function Cuestionarios() {
                 {loading ? <div className="admin-loading">Cargando cuestionarios...</div> : null}
 
                 {!loading && items.length === 0 ? (
-                    <div className="admin-empty" role="status">
-                        <div className="admin-empty-icon" aria-hidden="true">
+                    <output className="admin-empty" aria-live="polite">
+                        <span className="admin-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" /></svg>
-                        </div>
-                        <h3>Sin cuestionarios</h3>
-                        <p>No hay registros para los filtros actuales.</p>
-                    </div>
+                        </span>
+                        <strong>Sin cuestionarios</strong>
+                        <span>No hay registros para los filtros actuales.</span>
+                    </output>
                 ) : null}
 
                 {!loading && items.length > 0 ? (

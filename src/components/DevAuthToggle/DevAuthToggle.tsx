@@ -5,6 +5,7 @@ export default function DevAuthToggle() {
     const { devBypassEnabled, devAuthActive, setDevAuthActive, devBypassLabel } = useAuth();
 
     if (!devBypassEnabled) return null;
+    const publicModeActive = devAuthActive === false;
 
     return (
         <div className="dev-auth-toggle" role="status" aria-live="polite">
@@ -14,7 +15,7 @@ export default function DevAuthToggle() {
             <div className="dev-auth-toggle__actions">
                 <button
                     type="button"
-                    className={`dev-auth-toggle__btn ${!devAuthActive ? 'is-active' : ''}`}
+                    className={`dev-auth-toggle__btn ${publicModeActive ? 'is-active' : ''}`}
                     onClick={() => setDevAuthActive(false)}
                 >
                     Modo público

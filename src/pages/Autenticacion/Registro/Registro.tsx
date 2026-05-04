@@ -17,7 +17,7 @@ const passwordRules = [
     { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
     { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
     { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
-    { id: 'number', label: 'Al menos un número', test: (value: string) => /[0-9]/.test(value) },
+    { id: 'number', label: 'Al menos un número', test: (value: string) => /\d/.test(value) },
     {
         id: 'special',
         label: 'Al menos un carácter especial (!@#$...)',
@@ -380,7 +380,7 @@ export default function Registro() {
                         <div className="validation-success">Modo desarrollo activo. Puedes registrarte normalmente.</div>
                     ) : null}
 
-                    {!rolSeleccionado ? (
+                    {rolSeleccionado === null ? (
                         <div className="role-selection-horizontal">
                             <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('padre')}>
                                 <div className="role-image-placeholder"></div>

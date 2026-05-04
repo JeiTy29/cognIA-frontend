@@ -106,10 +106,10 @@ export function useAdminQuestionnaires() {
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [nameFilter, setNameFilterState] = useState('');
-    const [versionFilter, setVersionFilterState] = useState('');
-    const [activeFilter, setActiveFilterState] = useState<ToggleFilter>('all');
-    const [archivedFilter, setArchivedFilterState] = useState<ToggleFilter>('all');
+    const [nameFilter, setNameFilter] = useState('');
+    const [versionFilter, setVersionFilter] = useState('');
+    const [activeFilter, setActiveFilter] = useState<ToggleFilter>('all');
+    const [archivedFilter, setArchivedFilter] = useState<ToggleFilter>('all');
     const [sort, setSort] = useState('updated_at');
     const [order, setOrder] = useState<OrderDirection>('desc');
 
@@ -168,24 +168,24 @@ export function useAdminQuestionnaires() {
         return () => globalThis.clearTimeout(timeoutId);
     }, [loadQuestionnaires]);
 
-    const setNameFilter = useCallback((value: string) => {
+    const updateNameFilter = useCallback((value: string) => {
         setPage(1);
-        setNameFilterState(value);
+        setNameFilter(value);
     }, []);
 
-    const setVersionFilter = useCallback((value: string) => {
+    const updateVersionFilter = useCallback((value: string) => {
         setPage(1);
-        setVersionFilterState(value);
+        setVersionFilter(value);
     }, []);
 
-    const setActiveFilter = useCallback((value: ToggleFilter) => {
+    const updateActiveFilter = useCallback((value: ToggleFilter) => {
         setPage(1);
-        setActiveFilterState(value);
+        setActiveFilter(value);
     }, []);
 
-    const setArchivedFilter = useCallback((value: ToggleFilter) => {
+    const updateArchivedFilter = useCallback((value: ToggleFilter) => {
         setPage(1);
-        setArchivedFilterState(value);
+        setArchivedFilter(value);
     }, []);
 
     const setOrdering = useCallback((nextSort: string, nextOrder: OrderDirection) => {
@@ -315,10 +315,10 @@ export function useAdminQuestionnaires() {
         submittingClone,
         submittingCreate,
         setPage,
-        setNameFilter,
-        setVersionFilter,
-        setActiveFilter,
-        setArchivedFilter,
+        setNameFilter: updateNameFilter,
+        setVersionFilter: updateVersionFilter,
+        setActiveFilter: updateActiveFilter,
+        setArchivedFilter: updateArchivedFilter,
         setOrdering,
         changePageSize,
         publishQuestionnaire: publishAction,

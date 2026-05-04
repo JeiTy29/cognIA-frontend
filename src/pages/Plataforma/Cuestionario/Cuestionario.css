@@ -55,7 +55,7 @@
     border-radius: 999px;
     background: rgba(23, 144, 233, 0.12);
     border: 1px solid rgba(23, 144, 233, 0.26);
-    color: #124a73;
+    color: #0f3a59;
     font-size: 12px;
     font-weight: 700;
     margin-bottom: 10px;
@@ -94,7 +94,7 @@
 
 .progress-fill {
     height: 100%;
-    background: #1790E9;
+    background: #0b6fb8;
     border-radius: 999px;
     transition: width 0.4s ease;
 }
@@ -717,19 +717,19 @@
 
 .questionnaire-processing-chip.is-processing {
     background: rgba(23, 144, 233, 0.12);
-    color: #0f4d7d;
+    color: #0f3a59;
     border-color: rgba(23, 144, 233, 0.34);
 }
 
 .questionnaire-processing-chip.is-processed {
     background: rgba(25, 142, 80, 0.14);
-    color: #16522f;
+    color: #14532d;
     border-color: rgba(25, 142, 80, 0.34);
 }
 
 .questionnaire-processing-chip.is-failed {
     background: rgba(194, 63, 90, 0.14);
-    color: #76182f;
+    color: #7f1d1d;
     border-color: rgba(194, 63, 90, 0.36);
 }
 
@@ -896,31 +896,31 @@
 .questionnaire-risk-chip.is-low {
     background: rgba(25, 142, 80, 0.12);
     border-color: rgba(25, 142, 80, 0.3);
-    color: #166534;
+    color: #14532d;
 }
 
 .questionnaire-risk-chip.is-moderate {
     background: rgba(217, 122, 31, 0.12);
     border-color: rgba(217, 122, 31, 0.32);
-    color: #9a5f1c;
+    color: #78350f;
 }
 
 .questionnaire-risk-chip.is-relevant {
     background: rgba(33, 95, 143, 0.12);
     border-color: rgba(33, 95, 143, 0.28);
-    color: #19476a;
+    color: #1e3a8a;
 }
 
 .questionnaire-risk-chip.is-high {
     background: rgba(194, 63, 90, 0.14);
     border-color: rgba(194, 63, 90, 0.32);
-    color: #8f1f39;
+    color: #7f1d1d;
 }
 
 .questionnaire-risk-chip.is-neutral {
     background: rgba(33, 95, 143, 0.08);
     border-color: rgba(33, 95, 143, 0.18);
-    color: #19476a;
+    color: #1e3a8a;
 }
 
 .questionnaire-report-banner-copy {
@@ -953,7 +953,7 @@
 }
 
 .questionnaire-inline-notice {
-    color: #19476a;
+    color: #1e3a8a;
 }
 
 .questionnaire-comorbidity-banner strong,
@@ -1095,23 +1095,23 @@
 
 .questionnaire-domain-chip.is-low {
     background: rgba(25, 142, 80, 0.14);
-    color: #166534;
+    color: #14532d;
 }
 
 .questionnaire-domain-chip.is-moderate {
     background: rgba(217, 122, 31, 0.16);
-    color: #9a5f1c;
+    color: #78350f;
 }
 
 .questionnaire-domain-chip.is-relevant,
 .questionnaire-domain-chip.is-neutral {
     background: rgba(33, 95, 143, 0.12);
-    color: #19476a;
+    color: #1e3a8a;
 }
 
 .questionnaire-domain-chip.is-high {
     background: rgba(194, 63, 90, 0.14);
-    color: #8f1f39;
+    color: #7f1d1d;
 }
 
 .domain-alert {
@@ -1124,22 +1124,22 @@
 
 .domain-alert.is-high {
     background: rgba(194, 63, 90, 0.14);
-    color: #8f1f39;
+    color: #7f1d1d;
 }
 
 .domain-alert.is-moderate {
     background: rgba(217, 122, 31, 0.16);
-    color: #9a5f1c;
+    color: #78350f;
 }
 
 .domain-alert.is-low {
     background: rgba(25, 142, 80, 0.14);
-    color: #14673c;
+    color: #14532d;
 }
 
 .domain-alert.is-unknown {
     background: rgba(33, 95, 143, 0.12);
-    color: #19476a;
+    color: #1e3a8a;
 }
 
 .questionnaire-result-actions {

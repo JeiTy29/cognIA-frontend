@@ -85,11 +85,11 @@ export function useAdminEvaluations() {
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [statusFilter, setStatusFilterState] = useState('');
-    const [ageMinFilter, setAgeMinFilterState] = useState('');
-    const [ageMaxFilter, setAgeMaxFilterState] = useState('');
-    const [dateFromFilter, setDateFromFilterState] = useState('');
-    const [dateToFilter, setDateToFilterState] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [ageMinFilter, setAgeMinFilter] = useState('');
+    const [ageMaxFilter, setAgeMaxFilter] = useState('');
+    const [dateFromFilter, setDateFromFilter] = useState('');
+    const [dateToFilter, setDateToFilter] = useState('');
     const [sort, setSort] = useState('created_at');
     const [order, setOrder] = useState<OrderDirection>('desc');
 
@@ -156,29 +156,29 @@ export function useAdminEvaluations() {
         return () => globalThis.clearTimeout(timeoutId);
     }, [loadEvaluations]);
 
-    const setStatusFilter = useCallback((value: string) => {
+    const updateStatusFilter = useCallback((value: string) => {
         setPage(1);
-        setStatusFilterState(value);
+        setStatusFilter(value);
     }, []);
 
-    const setAgeMinFilter = useCallback((value: string) => {
+    const updateAgeMinFilter = useCallback((value: string) => {
         setPage(1);
-        setAgeMinFilterState(value);
+        setAgeMinFilter(value);
     }, []);
 
-    const setAgeMaxFilter = useCallback((value: string) => {
+    const updateAgeMaxFilter = useCallback((value: string) => {
         setPage(1);
-        setAgeMaxFilterState(value);
+        setAgeMaxFilter(value);
     }, []);
 
-    const setDateFromFilter = useCallback((value: string) => {
+    const updateDateFromFilter = useCallback((value: string) => {
         setPage(1);
-        setDateFromFilterState(value);
+        setDateFromFilter(value);
     }, []);
 
-    const setDateToFilter = useCallback((value: string) => {
+    const updateDateToFilter = useCallback((value: string) => {
         setPage(1);
-        setDateToFilterState(value);
+        setDateToFilter(value);
     }, []);
 
     const setOrdering = useCallback((nextSort: string, nextOrder: OrderDirection) => {
@@ -236,11 +236,11 @@ export function useAdminEvaluations() {
         notice,
         submittingStatus,
         setPage,
-        setStatusFilter,
-        setAgeMinFilter,
-        setAgeMaxFilter,
-        setDateFromFilter,
-        setDateToFilter,
+        setStatusFilter: updateStatusFilter,
+        setAgeMinFilter: updateAgeMinFilter,
+        setAgeMaxFilter: updateAgeMaxFilter,
+        setDateFromFilter: updateDateFromFilter,
+        setDateToFilter: updateDateToFilter,
         setOrdering,
         changePageSize,
         changeEvaluationStatus: changeStatusAction,

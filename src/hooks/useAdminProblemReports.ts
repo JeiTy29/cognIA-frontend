@@ -89,12 +89,12 @@ export function useAdminProblemReports() {
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [query, setQueryState] = useState('');
-    const [statusFilter, setStatusFilterState] = useState('');
-    const [issueTypeFilter, setIssueTypeFilterState] = useState('');
-    const [reporterRoleFilter, setReporterRoleFilterState] = useState('');
-    const [fromDateFilter, setFromDateFilterState] = useState('');
-    const [toDateFilter, setToDateFilterState] = useState('');
+    const [query, setQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [issueTypeFilter, setIssueTypeFilter] = useState('');
+    const [reporterRoleFilter, setReporterRoleFilter] = useState('');
+    const [fromDateFilter, setFromDateFilter] = useState('');
+    const [toDateFilter, setToDateFilter] = useState('');
     const [sort, setSort] = useState('created_at');
     const [order, setOrder] = useState<OrderDirection>('desc');
 
@@ -210,34 +210,34 @@ export function useAdminProblemReports() {
         }
     }, [handleUnauthorized, loadReports]);
 
-    const setQuery = useCallback((value: string) => {
+    const updateQuery = useCallback((value: string) => {
         setPage(1);
-        setQueryState(value);
+        setQuery(value);
     }, []);
 
-    const setStatusFilter = useCallback((value: string) => {
+    const updateStatusFilter = useCallback((value: string) => {
         setPage(1);
-        setStatusFilterState(value);
+        setStatusFilter(value);
     }, []);
 
-    const setIssueTypeFilter = useCallback((value: string) => {
+    const updateIssueTypeFilter = useCallback((value: string) => {
         setPage(1);
-        setIssueTypeFilterState(value);
+        setIssueTypeFilter(value);
     }, []);
 
-    const setReporterRoleFilter = useCallback((value: string) => {
+    const updateReporterRoleFilter = useCallback((value: string) => {
         setPage(1);
-        setReporterRoleFilterState(value);
+        setReporterRoleFilter(value);
     }, []);
 
-    const setFromDateFilter = useCallback((value: string) => {
+    const updateFromDateFilter = useCallback((value: string) => {
         setPage(1);
-        setFromDateFilterState(value);
+        setFromDateFilter(value);
     }, []);
 
-    const setToDateFilter = useCallback((value: string) => {
+    const updateToDateFilter = useCallback((value: string) => {
         setPage(1);
-        setToDateFilterState(value);
+        setToDateFilter(value);
     }, []);
 
     const setOrdering = useCallback((nextSort: string, nextOrder: OrderDirection) => {
@@ -281,12 +281,12 @@ export function useAdminProblemReports() {
         detailItem,
         submittingUpdate,
         setPage,
-        setQuery,
-        setStatusFilter,
-        setIssueTypeFilter,
-        setReporterRoleFilter,
-        setFromDateFilter,
-        setToDateFilter,
+        setQuery: updateQuery,
+        setStatusFilter: updateStatusFilter,
+        setIssueTypeFilter: updateIssueTypeFilter,
+        setReporterRoleFilter: updateReporterRoleFilter,
+        setFromDateFilter: updateFromDateFilter,
+        setToDateFilter: updateToDateFilter,
         setOrdering,
         changePageSize,
         fetchDetail,

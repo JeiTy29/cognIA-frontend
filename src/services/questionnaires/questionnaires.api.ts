@@ -872,7 +872,7 @@ function normalizeEvaluationComorbidity(value: unknown) {
         .map((item) => ({
             ...item,
             coexistence_key: firstNonEmptyString([item.coexistence_key]),
-            domains: asArray(item.domains).map((domain) => String(domain)),
+            domains: asArray(item.domains).map(String),
             combined_risk_score: toNumberOrNull(item.combined_risk_score),
             coexistence_level: firstNonEmptyString([item.coexistence_level]),
             summary: firstNonEmptyString([item.summary])

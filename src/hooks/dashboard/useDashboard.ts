@@ -202,15 +202,15 @@ export interface UseDashboardResult {
 }
 
 export function useDashboard(): UseDashboardResult {
-    const [months, setMonthsState] = useState(DEFAULT_MONTHS);
+    const [months, setMonths] = useState(DEFAULT_MONTHS);
     const [blocks, setBlocks] = useState<DashboardBlocksState>(() => createInitialBlocksState());
     const [isReloading, setIsReloading] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const requestVersionRef = useRef(0);
     const mountedRef = useRef(true);
 
-    const setMonths = useCallback((value: number) => {
-        setMonthsState(clampMonths(value));
+    const updateMonths = useCallback((value: number) => {
+        setMonths(clampMonths(value));
     }, []);
 
     const loadDashboard = useCallback(async (targetMonths: number) => {
@@ -296,7 +296,7 @@ export function useDashboard(): UseDashboardResult {
 
     return {
         months,
-        setMonths,
+        setMonths: updateMonths,
         blocks,
         isReloading,
         lastUpdated,

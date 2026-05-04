@@ -77,7 +77,7 @@
     border-radius: 10px;
     border: 1px solid rgba(240, 173, 78, 0.36);
     background: rgba(240, 173, 78, 0.12);
-    color: #6f4602;
+    color: #78350f;
     font-size: 13px;
 }
 
@@ -145,7 +145,7 @@
 
 .dashboard-node-chip {
     font-size: 12px;
-    color: #123e5c;
+    color: #0f3a59;
     background: rgba(23, 144, 233, 0.16);
     border-radius: 999px;
     padding: 4px 8px;
@@ -312,7 +312,7 @@
     padding: 10px 12px;
     border-radius: 10px;
     background: rgba(220, 53, 69, 0.1);
-    color: #811b27;
+    color: #7f1d1d;
     font-size: 13px;
 }
 

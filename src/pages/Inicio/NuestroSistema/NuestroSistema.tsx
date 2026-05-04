@@ -325,14 +325,14 @@ export default function NuestroSistema() {
                     <span>{item.title}</span>
                     <span className="accordion-icon">+</span>
                   </button>
-                  <div
+                  <section
                     id={`rf-accordion-panel-${index}`}
                     className="accordion-content"
-                    role="region"
+                    aria-label={item.title}
                     aria-hidden={accordionIndex !== index}
                   >
                     {item.body}
-                  </div>
+                  </section>
                 </div>
               ))}
             </div>

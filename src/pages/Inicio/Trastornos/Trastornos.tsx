@@ -8,6 +8,7 @@ import './Trastornos.css';
 
 export default function Trastornos() {
     const [expandedDisorder, setExpandedDisorder] = useState<number | null>(null);
+    const hasExpandedDisorder = expandedDisorder !== null;
     const [hoveredDisorder, setHoveredDisorder] = useState<number | null>(null);
 
     const disorders = [
@@ -51,7 +52,7 @@ export default function Trastornos() {
         <div className="trastornos-container">
             <h1 className="section-title">Trastornos</h1>
             <div className="circle-section">
-                {expandedDisorder !== null ? (
+                {hasExpandedDisorder ? (
                     <button
                         type="button"
                         className="circle-dismiss-layer"
@@ -59,7 +60,7 @@ export default function Trastornos() {
                         onClick={() => setExpandedDisorder(null)}
                     />
                 ) : null}
-                <div className={`circle-diagram-wrapper ${expandedDisorder !== null ? 'is-expanded' : ''}`}>
+                <div className={`circle-diagram-wrapper ${hasExpandedDisorder ? 'is-expanded' : ''}`}>
                     <div className="circle-diagram">
                         <div className="large-circle"></div>
                         {disorders.map((disorder, index) => (

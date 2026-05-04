@@ -43,6 +43,17 @@ function toHex(value: Uint8Array | ArrayBuffer) {
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function stringifyRequestInput(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (value instanceof URL) return value.toString();
+    if (value instanceof Request) return value.url;
+    return JSON.stringify(value);
+}
+
+function stringifyRequestBody(value: unknown): string {
+    return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
 describe('encryptedTransport', () => {
     beforeEach(() => {
         clearTransportKeyCache();
@@ -119,7 +130,7 @@ describe('encryptedTransport', () => {
     it('llama transport-key, envia headers cifrados y descifra la respuesta', async () => {
         const fixture = await createTransportKeyFixture();
         const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-            const url = String(input);
+            const url = stringifyRequestInput(input);
 
             if (url.endsWith('/api/v2/security/transport-key')) {
                 return new Response(JSON.stringify(fixture.transportKey), {
@@ -128,7 +139,7 @@ describe('encryptedTransport', () => {
                 });
             }
 
-            const envelope = JSON.parse(String(init?.body));
+            const envelope = JSON.parse(stringifyRequestBody(init?.body));
             expect(init?.headers).toMatchObject({
                 'X-CognIA-Encrypted': '1',
                 'X-CognIA-Crypto-Version': 'transport_envelope_v1'
@@ -192,7 +203,7 @@ describe('encryptedTransport', () => {
         let secureAttempt = 0;
 
         const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-            const url = String(input);
+            const url = stringifyRequestInput(input);
 
             if (url.endsWith('/api/v2/security/transport-key')) {
                 return new Response(JSON.stringify(fixture.transportKey), {
@@ -209,7 +220,7 @@ describe('encryptedTransport', () => {
                 });
             }
 
-            const envelope = JSON.parse(String(init?.body));
+            const envelope = JSON.parse(stringifyRequestBody(init?.body));
             const decryptedRawKey = await globalThis.crypto.subtle.decrypt(
                 { name: 'RSA-OAEP' },
                 fixture.privateKey,
