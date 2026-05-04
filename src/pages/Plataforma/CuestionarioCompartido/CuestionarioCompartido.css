@@ -1,4 +1,4 @@
-.shared-questionnaire {
+﻿.shared-questionnaire {
     min-height: 100vh;
     padding: 40px 16px;
     background: #f6fbff;
@@ -23,8 +23,8 @@
 .shared-questionnaire-error {
     border-radius: 10px;
     padding: 10px 12px;
-    background: rgba(215, 44, 44, 0.12);
-    color: #7f1d1d;
+    background: #fee2e2;
+    color: #111827;
     font-weight: 600;
 }
 
@@ -37,8 +37,8 @@
     border: 1px solid rgba(23, 144, 233, 0.26);
     border-radius: 10px;
     padding: 10px 12px;
-    background: rgba(23, 144, 233, 0.1);
-    color: #0f3a59;
+    background: #dbeafe;
+    color: #111827;
     font-size: 13px;
     line-height: 1.45;
 }
@@ -144,8 +144,8 @@
 
 .shared-questionnaire-tag small {
     font-size: 11px;
-    color: #1e3a8a;
-    background: rgba(33, 95, 143, 0.12);
+    color: #111827;
+    background: #dbeafe;
     border-radius: 999px;
     padding: 2px 7px;
 }
@@ -157,3 +157,5 @@
         grid-template-columns: 1fr;
     }
 }
+
+

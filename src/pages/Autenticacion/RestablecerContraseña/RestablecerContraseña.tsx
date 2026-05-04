@@ -12,6 +12,39 @@ import { PASSWORD_RULES } from '../../../utils/passwordRules';
 
 const passwordRules = PASSWORD_RULES;
 
+function redirectToInvalidResetToken(navigate: ReturnType<typeof useNavigate>) {
+    navigate('/inicio-sesion', {
+        replace: true,
+        state: { message: 'El enlace de restablecimiento es invalido o ha expirado.' }
+    });
+}
+
+function resolveResetSubmitErrorMessage(error: unknown) {
+    if (error instanceof ApiError && error.status === 400) {
+        return {
+            status: 400,
+            message: 'No se pudo actualizar la contrasena. Verifica el enlace e intentalo de nuevo.'
+        };
+    }
+    if (error instanceof ApiError && error.status === 429) {
+        return {
+            status: 429,
+            message: 'Demasiados intentos. Espera un momento e intentalo de nuevo.'
+        };
+    }
+    if (error instanceof ApiError) {
+        return {
+            status: error.status,
+            message: 'Ocurrio un error inesperado. Intenta mas tarde.'
+        };
+    }
+
+    return {
+        status: null,
+        message: 'Ocurrio un error inesperado. Intenta mas tarde.'
+    };
+}
+
 export default function RestablecerContraseña() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -86,17 +119,11 @@ export default function RestablecerContraseña() {
                     setIsTokenValid(true);
                     return;
                 }
-                navigate('/inicio-sesion', {
-                    replace: true,
-                    state: { message: 'El enlace de restablecimiento es invalido o ha expirado.' }
-                });
+                redirectToInvalidResetToken(navigate);
             } catch (error) {
                 if (cancelled) return;
                 if (error instanceof ApiError && error.status === 400) {
-                    navigate('/inicio-sesion', {
-                        replace: true,
-                        state: { message: 'El enlace de restablecimiento es invalido o ha expirado.' }
-                    });
+                    redirectToInvalidResetToken(navigate);
                     return;
                 }
                 setTokenVerifyError('No se pudo verificar el enlace de restablecimiento.');
@@ -141,18 +168,9 @@ export default function RestablecerContraseña() {
             setSubmitError('');
             setSubmitErrorStatus(null);
         } catch (error) {
-            if (error instanceof ApiError) {
-                setSubmitErrorStatus(error.status);
-                if (error.status === 400) {
-                    setSubmitError('No se pudo actualizar la contrasena. Verifica el enlace e intentalo de nuevo.');
-                } else if (error.status === 429) {
-                    setSubmitError('Demasiados intentos. Espera un momento e intentalo de nuevo.');
-                } else {
-                    setSubmitError('Ocurrio un error inesperado. Intenta mas tarde.');
-                }
-            } else {
-                setSubmitError('Ocurrio un error inesperado. Intenta mas tarde.');
-            }
+            const submitFailure = resolveResetSubmitErrorMessage(error);
+            setSubmitErrorStatus(submitFailure.status);
+            setSubmitError(submitFailure.message);
         } finally {
             setSubmitLoading(false);
         }

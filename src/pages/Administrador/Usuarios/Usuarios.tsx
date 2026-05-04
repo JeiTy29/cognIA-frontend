@@ -379,6 +379,10 @@ export default function Usuarios() {
         }
     };
 
+    const handleCopyIdAction = (value: string) => {
+        runUserTask(() => handleCopyId(value));
+    };
+
     const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const errors = validateUserForm(editForm);
@@ -491,7 +495,7 @@ export default function Usuarios() {
                             type="button"
                             className="icon-btn usuarios-id-copy has-tooltip"
                             data-tooltip="Copiar ID"
-                            onClick={() => handleCopyId(user.id).catch(() => undefined)}
+                            onClick={() => handleCopyIdAction(user.id)}
                         >
                             <CopyIcon />
                         </button>

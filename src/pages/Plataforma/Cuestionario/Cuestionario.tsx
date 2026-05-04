@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../Plataforma.css';
 import './Cuestionario.css';
 import { ApiError } from '../../../services/api/httpClient';
@@ -93,7 +93,7 @@ function runQuestionnaireTask(task: () => Promise<void>) {
 }
 
 function scheduleQuestionnairePoll(
-    timerRef: MutableRefObject<PollTimer>,
+    timerRef: { current: PollTimer },
     task: () => Promise<void>,
     delay: number
 ) {
@@ -805,9 +805,9 @@ function QuestionnaireProcessedView({
                 <div className="questionnaire-report-banner-copy">
                     <h3>Informe final orientativo</h3>
                     <p>{riskPresentation.hint}</p>
-                    {generatedAt !== '--' ? (
+                    {generatedAt === '--' ? null : (
                         <span className="questionnaire-report-generated-at">Generado: {generatedAt}</span>
-                    ) : null}
+                    )}
                 </div>
             </div>
 
@@ -934,42 +934,68 @@ function QuestionnaireProcessedView({
     );
 }
 
-function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
-    const required = isQuestionRequired(question);
-    if (!required && (value === null || value === undefined || value === '')) {
-        return true;
+function isEmptyValue(value: unknown) {
+    return value === null || value === undefined || value === '';
+}
+
+function resolveTextLengthRange(question: QuestionnaireQuestionV2DTO) {
+    let minLength = 1;
+    if (question.response_min !== null && question.response_min !== undefined) {
+        minLength = Math.max(0, Math.trunc(question.response_min));
     }
 
+    let maxLength: number | null = null;
+    if (question.response_max !== null && question.response_max !== undefined) {
+        maxLength = Math.max(minLength, Math.trunc(question.response_max));
+    }
+
+    return { minLength, maxLength };
+}
+
+function isValidTextAnswer(question: QuestionnaireQuestionV2DTO, value: unknown, required: boolean) {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return !required;
+
+    const { minLength, maxLength } = resolveTextLengthRange(question);
+    if (trimmed.length < minLength) return false;
+    if (maxLength != null && trimmed.length > maxLength) return false;
+    return true;
+}
+
+function isValidNumericAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (question.response_type === 'integer' && !Number.isInteger(value)) return false;
+
+    const constraints = getNumericConstraints(question);
+    if (value < constraints.min) return false;
+    if (value > constraints.max) return false;
+    return true;
+}
+
+function isValidOptionsAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
+    const options = normalizeQuestionOptions(question);
+    if (options.length === 0) return !isEmptyValue(value);
+    return options.some((option) => option.value === value);
+}
+
+function isValid(question: QuestionnaireQuestionV2DTO, value: unknown) {
+    const required = isQuestionRequired(question);
+    if (!required && isEmptyValue(value)) return true;
+
     if (question.response_type === 'text') {
-        if (typeof value !== 'string') return false;
-        const trimmed = value.trim();
-        if (!required && trimmed.length === 0) return true;
-        const minLength = question.response_min != null ? Math.max(0, Math.trunc(question.response_min)) : 1;
-        const maxLength = question.response_max != null ? Math.max(minLength, Math.trunc(question.response_max)) : null;
-        if (trimmed.length < minLength) return false;
-        if (maxLength != null && trimmed.length > maxLength) return false;
-        return true;
+        return isValidTextAnswer(question, value, required);
     }
 
     if (question.response_type === 'integer' || question.response_type === 'number') {
-        if (typeof value !== 'number' || !Number.isFinite(value)) return false;
-        if (question.response_type === 'integer' && !Number.isInteger(value)) return false;
-        const constraints = getNumericConstraints(question);
-        if (value < constraints.min) return false;
-        if (value > constraints.max) return false;
-        return true;
+        return isValidNumericAnswer(question, value);
     }
 
     if (question.response_type === 'boolean') {
         return typeof value === 'boolean';
     }
 
-    const options = normalizeQuestionOptions(question);
-    if (options.length > 0) {
-        return options.some((option) => option.value === value);
-    }
-
-    return value !== null && value !== undefined && value !== '';
+    return isValidOptionsAnswer(question, value);
 }
 
 function getProfessionalReviewLabel(value: boolean | null | undefined) {
@@ -988,6 +1014,90 @@ function findFirstInvalidQuestionIndex(
         }
     }
     return -1;
+}
+
+type AnswerControlProps = Readonly<{
+    currentQuestion: QuestionnaireQuestionV2DTO | null;
+    currentAnswer: QuestionnaireResponseValue | null;
+    currentOptions: QuestionnaireOptionDTO[];
+    currentNumericConstraints: ReturnType<typeof getNumericConstraints> | null;
+    onAnswerChange: (value: QuestionnaireResponseValue) => void;
+}>;
+
+function AnswerControl({
+    currentQuestion,
+    currentAnswer,
+    currentOptions,
+    currentNumericConstraints,
+    onAnswerChange
+}: AnswerControlProps) {
+    if (!currentQuestion) return null;
+
+    if (currentQuestion.response_type === 'text') {
+        return (
+            <textarea
+                className="question-textarea"
+                rows={5}
+                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                onChange={(event) => onAnswerChange(event.target.value)}
+            />
+        );
+    }
+
+    if (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number') {
+        return (
+            <>
+                <input
+                    type="number"
+                    className="question-input"
+                    value={typeof currentAnswer === 'number' ? currentAnswer : ''}
+                    min={currentNumericConstraints?.min ?? undefined}
+                    max={currentNumericConstraints?.max ?? undefined}
+                    step={currentNumericConstraints?.step ?? undefined}
+                    onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
+                />
+                {currentNumericConstraints ? (
+                    <p className="question-input-hint">
+                        Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
+                    </p>
+                ) : null}
+            </>
+        );
+    }
+
+    if (currentOptions.length > 0) {
+        return (
+            <div className="question-options">
+                {currentOptions.map((option) => (
+                    <button
+                        key={String(option.value)}
+                        type="button"
+                        className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
+                        onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
+                    >
+                        <span className="answer-indicator" aria-hidden="true"></span>
+                        <span className="answer-label">{option.label}</span>
+                    </button>
+                ))}
+            </div>
+        );
+    }
+
+    return (
+        <input
+            type="text"
+            className="question-input"
+            value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+            onChange={(event) => onAnswerChange(event.target.value)}
+        />
+    );
+}
+
+function resolveShellState(activeLoading: boolean, activeError: string | null, started: boolean) {
+    if (activeLoading) return 'loading';
+    if (activeError) return 'error';
+    if (!started) return 'intro';
+    return 'workspace';
 }
 
 export default function Cuestionario() {
@@ -1419,75 +1529,9 @@ export default function Cuestionario() {
         startStatusPolling(sessionId);
     };
 
-    const renderAnswerControl = () => {
-        if (!currentQuestion) return null;
-
-        if (currentQuestion.response_type === 'text') {
-            return (
-                <textarea
-                    className="question-textarea"
-                    rows={5}
-                    value={typeof currentAnswer === 'string' ? currentAnswer : ''}
-                    onChange={(event) => onAnswerChange(event.target.value)}
-                />
-            );
-        }
-
-        if (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number') {
-            return (
-                <>
-                    <input
-                        type="number"
-                        className="question-input"
-                        value={typeof currentAnswer === 'number' ? currentAnswer : ''}
-                        min={currentNumericConstraints?.min ?? undefined}
-                        max={currentNumericConstraints?.max ?? undefined}
-                        step={currentNumericConstraints?.step ?? undefined}
-                        onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
-                    />
-                    {currentNumericConstraints ? (
-                        <p className="question-input-hint">
-                            Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
-                        </p>
-                    ) : null}
-                </>
-            );
-        }
-
-        if (currentOptions.length > 0) {
-            return (
-                <div className="question-options">
-                    {currentOptions.map((option) => (
-                        <button
-                            key={String(option.value)}
-                            type="button"
-                            className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
-                            onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
-                        >
-                            <span className="answer-indicator" aria-hidden="true"></span>
-                            <span className="answer-label">{option.label}</span>
-                        </button>
-                    ))}
-                </div>
-            );
-        }
-
-        return (
-            <input
-                type="text"
-                className="question-input"
-                value={typeof currentAnswer === 'string' ? currentAnswer : ''}
-                onChange={(event) => onAnswerChange(event.target.value)}
-            />
-        );
-    };
-
     const handlePrimaryActionClick = () => {
-        if (isLastQuestion) {
-            handleFinish().catch(() => undefined);
-            return;
-        }
-        handleNext().catch(() => undefined);
+        const action = isLastQuestion ? handleFinish : handleNext;
+        action().catch(() => undefined);
     };
 
     const processingSteps = useMemo(
@@ -1536,256 +1580,287 @@ export default function Cuestionario() {
     const isLastQuestion = currentIndex === questions.length - 1;
     const submitActionLabel = getSubmitActionLabel(working, isLastQuestion);
 
+    const introActionContent =
+        reusableSession && reusableSessionId ? (
+            <div className="questionnaire-resume-panel" role="status" aria-live="polite">
+                <div className="questionnaire-resume-copy">
+                    <strong>Tienes un cuestionario en progreso</strong>
+                    <p>
+                        Puedes retomar tu sesion guardada o iniciar una nueva.
+                        {reusableUpdatedAt ? ` Ultima actualizacion: ${new Date(reusableUpdatedAt).toLocaleString('es-CO')}.` : ''}
+                    </p>
+                </div>
+                <div className="questionnaire-resume-actions">
+                    <button
+                        type="button"
+                        className="questionnaire-btn primary questionnaire-start"
+                        onClick={() => continueSession(reusableSessionId).catch(() => undefined)}
+                        disabled={working}
+                    >
+                        {working ? 'Cargando...' : 'Continuar cuestionario'}
+                    </button>
+                    <button
+                        type="button"
+                        className="questionnaire-btn ghost"
+                        onClick={() => startSession().catch(() => undefined)}
+                        disabled={working}
+                    >
+                        Empezar de nuevo
+                    </button>
+                </div>
+            </div>
+        ) : (
+            <button
+                type="button"
+                className="questionnaire-btn primary questionnaire-start"
+                onClick={() => startSession().catch(() => undefined)}
+                disabled={working}
+            >
+                {working ? 'Iniciando...' : 'Comenzar'}
+            </button>
+        );
+
+    const processingContent = (
+        <div
+            className={`questionnaire-processing-panel ${completionPhase === 'processed' ? 'is-result' : ''} ${completionPhase === 'failed' ? 'is-error' : ''}`}
+            aria-live="polite"
+            ref={processingPanelRef}
+            tabIndex={-1}
+        >
+            <div className={`questionnaire-processing-chip ${statusChipClass}`}>
+                {getQuestionnaireStatusChipLabel(completionPhase)}
+            </div>
+            <h2 className="questionnaire-processing-title">{getQuestionnaireStatusTitle(completionPhase)}</h2>
+            <p className="questionnaire-processing-description">{processingMessage}</p>
+
+            {completionPhase === 'submitting' || completionPhase === 'processing' ? (
+                <div className="questionnaire-processing-visual" aria-hidden="true">
+                    <div className="processing-orb"></div>
+                    <div className="processing-wave"></div>
+                    <div className="processing-wave delay"></div>
+                </div>
+            ) : null}
+
+            <div className="questionnaire-processing-steps">
+                {processingSteps.map((step) => (
+                    <div key={step.id} className={`processing-step is-${step.state}`}>
+                        <div className="processing-step-indicator" aria-hidden="true"></div>
+                        <div>
+                            <strong>{step.title}</strong>
+                            <p>{step.description}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="questionnaire-processing-meta">
+                <div>
+                    <strong>Estado backend</strong>
+                    <span>{getBackendStatusLabel(backendStatus)}</span>
+                </div>
+                <div>
+                    <strong>ID sesion</strong>
+                    <span>{resultSessionId}</span>
+                </div>
+                <div>
+                    <strong>ID cuestionario</strong>
+                    <span>{resultQuestionnaireId}</span>
+                </div>
+                <div>
+                    <strong>Progreso backend</strong>
+                    <span>{formatPercent(sessionSnapshot?.progress_pct)}</span>
+                </div>
+            </div>
+
+            {completionPhase === 'processed' ? (
+                <QuestionnaireProcessedView
+                    riskPresentation={riskPresentation}
+                    generatedAt={reportGeneratedAt}
+                    reportNotice={reportNotice}
+                    summarySections={summarySections}
+                    clinicalDomains={clinicalDomains}
+                    evaluationDomains={evaluationDomains}
+                    resultBlock={resultBlock}
+                    comorbiditySummary={comorbiditySummary}
+                    disclaimer={clinicalDisclaimer}
+                    onClose={handleSuccessClose}
+                />
+            ) : null}
+
+            {completionPhase === 'failed' ? (
+                <div className="questionnaire-processing-error">
+                    <p>{completionError ?? 'No fue posible completar el procesamiento de la evaluacion.'}</p>
+                    <div className="questionnaire-result-actions">
+                        <button type="button" className="questionnaire-btn ghost" onClick={handleSuccessClose}>
+                            Volver al inicio
+                        </button>
+                        {sessionId ? (
+                            <button type="button" className="questionnaire-btn primary" onClick={handleRetryProcessing}>
+                                Reintentar estado
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+
+    const activeQuestionContent = currentQuestion ? (
+            <div className="stack-active">
+                <div className="stack-item is-active" ref={activeRef}>
+                    <h2 className="question-text">{currentQuestion.text}</h2>
+                    <AnswerControl
+                        currentQuestion={currentQuestion}
+                        currentAnswer={currentAnswer}
+                        currentOptions={currentOptions}
+                        currentNumericConstraints={currentNumericConstraints}
+                        onAnswerChange={onAnswerChange}
+                    />
+
+                {error ? <div className="question-warning">{error}</div> : null}
+
+                <div className="questionnaire-progress">
+                    <span className="questionnaire-progress-text">
+                        Pregunta {currentIndex + 1}/{questions.length}
+                    </span>
+                    <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="stack-controls">
+                <button
+                    type="button"
+                    className="questionnaire-btn ghost"
+                    onClick={handlePrevious}
+                    disabled={currentIndex <= 0 || working}
+                >
+                    Anterior
+                </button>
+                <button
+                    type="button"
+                    className="questionnaire-btn primary"
+                    onClick={handlePrimaryActionClick}
+                    disabled={!canContinue || working}
+                >
+                    {submitActionLabel}
+                </button>
+            </div>
+        </div>
+    ) : null;
+
+    const stackContent = completionPhase === 'idle' ? activeQuestionContent : processingContent;
+
+    const loadingContent = (
+        <div className="questionnaire-state questionnaire-state-loading" role="status" aria-live="polite">
+            <div className="questionnaire-intro-loader" aria-hidden="true">
+                <span className="questionnaire-intro-loader-ring"></span>
+                <span className="questionnaire-intro-loader-ring delay"></span>
+                <span className="questionnaire-intro-loader-dot"></span>
+            </div>
+            <div className="questionnaire-intro-loader-copy">
+                <strong>Preparando cuestionario</strong>
+                <p>Estamos cargando la sesion y las preguntas iniciales.</p>
+            </div>
+        </div>
+    );
+
+    const errorContent = (
+        <div className="questionnaire-state">
+            <p>{activeError}</p>
+            <button type="button" className="questionnaire-retry" onClick={() => loadActive().catch(() => undefined)}>
+                Reintentar
+            </button>
+        </div>
+    );
+
+    const introContent = (
+        <div className="questionnaire-intro intro-animate">
+            <div className="questionnaire-intro-content">
+                <div className="questionnaire-intro-text">
+                    <h1 className="questionnaire-title">
+                        <span>Cuestionario de observacion</span>
+                        <span className="questionnaire-title-accent" aria-hidden="true"></span>
+                    </h1>
+                    <p className="questionnaire-subtitle">
+                        Responde segun lo observado en las ultimas 4 semanas.
+                    </p>
+                    <p className="questionnaire-intro-text-body">
+                        Elige el formato que mejor se ajuste a tu tiempo disponible.
+                    </p>
+
+                    <div className="questionnaire-mode">
+                        <h2 className="questionnaire-mode-title">Selecciona el tipo de cuestionario</h2>
+                        <p className="questionnaire-mode-description">
+                            Mientras mas amplio sea el cuestionario, mas consistente sera la lectura final del contexto.
+                        </p>
+                        <div className="questionnaire-mode-list" role="radiogroup" aria-label="Modo de cuestionario">
+                            {MODE_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`questionnaire-mode-option ${selectedMode === option.value ? 'is-selected' : ''}`}
+                                    role="radio"
+                                    aria-checked={selectedMode === option.value}
+                                    onClick={() => setSelectedMode(option.value)}
+                                >
+                                    <span className="questionnaire-mode-option-title">{option.label}</span>
+                                    <span className="questionnaire-mode-option-hint">{option.hint}</span>
+                                    <span className="questionnaire-mode-option-text">{option.description}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="questionnaire-intro-image">
+                    <img src={questionnaireImage} alt="Vista previa del cuestionario" />
+                </div>
+            </div>
+
+            {error ? <div className="question-warning">{error}</div> : null}
+
+            <div className="questionnaire-intro-actions">
+                {introActionContent}
+            </div>
+        </div>
+    );
+
+    const workspaceContent = (
+        <div className="questionnaire-workspace">
+            <div className="questionnaire-top">
+                <div className="questionnaire-heading">
+                    <h1 className="questionnaire-title">{templateName}</h1>
+                    <p className="questionnaire-subtitle">
+                        {modeMeta.label}
+                    </p>
+                    <div className="questionnaire-role-chip">
+                        Aplicado por: {getRolePresentationLabel(apiRole)}
+                    </div>
+                    <p className="questionnaire-disclaimer">
+                        Este cuestionario no diagnostica, solo genera una alerta temprana.
+                    </p>
+                </div>
+            </div>
+
+            <div className="questionnaire-stack">
+                {stackContent}
+            </div>
+        </div>
+    );
+
+    const shellState = resolveShellState(activeLoading, activeError, started);
+    const shellContent = {
+        loading: loadingContent,
+        error: errorContent,
+        intro: introContent,
+        workspace: workspaceContent
+    }[shellState];
+
     return (
         <div className="plataforma-view">
             <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`}>
-                {activeLoading ? (
-                    <div className="questionnaire-state questionnaire-state-loading" role="status" aria-live="polite">
-                        <div className="questionnaire-intro-loader" aria-hidden="true">
-                            <span className="questionnaire-intro-loader-ring"></span>
-                            <span className="questionnaire-intro-loader-ring delay"></span>
-                            <span className="questionnaire-intro-loader-dot"></span>
-                        </div>
-                        <div className="questionnaire-intro-loader-copy">
-                            <strong>Preparando cuestionario</strong>
-                            <p>Estamos cargando la sesion y las preguntas iniciales.</p>
-                        </div>
-                    </div>
-                ) : activeError ? (
-                    <div className="questionnaire-state">
-                        <p>{activeError}</p>
-                        <button type="button" className="questionnaire-retry" onClick={() => loadActive().catch(() => undefined)}>
-                            Reintentar
-                        </button>
-                    </div>
-                ) : !started ? (
-                    <div className="questionnaire-intro intro-animate">
-                        <div className="questionnaire-intro-content">
-                            <div className="questionnaire-intro-text">
-                                <h1 className="questionnaire-title">
-                                    <span>Cuestionario de observacion</span>
-                                    <span className="questionnaire-title-accent" aria-hidden="true"></span>
-                                </h1>
-                                <p className="questionnaire-subtitle">
-                                    Responde segun lo observado en las ultimas 4 semanas.
-                                </p>
-                                <p className="questionnaire-intro-text-body">
-                                    Elige el formato que mejor se ajuste a tu tiempo disponible.
-                                </p>
-
-                                <div className="questionnaire-mode">
-                                    <h2 className="questionnaire-mode-title">Selecciona el tipo de cuestionario</h2>
-                                    <p className="questionnaire-mode-description">
-                                        Mientras mas amplio sea el cuestionario, mas consistente sera la lectura final del contexto.
-                                    </p>
-                                    <div className="questionnaire-mode-list" role="radiogroup" aria-label="Modo de cuestionario">
-                                        {MODE_OPTIONS.map((option) => (
-                                            <button
-                                                key={option.value}
-                                                type="button"
-                                                className={`questionnaire-mode-option ${selectedMode === option.value ? 'is-selected' : ''}`}
-                                                role="radio"
-                                                aria-checked={selectedMode === option.value}
-                                                onClick={() => setSelectedMode(option.value)}
-                                            >
-                                                <span className="questionnaire-mode-option-title">{option.label}</span>
-                                                <span className="questionnaire-mode-option-hint">{option.hint}</span>
-                                                <span className="questionnaire-mode-option-text">{option.description}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="questionnaire-intro-image">
-                                <img src={questionnaireImage} alt="Vista previa del cuestionario" />
-                            </div>
-                        </div>
-
-                        {error ? <div className="question-warning">{error}</div> : null}
-
-                        <div className="questionnaire-intro-actions">
-                            {reusableSession && reusableSessionId ? (
-                                <div className="questionnaire-resume-panel" role="status" aria-live="polite">
-                                    <div className="questionnaire-resume-copy">
-                                        <strong>Tienes un cuestionario en progreso</strong>
-                                        <p>
-                                            Puedes retomar tu sesion guardada o iniciar una nueva.
-                                            {reusableUpdatedAt ? ` Ultima actualizacion: ${new Date(reusableUpdatedAt).toLocaleString('es-CO')}.` : ''}
-                                        </p>
-                                    </div>
-                                    <div className="questionnaire-resume-actions">
-                                        <button
-                                            type="button"
-                                            className="questionnaire-btn primary questionnaire-start"
-                                            onClick={() => continueSession(reusableSessionId).catch(() => undefined)}
-                                            disabled={working}
-                                        >
-                                            {working ? 'Cargando...' : 'Continuar cuestionario'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="questionnaire-btn ghost"
-                                            onClick={() => startSession().catch(() => undefined)}
-                                            disabled={working}
-                                        >
-                                            Empezar de nuevo
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    className="questionnaire-btn primary questionnaire-start"
-                                    onClick={() => startSession().catch(() => undefined)}
-                                    disabled={working}
-                                >
-                                    {working ? 'Iniciando...' : 'Comenzar'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="questionnaire-workspace">
-                        <div className="questionnaire-top">
-                            <div className="questionnaire-heading">
-                                <h1 className="questionnaire-title">{templateName}</h1>
-                                <p className="questionnaire-subtitle">
-                                    {modeMeta.label}
-                                </p>
-                                <div className="questionnaire-role-chip">
-                                    Aplicado por: {getRolePresentationLabel(apiRole)}
-                                </div>
-                                <p className="questionnaire-disclaimer">
-                                    Este cuestionario no diagnostica, solo genera una alerta temprana.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="questionnaire-stack">
-                            {completionPhase !== 'idle' ? (
-                                <div
-                                    className={`questionnaire-processing-panel ${completionPhase === 'processed' ? 'is-result' : ''} ${completionPhase === 'failed' ? 'is-error' : ''}`}
-                                    aria-live="polite"
-                                    ref={processingPanelRef}
-                                    tabIndex={-1}
-                                >
-                                    <div className={`questionnaire-processing-chip ${statusChipClass}`}>
-                                        {getQuestionnaireStatusChipLabel(completionPhase)}
-                                    </div>
-                                    <h2 className="questionnaire-processing-title">{getQuestionnaireStatusTitle(completionPhase)}</h2>
-                                    <p className="questionnaire-processing-description">{processingMessage}</p>
-
-                                    {completionPhase === 'submitting' || completionPhase === 'processing' ? (
-                                        <div className="questionnaire-processing-visual" aria-hidden="true">
-                                            <div className="processing-orb"></div>
-                                            <div className="processing-wave"></div>
-                                            <div className="processing-wave delay"></div>
-                                        </div>
-                                    ) : null}
-
-                                    <div className="questionnaire-processing-steps">
-                                        {processingSteps.map((step) => (
-                                            <div key={step.id} className={`processing-step is-${step.state}`}>
-                                                <div className="processing-step-indicator" aria-hidden="true"></div>
-                                                <div>
-                                                    <strong>{step.title}</strong>
-                                                    <p>{step.description}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="questionnaire-processing-meta">
-                                        <div>
-                                            <strong>Estado backend</strong>
-                                            <span>{getBackendStatusLabel(backendStatus)}</span>
-                                        </div>
-                                        <div>
-                                            <strong>ID sesion</strong>
-                                            <span>{resultSessionId}</span>
-                                        </div>
-                                        <div>
-                                            <strong>ID cuestionario</strong>
-                                            <span>{resultQuestionnaireId}</span>
-                                        </div>
-                                        <div>
-                                            <strong>Progreso backend</strong>
-                                            <span>{formatPercent(sessionSnapshot?.progress_pct)}</span>
-                                        </div>
-                                    </div>
-
-                                    {completionPhase === 'processed' ? (
-                                        <QuestionnaireProcessedView
-                                            riskPresentation={riskPresentation}
-                                            generatedAt={reportGeneratedAt}
-                                            reportNotice={reportNotice}
-                                            summarySections={summarySections}
-                                            clinicalDomains={clinicalDomains}
-                                            evaluationDomains={evaluationDomains}
-                                            resultBlock={resultBlock}
-                                            comorbiditySummary={comorbiditySummary}
-                                            disclaimer={clinicalDisclaimer}
-                                            onClose={handleSuccessClose}
-                                        />
-                                    ) : null}
-
-                                    {completionPhase === 'failed' ? (
-                                        <div className="questionnaire-processing-error">
-                                            <p>{completionError ?? 'No fue posible completar el procesamiento de la evaluacion.'}</p>
-                                            <div className="questionnaire-result-actions">
-                                                <button type="button" className="questionnaire-btn ghost" onClick={handleSuccessClose}>
-                                                    Volver al inicio
-                                                </button>
-                                                {sessionId ? (
-                                                    <button type="button" className="questionnaire-btn primary" onClick={handleRetryProcessing}>
-                                                        Reintentar estado
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : currentQuestion ? (
-                                <div className="stack-active">
-                                    <div className="stack-item is-active" ref={activeRef}>
-                                        <h2 className="question-text">{currentQuestion.text}</h2>
-                                        {renderAnswerControl()}
-
-                                        {error ? <div className="question-warning">{error}</div> : null}
-
-                                        <div className="questionnaire-progress">
-                                            <span className="questionnaire-progress-text">
-                                                Pregunta {currentIndex + 1}/{questions.length}
-                                            </span>
-                                            <div className="progress-bar">
-                                                <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="stack-controls">
-                                        <button
-                                            type="button"
-                                            className="questionnaire-btn ghost"
-                                            onClick={handlePrevious}
-                                            disabled={currentIndex <= 0 || working}
-                                        >
-                                            Anterior
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="questionnaire-btn primary"
-                                            onClick={handlePrimaryActionClick}
-                                            disabled={!canContinue || working}
-                                        >
-                                            {submitActionLabel}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-                )}
+                {shellContent}
             </div>
         </div>
     );

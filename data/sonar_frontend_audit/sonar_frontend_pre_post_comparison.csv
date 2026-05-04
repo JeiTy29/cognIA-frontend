@@ -1,0 +1,14 @@
+﻿metric,before,after
+open_issues,75,0
+open_bugs,0,0
+open_vulnerabilities,0,0
+open_code_smells,75,0
+quality_gate_status,ERROR,OK
+coverage,0.0,3.6
+duplicated_lines_density,1.1,1.1
+bugs,0,0
+vulnerabilities,0,0
+code_smells,75,0
+security_hotspots,0,0
+new_coverage,,
+new_duplicated_lines_density,,

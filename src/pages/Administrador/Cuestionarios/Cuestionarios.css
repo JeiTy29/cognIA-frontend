@@ -1,4 +1,4 @@
-.cuestionarios-page .admin-filters .global-select {
+﻿.cuestionarios-page .admin-filters .global-select {
     min-width: 170px;
 }
 
@@ -80,8 +80,8 @@
 }
 
 .admin-status-badge.archived {
-    background: rgba(220, 53, 69, 0.12);
-    color: #7f1d1d;
+    background: #fee2e2;
+    color: #111827;
 }
 
 @media (max-width: 1200px) {
@@ -99,3 +99,5 @@
         min-width: 1080px;
     }
 }
+
+

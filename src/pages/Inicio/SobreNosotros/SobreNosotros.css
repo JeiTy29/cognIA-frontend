@@ -1,4 +1,4 @@
-.sobre-nosotros-container {
+﻿.sobre-nosotros-container {
     padding: 80px 40px;
     max-width: 1200px;
     margin: 0 auto;
@@ -71,7 +71,7 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    color: #0b6fb8;
+    color: #0a4d80;
     font-weight: 600;
     transition: all 0.3s ease;
 }
@@ -121,7 +121,7 @@
 }
 
 /* ========================================
-   DISEÑO RESPONSIVE (Matching NuestroSistema)
+   DISEÃ‘O RESPONSIVE (Matching NuestroSistema)
    ======================================== */
 
 @media (max-width: 1024px) {
@@ -201,3 +201,4 @@
         padding: 24px 20px;
     }
 }
+

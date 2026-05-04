@@ -18,12 +18,111 @@ type MFANavigationState = {
     expiresIn?: number;
 };
 
+type InputRefList = { current: Array<HTMLInputElement | null> };
+type InputRef = { current: HTMLInputElement | null };
+
 function resolveMfaMode(state: MFANavigationState | null): MFAMode {
     return state?.mode ?? 'challenge';
 }
 
 const MFA_CODE_LENGTH = 6;
 const MFA_DIGIT_KEYS = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => `mfa-digit-${index + 1}`);
+
+function requiresLoginRedirect(
+    state: MFANavigationState | null,
+    mode: MFAMode,
+    challengeId: string | undefined,
+    enrollmentToken: string | undefined
+) {
+    if (!state?.mode) return true;
+    if (mode === 'challenge') return !challengeId;
+    return !enrollmentToken;
+}
+
+function resolveMfaVerificationError(status: number | null) {
+    if (status === 403) {
+        return 'Debes configurar MFA antes de verificar. Inicia sesion nuevamente.';
+    }
+    return 'El codigo ingresado no es valido. Intenta nuevamente.';
+}
+
+function validateMfaSubmitInput(
+    challengeId: string | undefined,
+    useRecovery: boolean,
+    recoveryCode: string,
+    code: string
+) {
+    if (!challengeId) return '';
+    if (useRecovery && !recoveryCode.trim()) {
+        return 'Ingresa el codigo de recuperacion.';
+    }
+    if (!useRecovery && code.length !== MFA_CODE_LENGTH) {
+        return 'Ingresa un codigo de 6 digitos.';
+    }
+    return null;
+}
+
+function buildMfaPayload(
+    challengeId: string,
+    useRecovery: boolean,
+    recoveryCode: string,
+    code: string
+) {
+    if (useRecovery) {
+        return { challenge_id: challengeId, recovery_code: recoveryCode };
+    }
+    return { challenge_id: challengeId, code };
+}
+
+function focusMfaInputField(
+    mode: MFAMode,
+    useRecovery: boolean,
+    codeDigits: string[],
+    digitRefs: InputRefList,
+    recoveryInputRef: InputRef
+) {
+    if (mode !== 'challenge') return;
+    if (useRecovery) {
+        recoveryInputRef.current?.focus();
+        return;
+    }
+    const firstEmpty = codeDigits.findIndex((digit) => digit.length === 0);
+    const focusIndex = firstEmpty >= 0 ? firstEmpty : MFA_CODE_LENGTH - 1;
+    digitRefs.current[focusIndex]?.focus();
+}
+
+function handleMfaDigitKeyNavigation(
+    index: number,
+    key: string,
+    codeDigits: string[],
+    digitRefs: InputRefList,
+    setDigit: (targetIndex: number, value: string) => void,
+    preventDefault: () => void
+) {
+    if (key === 'Backspace') {
+        if (codeDigits[index]) {
+            setDigit(index, '');
+            return;
+        }
+        if (index > 0) {
+            preventDefault();
+            digitRefs.current[index - 1]?.focus();
+            setDigit(index - 1, '');
+        }
+        return;
+    }
+
+    if (key === 'ArrowLeft' && index > 0) {
+        preventDefault();
+        digitRefs.current[index - 1]?.focus();
+        return;
+    }
+
+    if (key === 'ArrowRight' && index < MFA_CODE_LENGTH - 1) {
+        preventDefault();
+        digitRefs.current[index + 1]?.focus();
+    }
+}
 
 export default function MFA() {
     const [codeDigits, setCodeDigits] = useState<string[]>(() => Array.from({ length: MFA_CODE_LENGTH }, () => ''));
@@ -47,28 +146,13 @@ export default function MFA() {
     const isTotpMode = useMemo(() => !useRecovery, [useRecovery]);
 
     useEffect(() => {
-        if (!state?.mode) {
-            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
-            return;
-        }
-        if (mode === 'challenge' && !challengeId) {
-            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
-            return;
-        }
-        if (mode === 'setup' && !enrollmentToken) {
+        if (requiresLoginRedirect(state, mode, challengeId, enrollmentToken)) {
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
     }, [mode, challengeId, enrollmentToken, navigate, state]);
 
     useEffect(() => {
-        if (mode !== 'challenge') return;
-        if (useRecovery) {
-            recoveryInputRef.current?.focus();
-            return;
-        }
-        const firstEmpty = codeDigits.findIndex((digit) => digit.length === 0);
-        const focusIndex = firstEmpty >= 0 ? firstEmpty : MFA_CODE_LENGTH - 1;
-        digitRefs.current[focusIndex]?.focus();
+        focusMfaInputField(mode, useRecovery, codeDigits, digitRefs, recoveryInputRef);
     }, [codeDigits, mode, useRecovery]);
 
     const setDigit = (index: number, value: string) => {
@@ -106,29 +190,14 @@ export default function MFA() {
     };
 
     const handleDigitKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Backspace') {
-            if (codeDigits[index]) {
-                setDigit(index, '');
-                return;
-            }
-            if (index > 0) {
-                event.preventDefault();
-                digitRefs.current[index - 1]?.focus();
-                setDigit(index - 1, '');
-            }
-            return;
-        }
-
-        if (event.key === 'ArrowLeft' && index > 0) {
-            event.preventDefault();
-            digitRefs.current[index - 1]?.focus();
-            return;
-        }
-
-        if (event.key === 'ArrowRight' && index < MFA_CODE_LENGTH - 1) {
-            event.preventDefault();
-            digitRefs.current[index + 1]?.focus();
-        }
+        handleMfaDigitKeyNavigation(
+            index,
+            event.key,
+            codeDigits,
+            digitRefs,
+            setDigit,
+            () => event.preventDefault()
+        );
     };
 
     const handleDigitPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
@@ -142,36 +211,28 @@ export default function MFA() {
         setSubmitSuccess(null);
         setSubmitting(true);
 
-        if (!challengeId) {
+        const validationError = validateMfaSubmitInput(challengeId, useRecovery, recoveryCode, code);
+        if (validationError !== null) {
+            if (validationError) setSubmitError(validationError);
             setSubmitting(false);
             return;
         }
-        if (useRecovery) {
-            if (!recoveryCode.trim()) {
-                setSubmitError('Ingresa el codigo de recuperacion.');
-                setSubmitting(false);
-                return;
-            }
-        } else if (code.length !== MFA_CODE_LENGTH) {
-            setSubmitError('Ingresa un codigo de 6 digitos.');
+
+        const safeChallengeId = challengeId;
+        if (!safeChallengeId) {
             setSubmitting(false);
             return;
         }
 
         try {
-            const payload = useRecovery
-                ? { challenge_id: challengeId, recovery_code: recoveryCode }
-                : { challenge_id: challengeId, code };
+            const payload = buildMfaPayload(safeChallengeId, useRecovery, recoveryCode, code);
             const response = await loginMfa(payload);
             setSession(response.access_token, response.expires_in);
             const jwtPayload = decodeJwtPayload(response.access_token);
             navigate(getDefaultRouteForRoles(jwtPayload?.roles), { replace: true });
         } catch (error) {
-            if (error instanceof ApiError && error.status === 403) {
-                setSubmitError('Debes configurar MFA antes de verificar. Inicia sesion nuevamente.');
-            } else {
-                setSubmitError('El codigo ingresado no es valido. Intenta nuevamente.');
-            }
+            const status = error instanceof ApiError ? error.status : null;
+            setSubmitError(resolveMfaVerificationError(status));
         } finally {
             setSubmitting(false);
         }
