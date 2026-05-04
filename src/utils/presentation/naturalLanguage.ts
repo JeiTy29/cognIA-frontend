@@ -240,7 +240,9 @@ function normalizeKey(value: string) {
 function normalizeText(value: string) {
     return value
         .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-        .replace(/[_\-.]+/g, ' ')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll('.', ' ')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -437,11 +439,124 @@ export function shouldHideTechnicalField(key: string, extraHiddenFields: string[
     return false;
 }
 
-export function formatNaturalValue(
+type NaturalValueFormatter = (value: unknown, fallback: string) => string;
+
+const KNOWN_VALUE_FORMATTERS: Record<string, NaturalValueFormatter> = {
+    mode: getModeLabel,
+    role: getRoleLabel,
+    reporter_role: getRoleLabel,
+    status: getStatusLabel,
+    response_type: getResponseTypeLabel,
+    domain: getDomainLabel,
+    alert_level: getAlertLevelLabel,
+    confidence_band: getConfidenceBandLabel,
+    coexistence_level: getCoexistenceLevelLabel,
+    operational_class: getOperationalClassLabel,
+    mime_type: getMimeTypeLabel,
+    source_module: getSourceModuleLabel,
+    method: getHttpMethodLabel,
+    size_bytes: formatFileSizeEs,
+    source_path: (value, fallback) => (typeof value === 'string' && value.trim() ? value.trim() : fallback),
+    probability: (value, fallback) => formatPercentEs(value, { mode: 'auto' }, fallback),
+    combined_risk_score: (value, fallback) => formatPercentEs(value, { mode: 'auto' }, fallback),
+    confidence_pct: (value, fallback) => formatPercentEs(value, { mode: 'percent' }, fallback),
+    completion_quality_score: (value, fallback) => formatPercentEs(value, { mode: 'auto' }, fallback),
+    missingness_score: (value, fallback) => formatPercentEs(value, { mode: 'auto' }, fallback),
+    progress_pct: (value, fallback) => formatPercentEs(value, { mode: 'percent' }, fallback)
+};
+
+function resolveKnownNaturalValue(normalizedKey: string, value: unknown, fallback: string) {
+    const formatter = KNOWN_VALUE_FORMATTERS[normalizedKey];
+    if (formatter) return formatter(value, fallback);
+    if (normalizedKey.includes('conversion')) return formatPercentEs(value, { mode: 'auto' }, fallback);
+    return null;
+}
+
+function formatNaturalNumberValue(normalizedKey: string, value: number, fallback: string) {
+    if (isPercentLikeKey(normalizedKey)) return formatPercentEs(value, { mode: 'auto' }, fallback);
+    return formatNumberEs(value, { maximumFractionDigits: 2 }, fallback);
+}
+
+function shouldHumanizeEnumString(normalizedKey: string, value: string) {
+    const looksLikeEnum = value.includes('_') || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(value);
+    if (!looksLikeEnum) return false;
+    const blockedTokens = ['id', 'path', 'url', 'code'];
+    return blockedTokens.every((token) => !normalizedKey.includes(token));
+}
+
+function formatCoexistenceKey(value: string) {
+    return value
+        .split('+')
+        .map((segment) => getDomainLabel(segment, segment))
+        .join(' + ');
+}
+
+function formatNaturalStringValue(normalizedKey: string, value: string, fallback: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+
+    if (isDateLikeKey(normalizedKey) || isDateString(trimmed)) {
+        const dateTime = formatDateTimeEsCO(trimmed, '');
+        if (dateTime) return dateTime;
+    }
+
+    if (normalizedKey === 'needs_professional_review') {
+        const asBool = normalizeKey(trimmed);
+        if (asBool === 'true' || asBool === 'false') return asBool === 'true' ? 'Sí' : 'No';
+    }
+
+    if (normalizedKey === 'domain') return getDomainLabel(trimmed, fallback);
+    if (normalizedKey === 'alert_level') return getAlertLevelLabel(trimmed, fallback);
+    if (normalizedKey === 'confidence_band') return getConfidenceBandLabel(trimmed, fallback);
+    if (normalizedKey === 'coexistence_level') return getCoexistenceLevelLabel(trimmed, fallback);
+    if (normalizedKey === 'operational_class') return getOperationalClassLabel(trimmed, fallback);
+    if (normalizedKey === 'coexistence_key') return formatCoexistenceKey(trimmed);
+    if (shouldHumanizeEnumString(normalizedKey, trimmed)) return humanizeEnumValue(trimmed);
+    return trimmed;
+}
+
+function formatNaturalArrayValue(
+    key: string,
+    value: unknown[],
+    fallback: string,
+    options: { fallback?: string; includeTechnical?: boolean; depth?: number }
+) {
+    if (value.length === 0) return fallback;
+    const depth = options.depth ?? 0;
+    const mapped = value
+        .map((item) => formatNaturalValue(key, item, { ...options, depth: depth + 1 }))
+        .filter((item) => item !== fallback);
+    if (mapped.length === 0) return fallback;
+    return mapped.join(', ');
+}
+
+function formatNaturalObjectValue(
+    value: Record<string, unknown>,
+    options: { fallback?: string; includeTechnical?: boolean; depth?: number }
+) {
+    const depth = options.depth ?? 0;
+    if (depth >= 2) return 'Información disponible';
+
+    const nestedRows = buildSafeDisplayRows(value, {
+        includeTechnical: Boolean(options.includeTechnical),
+        includeEmpty: false,
+        maxRows: 3
+    });
+
+    if (nestedRows.length === 0) return 'Información disponible';
+    return nestedRows.map((row) => `${row.label}: ${row.value}`).join(' · ');
+}
+
+function legacyFormatNaturalValue(
     key: string,
     value: unknown,
     options: { fallback?: string; includeTechnical?: boolean; depth?: number } = {}
 ): string {
+    if (key || value || options) {
+        return FALLBACK_VALUE;
+    }
+    return FALLBACK_VALUE;
+    /*
     const fallback = options.fallback ?? FALLBACK_VALUE;
     const depth = options.depth ?? 0;
 
@@ -535,6 +650,45 @@ export function formatNaturalValue(
     return nestedRows
         .map((row) => `${row.label}: ${row.value}`)
         .join(' · ');
+}
+
+    */
+}
+
+export function formatNaturalValue(
+    key: string,
+    value: unknown,
+    options: { fallback?: string; includeTechnical?: boolean; depth?: number } = {}
+): string {
+    const fallbackFromLegacy = legacyFormatNaturalValue(key, value, options);
+    if (fallbackFromLegacy !== FALLBACK_VALUE) {
+        return fallbackFromLegacy;
+    }
+
+    const fallback = options.fallback ?? FALLBACK_VALUE;
+
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === 'boolean') return formatBooleanEs(value, fallback);
+
+    const normalizedKey = normalizeKey(key);
+    const knownValue = resolveKnownNaturalValue(normalizedKey, value, fallback);
+    if (knownValue !== null) return knownValue;
+
+    if (typeof value === 'number') {
+        return formatNaturalNumberValue(normalizedKey, value, fallback);
+    }
+
+    if (typeof value === 'string') {
+        return formatNaturalStringValue(normalizedKey, value, fallback);
+    }
+
+    if (Array.isArray(value)) {
+        return formatNaturalArrayValue(key, value, fallback, options);
+    }
+
+    const record = toRecord(value);
+    if (!record) return fallback;
+    return formatNaturalObjectValue(record, options);
 }
 
 function sortedEntries(record: Record<string, unknown>, prioritizedFields: string[]) {

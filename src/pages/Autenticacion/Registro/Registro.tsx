@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import './Registro.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -24,10 +24,139 @@ const passwordRules = [
 ];
 
 type TipoUsuario = 'padre' | 'psicologo' | null;
-
 type ErrorMessage = string | null;
+type PasswordCheck = Readonly<{
+    id: string;
+    label: string;
+    valid: boolean;
+}>;
+type PasswordFieldProps = Readonly<{
+    value: string;
+    visible: boolean;
+    placeholder: string;
+    required?: boolean;
+    error?: string;
+    onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onToggle: () => void;
+}>;
+type TermsConsentProps = Readonly<{
+    accepted: boolean;
+    disabled: boolean;
+    hasOpenedTerms: boolean;
+    hasOpenedPrivacy: boolean;
+    error: string;
+    onAcceptedChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onOpenTerms: () => void;
+    onOpenPrivacy: () => void;
+}>;
 
 const LEGAL_LINK_CLASS_NAME = 'link-highlight auth-inline-link';
+
+function PasswordVisibilityIcon({ visible }: Readonly<{ visible: boolean }>) {
+    if (visible) {
+        return (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+        );
+    }
+
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+    );
+}
+
+function PasswordField({
+    value,
+    visible,
+    placeholder,
+    required = false,
+    error = '',
+    onChange,
+    onToggle
+}: PasswordFieldProps) {
+    return (
+        <div className="form-group password-group">
+            <input
+                type={visible ? 'text' : 'password'}
+                className="form-input"
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                required={required}
+            />
+            <button type="button" className="password-toggle" onClick={onToggle}>
+                <PasswordVisibilityIcon visible={visible} />
+            </button>
+            {error ? <div className="validation-error">{error}</div> : null}
+        </div>
+    );
+}
+
+function PasswordChecklist({ checks }: Readonly<{ checks: PasswordCheck[] }>) {
+    return (
+        <div className="password-checklist">
+            <span className="password-checklist-title">Requisitos de contraseña</span>
+            <div className="password-checklist-grid">
+                {checks.map((check) => (
+                    <div key={check.id} className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}>
+                        <span className="password-check-indicator" aria-hidden="true">
+                            {check.valid ? '✓' : '•'}
+                        </span>
+                        <span>{check.label}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function TermsConsent({
+    accepted,
+    disabled,
+    hasOpenedTerms,
+    hasOpenedPrivacy,
+    error,
+    onAcceptedChange,
+    onOpenTerms,
+    onOpenPrivacy
+}: TermsConsentProps) {
+    return (
+        <>
+            <div className="terms-checkbox">
+                <input
+                    type="checkbox"
+                    id="terms"
+                    checked={accepted}
+                    disabled={disabled}
+                    onChange={onAcceptedChange}
+                />
+                <div className="terms-text-wrapper">
+                    <label htmlFor="terms">
+                        Confirmo haber leído y acepto los{' '}
+                        <button type="button" className={LEGAL_LINK_CLASS_NAME} onClick={onOpenTerms}>
+                            Términos de uso
+                        </button>
+                        {' '}y{' '}
+                        <button type="button" className={LEGAL_LINK_CLASS_NAME} onClick={onOpenPrivacy}>
+                            Políticas de privacidad
+                        </button>
+                    </label>
+                    {!hasOpenedTerms || !hasOpenedPrivacy ? (
+                        <p className="checkbox-hint">
+                            Por favor, lee los términos de uso y las políticas de privacidad antes de continuar
+                        </p>
+                    ) : null}
+                </div>
+            </div>
+            {error ? <div className="validation-error registro-inline-error">{error}</div> : null}
+        </>
+    );
+}
 
 export default function Registro() {
     const navigate = useNavigate();
@@ -35,14 +164,10 @@ export default function Registro() {
     const { isAuthenticated, roles, devAuthActive } = useAuth();
     const [rolSeleccionado, setRolSeleccionado] = useState<TipoUsuario>(null);
     const [aceptaTerminos, setAceptaTerminos] = useState(false);
-
-    // Estados para Modals
     const [showTerms, setShowTerms] = useState(false);
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [hasOpenedTerms, setHasOpenedTerms] = useState(false);
     const [hasOpenedPrivacy, setHasOpenedPrivacy] = useState(false);
-
-    // Estados de formulario
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -51,56 +176,27 @@ export default function Registro() {
     const [confirmarContrasena, setConfirmarContrasena] = useState('');
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
     const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
-
-    // Estados de validación
     const [errorContrasena, setErrorContrasena] = useState('');
     const [errorConfirmar, setErrorConfirmar] = useState('');
     const [errorTerminos, setErrorTerminos] = useState('');
     const [submitError, setSubmitError] = useState<ErrorMessage>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
-    const passwordChecks = useMemo(() => (
-        passwordRules.map(rule => ({
-            id: rule.id,
-            label: rule.label,
-            valid: rule.test(contrasena)
-        }))
-    ), [contrasena]);
+    const passwordChecks = useMemo(
+        () =>
+            passwordRules.map((rule) => ({
+                id: rule.id,
+                label: rule.label,
+                valid: rule.test(contrasena)
+            })),
+        [contrasena]
+    );
 
     if (isAuthenticated && !devAuthActive) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
     }
 
-    const handleContrasenaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const valor = e.target.value;
-        setContrasena(valor);
-        setErrorContrasena(validatePassword(valor));
-
-        if (confirmarContrasena && valor !== confirmarContrasena) {
-            setErrorConfirmar('Las contraseñas no coinciden');
-        } else {
-            setErrorConfirmar('');
-        }
-    };
-
-    const handleConfirmarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const valor = e.target.value;
-        setConfirmarContrasena(valor);
-
-        if (valor !== contrasena) {
-            setErrorConfirmar('Las contraseñas no coinciden');
-        } else {
-            setErrorConfirmar('');
-        }
-    };
-
-    const handleRolSelect = (rol: TipoUsuario) => {
-        setRolSeleccionado(rol);
-    };
-
-    const handleRolTagClick = () => {
-        setRolSeleccionado(null);
-        // Resetear form
+    const resetRegistrationState = () => {
         setFullName('');
         setUsername('');
         setEmail('');
@@ -115,20 +211,57 @@ export default function Registro() {
         setAceptaTerminos(false);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleContrasenaChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const value = event.target.value;
+        setContrasena(value);
+        setErrorContrasena(validatePassword(value));
+
+        if (confirmarContrasena && value !== confirmarContrasena) {
+            setErrorConfirmar('Las contraseñas no coinciden');
+            return;
+        }
+
+        setErrorConfirmar('');
+    };
+
+    const handleConfirmarChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const value = event.target.value;
+        setConfirmarContrasena(value);
+        setErrorConfirmar(value === contrasena ? '' : 'Las contraseñas no coinciden');
+    };
+
+    const handleRolTagClick = () => {
+        setRolSeleccionado(null);
+        resetRegistrationState();
+    };
+
+    const handleTermsOpen = () => {
+        setShowTerms(true);
+        setHasOpenedTerms(true);
+    };
+
+    const handlePrivacyOpen = () => {
+        setShowPrivacy(true);
+        setHasOpenedPrivacy(true);
+    };
+
+    const handleTermsChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setAceptaTerminos(event.target.checked);
+        setErrorTerminos('');
+    };
+
+    const handleSubmit = async (event: FormEvent) => {
+        event.preventDefault();
         setSubmitError(null);
         setSubmitSuccess(false);
 
         if (!rolSeleccionado) return;
 
-        // Validar términos
         if (!aceptaTerminos) {
             setErrorTerminos('Debes aceptar los términos de uso y políticas de privacidad');
             return;
         }
 
-        // Validar que haya abierto los modales
         if (!hasOpenedTerms || !hasOpenedPrivacy) {
             setErrorTerminos('Debes leer los términos de uso y políticas de privacidad antes de continuar');
             return;
@@ -139,14 +272,12 @@ export default function Registro() {
             return;
         }
 
-        // Validar contraseña
-        const errorPass = validatePassword(contrasena);
-        if (errorPass) {
-            setErrorContrasena(errorPass);
+        const passwordError = validatePassword(contrasena);
+        if (passwordError) {
+            setErrorContrasena(passwordError);
             return;
         }
 
-        // Validar coincidencia
         if (contrasena !== confirmarContrasena) {
             setErrorConfirmar('Las contraseñas no coinciden');
             return;
@@ -181,16 +312,61 @@ export default function Registro() {
             if (error instanceof ApiError) {
                 if (error.status === 400) {
                     setSubmitError('Revisa los datos ingresados. Verifica correo/usuario y el formato de la contraseña.');
-                } else if (error.status === 500) {
-                    setSubmitError('Ocurrió un error en el servidor. Intenta nuevamente en unos minutos.');
-                } else {
-                    setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
+                    return;
                 }
-            } else {
-                setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
+                if (error.status === 500) {
+                    setSubmitError('Ocurrió un error en el servidor. Intenta nuevamente en unos minutos.');
+                    return;
+                }
             }
+
+            setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
         }
     };
+
+    const renderRegistrationForm = (roleSpecificFields: ReactNode) => (
+        <form className="auth-form" onSubmit={handleSubmit}>
+            {roleSpecificFields}
+            <PasswordField
+                value={contrasena}
+                visible={mostrarContrasena}
+                placeholder="Contraseña"
+                required
+                error={errorContrasena}
+                onChange={handleContrasenaChange}
+                onToggle={() => setMostrarContrasena((prev) => !prev)}
+            />
+            <PasswordChecklist checks={passwordChecks} />
+            <PasswordField
+                value={confirmarContrasena}
+                visible={mostrarConfirmar}
+                placeholder="Confirmar contraseña"
+                required
+                error={errorConfirmar}
+                onChange={handleConfirmarChange}
+                onToggle={() => setMostrarConfirmar((prev) => !prev)}
+            />
+            <TermsConsent
+                accepted={aceptaTerminos}
+                disabled={!hasOpenedTerms || !hasOpenedPrivacy}
+                hasOpenedTerms={hasOpenedTerms}
+                hasOpenedPrivacy={hasOpenedPrivacy}
+                error={errorTerminos}
+                onAcceptedChange={handleTermsChange}
+                onOpenTerms={handleTermsOpen}
+                onOpenPrivacy={handlePrivacyOpen}
+            />
+            {submitError ? <div className="validation-error registro-inline-message">{submitError}</div> : null}
+            {submitSuccess ? (
+                <div className="validation-success registro-inline-message">
+                    Cuenta creada correctamente. Redirigiendo...
+                </div>
+            ) : null}
+            <button type="submit" className="btn-primary" disabled={!aceptaTerminos || loading}>
+                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+            </button>
+        </form>
+    );
 
     return (
         <div className="auth-container registro-container">
@@ -218,20 +394,12 @@ export default function Registro() {
 
                     {!rolSeleccionado ? (
                         <div className="role-selection-horizontal">
-                            <button
-                                type="button"
-                                className="role-card-vertical"
-                                onClick={() => handleRolSelect('padre')}
-                            >
+                            <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('padre')}>
                                 <div className="role-image-placeholder"></div>
                                 <h3 className="role-text">Soy padre, tutor o guardian</h3>
                             </button>
 
-                            <button
-                                type="button"
-                                className="role-card-vertical"
-                                onClick={() => handleRolSelect('psicologo')}
-                            >
+                            <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('psicologo')}>
                                 <div className="role-image-placeholder"></div>
                                 <h3 className="role-text">Soy psicólogo</h3>
                             </button>
@@ -242,340 +410,92 @@ export default function Registro() {
                                 type="button"
                                 className="role-tag clickeable"
                                 onClick={handleRolTagClick}
-                                title="Click para cambiar rol"
+                                title="Haz clic para cambiar rol"
                             >
                                 {rolSeleccionado === 'padre' ? 'Soy padre, tutor o guardian' : 'Soy psicólogo'}
                                 <span className="change-hint">cambiar rol</span>
                             </button>
 
-                            {rolSeleccionado === 'padre' ? (
-                                <form className="auth-form" onSubmit={handleSubmit}>
-                                    <div className="form-group">
-                                        <input
-                                            id="username-padre"
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="Nombre de usuario"
-                                            value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
-                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
-                                            autoCapitalize="none"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <input
-                                            type="email"
-                                            className="form-input"
-                                            placeholder="Correo electrónico"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group password-group">
-                                        <input
-                                            type={mostrarContrasena ? 'text' : 'password'}
-                                            className="form-input"
-                                            placeholder="Contraseña"
-                                            value={contrasena}
-                                            onChange={handleContrasenaChange}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            className="password-toggle"
-                                            onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                                        >
-                                            {mostrarContrasena ? (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                </svg>
-                                            ) : (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            )}
-                                        </button>
-                                        {errorContrasena && <div className="validation-error">{errorContrasena}</div>}
-                                    </div>
-                                    <div className="password-checklist">
-                                        <span className="password-checklist-title">Requisitos de contraseña</span>
-                                        <div className="password-checklist-grid">
-                                            {passwordChecks.map((check) => (
-                                                <div
-                                                    key={check.id}
-                                                    className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
-                                                >
-                                                    <span className="password-check-indicator" aria-hidden="true">
-                                                        {check.valid ? '✓' : '•'}
-                                                    </span>
-                                                    <span>{check.label}</span>
-                                                </div>
-                                            ))}
+                            {rolSeleccionado === 'padre'
+                                ? renderRegistrationForm(
+                                    <>
+                                        <div className="form-group">
+                                            <input
+                                                id="username-padre"
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Nombre de usuario"
+                                                value={username}
+                                                onChange={(event) => setUsername(event.target.value)}
+                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
+                                                autoCapitalize="none"
+                                                required
+                                            />
                                         </div>
-                                    </div>
-
-                                    <div className="form-group password-group">
-                                        <input
-                                            type={mostrarConfirmar ? 'text' : 'password'}
-                                            className="form-input"
-                                            placeholder="Confirmar contraseña"
-                                            value={confirmarContrasena}
-                                            onChange={handleConfirmarChange}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            className="password-toggle"
-                                            onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                                        >
-                                            {mostrarConfirmar ? (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                </svg>
-                                            ) : (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            )}
-                                        </button>
-                                        {errorConfirmar && <div className="validation-error">{errorConfirmar}</div>}
-                                    </div>
-
-                                    <div className="terms-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            id="terms"
-                                            checked={aceptaTerminos}
-                                            disabled={!hasOpenedTerms || !hasOpenedPrivacy}
-                                            onChange={(e) => {
-                                                setAceptaTerminos(e.target.checked);
-                                                setErrorTerminos('');
-                                            }}
-                                        />
-                                        <div className="terms-text-wrapper">
-                                            <label htmlFor="terms">
-                                                Confirmo haber leído y acepto los{' '}
-                                                <button
-                                                    type="button"
-                                                    className={LEGAL_LINK_CLASS_NAME}
-                                                    onClick={() => {
-                                                        setShowTerms(true);
-                                                        setHasOpenedTerms(true);
-                                                    }}
-                                                >
-                                                    Términos de uso
-                                                </button>
-                                                {' '}y{' '}
-                                                <button
-                                                    type="button"
-                                                    className={LEGAL_LINK_CLASS_NAME}
-                                                    onClick={() => {
-                                                        setShowPrivacy(true);
-                                                        setHasOpenedPrivacy(true);
-                                                    }}
-                                                >
-                                                    Políticas de privacidad
-                                                </button>
-                                            </label>
-                                            {!hasOpenedTerms || !hasOpenedPrivacy ? (
-                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
-                                            ) : null}
+                                        <div className="form-group">
+                                            <input
+                                                type="email"
+                                                className="form-input"
+                                                placeholder="Correo electrónico"
+                                                value={email}
+                                                onChange={(event) => setEmail(event.target.value)}
+                                                required
+                                            />
                                         </div>
-                                    </div>
-                                    {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
-                                    {submitError && <div className="validation-error" style={{ marginBottom: '16px' }}>{submitError}</div>}
-                                    {submitSuccess && <div className="validation-success" style={{ marginBottom: '16px' }}>Cuenta creada correctamente. Redirigiendo...</div>}
-
-                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos || loading}>
-                                        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
-                                    </button>
-                                </form>
-                            ) : (
-                                <form className="auth-form" onSubmit={handleSubmit}>
-                                    <div className="form-group">
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="Nombre completo"
-                                            value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <input
-                                            id="username-psico"
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="Nombre de usuario"
-                                            value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
-                                            title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
-                                            autoCapitalize="none"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <input
-                                            type="email"
-                                            className="form-input"
-                                            placeholder="Correo electrónico"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="Número de tarjeta profesional"
-                                            value={numeroOperador}
-                                            onChange={(e) => setNumeroOperador(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group password-group">
-                                        <input
-                                            type={mostrarContrasena ? 'text' : 'password'}
-                                            className="form-input"
-                                            placeholder="Contraseña"
-                                            value={contrasena}
-                                            onChange={handleContrasenaChange}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            className="password-toggle"
-                                            onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                                        >
-                                            {mostrarContrasena ? (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                </svg>
-                                            ) : (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            )}
-                                        </button>
-                                        {errorContrasena && <div className="validation-error">{errorContrasena}</div>}
-                                    </div>
-                                    <div className="password-checklist">
-                                        <span className="password-checklist-title">Requisitos de contraseña</span>
-                                        <div className="password-checklist-grid">
-                                            {passwordChecks.map((check) => (
-                                                <div
-                                                    key={check.id}
-                                                    className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}
-                                                >
-                                                    <span className="password-check-indicator" aria-hidden="true">
-                                                        {check.valid ? '✓' : '•'}
-                                                    </span>
-                                                    <span>{check.label}</span>
-                                                </div>
-                                            ))}
+                                    </>
+                                )
+                                : renderRegistrationForm(
+                                    <>
+                                        <div className="form-group">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Nombre completo"
+                                                value={fullName}
+                                                onChange={(event) => setFullName(event.target.value)}
+                                                required
+                                            />
                                         </div>
-                                    </div>
-
-                                    <div className="form-group password-group">
-                                        <input
-                                            type={mostrarConfirmar ? 'text' : 'password'}
-                                            className="form-input"
-                                            placeholder="Confirmar contraseña"
-                                            value={confirmarContrasena}
-                                            onChange={handleConfirmarChange}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            className="password-toggle"
-                                            onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                                        >
-                                            {mostrarConfirmar ? (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                </svg>
-                                            ) : (
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            )}
-                                        </button>
-                                        {errorConfirmar && <div className="validation-error">{errorConfirmar}</div>}
-                                    </div>
-
-                                    <div className="terms-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            id="terms"
-                                            checked={aceptaTerminos}
-                                            disabled={!hasOpenedTerms || !hasOpenedPrivacy}
-                                            onChange={(e) => {
-                                                setAceptaTerminos(e.target.checked);
-                                                setErrorTerminos('');
-                                            }}
-                                        />
-                                        <div className="terms-text-wrapper">
-                                            <label htmlFor="terms">
-                                                Confirmo haber leído y acepto los{' '}
-                                                <button
-                                                    type="button"
-                                                    className={LEGAL_LINK_CLASS_NAME}
-                                                    onClick={() => {
-                                                        setShowTerms(true);
-                                                        setHasOpenedTerms(true);
-                                                    }}
-                                                >
-                                                    Términos de uso
-                                                </button>
-                                                {' '}y{' '}
-                                                <button
-                                                    type="button"
-                                                    className={LEGAL_LINK_CLASS_NAME}
-                                                    onClick={() => {
-                                                        setShowPrivacy(true);
-                                                        setHasOpenedPrivacy(true);
-                                                    }}
-                                                >
-                                                    Políticas de privacidad
-                                                </button>
-                                            </label>
-                                            {!hasOpenedTerms || !hasOpenedPrivacy ? (
-                                                <p className="checkbox-hint">Por favor, lee los términos de uso y las políticas de privacidad antes de continuar</p>
-                                            ) : null}
+                                        <div className="form-group">
+                                            <input
+                                                id="username-psico"
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Nombre de usuario"
+                                                value={username}
+                                                onChange={(event) => setUsername(event.target.value)}
+                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
+                                                autoCapitalize="none"
+                                                required
+                                            />
                                         </div>
-                                    </div>
-                                    {errorTerminos && <div className="validation-error" style={{ marginTop: '-12px', marginBottom: '16px' }}>{errorTerminos}</div>}
-                                    {submitError && <div className="validation-error" style={{ marginBottom: '16px' }}>{submitError}</div>}
-                                    {submitSuccess && <div className="validation-success" style={{ marginBottom: '16px' }}>Cuenta creada correctamente. Redirigiendo...</div>}
-
-                                    <button type="submit" className="btn-primary" disabled={!aceptaTerminos || loading}>
-                                        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
-                                    </button>
-                                </form>
-                            )}
+                                        <div className="form-group">
+                                            <input
+                                                type="email"
+                                                className="form-input"
+                                                placeholder="Correo electrónico"
+                                                value={email}
+                                                onChange={(event) => setEmail(event.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Número de tarjeta profesional"
+                                                value={numeroOperador}
+                                                onChange={(event) => setNumeroOperador(event.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                    </>
+                                )}
                         </div>
                     )}
 
-                    <div className="version-footer">
-                        cognIA v1.0.0
-                    </div>
+                    <div className="version-footer">cognIA v1.0.0</div>
 
-                    {/* Modals para términos y privacidad */}
                     <Modal isOpen={showTerms} onClose={() => setShowTerms(false)}>
                         <TermsContent />
                     </Modal>

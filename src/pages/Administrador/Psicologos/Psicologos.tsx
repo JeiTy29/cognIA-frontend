@@ -191,7 +191,9 @@ export default function Psicologos() {
                                     <button
                                         type="button"
                                         className="admin-btn ghost psicologos-action-btn"
-                                        onClick={() => void handleApprove(item)}
+                                        onClick={() => {
+                                            handleApprove(item).catch(() => undefined);
+                                        }}
                                         disabled={submittingApprove}
                                     >
                                         Aprobar
@@ -270,7 +272,9 @@ export default function Psicologos() {
                         <button
                             type="button"
                             className="admin-btn primary"
-                            onClick={() => void handleRejectConfirm()}
+                            onClick={() => {
+                                handleRejectConfirm().catch(() => undefined);
+                            }}
                             disabled={submittingReject || rejectReason.trim().length === 0}
                         >
                             {submittingReject ? 'Guardando...' : 'Confirmar rechazo'}

@@ -14,6 +14,7 @@
 }
 
 .circle-section {
+    position: relative;
     min-height: 820px;
     display: flex;
     flex-direction: column;
@@ -24,6 +25,16 @@
     padding-top: 6px;
 }
 
+.circle-dismiss-layer {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: default;
+    z-index: 0;
+}
+
 .circle-diagram-wrapper {
     width: 900px;
     display: flex;
@@ -31,6 +42,8 @@
     transition: transform 0.7s ease;
     padding-right: 60px;
     transform: translateX(0);
+    position: relative;
+    z-index: 1;
 }
 
 .circle-diagram-wrapper.is-expanded {

@@ -69,6 +69,10 @@ function asStatusCounts(value: unknown): StatusCounts | null {
     };
 }
 
+function canRunMetricCycle(enabled: boolean, isMounted: boolean, isVisible: boolean) {
+    return enabled && isMounted && isVisible;
+}
+
 function resolveSnapshot(payload: unknown): MetricsSnapshot | null {
     const root = asObject(payload);
     if (!root) return null;
@@ -141,8 +145,8 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const fetchAllRef = useRef<() => Promise<void>>(async () => { });
 
     const scheduleNext = useCallback((delay: number) => {
-        if (!enabled || !isMountedRef.current) return;
-        if (!visibilityRef.current) return;
+        const shouldSchedule = canRunMetricCycle(enabled, isMountedRef.current, visibilityRef.current);
+        if (!shouldSchedule) return;
         if (pollingRef.current) {
             globalThis.clearTimeout(pollingRef.current);
         }
@@ -291,7 +295,8 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     }, []);
 
     const fetchAll = useCallback(async () => {
-        if (!enabled || !isMountedRef.current) return;
+        const shouldRunCycle = enabled && isMountedRef.current;
+        if (!shouldRunCycle) return;
         setIsRefreshing(true);
         await Promise.all([fetchHealth(), fetchReady(), fetchEmail()]);
 

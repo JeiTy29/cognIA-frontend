@@ -84,6 +84,14 @@ function getOrderValue(sort: string, order: string) {
     return `${sort}:${order}`;
 }
 
+function resolveOrderDirection(value: string): 'asc' | 'desc' {
+    return value === 'asc' ? 'asc' : 'desc';
+}
+
+function resolvePendingActionLabel(type: 'publish' | 'archive') {
+    return type === 'archive' ? 'Archivar cuestionario' : 'Publicar cuestionario';
+}
+
 export default function Cuestionarios() {
     const navigate = useNavigate();
     const {
@@ -202,9 +210,11 @@ export default function Cuestionarios() {
     const handleConfirmAction = async () => {
         if (!pendingAction) return;
 
-        const success = pendingAction.type === 'publish'
-            ? await publishQuestionnaire(pendingAction.item.id)
-            : await archiveQuestionnaire(pendingAction.item.id);
+        const action =
+            pendingAction.type === 'publish'
+                ? publishQuestionnaire
+                : archiveQuestionnaire;
+        const success = await action(pendingAction.item.id);
 
         if (success) {
             closeConfirmAction();
@@ -336,7 +346,7 @@ export default function Cuestionarios() {
                             options={orderOptions}
                             onChange={(value) => {
                                 const [nextSort, nextOrder] = value.split(':');
-                                setOrdering(nextSort, (nextOrder === 'asc' ? 'asc' : 'desc'));
+                                setOrdering(nextSort, resolveOrderDirection(nextOrder));
                             }}
                         />
                     </label>
@@ -498,7 +508,7 @@ export default function Cuestionarios() {
 
             <Modal isOpen={pendingAction !== null} onClose={closeConfirmAction}>
                 <div className="admin-modal">
-                    <h2>{pendingAction?.type === 'archive' ? 'Archivar cuestionario' : 'Publicar cuestionario'}</h2>
+                    <h2>{resolvePendingActionLabel(pendingAction?.type ?? 'publish')}</h2>
                     <p>
                         {pendingAction
                             ? `Confirma la accion sobre ${pendingAction.item.name} ${pendingAction.item.version}.`
@@ -511,7 +521,9 @@ export default function Cuestionarios() {
                         <button
                             type="button"
                             className="admin-btn primary"
-                            onClick={() => void handleConfirmAction()}
+                            onClick={() => {
+                                handleConfirmAction().catch(() => undefined);
+                            }}
                             disabled={submittingPublish || submittingArchive}
                         >
                             {submittingPublish || submittingArchive ? 'Procesando...' : 'Confirmar'}

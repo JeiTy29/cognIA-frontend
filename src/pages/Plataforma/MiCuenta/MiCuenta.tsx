@@ -22,6 +22,13 @@ const passwordRules = [
     }
 ];
 
+function buildMfaDisablePayload(disableMode: 'totp' | 'recovery', disablePassword: string, disableCode: string) {
+    if (disableMode === 'totp') {
+        return { password: disablePassword, code: disableCode };
+    }
+    return { password: disablePassword, recovery_code: disableCode };
+}
+
 export default function MiCuenta() {
     const navigate = useNavigate();
     const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
@@ -68,6 +75,67 @@ export default function MiCuenta() {
     const nombreCompleto = profile?.full_name ?? '—';
     const tarjetaProfesional = profile?.professional_card_number ?? '—';
     const mfaEnabled = profile?.mfa_enabled ?? false;
+
+    const renderMfaSectionContent = () => {
+        if (mfaMandatoryProfile) {
+            return (
+                <div className="mi-cuenta-mfa-required">
+                    <span className="mi-cuenta-badge-required">Obligatorio</span>
+                    <p className="mi-cuenta-section-note">
+                        Para este perfil, la verificación en dos pasos debe permanecer activa.
+                    </p>
+                    {mfaEnabled ? (
+                        <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                    ) : (
+                        <>
+                            <p className="mi-cuenta-section-note">Configura MFA para continuar con la protección obligatoria.</p>
+                            <button
+                                type="button"
+                                className="mi-cuenta-btn primary"
+                                onClick={() => setShowMfaSetup(true)}
+                            >
+                                Activar MFA
+                            </button>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        if (mfaEnabled) {
+            return (
+                <>
+                    <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                    {canDisableMfa ? (
+                        <button
+                            type="button"
+                            className="mi-cuenta-btn primary"
+                            onClick={() => {
+                                setDisableError(null);
+                                setDisableSuccess(null);
+                                setShowMfaDisable(true);
+                            }}
+                        >
+                            Desactivar MFA
+                        </button>
+                    ) : null}
+                </>
+            );
+        }
+
+        return (
+            <>
+                <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
+                <button
+                    type="button"
+                    className="mi-cuenta-btn primary"
+                    onClick={() => setShowMfaSetup(true)}
+                >
+                    Activar MFA
+                </button>
+            </>
+        );
+    };
 
     useEffect(() => {
         if (profileStatus === 'error' && profileErrorStatus === 401) {
@@ -138,7 +206,7 @@ export default function MiCuenta() {
         setOpenPanel((prev) => (prev === panel ? null : panel));
     };
 
-    const handlePasswordSubmit = (event: FormEvent) => {
+    const handlePasswordSubmit = async (event: FormEvent) => {
         event.preventDefault();
         setPasswordSubmitAttempted(true);
         setPasswordSaved(false);
@@ -153,50 +221,48 @@ export default function MiCuenta() {
         if (!canSavePassword) return;
 
         setPasswordSubmitting(true);
-        void changePassword({
-            currentPassword: contrasenaActual,
-            newPassword: nuevaContrasena,
-            confirmNewPassword: confirmarNueva
-        })
-            .then(() => {
-                setPasswordSaved(true);
-                setContrasenaActual('');
-                setNuevaContrasena('');
-                setConfirmarNueva('');
-                setPasswordSubmitAttempted(false);
-                setMostrarActual(false);
-                setMostrarNueva(false);
-                setMostrarConfirmar(false);
-            })
-            .catch((error: unknown) => {
-                if (error instanceof ApiError) {
-                    if (error.status === 400) {
-                        setHighlightCurrentPassword(true);
-                        setPasswordGeneralError('Datos inválidos. Verifica la contraseña actual y la nueva contraseña.');
-                        return;
-                    }
-                    if (error.status === 401) {
-                        clearSession('expired');
-                        navigate('/inicio-sesion', {
-                            replace: true,
-                            state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
-                        });
-                        return;
-                    }
-                    if (error.status === 403) {
-                        setPasswordGeneralError('No tienes permisos para realizar esta acción.');
-                        return;
-                    }
-                    if (error.status === 429) {
-                        setPasswordGeneralError('Demasiados intentos. Espera un momento e inténtalo de nuevo.');
-                        return;
-                    }
-                }
-                setPasswordGeneralError('Ocurrió un error inesperado. Intenta más tarde.');
-            })
-            .finally(() => {
-                setPasswordSubmitting(false);
+        try {
+            await changePassword({
+                currentPassword: contrasenaActual,
+                newPassword: nuevaContrasena,
+                confirmNewPassword: confirmarNueva
             });
+            setPasswordSaved(true);
+            setContrasenaActual('');
+            setNuevaContrasena('');
+            setConfirmarNueva('');
+            setPasswordSubmitAttempted(false);
+            setMostrarActual(false);
+            setMostrarNueva(false);
+            setMostrarConfirmar(false);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                if (error.status === 400) {
+                    setHighlightCurrentPassword(true);
+                    setPasswordGeneralError('Datos inválidos. Verifica la contraseña actual y la nueva contraseña.');
+                    return;
+                }
+                if (error.status === 401) {
+                    clearSession('expired');
+                    navigate('/inicio-sesion', {
+                        replace: true,
+                        state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
+                    });
+                    return;
+                }
+                if (error.status === 403) {
+                    setPasswordGeneralError('No tienes permisos para realizar esta acción.');
+                    return;
+                }
+                if (error.status === 429) {
+                    setPasswordGeneralError('Demasiados intentos. Espera un momento e inténtalo de nuevo.');
+                    return;
+                }
+            }
+            setPasswordGeneralError('Ocurrió un error inesperado. Intenta más tarde.');
+        } finally {
+            setPasswordSubmitting(false);
+        }
     };
 
     const handleLogout = async () => {
@@ -217,7 +283,7 @@ export default function MiCuenta() {
         } finally {
             clearSession('manual');
             setLogoutLoading(false);
-            window.setTimeout(() => {
+            globalThis.setTimeout(() => {
                 navigate('/inicio-sesion', { replace: true });
             }, 500);
         }
@@ -423,56 +489,7 @@ export default function MiCuenta() {
                 {(isGuardian || isPsychologist || isAdmin) && (
                     <section className="info-card mi-cuenta-section mi-cuenta-mfa">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
-                        {mfaMandatoryProfile ? (
-                            <div className="mi-cuenta-mfa-required">
-                                <span className="mi-cuenta-badge-required">Obligatorio</span>
-                                <p className="mi-cuenta-section-note">
-                                    Para este perfil, la verificación en dos pasos debe permanecer activa.
-                                </p>
-                                {mfaEnabled ? (
-                                    <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                                ) : (
-                                    <>
-                                        <p className="mi-cuenta-section-note">Configura MFA para continuar con la protección obligatoria.</p>
-                                        <button
-                                            type="button"
-                                            className="mi-cuenta-btn primary"
-                                            onClick={() => setShowMfaSetup(true)}
-                                        >
-                                            Activar MFA
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        ) : mfaEnabled ? (
-                            <>
-                                <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                                {canDisableMfa ? (
-                                    <button
-                                        type="button"
-                                        className="mi-cuenta-btn primary"
-                                        onClick={() => {
-                                            setDisableError(null);
-                                            setDisableSuccess(null);
-                                            setShowMfaDisable(true);
-                                        }}
-                                    >
-                                        Desactivar MFA
-                                    </button>
-                                ) : null}
-                            </>
-                        ) : (
-                            <>
-                                <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
-                                <button
-                                    type="button"
-                                    className="mi-cuenta-btn primary"
-                                    onClick={() => setShowMfaSetup(true)}
-                                >
-                                    Activar MFA
-                                </button>
-                            </>
-                        )}
+                        {renderMfaSectionContent()}
                     </section>
                 )}
 
@@ -498,14 +515,14 @@ export default function MiCuenta() {
             ) : null}
 
             <Modal isOpen={showMfaSetup} onClose={() => setShowMfaSetup(false)}>
-                <div className="mi-cuenta-modal" role="dialog" aria-modal="true" aria-labelledby="mfa-setup-title">
+                <div className="mi-cuenta-modal" aria-labelledby="mfa-setup-title">
                     <MfaSetupView
                         mode="setup"
                         accessToken={accessToken}
                         username={profile?.username}
                         onComplete={() => {
                             setShowMfaSetup(false);
-                            void reloadProfile();
+                            reloadProfile().catch(() => undefined);
                         }}
                     />
                 </div>
@@ -514,8 +531,6 @@ export default function MiCuenta() {
             <Modal isOpen={showMfaDisable} onClose={() => setShowMfaDisable(false)}>
                 <div
                     className="mi-cuenta-modal"
-                    role="dialog"
-                    aria-modal="true"
                     aria-labelledby="mfa-disable-title"
                     aria-describedby="mfa-disable-desc"
                 >
@@ -585,12 +600,10 @@ export default function MiCuenta() {
                                 setDisableLoading(true);
                                 setDisableError(null);
                                 try {
-                                    const payload = disableMode === 'totp'
-                                        ? { password: disablePassword, code: disableCode }
-                                        : { password: disablePassword, recovery_code: disableCode };
+                                    const payload = buildMfaDisablePayload(disableMode, disablePassword, disableCode);
                                     await mfaDisable(accessToken, payload);
                                     setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
-                                    window.setTimeout(() => {
+                                    globalThis.setTimeout(() => {
                                         setShowMfaDisable(false);
                                         clearSession('manual');
                                         navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
@@ -620,7 +633,7 @@ interface VisibilityIconProps {
     isVisible: boolean;
 }
 
-function VisibilityIcon({ isVisible }: VisibilityIconProps) {
+function VisibilityIcon({ isVisible }: Readonly<VisibilityIconProps>) {
     return isVisible ? (
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 5c4.97 0 9.27 3.03 11 7-1.73 3.97-6.03 7-11 7S2.73 15.97 1 12c1.73-3.97 6.03-7 11-7Zm0 2C8.14 7 4.83 9.46 3.2 12c1.63 2.54 4.94 5 8.8 5s7.17-2.46 8.8-5c-1.63-2.54-4.94-5-8.8-5Zm0 2.5a2.5 2.5 0 1 1-2.5 2.5A2.5 2.5 0 0 1 12 9.5Z" />

@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
 import { Modal } from '../../../components/Modal/Modal';
 import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
@@ -16,6 +16,24 @@ type EditFormState = {
 };
 
 type FormErrors = Partial<Record<keyof EditFormState, string>>;
+type UserConfirmationKind = 'deactivate' | 'password-reset' | 'mfa-reset';
+type UserActionButtonProps = Readonly<{
+    tooltip: string;
+    ariaLabel?: string;
+    onClick: () => void;
+    disabled?: boolean;
+    children: ReactNode;
+}>;
+type UserConfirmationModalProps = Readonly<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    loadingLabel: string;
+    isSubmitting: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+}>;
 
 const roleOptions: CustomSelectOption[] = [
     { value: 'GUARDIAN', label: 'Padre/Tutor' },
@@ -62,6 +80,17 @@ const emptyEditForm = (): EditFormState => ({
     role: 'GUARDIAN',
     is_active: true
 });
+
+function runUserTask(task: () => Promise<void>) {
+    task().catch(() => undefined);
+}
+
+function resolveRoleForUserTypeChange(nextUserType: EditFormState['user_type'], previousRole: string) {
+    if (nextUserType === 'admin') return 'ADMIN';
+    if (nextUserType === 'psychologist' && previousRole === 'GUARDIAN') return 'PSYCHOLOGIST';
+    if (nextUserType === 'teacher' && previousRole === 'GUARDIAN') return 'TEACHER';
+    return previousRole;
+}
 
 function mapUserTypeLabel(userType: User['user_type']) {
     const normalized = String(userType).trim().toLowerCase();
@@ -192,6 +221,71 @@ function ArrowRightIcon() {
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m9 6 6 6-6 6" />
         </svg>
+    );
+}
+
+function UserActionButton({
+    tooltip,
+    ariaLabel,
+    onClick,
+    disabled = false,
+    children
+}: UserActionButtonProps) {
+    return (
+        <button
+            type="button"
+            className="icon-btn has-tooltip"
+            data-tooltip={tooltip}
+            aria-label={ariaLabel}
+            onClick={onClick}
+            disabled={disabled}
+        >
+            {children}
+        </button>
+    );
+}
+
+function buildConfirmationMessage(user: User | null, kind: UserConfirmationKind) {
+    if (!user) return '';
+    if (kind === 'deactivate') {
+        return `Se desactivará a ${user.full_name || user.username}.`;
+    }
+    if (kind === 'password-reset') {
+        return `Se enviará el restablecimiento a ${user.email}.`;
+    }
+    return `Se restablecerá MFA para ${user.full_name || user.username}.`;
+}
+
+function UserConfirmationModal({
+    isOpen,
+    title,
+    description,
+    confirmLabel,
+    loadingLabel,
+    isSubmitting,
+    onClose,
+    onConfirm
+}: UserConfirmationModalProps) {
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="usuarios-modal">
+                <h2>{title}</h2>
+                <p>{description}</p>
+                <div className="usuarios-modal-actions">
+                    <button type="button" className="usuarios-btn secondary" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        className="usuarios-btn primary"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? loadingLabel : confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 }
 
@@ -335,6 +429,28 @@ export default function Usuarios() {
         }
     };
 
+    const renderUserActions = (user: User) => (
+        <div className="usuarios-cell actions">
+            <UserActionButton tooltip="Editar" onClick={() => openEditModal(user)}>
+                <EditIcon />
+            </UserActionButton>
+            <UserActionButton tooltip="Restablecer contraseña" onClick={() => setUserToResetPassword(user)}>
+                <KeyIcon />
+            </UserActionButton>
+            <UserActionButton tooltip="Resetear MFA" onClick={() => setUserToResetMfa(user)}>
+                <ShieldIcon />
+            </UserActionButton>
+            <UserActionButton
+                tooltip="Desactivar"
+                ariaLabel="Desactivar usuario"
+                onClick={() => setUserToDeactivate(user)}
+                disabled={!user.is_active}
+            >
+                <LockUserIcon />
+            </UserActionButton>
+        </div>
+    );
+
     return (
         <section className="usuarios">
             <div className="usuarios-header">
@@ -425,10 +541,10 @@ export default function Usuarios() {
                 <div className="usuarios-table-body">
                     {loading ? (
                         <div className="usuarios-skeleton">
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <div className="usuarios-skeleton-row" key={index}>
-                                    {Array.from({ length: 7 }).map((__, columnIndex) => (
-                                        <span key={columnIndex} />
+                            {Array.from({ length: 6 }, (_, rowIndex) => (
+                                <div className="usuarios-skeleton-row" key={`skeleton-row-${rowIndex + 1}`}>
+                                    {Array.from({ length: 7 }, (_, columnIndex) => (
+                                        <span key={`skeleton-cell-${rowIndex + 1}-${columnIndex + 1}`} />
                                     ))}
                                 </div>
                             ))}
@@ -455,7 +571,9 @@ export default function Usuarios() {
                                             type="button"
                                             className="icon-btn usuarios-id-copy has-tooltip"
                                             data-tooltip="Copiar ID"
-                                            onClick={() => void handleCopyId(user.id)}
+                                            onClick={() => {
+                                                handleCopyId(user.id).catch(() => undefined);
+                                            }}
                                         >
                                             <CopyIcon />
                                         </button>
@@ -485,42 +603,7 @@ export default function Usuarios() {
                                     <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
                                 </div>
 
-                                <div className="usuarios-cell actions">
-                                    <button
-                                        type="button"
-                                        className="icon-btn has-tooltip"
-                                        data-tooltip="Editar"
-                                        onClick={() => openEditModal(user)}
-                                    >
-                                        <EditIcon />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="icon-btn has-tooltip"
-                                        data-tooltip="Restablecer contraseña"
-                                        onClick={() => setUserToResetPassword(user)}
-                                    >
-                                        <KeyIcon />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="icon-btn has-tooltip"
-                                        data-tooltip="Resetear MFA"
-                                        onClick={() => setUserToResetMfa(user)}
-                                    >
-                                        <ShieldIcon />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="icon-btn has-tooltip"
-                                        data-tooltip="Desactivar"
-                                        aria-label="Desactivar usuario"
-                                        onClick={() => setUserToDeactivate(user)}
-                                        disabled={!user.is_active}
-                                    >
-                                        <LockUserIcon />
-                                    </button>
-                                </div>
+                                {renderUserActions(user)}
                             </div>
                         ))
                     )}
@@ -539,7 +622,9 @@ export default function Usuarios() {
                             <CustomSelect
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
-                                onChange={(value) => void changePageSize(Number(value))}
+                                onChange={(value) => {
+                                    changePageSize(Number(value)).catch(() => undefined);
+                                }}
                                 ariaLabel="Cambiar tamaño de página"
                             />
                         </label>
@@ -548,7 +633,9 @@ export default function Usuarios() {
                     <button
                         type="button"
                         className="usuarios-btn ghost usuarios-page-nav-btn"
-                        onClick={() => void goToPage(Math.max(1, page - 1))}
+                        onClick={() => {
+                            goToPage(Math.max(1, page - 1)).catch(() => undefined);
+                        }}
                         disabled={page <= 1 || loading}
                         aria-label="Página anterior"
                     >
@@ -562,7 +649,9 @@ export default function Usuarios() {
                     <button
                         type="button"
                         className="usuarios-btn ghost usuarios-page-nav-btn"
-                        onClick={() => void goToPage(Math.min(totalPages, page + 1))}
+                        onClick={() => {
+                            goToPage(Math.min(totalPages, page + 1)).catch(() => undefined);
+                        }}
                         disabled={page >= totalPages || loading}
                         aria-label="Página siguiente"
                     >
@@ -600,20 +689,16 @@ export default function Usuarios() {
                             value={editForm.user_type}
                             options={typeOptions}
                             onChange={(value) =>
-                                setEditForm((prev) => ({
-                                    ...prev,
-                                    user_type: value as EditFormState['user_type'],
-                                    role:
-                                        value === 'psychologist' && prev.role === 'GUARDIAN'
-                                            ? 'PSYCHOLOGIST'
-                                            : value === 'teacher' && prev.role === 'GUARDIAN'
-                                                ? 'TEACHER'
-                                                : value === 'admin'
-                                                    ? 'ADMIN'
-                                                    : prev.role,
-                                    professional_card_number:
-                                        value === 'psychologist' ? prev.professional_card_number : ''
-                                }))
+                                setEditForm((prev) => {
+                                    const nextUserType = value as EditFormState['user_type'];
+                                    return {
+                                        ...prev,
+                                        user_type: nextUserType,
+                                        role: resolveRoleForUserTypeChange(nextUserType, prev.role),
+                                        professional_card_number:
+                                            nextUserType === 'psychologist' ? prev.professional_card_number : ''
+                                    };
+                                })
                             }
                             ariaLabel="Seleccionar tipo de usuario para edición"
                         />
@@ -674,89 +759,44 @@ export default function Usuarios() {
                 </form>
             </Modal>
 
-            <Modal isOpen={Boolean(userToDeactivate)} onClose={() => setUserToDeactivate(null)}>
-                <div className="usuarios-modal">
-                    <h2>Desactivar usuario</h2>
-                    <p>
-                        {userToDeactivate
-                            ? `Se desactivará a ${userToDeactivate.full_name || userToDeactivate.username}.`
-                            : ''}
-                    </p>
-                    <div className="usuarios-modal-actions">
-                        <button
-                            type="button"
-                            className="usuarios-btn secondary"
-                            onClick={() => setUserToDeactivate(null)}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            className="usuarios-btn primary"
-                            onClick={() => void confirmDeactivate()}
-                            disabled={submittingDeactivate}
-                        >
-                            {submittingDeactivate ? 'Procesando...' : 'Confirmar'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <UserConfirmationModal
+                isOpen={Boolean(userToDeactivate)}
+                title="Desactivar usuario"
+                description={buildConfirmationMessage(userToDeactivate, 'deactivate')}
+                confirmLabel="Confirmar"
+                loadingLabel="Procesando..."
+                isSubmitting={submittingDeactivate}
+                onClose={() => setUserToDeactivate(null)}
+                onConfirm={() => {
+                    runUserTask(confirmDeactivate);
+                }}
+            />
 
-            <Modal isOpen={Boolean(userToResetPassword)} onClose={() => setUserToResetPassword(null)}>
-                <div className="usuarios-modal">
-                    <h2>Restablecer contraseña</h2>
-                    <p>
-                        {userToResetPassword
-                            ? `Se enviará el restablecimiento a ${userToResetPassword.email}.`
-                            : ''}
-                    </p>
-                    <div className="usuarios-modal-actions">
-                        <button
-                            type="button"
-                            className="usuarios-btn secondary"
-                            onClick={() => setUserToResetPassword(null)}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            className="usuarios-btn primary"
-                            onClick={() => void confirmPasswordReset()}
-                            disabled={submittingPasswordReset}
-                        >
-                            {submittingPasswordReset ? 'Procesando...' : 'Confirmar'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <UserConfirmationModal
+                isOpen={Boolean(userToResetPassword)}
+                title="Restablecer contraseña"
+                description={buildConfirmationMessage(userToResetPassword, 'password-reset')}
+                confirmLabel="Confirmar"
+                loadingLabel="Procesando..."
+                isSubmitting={submittingPasswordReset}
+                onClose={() => setUserToResetPassword(null)}
+                onConfirm={() => {
+                    runUserTask(confirmPasswordReset);
+                }}
+            />
 
-            <Modal isOpen={Boolean(userToResetMfa)} onClose={() => setUserToResetMfa(null)}>
-                <div className="usuarios-modal">
-                    <h2>Resetear MFA</h2>
-                    <p>
-                        {userToResetMfa
-                            ? `Se restablecerá MFA para ${userToResetMfa.full_name || userToResetMfa.username}.`
-                            : ''}
-                    </p>
-                    <div className="usuarios-modal-actions">
-                        <button
-                            type="button"
-                            className="usuarios-btn secondary"
-                            onClick={() => setUserToResetMfa(null)}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            className="usuarios-btn primary"
-                            onClick={() => void confirmMfaReset()}
-                            disabled={submittingMfaReset}
-                        >
-                            {submittingMfaReset ? 'Procesando...' : 'Confirmar'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <UserConfirmationModal
+                isOpen={Boolean(userToResetMfa)}
+                title="Resetear MFA"
+                description={buildConfirmationMessage(userToResetMfa, 'mfa-reset')}
+                confirmLabel="Confirmar"
+                loadingLabel="Procesando..."
+                isSubmitting={submittingMfaReset}
+                onClose={() => setUserToResetMfa(null)}
+                onConfirm={() => {
+                    runUserTask(confirmMfaReset);
+                }}
+            />
         </section>
     );
 }

@@ -31,6 +31,16 @@ function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
 }
 
+function buildStableCollectionKeys(items: string[], prefix: string) {
+    const seen = new Map<string, number>();
+    return items.map((item) => {
+        const base = `${prefix}-${item}`;
+        const count = (seen.get(base) ?? 0) + 1;
+        seen.set(base, count);
+        return `${base}-${count}`;
+    });
+}
+
 export default function CuestionarioCompartido() {
     const { questionnaireId = '', shareCode = '' } = useParams();
     const [loading, setLoading] = useState(true);
@@ -66,6 +76,14 @@ export default function CuestionarioCompartido() {
     const result = useMemo(() => payload?.result ?? null, [payload]);
     const domains = useMemo(() => payload?.domains ?? [], [payload]);
     const comorbidity = useMemo(() => payload?.comorbidity ?? [], [payload]);
+    const domainKeys = useMemo(
+        () => buildStableCollectionKeys(domains.map((domain) => `${domain.domain}-${domain.alert_level}-${domain.confidence_band}`), 'shared-domain'),
+        [domains]
+    );
+    const comorbidityKeys = useMemo(
+        () => buildStableCollectionKeys(comorbidity.map((item) => `${item.coexistence_key}-${item.combined_risk_score}`), 'shared-comorbidity'),
+        [comorbidity]
+    );
     const internalReferenceRows = useMemo(
         () =>
             buildSafeDisplayRows(
@@ -141,7 +159,7 @@ export default function CuestionarioCompartido() {
                             ) : (
                                 <div className="shared-questionnaire-domain-list">
                                     {domains.map((domain, index) => (
-                                        <div className="shared-questionnaire-domain" key={`${domain.domain}-${index}`}>
+                                        <div className="shared-questionnaire-domain" key={domainKeys[index]}>
                                             <div><strong>Dominio evaluado</strong><span>{getDomainLabel(domain.domain)}</span></div>
                                             <div><strong>Nivel de alerta</strong><span>{getAlertLevelLabel(domain.alert_level)}</span></div>
                                             <div><strong>Nivel de confianza</strong><span>{formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span></div>
@@ -164,7 +182,7 @@ export default function CuestionarioCompartido() {
                             ) : (
                                 <div className="shared-questionnaire-domain-list">
                                     {comorbidity.map((item, index) => (
-                                        <div className="shared-questionnaire-domain" key={`${item.coexistence_key}-${index}`}>
+                                        <div className="shared-questionnaire-domain" key={comorbidityKeys[index]}>
                                             <div><strong>Relación entre dominios</strong><span>{formatNaturalValue('coexistence_key', item.coexistence_key)}</span></div>
                                             <div><strong>Dominios relacionados</strong><span>{item.domains.length > 0 ? item.domains.map((domainName) => getDomainLabel(domainName, domainName)).join(', ') : '--'}</span></div>
                                             <div><strong>Riesgo combinado</strong><span>{formatPercentEs(item.combined_risk_score, { mode: 'auto' })}</span></div>

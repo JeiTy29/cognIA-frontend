@@ -23,13 +23,13 @@ export default function Bienvenida() {
 
                     <div className="button-group-horizontal">
                         <Link to="/inicio-sesion" className="btn-primary-link">
-                            <button className="btn-primary btn-login-color">
+                            <button type="button" className="btn-primary btn-login-color">
                                 Iniciar sesión
                             </button>
                         </Link>
 
                         <Link to="/" className="btn-primary-link">
-                            <button className="btn-primary btn-home-color">
+                            <button type="button" className="btn-primary btn-home-color">
                                 Volver al inicio
                             </button>
                         </Link>

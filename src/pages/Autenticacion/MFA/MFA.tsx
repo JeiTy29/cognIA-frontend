@@ -18,6 +18,10 @@ type MFANavigationState = {
     expiresIn?: number;
 };
 
+function resolveMfaMode(state: MFANavigationState | null): MFAMode {
+    return state?.mode ?? 'challenge';
+}
+
 const MFA_CODE_LENGTH = 6;
 const MFA_DIGIT_KEYS = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => `mfa-digit-${index + 1}`);
 
@@ -31,10 +35,7 @@ export default function MFA() {
     const location = useLocation();
     const { setSession } = useAuth();
     const state = location.state as MFANavigationState | null;
-    const mode: MFAMode = useMemo(() => {
-        if (state?.mode) return state.mode;
-        return 'challenge';
-    }, [state]);
+    const mode: MFAMode = useMemo(() => resolveMfaMode(state), [state]);
     const challengeId = state?.challengeId;
     const enrollmentToken = state?.enrollmentToken;
     const username = state?.username;
@@ -42,6 +43,8 @@ export default function MFA() {
     const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
     const recoveryInputRef = useRef<HTMLInputElement | null>(null);
     const code = useMemo(() => codeDigits.join(''), [codeDigits]);
+    const isRecoveryMode = useMemo(() => useRecovery, [useRecovery]);
+    const isTotpMode = useMemo(() => !useRecovery, [useRecovery]);
 
     useEffect(() => {
         if (!state?.mode) {
@@ -77,7 +80,7 @@ export default function MFA() {
     };
 
     const applyPastedCode = (pastedValue: string) => {
-        const onlyDigits = pastedValue.replaceAll(/\D/g, '').slice(0, MFA_CODE_LENGTH);
+        const onlyDigits = pastedValue.replace(/\D/g, '').slice(0, MFA_CODE_LENGTH);
         if (!onlyDigits) return;
         const nextDigits = Array.from({ length: MFA_CODE_LENGTH }, (_, index) => onlyDigits[index] ?? '');
         setCodeDigits(nextDigits);
@@ -85,7 +88,7 @@ export default function MFA() {
     };
 
     const handleDigitChange = (index: number, value: string) => {
-        const onlyDigits = value.replaceAll(/\D/g, '');
+        const onlyDigits = value.replace(/\D/g, '');
         if (!onlyDigits) {
             setDigit(index, '');
             return;
@@ -209,7 +212,7 @@ export default function MFA() {
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
                                 {submitSuccess ? <div className="validation-success">{submitSuccess}</div> : null}
 
-                                {!useRecovery ? (
+                                {isTotpMode ? (
                                     <div className="form-group">
                                         <fieldset className="mfa-code-fieldset">
                                             <legend className="mfa-code-legend">Codigo MFA de 6 digitos</legend>
@@ -244,8 +247,8 @@ export default function MFA() {
                                         <button
                                             type="button"
                                             role="tab"
-                                            aria-selected={!useRecovery}
-                                            className={`mfa-mode-toggle-btn ${!useRecovery ? 'is-active' : ''}`}
+                                            aria-selected={isTotpMode}
+                                            className={`mfa-mode-toggle-btn ${isTotpMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(false)}
                                         >
                                             Codigo TOTP
@@ -253,14 +256,14 @@ export default function MFA() {
                                         <button
                                             type="button"
                                             role="tab"
-                                            aria-selected={useRecovery}
-                                            className={`mfa-mode-toggle-btn ${useRecovery ? 'is-active' : ''}`}
+                                            aria-selected={isRecoveryMode}
+                                            className={`mfa-mode-toggle-btn ${isRecoveryMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(true)}
                                         >
                                             Codigo de recuperacion
                                         </button>
                                     </div>
-                                    {useRecovery ? (
+                                    {isRecoveryMode ? (
                                         <input
                                             ref={recoveryInputRef}
                                             type="text"

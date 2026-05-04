@@ -286,8 +286,8 @@ export default function Auditoria() {
                             setPage(1);
                         }}
                     >
-                        Fecha
-                        <span aria-hidden="true">{dateOrder === 'desc' ? 'â†“' : 'â†‘'}</span>
+                        <span>Fecha</span>
+                        <span aria-hidden="true">{dateOrder === 'desc' ? '↓' : '↑'}</span>
                     </button>
                     <span>AcciÃ³n</span>
                     <span>Actor</span>
