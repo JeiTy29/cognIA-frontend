@@ -17,8 +17,8 @@ export default function NuestroSistema() {
   const [animationCycle, setAnimationCycle] = useState(0);
   const [rolActivo, setRolActivo] = useState<'padres' | 'psicologos'>('padres');
   const [isRoleSwitching, setIsRoleSwitching] = useState(false);
-  const animationTimeoutRef = useRef<number | null>(null);
-  const roleAnimationRef = useRef<number | null>(null);
+  const animationTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const roleAnimationRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
   const questions = [
     {
@@ -142,18 +142,18 @@ export default function NuestroSistema() {
   const handleRoleChange = (role: 'padres' | 'psicologos') => {
     if (role === rolActivo) return;
     if (roleAnimationRef.current !== null) {
-      window.clearTimeout(roleAnimationRef.current);
+      globalThis.clearTimeout(roleAnimationRef.current);
     }
     setRolActivo(role);
     setIsRoleSwitching(true);
-    roleAnimationRef.current = window.setTimeout(() => {
+    roleAnimationRef.current = globalThis.setTimeout(() => {
       setIsRoleSwitching(false);
     }, 500);
   };
 
   const handleQuestionClick = (questionId: number) => {
     if (animationTimeoutRef.current !== null) {
-      window.clearTimeout(animationTimeoutRef.current);
+      globalThis.clearTimeout(animationTimeoutRef.current);
     }
 
     setSelectedQuestion(questionId);
@@ -162,7 +162,7 @@ export default function NuestroSistema() {
     setAnimationCycle((prev) => prev + 1);
 
     // Simulate animation delay
-    animationTimeoutRef.current = window.setTimeout(() => {
+    animationTimeoutRef.current = globalThis.setTimeout(() => {
       setShowResult(true);
       setIsAnimating(false);
     }, 2500);
@@ -171,7 +171,7 @@ export default function NuestroSistema() {
   useEffect(() => {
     return () => {
       if (animationTimeoutRef.current !== null) {
-        window.clearTimeout(animationTimeoutRef.current);
+        globalThis.clearTimeout(animationTimeoutRef.current);
       }
     };
   }, []);

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './InicioSesion.css';
+import '../../../styles/password-ui.css';
 import { login, requestPasswordReset } from '../../../services/auth/auth.api';
 import { consumeAuthNotice } from '../../../context/authNotice';
 import { useAuth } from '../../../hooks/auth/useAuth';

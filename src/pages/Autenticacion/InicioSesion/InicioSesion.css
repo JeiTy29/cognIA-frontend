@@ -180,51 +180,6 @@
     color: #999;
 }
 
-/* Password Toggle */
-.password-group {
-    position: relative;
-}
-
-.password-toggle {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: #666;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s ease;
-}
-
-.password-toggle:hover {
-    color: #1790E9;
-}
-
-.password-toggle svg {
-    width: 20px;
-    height: 20px;
-}
-
-/* Validation Messages */
-.validation-error {
-    color: #dc3545;
-    font-size: 13px;
-    margin-top: 6px;
-    text-align: left;
-}
-
-.validation-success {
-    color: #28a745;
-    font-size: 13px;
-    margin-top: 6px;
-    text-align: left;
-}
-
 /* ========================================
    DISEÑO RESPONSIVE
    ======================================== */
