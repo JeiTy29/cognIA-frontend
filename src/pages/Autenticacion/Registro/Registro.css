@@ -71,7 +71,7 @@
     flex-shrink: 0;
     display: grid;
     place-items: center;
-    color: white;
+    color: #0f3a59;
     font-size: 24px;
     font-weight: 600;
     font-family: 'Segoe UI', sans-serif;
@@ -226,7 +226,7 @@
     color: #1790E9;
     margin: 0;
     padding: 8px 12px;
-    background: rgba(23, 144, 233, 0.1);
+    background: rgba(11, 111, 184, 0.12);
     border-radius: 6px;
     border-left: 3px solid #1790E9;
 }

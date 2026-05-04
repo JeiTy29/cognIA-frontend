@@ -36,8 +36,8 @@ export function useMyProblemReports(options?: UseMyProblemReportsOptions) {
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
 
-    const [statusFilter, setStatusFilterState] = useState('');
-    const [issueTypeFilter, setIssueTypeFilterState] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [issueTypeFilter, setIssueTypeFilter] = useState('');
     const [sort, setSort] = useState('created_at');
     const [order, setOrder] = useState<OrderDirection>('desc');
 
@@ -96,14 +96,14 @@ export function useMyProblemReports(options?: UseMyProblemReportsOptions) {
         return () => globalThis.clearTimeout(timeoutId);
     }, [enabled, loadReports]);
 
-    const setStatusFilter = useCallback((value: string) => {
+    const updateStatusFilter = useCallback((value: string) => {
         setPage(1);
-        setStatusFilterState(value);
+        setStatusFilter(value);
     }, []);
 
-    const setIssueTypeFilter = useCallback((value: string) => {
+    const updateIssueTypeFilter = useCallback((value: string) => {
         setPage(1);
-        setIssueTypeFilterState(value);
+        setIssueTypeFilter(value);
     }, []);
 
     const setOrdering = useCallback((nextSort: string, nextOrder: OrderDirection) => {
@@ -134,8 +134,8 @@ export function useMyProblemReports(options?: UseMyProblemReportsOptions) {
         loading,
         error,
         setPage,
-        setStatusFilter,
-        setIssueTypeFilter,
+        setStatusFilter: updateStatusFilter,
+        setIssueTypeFilter: updateIssueTypeFilter,
         setOrdering,
         changePageSize,
         reloadReports

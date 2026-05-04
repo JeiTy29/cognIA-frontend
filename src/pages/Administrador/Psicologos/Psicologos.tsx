@@ -162,13 +162,13 @@ export default function Psicologos() {
                 {loading ? <div className="admin-loading">Cargando psicologos...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
-                    <div className="admin-empty" role="status">
-                        <div className="admin-empty-icon" aria-hidden="true">
+                    <output className="admin-empty" aria-live="polite">
+                        <span className="admin-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" /></svg>
-                        </div>
-                        <h3>Sin psicologos por revisar</h3>
-                        <p>No hay psicologos pendientes o rechazados con los filtros actuales.</p>
-                    </div>
+                        </span>
+                        <strong>Sin psicologos por revisar</strong>
+                        <span>No hay psicologos pendientes o rechazados con los filtros actuales.</span>
+                    </output>
                 ) : null}
 
                 {!loading && paginatedRows.length > 0 ? (

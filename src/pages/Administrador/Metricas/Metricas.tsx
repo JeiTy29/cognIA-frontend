@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import './Metricas.css';
 import { useMetrics } from '../../../hooks/metrics/useMetrics';
+import './Metricas.css';
 
 type ServiceState = 'ok' | 'loading' | 'error';
 type DatabaseState = 'ready' | 'not_ready' | 'error' | 'loading';
@@ -12,15 +12,23 @@ type StatusDonutProps = Readonly<{
 function formatUptime(seconds: number) {
     if (seconds < 60) return `${seconds} s`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
+
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatLatencyMs(value: number | null) {
+    if (value === null) return '--';
+    return `${value.toFixed(1)} ms`;
 }
 
 function buildSparklinePath(values: number[], width: number, height: number) {
     const max = Math.max(...values, 1);
     const step = values.length > 1 ? width / (values.length - 1) : width;
+
     return values
         .map((value, index) => {
             const x = index * step;
@@ -28,6 +36,16 @@ function buildSparklinePath(values: number[], width: number, height: number) {
             return `${index === 0 ? 'M' : 'L'}${x},${y}`;
         })
         .join(' ');
+}
+
+function renderSparkline(values: number[], label: string) {
+    if (values.length <= 1) return null;
+
+    return (
+        <svg className="metricas-sparkline" viewBox="0 0 120 40" aria-label={label}>
+            <path className="sparkline-path" d={buildSparklinePath(values, 120, 40)} fill="none" />
+        </svg>
+    );
 }
 
 function resolveServiceAccentClass(status: ServiceState) {
@@ -66,6 +84,25 @@ function resolveDatabaseAccentClass(status: DatabaseState) {
     return 'accent-red';
 }
 
+function renderStatusBreakdown(counts: Record<'200' | '401' | '500', number>, totalStatus: number) {
+    return (
+        <div className="metricas-legend">
+            <div>
+                <span className="legend-dot legend-green" aria-hidden="true" />
+                200 â€” {counts['200']} ({totalStatus ? Math.round((counts['200'] / totalStatus) * 100) : 0}%)
+            </div>
+            <div>
+                <span className="legend-dot legend-yellow" aria-hidden="true" />
+                401 â€” {counts['401']} ({totalStatus ? Math.round((counts['401'] / totalStatus) * 100) : 0}%)
+            </div>
+            <div>
+                <span className="legend-dot legend-red" aria-hidden="true" />
+                500 â€” {counts['500']} ({totalStatus ? Math.round((counts['500'] / totalStatus) * 100) : 0}%)
+            </div>
+        </div>
+    );
+}
+
 function StatusDonut({ counts }: StatusDonutProps) {
     const total = counts['200'] + counts['401'] + counts['500'];
     const radius = 28;
@@ -84,6 +121,7 @@ function StatusDonut({ counts }: StatusDonutProps) {
                 const strokeDasharray = `${dash} ${circumference - dash}`;
                 const strokeDashoffset = -offset;
                 offset += dash;
+
                 return (
                     <circle
                         key={segment.key}
@@ -122,7 +160,6 @@ export default function Metricas() {
 
     const statusCounts = snapshot?.status_counts ?? { '200': 0, '401': 0, '500': 0 };
     const totalStatus = statusCounts['200'] + statusCounts['401'] + statusCounts['500'];
-
     const uptimeLabel = snapshot ? formatUptime(snapshot.uptime_seconds) : '--';
     const latencyAvg = snapshot?.latency_ms_avg ?? null;
     const latencyMax = snapshot?.latency_ms_max ?? null;
@@ -148,6 +185,56 @@ export default function Metricas() {
     const serverStatusLabel = resolveServiceStatusLabel(serverState.status);
     const emailAccentClass = resolveServiceAccentClass(emailState.status);
     const emailStatusDot = resolveServiceStatusDotClass(emailState.status);
+    const latencyText = formatLatencyMs(dbState.latency_ms);
+    const averageLatencyText = formatLatencyMs(latencyAvg);
+    const maxLatencyText = formatLatencyMs(latencyMax);
+
+    const renderSnapshotSection = () => {
+        if (metricsDisabled) {
+            return (
+                <section className="metricas-disabled">
+                    <h2>MÃ©tricas deshabilitadas</h2>
+                    <p>El sistema no estÃ¡ exponiendo mÃ©tricas en este momento.</p>
+                    <button type="button" className="metricas-refresh" onClick={reload}>
+                        Recargar
+                    </button>
+                </section>
+            );
+        }
+
+        return (
+            <section className="metricas-snapshot">
+                <div className="metricas-snapshot-main">
+                    <h2>Snapshot de mÃ©tricas</h2>
+                    <div className="metricas-grid">
+                        <div>
+                            <span className="metricas-label">Latencia promedio</span>
+                            <div className="metricas-value">{averageLatencyText}</div>
+                            {renderSparkline(latencyHistory, 'Tendencia de latencia')}
+                        </div>
+                        <div>
+                            <span className="metricas-label">Latencia mÃ¡xima</span>
+                            <div className={`metricas-value ${latencyStatusClass}`}>{maxLatencyText}</div>
+                        </div>
+                        <div>
+                            <span className="metricas-label">Solicitudes totales</span>
+                            <div className="metricas-value">{requestsTotal ?? '--'}</div>
+                            {renderSparkline(requestHistory, 'Tendencia de solicitudes')}
+                        </div>
+                        <div>
+                            <span className="metricas-label">Uptime</span>
+                            <div className="metricas-value">{uptimeLabel}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="metricas-snapshot-side">
+                    <StatusDonut counts={statusCounts} />
+                    {renderStatusBreakdown(statusCounts, totalStatus)}
+                </div>
+            </section>
+        );
+    };
 
     return (
         <div className="metricas">
@@ -177,11 +264,11 @@ export default function Metricas() {
                         <span className={`status-dot ${dbStatusDot}`} aria-hidden="true" />
                         <span className="status-label">{dbBadgeLabel}</span>
                     </div>
-                    <div className="metricas-small">
-                        Latencia: {dbState.latency_ms !== null ? `${dbState.latency_ms.toFixed(1)} ms` : '--'}
-                    </div>
+                    <div className="metricas-small">Latencia: {latencyText}</div>
                     <div className="metricas-latency">
-                        <span className="metricas-latency-icon" aria-hidden="true">⏱</span>
+                        <span className="metricas-latency-icon" aria-hidden="true">
+                            â±
+                        </span>
                         <div className="metricas-latency-bar">
                             <span style={{ width: `${latencyBarPercent}%` }} />
                         </div>
@@ -202,73 +289,7 @@ export default function Metricas() {
                 </div>
             </section>
 
-            {metricsDisabled ? (
-                <section className="metricas-disabled">
-                    <h2>Métricas deshabilitadas</h2>
-                    <p>El sistema no está exponiendo métricas en este momento.</p>
-                    <button type="button" className="metricas-refresh" onClick={reload}>Recargar</button>
-                </section>
-            ) : (
-                <section className="metricas-snapshot">
-                    <div className="metricas-snapshot-main">
-                        <h2>Snapshot de métricas</h2>
-                        <div className="metricas-grid">
-                            <div>
-                                <span className="metricas-label">Latencia promedio</span>
-                                <div className="metricas-value">{latencyAvg !== null ? `${latencyAvg.toFixed(1)} ms` : '--'}</div>
-                                {latencyHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" aria-label="Tendencia de latencia">
-                                        <path
-                                            className="sparkline-path"
-                                            d={buildSparklinePath(latencyHistory, 120, 40)}
-                                            fill="none"
-                                        />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <span className="metricas-label">Latencia máxima</span>
-                                <div className={`metricas-value ${latencyStatusClass}`}>{latencyMax !== null ? `${latencyMax.toFixed(1)} ms` : '--'}</div>
-                            </div>
-                            <div>
-                                <span className="metricas-label">Solicitudes totales</span>
-                                <div className="metricas-value">{requestsTotal ?? '--'}</div>
-                                {requestHistory.length > 1 && (
-                                    <svg className="metricas-sparkline" viewBox="0 0 120 40" aria-label="Tendencia de solicitudes">
-                                        <path
-                                            className="sparkline-path"
-                                            d={buildSparklinePath(requestHistory, 120, 40)}
-                                            fill="none"
-                                        />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <span className="metricas-label">Uptime</span>
-                                <div className="metricas-value">{uptimeLabel}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="metricas-snapshot-side">
-                        <StatusDonut counts={statusCounts} />
-                        <div className="metricas-legend">
-                            <div>
-                                <span className="legend-dot legend-green" aria-hidden="true" />
-                                200 — {statusCounts['200']} ({totalStatus ? Math.round((statusCounts['200'] / totalStatus) * 100) : 0}%)
-                            </div>
-                            <div>
-                                <span className="legend-dot legend-yellow" aria-hidden="true" />
-                                401 — {statusCounts['401']} ({totalStatus ? Math.round((statusCounts['401'] / totalStatus) * 100) : 0}%)
-                            </div>
-                            <div>
-                                <span className="legend-dot legend-red" aria-hidden="true" />
-                                500 — {statusCounts['500']} ({totalStatus ? Math.round((statusCounts['500'] / totalStatus) * 100) : 0}%)
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
+            {renderSnapshotSection()}
 
             <section className="metricas-table" aria-label="Detalle de metricas">
                 <div className="metricas-table-row header">
@@ -292,13 +313,13 @@ export default function Metricas() {
                 <div className="metricas-table-row">
                     <span className="indicator teal" aria-hidden="true" />
                     <span>Latencia promedio</span>
-                    <span>{latencyAvg !== null ? `${latencyAvg.toFixed(1)} ms` : '--'}</span>
+                    <span>{averageLatencyText}</span>
                     <span>Tiempo medio de respuesta.</span>
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator orange" aria-hidden="true" />
                     <span>Latencia maxima</span>
-                    <span>{latencyMax !== null ? `${latencyMax.toFixed(1)} ms` : '--'}</span>
+                    <span>{maxLatencyText}</span>
                     <span>Picos de carga recientes.</span>
                 </div>
                 <div className="metricas-table-row">
@@ -327,9 +348,7 @@ export default function Metricas() {
                 </div>
             ) : null}
 
-            {isLoading ? (
-                <div className="metricas-loading">Cargando metricas...</div>
-            ) : null}
+            {isLoading ? <div className="metricas-loading">Cargando metricas...</div> : null}
         </div>
     );
 }

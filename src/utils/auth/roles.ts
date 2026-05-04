@@ -2,10 +2,10 @@
 
 export function getPrimaryRole(roles?: string[]): AppRole | null {
     if (!roles || roles.length === 0) return null;
-    const normalized = roles.map((role) => role.trim().toUpperCase());
-    if (normalized.includes('ADMIN')) return 'admin';
-    if (normalized.includes('PSYCHOLOGIST')) return 'psicologo';
-    if (normalized.includes('GUARDIAN')) return 'padre';
+    const normalized = new Set(roles.map((role) => role.trim().toUpperCase()));
+    if (normalized.has('ADMIN')) return 'admin';
+    if (normalized.has('PSYCHOLOGIST')) return 'psicologo';
+    if (normalized.has('GUARDIAN')) return 'padre';
     return null;
 }
 

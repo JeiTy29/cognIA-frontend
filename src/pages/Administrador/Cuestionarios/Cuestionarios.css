@@ -81,7 +81,7 @@
 
 .admin-status-badge.archived {
     background: rgba(220, 53, 69, 0.12);
-    color: #a02734;
+    color: #7f1d1d;
 }
 
 @media (max-width: 1200px) {

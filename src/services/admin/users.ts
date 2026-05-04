@@ -5,7 +5,7 @@ export interface User {
     username: string;
     email: string;
     full_name: string | null;
-    user_type: 'guardian' | 'teacher' | 'psychologist' | 'admin' | string;
+    user_type: string;
     professional_card_number: string | null;
     colpsic_verified?: boolean;
     is_active: boolean;

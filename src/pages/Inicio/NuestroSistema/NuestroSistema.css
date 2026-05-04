@@ -407,7 +407,7 @@
 }
 
 .question-btn.active {
-    background: linear-gradient(135deg, var(--primary) 0%, #6CD4FF 100%);
+    background: linear-gradient(135deg, #0b6fb8 0%, #1497d4 100%);
     border-color: var(--primary);
     color: white;
     font-weight: 600;
@@ -488,12 +488,12 @@
 }
 
 .vote.positive {
-    background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%);
+    background: linear-gradient(135deg, #0b6fb8 0%, #1479c4 100%);
     color: white;
 }
 
 .vote.negative {
-    background: linear-gradient(135deg, #FF9800 0%, #FB8C00 100%);
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
     color: white;
 }
 

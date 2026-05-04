@@ -57,7 +57,7 @@ export function CustomSelect({
                 className="global-select-trigger"
                 onClick={() => setOpen((prev) => !prev)}
                 aria-label={ariaLabel}
-                aria-haspopup="listbox"
+                aria-haspopup="true"
                 aria-expanded={open}
                 disabled={disabled}
             >
@@ -69,13 +69,12 @@ export function CustomSelect({
                 </span>
             </button>
 
-            <div className={`global-select-menu ${open ? 'is-open' : ''}`} role="listbox" aria-label={ariaLabel}>
+            <div className={`global-select-menu ${open ? 'is-open' : ''}`} aria-label={ariaLabel}>
                 {options.map((option) => (
                     <button
                         key={option.value}
                         type="button"
-                        role="option"
-                        aria-selected={option.value === value}
+                        aria-pressed={option.value === value}
                         className={`global-select-option ${option.value === value ? 'is-selected' : ''}`}
                         onClick={() => handleSelect(option.value)}
                     >

@@ -27,6 +27,10 @@ import {
 } from '../utils/auth/storage';
 const AUTH_NOTICE_KEY = 'cognia_auth_notice';
 
+type AuthProviderProps = Readonly<{
+    children: ReactNode;
+}>;
+
 function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
     if (payload?.exp) {
         return payload.exp * 1000;
@@ -37,7 +41,25 @@ function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
     return null;
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+function isTokenExpired(
+    storedToken: string | null,
+    storedPayload: JwtPayload | null,
+    storedExpiresAt: number | null
+) {
+    const invalidToken = Boolean(storedToken) && !storedPayload;
+    if (invalidToken) {
+        return true;
+    }
+    if (storedPayload?.exp) {
+        return isJwtExpired(storedPayload.exp);
+    }
+    if (storedExpiresAt) {
+        return Date.now() >= storedExpiresAt;
+    }
+    return true;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
     const storedToken = getStoredToken();
     const storedPayload = useMemo(() => (storedToken ? decodeJwtPayload(storedToken) : null), [storedToken]);
     const storedExpiresAt = getStoredExpiresAt();
@@ -56,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [accessToken, setAccessToken] = useState<string | null>(storedToken);
     const [roles, setRoles] = useState<string[]>(storedPayload?.roles ?? []);
     const [userId, setUserId] = useState<string | null>(storedPayload?.sub ?? null);
-    const [expiresAt, setExpiresAt] = useState<number | null>(storedExpiresAt ?? computeExpiresAt(storedPayload, undefined));
+    const [expiresAt, setExpiresAt] = useState<number | null>(storedExpiresAt ?? computeExpiresAt(storedPayload));
     const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
     const [profile, setProfile] = useState<AuthMeResponse | null>(null);
     const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -124,20 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await refreshAccessToken();
             if ('error' in response) {
-                if (!accessToken) {
-                    logout('expired');
-                } else {
+                if (accessToken) {
                     setIsAuthLoading(false);
+                } else {
+                    logout('expired');
                 }
                 return false;
             }
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
-            if (!accessToken) {
-                logout('expired');
-            } else {
+            if (accessToken) {
                 setIsAuthLoading(false);
+            } else {
+                logout('expired');
             }
             return false;
         }
@@ -180,14 +202,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }, 0);
             return () => globalThis.clearTimeout(timeoutId);
         }
-        const invalidToken = !!storedToken && !storedPayload;
-        const expired = invalidToken
-            ? true
-            : storedPayload?.exp
-                ? isJwtExpired(storedPayload.exp)
-                : storedExpiresAt
-                    ? Date.now() >= storedExpiresAt
-                    : true;
+        const invalidToken = Boolean(storedToken) && !storedPayload;
+        const expired = isTokenExpired(storedToken, storedPayload, storedExpiresAt);
 
         if (invalidToken || expired) {
             removeStoredToken();

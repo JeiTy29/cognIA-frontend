@@ -5,9 +5,9 @@ import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles'
 import './ProtectedRoute.css';
 import SupportContact from '../SupportContact/SupportContact';
 
-interface ProtectedRouteProps {
+type ProtectedRouteProps = Readonly<{
     allowedRoles?: string[];
-}
+}>;
 
 const roleMap: Record<string, string[]> = {
     PADRE: ['GUARDIAN'],
@@ -25,11 +25,11 @@ function hasAnyRole(userRoles: string[] | undefined, allowedRoles: string[] | un
     if (!allowedRoles || allowedRoles.length === 0) return true;
     if (allowedRoles.includes('*')) return true;
     if (!userRoles || userRoles.length === 0) return false;
-    const normalizedUser = userRoles.map((role) => normalizeRole(role));
+    const normalizedUser = new Set(userRoles.map((role) => normalizeRole(role)));
     return allowedRoles.some((role) => {
         const normalized = normalizeRole(role);
         const mapped = roleMap[normalized] ?? [normalized];
-        return mapped.some((candidate) => normalizedUser.includes(candidate));
+        return mapped.some((candidate) => normalizedUser.has(candidate));
     });
 }
 

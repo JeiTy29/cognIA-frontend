@@ -812,9 +812,9 @@ function QuestionnaireProcessedView({
             </div>
 
             {reportNotice ? (
-                <div className="questionnaire-inline-notice" role="status">
+                <output className="questionnaire-inline-notice" aria-live="polite">
                     {reportNotice}
-                </div>
+                </output>
             ) : null}
 
             {comorbiditySummary ? (

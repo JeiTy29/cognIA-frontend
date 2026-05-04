@@ -208,7 +208,7 @@ function renderDashboardFallback<TData>(
     if (!state.data || state.status === 'empty') {
         return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
     }
-    if (options?.isEmptyData && options.isEmptyData(state.data)) {
+    if (options?.isEmptyData?.(state.data)) {
         return <p className="dashboard-empty">No hay datos para el rango seleccionado.</p>;
     }
     return null;

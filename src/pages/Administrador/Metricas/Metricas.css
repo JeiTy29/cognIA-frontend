@@ -18,7 +18,7 @@
 }
 
 .metricas-refresh {
-    background: #1790E9;
+    background: #0b6fb8;
     border: none;
     color: #ffffff;
     padding: 10px 18px;
@@ -152,7 +152,7 @@
     padding: 4px 10px;
     border-radius: 999px;
     background: rgba(23, 144, 233, 0.12);
-    color: #123e5c;
+    color: #0f3a59;
     font-size: 12px;
     font-weight: 600;
     max-width: fit-content;
@@ -298,7 +298,7 @@
     padding: 10px 12px;
     border-radius: 10px;
     background: rgba(220, 53, 69, 0.1);
-    color: #a02734;
+    color: #7f1d1d;
     font-size: 13px;
 }
 

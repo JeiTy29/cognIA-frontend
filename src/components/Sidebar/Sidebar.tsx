@@ -4,9 +4,9 @@ import type { Role } from './SidebarConfig';
 import { getItemsForRole } from './SidebarConfig';
 import { useEffect, useRef, useState } from 'react';
 
-interface SidebarProps {
+type SidebarProps = Readonly<{
     role: Role;
-}
+}>;
 
 export default function Sidebar({ role }: SidebarProps) {
     const items = getItemsForRole(role);

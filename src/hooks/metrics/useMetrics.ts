@@ -73,6 +73,10 @@ function canRunMetricCycle(enabled: boolean, isMounted: boolean, isVisible: bool
     return enabled && isMounted && isVisible;
 }
 
+function isDocumentVisible() {
+    return typeof document !== 'object' || document.visibilityState === 'visible';
+}
+
 function resolveSnapshot(payload: unknown): MetricsSnapshot | null {
     const root = asObject(payload);
     if (!root) return null;
@@ -139,7 +143,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const pollingRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
     const backoffRef = useRef<number>(0);
     const errorCountRef = useRef<number>(0);
-    const visibilityRef = useRef<boolean>(typeof document !== 'undefined' ? document.visibilityState === 'visible' : true);
+    const visibilityRef = useRef<boolean>(isDocumentVisible());
     const isMountedRef = useRef(true);
 
     const fetchAllRef = useRef<() => Promise<void>>(async () => { });

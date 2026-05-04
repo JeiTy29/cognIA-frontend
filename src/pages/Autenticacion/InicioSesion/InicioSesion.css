@@ -52,7 +52,7 @@
     flex-shrink: 0;
     display: grid;
     place-items: center;
-    color: white;
+    color: #0f3a59;
     font-size: 24px;
     font-weight: 600;
     font-family: 'Segoe UI', sans-serif;
@@ -134,7 +134,7 @@
     font-size: 18px;
     font-weight: 700;
     color: #ffffff;
-    background-color: #1790E9;
+    background-color: #0b6fb8;
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -165,6 +165,11 @@
     text-decoration: none;
     text-align: center;
     transition: color 0.2s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .forgot-password-link:hover {
@@ -304,10 +309,3 @@
     justify-content: center;
 }
 
-.forgot-password-link {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-family: inherit;
-}

@@ -8,6 +8,7 @@ import {
     getProblemReportIssueTypeLabel,
     getProblemReportReporterRoleLabel,
     getProblemReportStatusLabel,
+    type ProblemReportItem,
     type ProblemReportStatus
 } from '../../../services/problemReports/problemReports.types';
 import {
@@ -77,13 +78,13 @@ function LoadingReports() {
 
 function EmptyReports() {
     return (
-        <div className="admin-empty" role="status">
-            <div className="admin-empty-icon" aria-hidden="true">
+        <output className="admin-empty" aria-live="polite">
+            <span className="admin-empty-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" /></svg>
-            </div>
-            <h3>Sin reportes</h3>
-            <p>No hay registros para los filtros actuales.</p>
-        </div>
+            </span>
+            <strong>Sin reportes</strong>
+            <span>No hay registros para los filtros actuales.</span>
+        </output>
     );
 }
 
@@ -126,6 +127,125 @@ function ReportRows({ items, onOpenDetail }: ReportRowsProps) {
 
 function swallowReportActionError() {
     return undefined;
+}
+
+function LoadingDetail() {
+    return <div className="admin-loading">Cargando detalle...</div>;
+}
+
+type ReportDetailContentProps = Readonly<{
+    detailItem: ProblemReportItem;
+    statusForm: string;
+    adminNotesForm: string;
+    formError: string | null;
+    onStatusChange: (value: string) => void;
+    onNotesChange: (value: string) => void;
+}>;
+
+function ReportDetailContent({
+    detailItem,
+    statusForm,
+    adminNotesForm,
+    formError,
+    onStatusChange,
+    onNotesChange
+}: ReportDetailContentProps) {
+    return (
+        <>
+            <div className="admin-detail-list">
+                <div className="admin-detail-row">
+                    <strong>CÃ³digo</strong>
+                    <span>{detailItem.report_code}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Tipo</strong>
+                    <span>{getProblemReportIssueTypeLabel(detailItem.issue_type)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Estado</strong>
+                    <span>{getProblemReportStatusLabel(detailItem.status)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Reportante</strong>
+                    <span>{getProblemReportReporterRoleLabel(detailItem.reporter_role)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>MÃ³dulo</strong>
+                    <span>{getSourceModuleLabel(detailItem.source_module)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Pantalla o ruta de origen</strong>
+                    <span>{detailItem.source_path ?? '--'}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Creado</strong>
+                    <span>{formatDateTime(detailItem.created_at)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Actualizado</strong>
+                    <span>{formatDateTime(detailItem.updated_at)}</span>
+                </div>
+                <div className="admin-detail-row">
+                    <strong>Resuelto</strong>
+                    <span>{formatDateTime(detailItem.resolved_at)}</span>
+                </div>
+            </div>
+
+            <label>
+                <span>DescripciÃ³n</span>
+                <textarea value={detailItem.description} readOnly />
+            </label>
+
+            {detailItem.attachments.length > 0 ? (
+                <div className="reportes-admin-attachments">
+                    <strong>Adjuntos</strong>
+                    <div className="reportes-admin-attachments-list">
+                        {detailItem.attachments.map((attachment: ProblemReportItem['attachments'][number]) => (
+                            <div key={attachment.attachment_id} className="reportes-admin-attachment-row">
+                                <span>{attachment.original_filename}</span>
+                                <span>{getMimeTypeLabel(attachment.mime_type, attachment.mime_type)}</span>
+                                <span>{formatFileSizeEs(attachment.size_bytes)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
+            {detailItem.metadata && Object.keys(detailItem.metadata).length > 0 ? (
+                <div className="admin-detail-list">
+                    {buildSafeDisplayRows(detailItem.metadata, {
+                        includeTechnical: false,
+                        includeEmpty: false
+                    }).map((row) => (
+                        <div className="admin-detail-row" key={row.key}>
+                            <strong>{row.label}</strong>
+                            <span>{row.value}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+
+            <label>
+                <span>Estado</span>
+                <CustomSelect
+                    ariaLabel="Seleccionar nuevo estado"
+                    value={statusForm}
+                    options={PROBLEM_REPORT_STATUSES.map((status) => ({
+                        value: status,
+                        label: getProblemReportStatusLabel(status)
+                    }))}
+                    onChange={onStatusChange}
+                />
+            </label>
+
+            <label>
+                <span>Notas admin</span>
+                <textarea value={adminNotesForm} onChange={(event) => onNotesChange(event.target.value)} />
+            </label>
+
+            {formError ? <div className="admin-alert error">{formError}</div> : null}
+        </>
+    );
 }
 
 export default function ReportesAdmin() {
@@ -217,15 +337,37 @@ export default function ReportesAdmin() {
         }
     };
 
+    const handleOpenDetail = (reportId: string) => {
+        openDetail(reportId).catch(swallowReportActionError);
+    };
+
+    const handleOrderChange = (value: string) => {
+        const [nextSort, nextOrder] = value.split(':');
+        setOrdering(nextSort, resolveOrderDirection(nextOrder));
+    };
+
+    const renderDetailContent = () => {
+        if (loadingDetail) return <LoadingDetail />;
+        if (!detailItem) return null;
+        return (
+            <ReportDetailContent
+                detailItem={detailItem}
+                statusForm={statusForm}
+                adminNotesForm={adminNotesForm}
+                formError={formError}
+                onStatusChange={setStatusForm}
+                onNotesChange={setAdminNotesForm}
+            />
+        );
+    };
+
     const renderTableContent = () => {
         if (loading) return <LoadingReports />;
         if (items.length === 0) return <EmptyReports />;
         return (
             <ReportRows
                 items={items}
-                onOpenDetail={(reportId) => {
-                    openDetail(reportId).catch(swallowReportActionError);
-                }}
+                onOpenDetail={handleOpenDetail}
             />
         );
     };
@@ -314,10 +456,7 @@ export default function ReportesAdmin() {
                             ariaLabel="Ordenar reportes"
                             value={orderValue}
                             options={orderOptions}
-                            onChange={(value) => {
-                                const [nextSort, nextOrder] = value.split(':');
-                                setOrdering(nextSort, resolveOrderDirection(nextOrder));
-                            }}
+                            onChange={handleOrderChange}
                         />
                     </label>
                 </div>
@@ -379,107 +518,7 @@ export default function ReportesAdmin() {
                 <div className="admin-modal reportes-admin-detail">
                     <h2>Detalle del reporte</h2>
 
-                    {loadingDetail ? (
-                        <div className="admin-loading">Cargando detalle...</div>
-                    ) : detailItem ? (
-                        <>
-                            <div className="admin-detail-list">
-                                <div className="admin-detail-row">
-                                    <strong>CÃ³digo</strong>
-                                    <span>{detailItem.report_code}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Tipo</strong>
-                                    <span>{getProblemReportIssueTypeLabel(detailItem.issue_type)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Estado</strong>
-                                    <span>{getProblemReportStatusLabel(detailItem.status)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Reportante</strong>
-                                    <span>{getProblemReportReporterRoleLabel(detailItem.reporter_role)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>MÃ³dulo</strong>
-                                    <span>{getSourceModuleLabel(detailItem.source_module)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Pantalla o ruta de origen</strong>
-                                    <span>{detailItem.source_path ?? '--'}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Creado</strong>
-                                    <span>{formatDateTime(detailItem.created_at)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Actualizado</strong>
-                                    <span>{formatDateTime(detailItem.updated_at)}</span>
-                                </div>
-                                <div className="admin-detail-row">
-                                    <strong>Resuelto</strong>
-                                    <span>{formatDateTime(detailItem.resolved_at)}</span>
-                                </div>
-                            </div>
-
-                            <label>
-                                <span>DescripciÃ³n</span>
-                                <textarea value={detailItem.description} readOnly />
-                            </label>
-
-                            {detailItem.attachments.length > 0 ? (
-                                <div className="reportes-admin-attachments">
-                                    <strong>Adjuntos</strong>
-                                    <div className="reportes-admin-attachments-list">
-                                        {detailItem.attachments.map((attachment) => (
-                                            <div key={attachment.attachment_id} className="reportes-admin-attachment-row">
-                                                <span>{attachment.original_filename}</span>
-                                                <span>{getMimeTypeLabel(attachment.mime_type, attachment.mime_type)}</span>
-                                                <span>{formatFileSizeEs(attachment.size_bytes)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {detailItem.metadata && Object.keys(detailItem.metadata).length > 0 ? (
-                                <div className="admin-detail-list">
-                                    {buildSafeDisplayRows(detailItem.metadata, {
-                                        includeTechnical: false,
-                                        includeEmpty: false
-                                    }).map((row) => (
-                                        <div className="admin-detail-row" key={row.key}>
-                                            <strong>{row.label}</strong>
-                                            <span>{row.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : null}
-
-                            <label>
-                                <span>Estado</span>
-                                <CustomSelect
-                                    ariaLabel="Seleccionar nuevo estado"
-                                    value={statusForm}
-                                    options={PROBLEM_REPORT_STATUSES.map((status) => ({
-                                        value: status,
-                                        label: getProblemReportStatusLabel(status)
-                                    }))}
-                                    onChange={(value) => setStatusForm(value)}
-                                />
-                            </label>
-
-                            <label>
-                                <span>Notas admin</span>
-                                <textarea
-                                    value={adminNotesForm}
-                                    onChange={(event) => setAdminNotesForm(event.target.value)}
-                                />
-                            </label>
-
-                            {formError ? <div className="admin-alert error">{formError}</div> : null}
-                        </>
-                    ) : null}
+                    {renderDetailContent()}
 
                     <div className="admin-modal-actions">
                         <button type="button" className="admin-btn ghost" onClick={closeDetail}>

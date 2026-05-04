@@ -55,7 +55,7 @@ function getSectionContentFromObject(summary: QuestionnaireClinicalSummaryV2DTO 
         return '';
     }
 
-    const record = summary.sections as Record<string, string | null>;
+    const record = summary.sections;
     return getNonEmptyText(record[key]);
 }
 
