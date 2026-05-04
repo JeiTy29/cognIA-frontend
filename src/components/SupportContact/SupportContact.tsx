@@ -5,10 +5,10 @@ import './SupportContact.css';
 const WHATSAPP_NUMBER = '0000000000';
 const SUPPORT_EMAIL = 'soportecognia@gmail.com';
 
-interface SupportContactProps {
+type SupportContactProps = Readonly<{
     roleLabel: string;
     moduleLabel?: string;
-}
+}>;
 
 export default function SupportContact({ roleLabel, moduleLabel }: SupportContactProps) {
     const [copied, setCopied] = useState(false);
@@ -25,7 +25,7 @@ export default function SupportContact({ roleLabel, moduleLabel }: SupportContac
         try {
             await navigator.clipboard.writeText(SUPPORT_EMAIL);
             setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
+            globalThis.setTimeout(() => setCopied(false), 2000);
         } catch {
             setCopied(false);
         }

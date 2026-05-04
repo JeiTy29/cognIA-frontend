@@ -163,10 +163,87 @@ function getSessionLikeId(record: Record<string, unknown>) {
     return '';
 }
 
+function resolveTemplateId(record: Record<string, unknown>) {
+    return firstNonEmptyString([record.id, record.template_id]);
+}
+
+function resolveQuestionId(record: Record<string, unknown>) {
+    return firstNonEmptyString([
+        record.id,
+        record.question_id,
+        record.item_id,
+        record.questionnaire_item_id
+    ]);
+}
+
+function resolveQuestionText(record: Record<string, unknown>) {
+    return firstNonEmptyString([
+        record.text,
+        record.prompt,
+        record.question_text,
+        record.question,
+        record.statement,
+        record.title,
+        record.label
+    ]);
+}
+
+function resolveQuestionResponseType(record: Record<string, unknown>) {
+    return firstNonEmptyString([
+        record.response_type,
+        record.answer_type,
+        record.input_type,
+        record.type
+    ]) ?? 'text';
+}
+
+function resolveQuestionResponseOptions(record: Record<string, unknown>) {
+    const arrayCandidates = [
+        record.response_options,
+        record.options,
+        record.choices,
+        record.values
+    ];
+
+    for (const candidate of arrayCandidates) {
+        if (Array.isArray(candidate)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function resolveHistorySessionId(record: Record<string, unknown>, id: string) {
+    return firstNonEmptyString([record.session_id, record.questionnaire_session_id]) ?? id;
+}
+
+function resolveHistoryQuestionnaireSessionId(record: Record<string, unknown>, id: string) {
+    return firstNonEmptyString([record.questionnaire_session_id, record.session_id]) ?? id;
+}
+
+function buildSinglePagePagination(
+    normalizedPagination: QuestionnaireSessionPageV2Response['pagination'],
+    normalizedItems: QuestionnaireSessionPageV2Response['items'],
+    allQuestionsFromPages: QuestionnaireSessionPageV2Response['items'],
+    pagesArray: Record<string, unknown>[]
+) {
+    if (!(allQuestionsFromPages.length > 0 && pagesArray.length > 1)) {
+        return normalizedPagination;
+    }
+
+    return {
+        ...normalizedPagination,
+        page: 1,
+        pages: 1,
+        total: normalizedItems.length
+    };
+}
+
 function normalizeTemplate(value: unknown): QuestionnaireTemplateV2DTO | null {
     const record = asRecord(value);
     if (!record) return null;
-    const id = typeof record.id === 'string' ? record.id : typeof record.template_id === 'string' ? record.template_id : null;
+    const id = resolveTemplateId(record);
     if (!id) return null;
     return {
         ...record,
@@ -177,58 +254,12 @@ function normalizeTemplate(value: unknown): QuestionnaireTemplateV2DTO | null {
 function normalizeQuestion(value: unknown): QuestionnaireQuestionV2DTO | null {
     const record = asRecord(value);
     if (!record) return null;
-    const idCandidates = [
-        record.id,
-        record.question_id,
-        record.item_id,
-        record.questionnaire_item_id
-    ];
-    let id: string | null = null;
-    for (const candidate of idCandidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            id = candidate.trim();
-            break;
-        }
-    }
-
-    const textCandidates = [
-        record.text,
-        record.prompt,
-        record.question_text,
-        record.question,
-        record.statement,
-        record.title,
-        record.label
-    ];
-    let text: string | null = null;
-    for (const candidate of textCandidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            text = candidate.trim();
-            break;
-        }
-    }
+    const id = resolveQuestionId(record);
+    const text = resolveQuestionText(record);
     if (!id || !text) return null;
 
-    const responseTypeCandidates = [
-        record.response_type,
-        record.answer_type,
-        record.input_type,
-        record.type
-    ];
-    let responseType: string = 'text';
-    for (const candidate of responseTypeCandidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            responseType = candidate;
-            break;
-        }
-    }
-
-    const responseOptions =
-        Array.isArray(record.response_options) ? record.response_options :
-            Array.isArray(record.options) ? record.options :
-                Array.isArray(record.choices) ? record.choices :
-                    Array.isArray(record.values) ? record.values :
-                        null;
+    const responseType = resolveQuestionResponseType(record);
+    const responseOptions = resolveQuestionResponseOptions(record);
 
     return {
         ...record,
@@ -312,13 +343,13 @@ function normalizeActiveQuestionnairesResponse(payload: unknown): ActiveQuestion
     const directItems = asArray(root.items).map(normalizeTemplate).filter((item): item is QuestionnaireTemplateV2DTO => Boolean(item));
     const alternativeItems = asArray(root.questionnaires).map(normalizeTemplate).filter((item): item is QuestionnaireTemplateV2DTO => Boolean(item));
     const fallbackTemplate = normalizeTemplate(root.questionnaire_template);
-    const items = directItems.length > 0
-        ? directItems
-        : alternativeItems.length > 0
-            ? alternativeItems
-            : fallbackTemplate
-                ? [fallbackTemplate]
-                : [];
+    let items = directItems;
+    if (items.length === 0) {
+        items = alternativeItems;
+    }
+    if (items.length === 0 && fallbackTemplate) {
+        items = [fallbackTemplate];
+    }
 
     return {
         items,
@@ -415,10 +446,10 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
 
     const paginationSource =
         asRecord(root.pagination) ??
-        asRecord((asRecord(root.data) ?? {}).pagination) ??
-        asRecord((asRecord(root.result) ?? {}).pagination) ??
-        asRecord((requestedPage ?? {}).pagination) ??
-        asRecord((asRecord(root.meta) ?? {}).pagination) ??
+        asRecord(asRecord(root.data)?.pagination) ??
+        asRecord(asRecord(root.result)?.pagination) ??
+        asRecord(requestedPage?.pagination) ??
+        asRecord(asRecord(root.meta)?.pagination) ??
         derivedPaginationFromPages ??
         asRecord(root.page) ??
         root;
@@ -427,15 +458,7 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
 
     return {
         items: normalizedItems,
-        pagination:
-            allQuestionsFromPages.length > 0 && pagesArray.length > 1
-                ? {
-                    ...normalizedPagination,
-                    page: 1,
-                    pages: 1,
-                    total: normalizedItems.length
-                }
-                : normalizedPagination
+        pagination: buildSinglePagePagination(normalizedPagination, normalizedItems, allQuestionsFromPages, pagesArray)
     };
 }
 
@@ -458,18 +481,8 @@ function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO |
     return {
         ...record,
         id,
-        session_id:
-            typeof record.session_id === 'string'
-                ? record.session_id
-                : typeof record.questionnaire_session_id === 'string'
-                    ? record.questionnaire_session_id
-                    : id,
-        questionnaire_session_id:
-            typeof record.questionnaire_session_id === 'string'
-                ? record.questionnaire_session_id
-                : typeof record.session_id === 'string'
-                    ? record.session_id
-                    : id,
+        session_id: resolveHistorySessionId(record, id),
+        questionnaire_session_id: resolveHistoryQuestionnaireSessionId(record, id),
         questionnaire_id: questionnaireId
     } as QuestionnaireHistoryDetailV2DTO;
 }
@@ -504,18 +517,8 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
     return {
         ...root,
         id,
-        session_id:
-            typeof root.session_id === 'string'
-                ? root.session_id
-                : typeof root.questionnaire_session_id === 'string'
-                    ? root.questionnaire_session_id
-                    : id,
-        questionnaire_session_id:
-            typeof root.questionnaire_session_id === 'string'
-                ? root.questionnaire_session_id
-                : typeof root.session_id === 'string'
-                    ? root.session_id
-                    : id,
+        session_id: resolveHistorySessionId(root, id),
+        questionnaire_session_id: resolveHistoryQuestionnaireSessionId(root, id),
         tags
     } as QuestionnaireHistoryDetailV2DTO;
 }
@@ -570,7 +573,7 @@ function normalizeClinicalDomain(value: unknown): QuestionnaireClinicalDomainV2D
         confidence_band: firstNonEmptyString([record.confidence_band]),
         operational_class: firstNonEmptyString([record.operational_class]),
         caveat: firstNonEmptyString([record.caveat]),
-        main_indicators: asArray(record.main_indicators).map((item) => String(item))
+        main_indicators: asArray(record.main_indicators).map(String)
     };
 }
 
@@ -582,7 +585,7 @@ function normalizeClinicalComorbidity(value: unknown): QuestionnaireClinicalComo
         ...record,
         has_comorbidity_signal: toBooleanOrNull(record.has_comorbidity_signal),
         severity: firstNonEmptyString([record.severity]),
-        domains: asArray(record.domains).map((item) => String(item)),
+        domains: asArray(record.domains).map(String),
         summary: firstNonEmptyString([record.summary])
     };
 }
@@ -797,7 +800,7 @@ function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedData
             if (!key) return null;
             return {
                 coexistence_key: key,
-                domains: asArray(item.domains).map((value) => String(value)),
+                domains: asArray(item.domains).map(String),
                 combined_risk_score: toNumberOrNull(item.combined_risk_score),
                 coexistence_level: firstNonEmptyString([item.coexistence_level]),
                 summary: firstNonEmptyString([item.summary])
@@ -880,7 +883,9 @@ function extractFilenameFromHeaders(headers: Headers) {
     const disposition = headers.get('content-disposition') ?? '';
     if (!disposition) return null;
 
-    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    const utf8FilenamePattern = /filename\*=UTF-8''([^;]+)/i;
+    const basicFilenamePattern = /filename="?([^";]+)"?/i;
+    const utf8Match = utf8FilenamePattern.exec(disposition);
     if (utf8Match?.[1]) {
         try {
             return decodeURIComponent(utf8Match[1]);
@@ -889,7 +894,7 @@ function extractFilenameFromHeaders(headers: Headers) {
         }
     }
 
-    const basicMatch = disposition.match(/filename="?([^";]+)"?/i);
+    const basicMatch = basicFilenamePattern.exec(disposition);
     return basicMatch?.[1] ?? null;
 }
 

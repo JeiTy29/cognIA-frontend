@@ -29,30 +29,6 @@
     gap: 10px 16px;
 }
 
-.password-check {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #5a6b7c;
-}
-
-.password-check.is-valid {
-    color: #1f8f4e;
-}
-
-.password-check-indicator {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid currentColor;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-}
-
 .reset-modal-overlay {
     position: fixed;
     inset: 0;

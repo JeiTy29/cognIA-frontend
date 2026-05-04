@@ -1,36 +1,16 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import './RestablecerContraseña.css';
+import '../../../styles/password-ui.css';
+import {
+    PasswordChecklist as SharedPasswordChecklist,
+    PasswordVisibilityIcon as SharedPasswordVisibilityIcon
+} from '../../../components/Auth/PasswordControls';
 import { resetPassword, verifyResetToken } from '../../../services/auth/auth.api';
 import { ApiError } from '../../../services/api/httpClient';
+import { PASSWORD_RULES } from '../../../utils/passwordRules';
 
-const passwordRules = [
-    {
-        id: 'length',
-        label: 'Minimo 8 caracteres',
-        test: (value: string) => value.length >= 8
-    },
-    {
-        id: 'upper',
-        label: 'Al menos una mayuscula',
-        test: (value: string) => /[A-Z]/.test(value)
-    },
-    {
-        id: 'lower',
-        label: 'Al menos una minuscula',
-        test: (value: string) => /[a-z]/.test(value)
-    },
-    {
-        id: 'number',
-        label: 'Al menos un numero',
-        test: (value: string) => /[0-9]/.test(value)
-    },
-    {
-        id: 'special',
-        label: 'Al menos un caracter especial (!@#$...)',
-        test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
-    }
-];
+const passwordRules = PASSWORD_RULES;
 
 export default function RestablecerContraseña() {
     const navigate = useNavigate();
@@ -221,34 +201,12 @@ export default function RestablecerContraseña() {
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
                                 aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
                             >
-                                {showPassword ? (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                                    </svg>
-                                ) : (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                )}
+                                <SharedPasswordVisibilityIcon visible={showPassword} />
                             </button>
                             {newPasswordError ? <div className="validation-error">{newPasswordError}</div> : null}
                         </div>
 
-                        <div className="password-checklist">
-                            <span className="password-checklist-title">Requisitos de contrasena</span>
-                            <div className="password-checklist-grid">
-                                {checks.map((check) => (
-                                    <div key={check.id} className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}>
-                                        <span className="password-check-indicator" aria-hidden="true">
-                                            {check.valid ? '✓' : '•'}
-                                        </span>
-                                        <span>{check.label}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <SharedPasswordChecklist checks={checks} title="Requisitos de contrasena" />
 
                         <div className="form-group password-group">
                             <input
@@ -271,17 +229,7 @@ export default function RestablecerContraseña() {
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
                                 aria-label={showConfirm ? 'Ocultar confirmacion' : 'Mostrar confirmacion'}
                             >
-                                {showConfirm ? (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                                    </svg>
-                                ) : (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                )}
+                                <SharedPasswordVisibilityIcon visible={showConfirm} />
                             </button>
                             {confirmPassword.length > 0 ? (
                                 <div className={passwordsMatch ? 'validation-success' : 'validation-error'}>

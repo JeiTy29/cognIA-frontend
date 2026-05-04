@@ -2,7 +2,9 @@
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validatePassword } from '../../../utils/passwordValidation';
+import { PASSWORD_RULES } from '../../../utils/passwordRules';
 import './MiCuenta.css';
+import '../../../styles/password-ui.css';
 import { changePassword, logout, mfaDisable } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isAdminProfile, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
@@ -10,23 +12,67 @@ import { Modal } from '../../../components/Modal/Modal';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
 import { ApiError } from '../../../services/api/httpClient';
 
-const passwordRules = [
-    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
-    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
-    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
-    { id: 'number', label: 'Al menos un número', test: (value: string) => /[0-9]/.test(value) },
-    {
-        id: 'special',
-        label: 'Al menos un carácter especial (!@#$...)',
-        test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
-    }
-];
+const passwordRules = PASSWORD_RULES;
 
 function buildMfaDisablePayload(disableMode: 'totp' | 'recovery', disablePassword: string, disableCode: string) {
     if (disableMode === 'totp') {
         return { password: disablePassword, code: disableCode };
     }
     return { password: disablePassword, recovery_code: disableCode };
+}
+
+type PasswordVisibilityInputFieldProps = Readonly<{
+    label: string;
+    value: string;
+    isVisible: boolean;
+    disabled: boolean;
+    inputClassName?: string;
+    ariaLabelWhenVisible: string;
+    ariaLabelWhenHidden: string;
+    errorMessage?: string;
+    secondaryErrorMessage?: string;
+    onChange: (value: string) => void;
+    onToggleVisibility: () => void;
+}>;
+
+function PasswordVisibilityInputField({
+    label,
+    value,
+    isVisible,
+    disabled,
+    inputClassName = 'mi-cuenta-input',
+    ariaLabelWhenVisible,
+    ariaLabelWhenHidden,
+    errorMessage,
+    secondaryErrorMessage,
+    onChange,
+    onToggleVisibility
+}: PasswordVisibilityInputFieldProps) {
+    return (
+        <label className="mi-cuenta-input-group">
+            <span className="mi-cuenta-input-label">{label}</span>
+            <div className="mi-cuenta-input-wrapper">
+                <input
+                    className={inputClassName}
+                    type={isVisible ? 'text' : 'password'}
+                    value={value}
+                    disabled={disabled}
+                    onChange={(event) => onChange(event.target.value)}
+                />
+                <button
+                    type="button"
+                    className="mi-cuenta-toggle-visibility"
+                    disabled={disabled}
+                    onClick={onToggleVisibility}
+                    aria-label={isVisible ? ariaLabelWhenVisible : ariaLabelWhenHidden}
+                >
+                    <VisibilityIcon isVisible={isVisible} />
+                </button>
+            </div>
+            {errorMessage ? <span className="mi-cuenta-error">{errorMessage}</span> : null}
+            {secondaryErrorMessage ? <span className="mi-cuenta-error">{secondaryErrorMessage}</span> : null}
+        </label>
+    );
 }
 
 export default function MiCuenta() {
@@ -361,62 +407,39 @@ export default function MiCuenta() {
                                 {passwordGeneralError && (
                                     <div className="mi-cuenta-error">{passwordGeneralError}</div>
                                 )}
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Contraseña actual</span>
-                                    <div className="mi-cuenta-input-wrapper">
-                                        <input
-                                            className={`mi-cuenta-input ${highlightCurrentPassword ? 'is-invalid' : ''}`}
-                                            type={mostrarActual ? 'text' : 'password'}
-                                            value={contrasenaActual}
-                                            disabled={passwordSubmitting}
-                                            onChange={(event) => {
-                                                setContrasenaActual(event.target.value);
-                                                setPasswordSaved(false);
-                                                setPasswordGeneralError('');
-                                                setHighlightCurrentPassword(false);
-                                            }}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="mi-cuenta-toggle-visibility"
-                                            disabled={passwordSubmitting}
-                                            onClick={() => setMostrarActual((prev) => !prev)}
-                                            aria-label={mostrarActual ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
-                                        >
-                                            <VisibilityIcon isVisible={mostrarActual} />
-                                        </button>
-                                    </div>
-                                    {contrasenaActualError && <span className="mi-cuenta-error">{contrasenaActualError}</span>}
-                                    {highlightCurrentPassword && (
-                                        <span className="mi-cuenta-error">Revisa la contraseña actual antes de intentar nuevamente.</span>
-                                    )}
-                                </label>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Nueva contraseña</span>
-                                    <div className="mi-cuenta-input-wrapper">
-                                        <input
-                                            className="mi-cuenta-input"
-                                            type={mostrarNueva ? 'text' : 'password'}
-                                            value={nuevaContrasena}
-                                            disabled={passwordSubmitting}
-                                            onChange={(event) => {
-                                                setNuevaContrasena(event.target.value);
-                                                setPasswordSaved(false);
-                                                setPasswordGeneralError('');
-                                            }}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="mi-cuenta-toggle-visibility"
-                                            disabled={passwordSubmitting}
-                                            onClick={() => setMostrarNueva((prev) => !prev)}
-                                            aria-label={mostrarNueva ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
-                                        >
-                                            <VisibilityIcon isVisible={mostrarNueva} />
-                                        </button>
-                                    </div>
-                                    {nuevaContrasenaError && <span className="mi-cuenta-error">{nuevaContrasenaError}</span>}
-                                </label>
+                                <PasswordVisibilityInputField
+                                    label="Contraseña actual"
+                                    value={contrasenaActual}
+                                    isVisible={mostrarActual}
+                                    disabled={passwordSubmitting}
+                                    inputClassName={`mi-cuenta-input ${highlightCurrentPassword ? 'is-invalid' : ''}`}
+                                    ariaLabelWhenVisible="Ocultar contraseña actual"
+                                    ariaLabelWhenHidden="Mostrar contraseña actual"
+                                    errorMessage={contrasenaActualError}
+                                    secondaryErrorMessage={highlightCurrentPassword ? 'Revisa la contraseña actual antes de intentar nuevamente.' : ''}
+                                    onChange={(value) => {
+                                        setContrasenaActual(value);
+                                        setPasswordSaved(false);
+                                        setPasswordGeneralError('');
+                                        setHighlightCurrentPassword(false);
+                                    }}
+                                    onToggleVisibility={() => setMostrarActual((prev) => !prev)}
+                                />
+                                <PasswordVisibilityInputField
+                                    label="Nueva contraseña"
+                                    value={nuevaContrasena}
+                                    isVisible={mostrarNueva}
+                                    disabled={passwordSubmitting}
+                                    ariaLabelWhenVisible="Ocultar nueva contraseña"
+                                    ariaLabelWhenHidden="Mostrar nueva contraseña"
+                                    errorMessage={nuevaContrasenaError}
+                                    onChange={(value) => {
+                                        setNuevaContrasena(value);
+                                        setPasswordSaved(false);
+                                        setPasswordGeneralError('');
+                                    }}
+                                    onToggleVisibility={() => setMostrarNueva((prev) => !prev)}
+                                />
                                 <div className="password-checklist">
                                     <span className="password-checklist-title">Requisitos de contraseña</span>
                                     <div className="password-checklist-grid">
@@ -433,32 +456,21 @@ export default function MiCuenta() {
                                         ))}
                                     </div>
                                 </div>
-                                <label className="mi-cuenta-input-group">
-                                    <span className="mi-cuenta-input-label">Confirmar nueva contraseña</span>
-                                    <div className="mi-cuenta-input-wrapper">
-                                        <input
-                                            className="mi-cuenta-input"
-                                            type={mostrarConfirmar ? 'text' : 'password'}
-                                            value={confirmarNueva}
-                                            disabled={passwordSubmitting}
-                                            onChange={(event) => {
-                                                setConfirmarNueva(event.target.value);
-                                                setPasswordSaved(false);
-                                                setPasswordGeneralError('');
-                                            }}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="mi-cuenta-toggle-visibility"
-                                            disabled={passwordSubmitting}
-                                            onClick={() => setMostrarConfirmar((prev) => !prev)}
-                                            aria-label={mostrarConfirmar ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
-                                        >
-                                            <VisibilityIcon isVisible={mostrarConfirmar} />
-                                        </button>
-                                    </div>
-                                    {confirmarContrasenaError && <span className="mi-cuenta-error">{confirmarContrasenaError}</span>}
-                                </label>
+                                <PasswordVisibilityInputField
+                                    label="Confirmar nueva contraseña"
+                                    value={confirmarNueva}
+                                    isVisible={mostrarConfirmar}
+                                    disabled={passwordSubmitting}
+                                    ariaLabelWhenVisible="Ocultar confirmación de contraseña"
+                                    ariaLabelWhenHidden="Mostrar confirmación de contraseña"
+                                    errorMessage={confirmarContrasenaError}
+                                    onChange={(value) => {
+                                        setConfirmarNueva(value);
+                                        setPasswordSaved(false);
+                                        setPasswordGeneralError('');
+                                    }}
+                                    onToggleVisibility={() => setMostrarConfirmar((prev) => !prev)}
+                                />
 
                                 {passwordSaved && (
                                     <div className="mi-cuenta-success">Contraseña actualizada.</div>
