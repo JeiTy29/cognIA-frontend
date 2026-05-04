@@ -48,7 +48,7 @@
 
 .role-card-vertical:hover {
     border-color: #1790E9;
-    background-color: #ffffff;
+    background-color: #f8fafc;
     transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(23, 144, 233, 0.15);
 }
@@ -71,7 +71,7 @@
     flex-shrink: 0;
     display: grid;
     place-items: center;
-    color: #0f3a59;
+    color: #111827;
     font-size: 24px;
     font-weight: 600;
     font-family: 'Segoe UI', sans-serif;
@@ -139,7 +139,7 @@
 }
 
 .role-tag.clickeable:hover {
-    background-color: #ffffff;
+    background-color: #f8fafc;
     border-color: #1790E9;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(23, 144, 233, 0.2);
@@ -223,10 +223,10 @@
 
 .checkbox-hint {
     font-size: 12px;
-    color: #1790E9;
+    color: #111827;
     margin: 0;
     padding: 8px 12px;
-    background: rgba(11, 111, 184, 0.12);
+    background: #dbeafe;
     border-radius: 6px;
     border-left: 3px solid #1790E9;
 }
@@ -306,3 +306,5 @@
     gap: 10px;
     margin-bottom: 20px;
 }
+
+

@@ -1,0 +1,1802 @@
+﻿{
+    "total":  6,
+    "issues":  [
+                   {
+                       "key":  "AZ3wqafMYZ92uI63ktjx",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  295,
+                       "hash":  "4d8af8b18ae439efff9067b01ac7516d",
+                       "textRange":  {
+                                         "startLine":  295,
+                                         "endLine":  295,
+                                         "startOffset":  16,
+                                         "endOffset":  29
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  331,
+                                                                                 "endLine":  331,
+                                                                                 "startOffset":  53,
+                                                                                 "endOffset":  54
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  334,
+                                                                                 "endLine":  334,
+                                                                                 "startOffset":  33,
+                                                                                 "endOffset":  34
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  335,
+                                                                                 "endLine":  335,
+                                                                                 "startOffset":  31,
+                                                                                 "endOffset":  32
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  596,
+                                                                                 "endLine":  596,
+                                                                                 "startOffset":  23,
+                                                                                 "endOffset":  24
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  649,
+                                                                                 "endLine":  649,
+                                                                                 "startOffset":  35,
+                                                                                 "endOffset":  36
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  650,
+                                                                                 "endLine":  650,
+                                                                                 "startOffset":  33,
+                                                                                 "endOffset":  34
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  651,
+                                                                                 "endLine":  651,
+                                                                                 "startOffset":  34,
+                                                                                 "endOffset":  35
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  653,
+                                                                                 "endLine":  653,
+                                                                                 "startOffset":  53,
+                                                                                 "endOffset":  54
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  653,
+                                                                                 "endLine":  653,
+                                                                                 "startOffset":  36,
+                                                                                 "endOffset":  38
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  668,
+                                                                                 "endLine":  668,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  674,
+                                                                                 "endLine":  674,
+                                                                                 "startOffset":  68,
+                                                                                 "endOffset":  69
+                                                                             },
+                                                               "msg":  "+3 (incl. 2 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  700,
+                                                                                 "endLine":  700,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  705,
+                                                                                 "endLine":  705,
+                                                                                 "startOffset":  62,
+                                                                                 "endOffset":  63
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  721,
+                                                                                 "endLine":  721,
+                                                                                 "startOffset":  51,
+                                                                                 "endOffset":  52
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  811,
+                                                                                 "endLine":  811,
+                                                                                 "startOffset":  60,
+                                                                                 "endOffset":  61
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Historial/HistorialBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  834,
+                                                                                 "endLine":  834,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 24 to the 15 allowed.",
+                       "effort":  "14min",
+                       "debt":  "14min",
+                       "author":  "164763031+jeity29@users.noreply.github.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-05-04T01:43:15+0000",
+                       "updateDate":  "2026-05-04T17:24:41+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "bc284120-17fd-4633-ac13-413b918a16a2",
+                       "lastChangeSource":  "USER"
+                   },
+                   {
+                       "key":  "AZ3pW7V7XiTxNghnGRsR",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  1103,
+                       "hash":  "9c5b8f22a11555a4a99f9ae74ba6680f",
+                       "textRange":  {
+                                         "startLine":  1103,
+                                         "endLine":  1103,
+                                         "startOffset":  24,
+                                         "endOffset":  36
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1409,
+                                                                                 "endLine":  1409,
+                                                                                 "startOffset":  42,
+                                                                                 "endOffset":  43
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1410,
+                                                                                 "endLine":  1410,
+                                                                                 "startOffset":  43,
+                                                                                 "endOffset":  44
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1413,
+                                                                                 "endLine":  1413,
+                                                                                 "startOffset":  12,
+                                                                                 "endOffset":  13
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1412,
+                                                                                 "endLine":  1412,
+                                                                                 "startOffset":  24,
+                                                                                 "endOffset":  26
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1415,
+                                                                                 "endLine":  1415,
+                                                                                 "startOffset":  40,
+                                                                                 "endOffset":  41
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1416,
+                                                                                 "endLine":  1416,
+                                                                                 "startOffset":  42,
+                                                                                 "endOffset":  43
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1584,
+                                                                                 "endLine":  1584,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  46
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1584,
+                                                                                 "endLine":  1584,
+                                                                                 "startOffset":  24,
+                                                                                 "endOffset":  26
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1590,
+                                                                                 "endLine":  1590,
+                                                                                 "startOffset":  43,
+                                                                                 "endOffset":  44
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1600,
+                                                                                 "endLine":  1600,
+                                                                                 "startOffset":  33,
+                                                                                 "endOffset":  34
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1619,
+                                                                                 "endLine":  1619,
+                                                                                 "startOffset":  25,
+                                                                                 "endOffset":  26
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1625,
+                                                                                 "endLine":  1625,
+                                                                                 "startOffset":  89,
+                                                                                 "endOffset":  90
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1625,
+                                                                                 "endLine":  1625,
+                                                                                 "startOffset":  140,
+                                                                                 "endOffset":  141
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1636,
+                                                                                 "endLine":  1636,
+                                                                                 "startOffset":  82,
+                                                                                 "endOffset":  83
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1675,
+                                                                                 "endLine":  1675,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  46
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1690,
+                                                                                 "endLine":  1690,
+                                                                                 "startOffset":  42,
+                                                                                 "endOffset":  43
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1697,
+                                                                                 "endLine":  1697,
+                                                                                 "startOffset":  35,
+                                                                                 "endOffset":  36
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1708,
+                                                                                 "endLine":  1708,
+                                                                                 "startOffset":  50,
+                                                                                 "endOffset":  51
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1720,
+                                                                                 "endLine":  1720,
+                                                                                 "startOffset":  23,
+                                                                                 "endOffset":  24
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1753,
+                                                                                 "endLine":  1753,
+                                                                                 "startOffset":  52,
+                                                                                 "endOffset":  53
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1821,
+                                                                                 "endLine":  1821,
+                                                                                 "startOffset":  19,
+                                                                                 "endOffset":  20
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Cuestionario/Cuestionario.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  1862,
+                                                                                 "endLine":  1862,
+                                                                                 "startOffset":  59,
+                                                                                 "endOffset":  60
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 27 to the 15 allowed.",
+                       "effort":  "17min",
+                       "debt":  "17min",
+                       "author":  "164763031+jeity29@users.noreply.github.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-04-29T01:31:06+0000",
+                       "updateDate":  "2026-05-04T17:24:45+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "bc284120-17fd-4633-ac13-413b918a16a2",
+                       "lastChangeSource":  "USER"
+                   },
+                   {
+                       "key":  "AZ3pW7WuXiTxNghnGRs_",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  229,
+                       "hash":  "92f9303ac9289dc6d7a7c8108d9143fe",
+                       "textRange":  {
+                                         "startLine":  229,
+                                         "endLine":  229,
+                                         "startOffset":  24,
+                                         "endOffset":  32
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  268,
+                                                                                 "endLine":  268,
+                                                                                 "startOffset":  37,
+                                                                                 "endOffset":  39
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  336,
+                                                                                 "endLine":  336,
+                                                                                 "startOffset":  24,
+                                                                                 "endOffset":  26
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  488,
+                                                                                 "endLine":  488,
+                                                                                 "startOffset":  82,
+                                                                                 "endOffset":  83
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  495,
+                                                                                 "endLine":  495,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  500,
+                                                                                 "endLine":  500,
+                                                                                 "startOffset":  81,
+                                                                                 "endOffset":  82
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  515,
+                                                                                 "endLine":  515,
+                                                                                 "startOffset":  96,
+                                                                                 "endOffset":  97
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  519,
+                                                                                 "endLine":  519,
+                                                                                 "startOffset":  84,
+                                                                                 "endOffset":  85
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  593,
+                                                                                 "endLine":  593,
+                                                                                 "startOffset":  60,
+                                                                                 "endOffset":  61
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  601,
+                                                                                 "endLine":  601,
+                                                                                 "startOffset":  57,
+                                                                                 "endOffset":  58
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  618,
+                                                                                 "endLine":  618,
+                                                                                 "startOffset":  37,
+                                                                                 "endOffset":  38
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  619,
+                                                                                 "endLine":  619,
+                                                                                 "startOffset":  31,
+                                                                                 "endOffset":  32
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  625,
+                                                                                 "endLine":  625,
+                                                                                 "startOffset":  39,
+                                                                                 "endOffset":  40
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  629,
+                                                                                 "endLine":  629,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  46
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  629,
+                                                                                 "endLine":  629,
+                                                                                 "startOffset":  28,
+                                                                                 "endOffset":  30
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  630,
+                                                                                 "endLine":  630,
+                                                                                 "startOffset":  44,
+                                                                                 "endOffset":  45
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  662,
+                                                                                 "endLine":  662,
+                                                                                 "startOffset":  34,
+                                                                                 "endOffset":  35
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  663,
+                                                                                 "endLine":  663,
+                                                                                 "startOffset":  36,
+                                                                                 "endOffset":  37
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  677,
+                                                                                 "endLine":  677,
+                                                                                 "startOffset":  83,
+                                                                                 "endOffset":  84
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  684,
+                                                                                 "endLine":  684,
+                                                                                 "startOffset":  87,
+                                                                                 "endOffset":  88
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  692,
+                                                                                 "endLine":  692,
+                                                                                 "startOffset":  88,
+                                                                                 "endOffset":  89
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/MiCuenta/MiCuenta.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  711,
+                                                                                 "endLine":  711,
+                                                                                 "startOffset":  44,
+                                                                                 "endOffset":  45
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 23 to the 15 allowed.",
+                       "effort":  "13min",
+                       "debt":  "13min",
+                       "author":  "164763031+jeity29@users.noreply.github.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-04-24T08:59:13+0000",
+                       "updateDate":  "2026-05-04T17:24:48+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "bc284120-17fd-4633-ac13-413b918a16a2",
+                       "lastChangeSource":  "USER"
+                   },
+                   {
+                       "key":  "AZ3pW7YGXiTxNghnGRtj",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  127,
+                       "hash":  "232a57c0d24f0e316ff2344c037a2cc3",
+                       "textRange":  {
+                                         "startLine":  127,
+                                         "endLine":  127,
+                                         "startOffset":  24,
+                                         "endOffset":  27
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  255,
+                                                                                 "endLine":  255,
+                                                                                 "startOffset":  42,
+                                                                                 "endOffset":  43
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  258,
+                                                                                 "endLine":  258,
+                                                                                 "startOffset":  38,
+                                                                                 "endOffset":  39
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  273,
+                                                                                 "endLine":  273,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  46
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  274,
+                                                                                 "endLine":  274,
+                                                                                 "startOffset":  47,
+                                                                                 "endOffset":  48
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  276,
+                                                                                 "endLine":  276,
+                                                                                 "startOffset":  44,
+                                                                                 "endOffset":  45
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  312,
+                                                                                 "endLine":  312,
+                                                                                 "startOffset":  89,
+                                                                                 "endOffset":  90
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  321,
+                                                                                 "endLine":  321,
+                                                                                 "startOffset":  93,
+                                                                                 "endOffset":  94
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  327,
+                                                                                 "endLine":  327,
+                                                                                 "startOffset":  52,
+                                                                                 "endOffset":  53
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  341,
+                                                                                 "endLine":  341,
+                                                                                 "startOffset":  48,
+                                                                                 "endOffset":  49
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/MFA/MFA.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  347,
+                                                                                 "endLine":  347,
+                                                                                 "startOffset":  38,
+                                                                                 "endOffset":  39
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.",
+                       "effort":  "7min",
+                       "debt":  "7min",
+                       "author":  "164763031+jeity29@users.noreply.github.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-04-23T05:47:03+0000",
+                       "updateDate":  "2026-05-04T17:24:53+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "0de470e0-deb4-46af-a548-9cfc242b2414",
+                       "lastChangeSource":  "USER"
+                   },
+                   {
+                       "key":  "AZ3pW7WGXiTxNghnGRso",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  207,
+                       "hash":  "2f570b251ca424cb1636bffffe837a68",
+                       "textRange":  {
+                                         "startLine":  207,
+                                         "endLine":  207,
+                                         "startOffset":  24,
+                                         "endOffset":  33
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  249,
+                                                                                 "endLine":  249,
+                                                                                 "startOffset":  46,
+                                                                                 "endOffset":  47
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  250,
+                                                                                 "endLine":  250,
+                                                                                 "startOffset":  51,
+                                                                                 "endOffset":  52
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  254,
+                                                                                 "endLine":  254,
+                                                                                 "startOffset":  36,
+                                                                                 "endOffset":  37
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  255,
+                                                                                 "endLine":  255,
+                                                                                 "startOffset":  34,
+                                                                                 "endOffset":  35
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  387,
+                                                                                 "endLine":  387,
+                                                                                 "startOffset":  81,
+                                                                                 "endOffset":  82
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  391,
+                                                                                 "endLine":  391,
+                                                                                 "startOffset":  71,
+                                                                                 "endOffset":  72
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  403,
+                                                                                 "endLine":  403,
+                                                                                 "startOffset":  93,
+                                                                                 "endOffset":  94
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  407,
+                                                                                 "endLine":  407,
+                                                                                 "startOffset":  88,
+                                                                                 "endOffset":  89
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  447,
+                                                                                 "endLine":  447,
+                                                                                 "startOffset":  52,
+                                                                                 "endOffset":  53
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  457,
+                                                                                 "endLine":  457,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  46
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  458,
+                                                                                 "endLine":  458,
+                                                                                 "startOffset":  47,
+                                                                                 "endOffset":  48
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  468,
+                                                                                 "endLine":  468,
+                                                                                 "startOffset":  58,
+                                                                                 "endOffset":  59
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  478,
+                                                                                 "endLine":  478,
+                                                                                 "startOffset":  80,
+                                                                                 "endOffset":  81
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  482,
+                                                                                 "endLine":  482,
+                                                                                 "startOffset":  92,
+                                                                                 "endOffset":  93
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  517,
+                                                                                 "endLine":  517,
+                                                                                 "startOffset":  42,
+                                                                                 "endOffset":  43
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  518,
+                                                                                 "endLine":  518,
+                                                                                 "startOffset":  44,
+                                                                                 "endOffset":  45
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  519,
+                                                                                 "endLine":  519,
+                                                                                 "startOffset":  67,
+                                                                                 "endOffset":  68
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  519,
+                                                                                 "endLine":  519,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  47
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  525,
+                                                                                 "endLine":  525,
+                                                                                 "startOffset":  65,
+                                                                                 "endOffset":  66
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  525,
+                                                                                 "endLine":  525,
+                                                                                 "startOffset":  45,
+                                                                                 "endOffset":  47
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  617,
+                                                                                 "endLine":  617,
+                                                                                 "startOffset":  40,
+                                                                                 "endOffset":  41
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  657,
+                                                                                 "endLine":  657,
+                                                                                 "startOffset":  71,
+                                                                                 "endOffset":  72
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Plataforma/Ayuda/AyudaBase.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  671,
+                                                                                 "endLine":  671,
+                                                                                 "startOffset":  60,
+                                                                                 "endOffset":  61
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 25 to the 15 allowed.",
+                       "effort":  "15min",
+                       "debt":  "15min",
+                       "author":  "164763031+jeity29@users.noreply.github.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-04-17T22:30:27+0000",
+                       "updateDate":  "2026-05-04T17:24:56+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "bc284120-17fd-4633-ac13-413b918a16a2",
+                       "lastChangeSource":  "USER"
+                   },
+                   {
+                       "key":  "AZ3pW7X9XiTxNghnGRth",
+                       "rule":  "typescript:S3776",
+                       "severity":  "CRITICAL",
+                       "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                       "project":  "JeiTy29_cognIA-frontend",
+                       "line":  48,
+                       "hash":  "3d7ad085098db10801ba8f64c9ae872f",
+                       "textRange":  {
+                                         "startLine":  48,
+                                         "endLine":  48,
+                                         "startOffset":  24,
+                                         "endOffset":  45
+                                     },
+                       "flows":  [
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  76,
+                                                                                 "endLine":  76,
+                                                                                 "startOffset":  54,
+                                                                                 "endOffset":  56
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  93,
+                                                                                 "endLine":  93,
+                                                                                 "startOffset":  21,
+                                                                                 "endOffset":  23
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  188,
+                                                                                 "endLine":  188,
+                                                                                 "startOffset":  38,
+                                                                                 "endOffset":  39
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  192,
+                                                                                 "endLine":  192,
+                                                                                 "startOffset":  38,
+                                                                                 "endOffset":  39
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  199,
+                                                                                 "endLine":  199,
+                                                                                 "startOffset":  37,
+                                                                                 "endOffset":  38
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  203,
+                                                                                 "endLine":  203,
+                                                                                 "startOffset":  51,
+                                                                                 "endOffset":  52
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  220,
+                                                                                 "endLine":  220,
+                                                                                 "startOffset":  57,
+                                                                                 "endOffset":  58
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  224,
+                                                                                 "endLine":  224,
+                                                                                 "startOffset":  46,
+                                                                                 "endOffset":  47
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  231,
+                                                                                 "endLine":  231,
+                                                                                 "startOffset":  50,
+                                                                                 "endOffset":  51
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  248,
+                                                                                 "endLine":  248,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  252,
+                                                                                 "endLine":  252,
+                                                                                 "startOffset":  56,
+                                                                                 "endOffset":  57
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  253,
+                                                                                 "endLine":  253,
+                                                                                 "startOffset":  63,
+                                                                                 "endOffset":  64
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  254,
+                                                                                 "endLine":  254,
+                                                                                 "startOffset":  52,
+                                                                                 "endOffset":  53
+                                                                             },
+                                                               "msg":  "+2 (incl. 1 for nesting)"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  257,
+                                                                                 "endLine":  257,
+                                                                                 "startOffset":  50,
+                                                                                 "endOffset":  51
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  261,
+                                                                                 "endLine":  261,
+                                                                                 "startOffset":  43,
+                                                                                 "endOffset":  44
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  264,
+                                                                                 "endLine":  264,
+                                                                                 "startOffset":  51,
+                                                                                 "endOffset":  52
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     },
+                                     {
+                                         "locations":  [
+                                                           {
+                                                               "component":  "JeiTy29_cognIA-frontend:src/pages/Autenticacion/RestablecerContraseÃ±a/RestablecerContraseÃ±a.tsx",
+                                                               "textRange":  {
+                                                                                 "startLine":  289,
+                                                                                 "endLine":  289,
+                                                                                 "startOffset":  25,
+                                                                                 "endOffset":  26
+                                                                             },
+                                                               "msg":  "+1"
+                                                           }
+                                                       ]
+                                     }
+                                 ],
+                       "resolution":  "WONTFIX",
+                       "status":  "RESOLVED",
+                       "message":  "Refactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed.",
+                       "effort":  "9min",
+                       "debt":  "9min",
+                       "assignee":  "JeiTy29-aYeTA@github",
+                       "author":  "thomascristancho29@gmail.com",
+                       "tags":  [
+                                    "brain-overload"
+                                ],
+                       "creationDate":  "2026-02-26T01:00:19+0000",
+                       "updateDate":  "2026-05-04T17:25:00+0000",
+                       "type":  "CODE_SMELL",
+                       "organization":  "jeity29",
+                       "cleanCodeAttribute":  "FOCUSED",
+                       "cleanCodeAttributeCategory":  "ADAPTABLE",
+                       "impacts":  [
+                                       {
+                                           "softwareQuality":  "MAINTAINABILITY",
+                                           "severity":  "HIGH"
+                                       }
+                                   ],
+                       "issueStatus":  "ACCEPTED",
+                       "projectName":  "cognIA-frontend",
+                       "internalTags":  [
+
+                                        ],
+                       "lastChangeAnalysisUuid":  "bc284120-17fd-4633-ac13-413b918a16a2",
+                       "lastChangeSource":  "USER"
+                   }
+               ]
+}

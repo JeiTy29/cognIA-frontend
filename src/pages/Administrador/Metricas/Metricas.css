@@ -1,4 +1,4 @@
-.metricas {
+﻿.metricas {
     padding: 32px 40px 40px;
     color: #0b2540;
     background: #ffffff;
@@ -20,7 +20,7 @@
 .metricas-refresh {
     background: #0b6fb8;
     border: none;
-    color: #ffffff;
+    color: #f8fafc;
     padding: 10px 18px;
     border-radius: 10px;
     font-weight: 600;
@@ -34,7 +34,7 @@
 
 .metricas-divider {
     height: 2px;
-    background: rgba(23, 144, 233, 0.2);
+    background: #dbeafe;
     margin: 18px 0 28px;
 }
 
@@ -64,11 +64,11 @@
     bottom: 6px;
     width: 4px;
     border-radius: 8px;
-    background: #1790E9;
+    background: #0d5f9a;
 }
 
 .metricas-block.accent-green::before { background: #1f9d55; }
-.metricas-block.accent-blue::before { background: #1790E9; }
+.metricas-block.accent-blue::before { background: #0d5f9a; }
 .metricas-block.accent-slate::before { background: #0b3a68; }
 .metricas-block.accent-red::before { background: #dc3545; }
 
@@ -142,7 +142,7 @@
 .metricas-latency-bar span {
     display: block;
     height: 100%;
-    background: #1790E9;
+    background: #0d5f9a;
 }
 
 .metricas-badge {
@@ -151,8 +151,8 @@
     justify-content: center;
     padding: 4px 10px;
     border-radius: 999px;
-    background: rgba(23, 144, 233, 0.12);
-    color: #0f3a59;
+    background: #dbeafe;
+    color: #111827;
     font-size: 12px;
     font-weight: 600;
     max-width: fit-content;
@@ -287,7 +287,7 @@
 }
 
 .indicator.green { background: #1f9d55; }
-.indicator.blue { background: #1790E9; }
+.indicator.blue { background: #0d5f9a; }
 .indicator.teal { background: #1b7f9a; }
 .indicator.orange { background: #f0ad4e; }
 .indicator.yellow { background: #f0ad4e; }
@@ -297,8 +297,8 @@
     margin-top: 16px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: rgba(220, 53, 69, 0.1);
-    color: #7f1d1d;
+    background: #fee2e2;
+    color: #111827;
     font-size: 13px;
 }
 
@@ -381,3 +381,5 @@
         grid-template-columns: 1fr;
     }
 }
+
+

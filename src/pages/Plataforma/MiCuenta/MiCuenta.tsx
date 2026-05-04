@@ -21,6 +21,157 @@ function buildMfaDisablePayload(disableMode: 'totp' | 'recovery', disablePasswor
     return { password: disablePassword, recovery_code: disableCode };
 }
 
+type PasswordSubmitFailure =
+    | { type: 'highlight'; message: string }
+    | { type: 'redirect' }
+    | { type: 'message'; message: string };
+
+function resolvePasswordSubmitFailure(error: unknown): PasswordSubmitFailure {
+    if (error instanceof ApiError && error.status === 400) {
+        return {
+            type: 'highlight',
+            message: 'Datos inválidos. Verifica la contraseña actual y la nueva contraseña.'
+        };
+    }
+    if (error instanceof ApiError && error.status === 401) {
+        return { type: 'redirect' };
+    }
+    if (error instanceof ApiError && error.status === 403) {
+        return { type: 'message', message: 'No tienes permisos para realizar esta acción.' };
+    }
+    if (error instanceof ApiError && error.status === 429) {
+        return { type: 'message', message: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.' };
+    }
+    return { type: 'message', message: 'Ocurrió un error inesperado. Intenta más tarde.' };
+}
+
+type MfaSectionContentProps = Readonly<{
+    mfaMandatoryProfile: boolean;
+    mfaEnabled: boolean;
+    canDisableMfa: boolean;
+    onEnableMfa: () => void;
+    onDisableMfa: () => void;
+}>;
+
+function MfaSectionContent({
+    mfaMandatoryProfile,
+    mfaEnabled,
+    canDisableMfa,
+    onEnableMfa,
+    onDisableMfa
+}: MfaSectionContentProps) {
+    if (mfaMandatoryProfile) {
+        return (
+            <div className="mi-cuenta-mfa-required">
+                <span className="mi-cuenta-badge-required">Obligatorio</span>
+                <p className="mi-cuenta-section-note">
+                    Para este perfil, la verificación en dos pasos debe permanecer activa.
+                </p>
+                {mfaEnabled ? (
+                    <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                ) : (
+                    <>
+                        <p className="mi-cuenta-section-note">Configura MFA para continuar con la protección obligatoria.</p>
+                        <button
+                            type="button"
+                            className="mi-cuenta-btn primary"
+                            onClick={onEnableMfa}
+                        >
+                            Activar MFA
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    if (mfaEnabled) {
+        return (
+            <>
+                <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
+                {canDisableMfa ? (
+                    <button
+                        type="button"
+                        className="mi-cuenta-btn primary"
+                        onClick={onDisableMfa}
+                    >
+                        Desactivar MFA
+                    </button>
+                ) : null}
+            </>
+        );
+    }
+
+    return (
+        <>
+            <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
+            <button
+                type="button"
+                className="mi-cuenta-btn primary"
+                onClick={onEnableMfa}
+            >
+                Activar MFA
+            </button>
+        </>
+    );
+}
+
+type RunDisableMfaFlowArgs = Readonly<{
+    accessToken: string | null;
+    disableMode: 'totp' | 'recovery';
+    disablePassword: string;
+    disableCode: string;
+    clearSession: (reason: 'manual' | 'expired') => void;
+    navigate: ReturnType<typeof useNavigate>;
+    setDisableLoading: (value: boolean) => void;
+    setDisableError: (value: string | null) => void;
+    setDisableSuccess: (value: string | null) => void;
+    setShowMfaDisable: (value: boolean) => void;
+}>;
+
+async function runDisableMfaFlow({
+    accessToken,
+    disableMode,
+    disablePassword,
+    disableCode,
+    clearSession,
+    navigate,
+    setDisableLoading,
+    setDisableError,
+    setDisableSuccess,
+    setShowMfaDisable
+}: RunDisableMfaFlowArgs) {
+    if (!accessToken) {
+        setDisableError('Inicia sesión para continuar.');
+        return;
+    }
+    if (!disablePassword.trim() || !disableCode.trim()) {
+        setDisableError('Completa los datos requeridos.');
+        return;
+    }
+
+    setDisableLoading(true);
+    setDisableError(null);
+    try {
+        const payload = buildMfaDisablePayload(disableMode, disablePassword, disableCode);
+        await mfaDisable(accessToken, payload);
+        setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
+        globalThis.setTimeout(() => {
+            setShowMfaDisable(false);
+            clearSession('manual');
+            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+        }, 600);
+    } catch (error) {
+        if (error instanceof ApiError) {
+            setDisableError('No fue posible desactivar MFA. Verifica los datos.');
+        } else {
+            setDisableError('No fue posible desactivar MFA. Intenta nuevamente.');
+        }
+    } finally {
+        setDisableLoading(false);
+    }
+}
+
 type PasswordVisibilityInputFieldProps = Readonly<{
     label: string;
     value: string;
@@ -121,66 +272,10 @@ export default function MiCuenta() {
     const nombreCompleto = profile?.full_name ?? '—';
     const tarjetaProfesional = profile?.professional_card_number ?? '—';
     const mfaEnabled = profile?.mfa_enabled ?? false;
-
-    const renderMfaSectionContent = () => {
-        if (mfaMandatoryProfile) {
-            return (
-                <div className="mi-cuenta-mfa-required">
-                    <span className="mi-cuenta-badge-required">Obligatorio</span>
-                    <p className="mi-cuenta-section-note">
-                        Para este perfil, la verificación en dos pasos debe permanecer activa.
-                    </p>
-                    {mfaEnabled ? (
-                        <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                    ) : (
-                        <>
-                            <p className="mi-cuenta-section-note">Configura MFA para continuar con la protección obligatoria.</p>
-                            <button
-                                type="button"
-                                className="mi-cuenta-btn primary"
-                                onClick={() => setShowMfaSetup(true)}
-                            >
-                                Activar MFA
-                            </button>
-                        </>
-                    )}
-                </div>
-            );
-        }
-
-        if (mfaEnabled) {
-            return (
-                <>
-                    <p className="mi-cuenta-section-note">MFA activo para tu cuenta.</p>
-                    {canDisableMfa ? (
-                        <button
-                            type="button"
-                            className="mi-cuenta-btn primary"
-                            onClick={() => {
-                                setDisableError(null);
-                                setDisableSuccess(null);
-                                setShowMfaDisable(true);
-                            }}
-                        >
-                            Desactivar MFA
-                        </button>
-                    ) : null}
-                </>
-            );
-        }
-
-        return (
-            <>
-                <p className="mi-cuenta-section-note">Activa la verificación en dos pasos para proteger tu cuenta.</p>
-                <button
-                    type="button"
-                    className="mi-cuenta-btn primary"
-                    onClick={() => setShowMfaSetup(true)}
-                >
-                    Activar MFA
-                </button>
-            </>
-        );
+    const openMfaDisableModal = () => {
+        setDisableError(null);
+        setDisableSuccess(null);
+        setShowMfaDisable(true);
     };
 
     useEffect(() => {
@@ -282,30 +377,20 @@ export default function MiCuenta() {
             setMostrarNueva(false);
             setMostrarConfirmar(false);
         } catch (error) {
-            if (error instanceof ApiError) {
-                if (error.status === 400) {
-                    setHighlightCurrentPassword(true);
-                    setPasswordGeneralError('Datos inválidos. Verifica la contraseña actual y la nueva contraseña.');
-                    return;
-                }
-                if (error.status === 401) {
-                    clearSession('expired');
-                    navigate('/inicio-sesion', {
-                        replace: true,
-                        state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
-                    });
-                    return;
-                }
-                if (error.status === 403) {
-                    setPasswordGeneralError('No tienes permisos para realizar esta acción.');
-                    return;
-                }
-                if (error.status === 429) {
-                    setPasswordGeneralError('Demasiados intentos. Espera un momento e inténtalo de nuevo.');
-                    return;
-                }
+            const submitFailure = resolvePasswordSubmitFailure(error);
+            if (submitFailure.type === 'redirect') {
+                clearSession('expired');
+                navigate('/inicio-sesion', {
+                    replace: true,
+                    state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
+                });
+                return;
             }
-            setPasswordGeneralError('Ocurrió un error inesperado. Intenta más tarde.');
+
+            if (submitFailure.type === 'highlight') {
+                setHighlightCurrentPassword(true);
+            }
+            setPasswordGeneralError(submitFailure.message);
         } finally {
             setPasswordSubmitting(false);
         }
@@ -338,6 +423,21 @@ export default function MiCuenta() {
     const handleDevLogout = () => {
         devLogout();
         navigate('/inicio-sesion', { replace: true });
+    };
+
+    const handleDisableMfaConfirm = () => {
+        runDisableMfaFlow({
+            accessToken,
+            disableMode,
+            disablePassword,
+            disableCode,
+            clearSession,
+            navigate,
+            setDisableLoading,
+            setDisableError,
+            setDisableSuccess,
+            setShowMfaDisable
+        }).catch(() => undefined);
     };
 
     return (
@@ -501,7 +601,13 @@ export default function MiCuenta() {
                 {(isGuardian || isPsychologist || isAdmin) && (
                     <section className="info-card mi-cuenta-section mi-cuenta-mfa">
                         <h2 className="mi-cuenta-section-title">Verificación en dos pasos (MFA)</h2>
-                        {renderMfaSectionContent()}
+                        <MfaSectionContent
+                            mfaMandatoryProfile={mfaMandatoryProfile}
+                            mfaEnabled={mfaEnabled}
+                            canDisableMfa={canDisableMfa}
+                            onEnableMfa={() => setShowMfaSetup(true)}
+                            onDisableMfa={openMfaDisableModal}
+                        />
                     </section>
                 )}
 
@@ -600,36 +706,7 @@ export default function MiCuenta() {
                             type="button"
                             className="mi-cuenta-btn primary"
                             disabled={disableLoading}
-                            onClick={async () => {
-                                if (!accessToken) {
-                                    setDisableError('Inicia sesión para continuar.');
-                                    return;
-                                }
-                                if (!disablePassword.trim() || !disableCode.trim()) {
-                                    setDisableError('Completa los datos requeridos.');
-                                    return;
-                                }
-                                setDisableLoading(true);
-                                setDisableError(null);
-                                try {
-                                    const payload = buildMfaDisablePayload(disableMode, disablePassword, disableCode);
-                                    await mfaDisable(accessToken, payload);
-                                    setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
-                                    globalThis.setTimeout(() => {
-                                        setShowMfaDisable(false);
-                                        clearSession('manual');
-                                        navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
-                                    }, 600);
-                                } catch (error) {
-                                    if (error instanceof ApiError) {
-                                        setDisableError('No fue posible desactivar MFA. Verifica los datos.');
-                                    } else {
-                                        setDisableError('No fue posible desactivar MFA. Intenta nuevamente.');
-                                    }
-                                } finally {
-                                    setDisableLoading(false);
-                                }
-                            }}
+                            onClick={handleDisableMfaConfirm}
                         >
                             {disableLoading ? 'Procesando...' : 'Confirmar'}
                         </button>

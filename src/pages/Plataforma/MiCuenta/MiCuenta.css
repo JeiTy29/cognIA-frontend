@@ -1,4 +1,4 @@
-.mi-cuenta-container {
+﻿.mi-cuenta-container {
     width: 100%;
     max-width: 980px;
     margin: 0 auto;
@@ -229,12 +229,12 @@
 }
 
 .mi-cuenta-success {
-    background: rgba(31, 157, 85, 0.12);
+    background: #dcfce7;
     border-left: 3px solid #1f8f4e;
     padding: 10px 12px;
     border-radius: 10px;
     font-size: 13px;
-    color: #14532d;
+    color: #111827;
 }
 
 .mi-cuenta-actions {
@@ -259,7 +259,7 @@
 
 .mi-cuenta-btn.primary {
     background: #0b6fb8;
-    color: #ffffff;
+    color: #f8fafc;
     box-shadow: 0 6px 14px rgba(23, 144, 233, 0.18);
 }
 
@@ -326,7 +326,7 @@
 
 .mi-cuenta-logout .mi-cuenta-btn {
     background: #215F8F;
-    color: #ffffff;
+    color: #f8fafc;
     border-color: transparent;
 }
 
@@ -367,7 +367,7 @@
 
 .mi-cuenta-segment.is-active {
     background: #0b6fb8;
-    color: #ffffff;
+    color: #f8fafc;
     box-shadow: 0 6px 14px rgba(23, 144, 233, 0.2);
 }
 
@@ -392,3 +392,5 @@
         align-self: stretch;
     }
 }
+
+
