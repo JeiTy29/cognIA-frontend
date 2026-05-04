@@ -1,4 +1,4 @@
-.dashboard-page {
+﻿.dashboard-page {
     padding: 32px 40px 40px;
     color: #0b2540;
     background: #ffffff;
@@ -53,7 +53,7 @@
     height: 40px;
     background: #0f6fb7;
     border: none;
-    color: #ffffff;
+    color: #f8fafc;
     padding: 0 16px;
     border-radius: 10px;
     font-weight: 600;
@@ -77,7 +77,7 @@
     border-radius: 10px;
     border: 1px solid rgba(240, 173, 78, 0.36);
     background: rgba(240, 173, 78, 0.12);
-    color: #78350f;
+    color: #111827;
     font-size: 13px;
 }
 
@@ -145,8 +145,8 @@
 
 .dashboard-node-chip {
     font-size: 12px;
-    color: #0f3a59;
-    background: rgba(23, 144, 233, 0.16);
+    color: #111827;
+    background: #dbeafe;
     border-radius: 999px;
     padding: 4px 8px;
 }
@@ -311,8 +311,8 @@
     gap: 4px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: rgba(220, 53, 69, 0.1);
-    color: #7f1d1d;
+    background: #fee2e2;
+    color: #111827;
     font-size: 13px;
 }
 
@@ -373,3 +373,5 @@
         animation: none;
     }
 }
+
+

@@ -14,13 +14,13 @@ import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 
 const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 const passwordRules = [
-    { id: 'length', label: 'Mínimo 8 caracteres', test: (value: string) => value.length >= 8 },
-    { id: 'upper', label: 'Al menos una mayúscula', test: (value: string) => /[A-Z]/.test(value) },
-    { id: 'lower', label: 'Al menos una minúscula', test: (value: string) => /[a-z]/.test(value) },
-    { id: 'number', label: 'Al menos un número', test: (value: string) => /\d/.test(value) },
+    { id: 'length', label: 'MÃ­nimo 8 caracteres', test: (value: string) => value.length >= 8 },
+    { id: 'upper', label: 'Al menos una mayÃºscula', test: (value: string) => /[A-Z]/.test(value) },
+    { id: 'lower', label: 'Al menos una minÃºscula', test: (value: string) => /[a-z]/.test(value) },
+    { id: 'number', label: 'Al menos un nÃºmero', test: (value: string) => /\d/.test(value) },
     {
         id: 'special',
-        label: 'Al menos un carácter especial (!@#$...)',
+        label: 'Al menos un carÃ¡cter especial (!@#$...)',
         test: (value: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
     }
 ];
@@ -53,6 +53,53 @@ type TermsConsentProps = Readonly<{
 }>;
 
 const LEGAL_LINK_CLASS_NAME = 'link-highlight auth-inline-link';
+
+type RegistrationValidationTarget = 'terms' | 'submit' | 'password' | 'confirm';
+
+function getRegistrationValidationError(input: {
+    role: TipoUsuario;
+    acceptsTerms: boolean;
+    openedTerms: boolean;
+    openedPrivacy: boolean;
+    username: string;
+    password: string;
+    confirmPassword: string;
+}): { target: RegistrationValidationTarget; message: string } | null {
+    if (!input.role) return null;
+
+    if (!input.acceptsTerms) {
+        return { target: 'terms', message: 'Debes aceptar los tÃ©rminos de uso y polÃ­ticas de privacidad' };
+    }
+
+    if (!input.openedTerms || !input.openedPrivacy) {
+        return { target: 'terms', message: 'Debes leer los tÃ©rminos de uso y polÃ­ticas de privacidad antes de continuar' };
+    }
+
+    if (!usernamePattern.test(input.username)) {
+        return { target: 'submit', message: 'Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres vÃ¡lidos.' };
+    }
+
+    const passwordError = validatePassword(input.password);
+    if (passwordError) {
+        return { target: 'password', message: passwordError };
+    }
+
+    if (input.password !== input.confirmPassword) {
+        return { target: 'confirm', message: 'Las contraseÃ±as no coinciden' };
+    }
+
+    return null;
+}
+
+function resolveRegisterSubmitError(error: unknown) {
+    if (error instanceof ApiError && error.status === 400) {
+        return 'Revisa los datos ingresados. Verifica correo/usuario y el formato de la contraseÃ±a.';
+    }
+    if (error instanceof ApiError && error.status === 500) {
+        return 'OcurriÃ³ un error en el servidor. Intenta nuevamente en unos minutos.';
+    }
+    return 'OcurriÃ³ un error al registrar. Intenta nuevamente.';
+}
 
 function PasswordVisibilityIcon({ visible }: Readonly<{ visible: boolean }>) {
     return <SharedPasswordVisibilityIcon visible={visible} />;
@@ -88,12 +135,12 @@ function PasswordField({
 function PasswordChecklist({ checks }: Readonly<{ checks: PasswordCheck[] }>) {
     return (
         <div className="password-checklist">
-            <span className="password-checklist-title">Requisitos de contraseña</span>
+            <span className="password-checklist-title">Requisitos de contraseÃ±a</span>
             <div className="password-checklist-grid">
                 {checks.map((check) => (
                     <div key={check.id} className={`password-check ${check.valid ? 'is-valid' : 'is-invalid'}`}>
                         <span className="password-check-indicator" aria-hidden="true">
-                            {check.valid ? '✓' : '•'}
+                            {check.valid ? 'âœ“' : 'â€¢'}
                         </span>
                         <span>{check.label}</span>
                     </div>
@@ -125,18 +172,18 @@ function TermsConsent({
                 />
                 <div className="terms-text-wrapper">
                     <label htmlFor="terms">
-                        Confirmo haber leído y acepto los{' '}
+                        Confirmo haber leÃ­do y acepto los{' '}
                         <button type="button" className={LEGAL_LINK_CLASS_NAME} onClick={onOpenTerms}>
-                            Términos de uso
+                            TÃ©rminos de uso
                         </button>
                         {' '}y{' '}
                         <button type="button" className={LEGAL_LINK_CLASS_NAME} onClick={onOpenPrivacy}>
-                            Políticas de privacidad
+                            PolÃ­ticas de privacidad
                         </button>
                     </label>
                     {!hasOpenedTerms || !hasOpenedPrivacy ? (
                         <p className="checkbox-hint">
-                            Por favor, lee los términos de uso y las políticas de privacidad antes de continuar
+                            Por favor, lee los tÃ©rminos de uso y las polÃ­ticas de privacidad antes de continuar
                         </p>
                     ) : null}
                 </div>
@@ -205,7 +252,7 @@ export default function Registro() {
         setErrorContrasena(validatePassword(value));
 
         if (confirmarContrasena && value !== confirmarContrasena) {
-            setErrorConfirmar('Las contraseñas no coinciden');
+            setErrorConfirmar('Las contraseÃ±as no coinciden');
             return;
         }
 
@@ -215,7 +262,7 @@ export default function Registro() {
     const handleConfirmarChange = (event: ChangeEvent<HTMLInputElement>) => {
         const value = event.target.value;
         setConfirmarContrasena(value);
-        setErrorConfirmar(value === contrasena ? '' : 'Las contraseñas no coinciden');
+        setErrorConfirmar(value === contrasena ? '' : 'Las contraseÃ±as no coinciden');
     };
 
     const handleRolTagClick = () => {
@@ -245,29 +292,25 @@ export default function Registro() {
 
         if (!rolSeleccionado) return;
 
-        if (!aceptaTerminos) {
-            setErrorTerminos('Debes aceptar los términos de uso y políticas de privacidad');
-            return;
-        }
-
-        if (!hasOpenedTerms || !hasOpenedPrivacy) {
-            setErrorTerminos('Debes leer los términos de uso y políticas de privacidad antes de continuar');
-            return;
-        }
-
-        if (!usernamePattern.test(username)) {
-            setSubmitError('Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres válidos.');
-            return;
-        }
-
-        const passwordError = validatePassword(contrasena);
-        if (passwordError) {
-            setErrorContrasena(passwordError);
-            return;
-        }
-
-        if (contrasena !== confirmarContrasena) {
-            setErrorConfirmar('Las contraseñas no coinciden');
+        const validationError = getRegistrationValidationError({
+            role: rolSeleccionado,
+            acceptsTerms: aceptaTerminos,
+            openedTerms: hasOpenedTerms,
+            openedPrivacy: hasOpenedPrivacy,
+            username,
+            password: contrasena,
+            confirmPassword: confirmarContrasena
+        });
+        if (validationError) {
+            if (validationError.target === 'terms') {
+                setErrorTerminos(validationError.message);
+            } else if (validationError.target === 'password') {
+                setErrorContrasena(validationError.message);
+            } else if (validationError.target === 'confirm') {
+                setErrorConfirmar(validationError.message);
+            } else {
+                setSubmitError(validationError.message);
+            }
             return;
         }
 
@@ -297,18 +340,7 @@ export default function Registro() {
                 navigate('/inicio-sesion');
             }, 1200);
         } catch (error) {
-            if (error instanceof ApiError) {
-                if (error.status === 400) {
-                    setSubmitError('Revisa los datos ingresados. Verifica correo/usuario y el formato de la contraseña.');
-                    return;
-                }
-                if (error.status === 500) {
-                    setSubmitError('Ocurrió un error en el servidor. Intenta nuevamente en unos minutos.');
-                    return;
-                }
-            }
-
-            setSubmitError('Ocurrió un error al registrar. Intenta nuevamente.');
+            setSubmitError(resolveRegisterSubmitError(error));
         }
     };
 
@@ -318,7 +350,7 @@ export default function Registro() {
             <PasswordField
                 value={contrasena}
                 visible={mostrarContrasena}
-                placeholder="Contraseña"
+                placeholder="ContraseÃ±a"
                 required
                 error={errorContrasena}
                 onChange={handleContrasenaChange}
@@ -328,7 +360,7 @@ export default function Registro() {
             <PasswordField
                 value={confirmarContrasena}
                 visible={mostrarConfirmar}
-                placeholder="Confirmar contraseña"
+                placeholder="Confirmar contraseÃ±a"
                 required
                 error={errorConfirmar}
                 onChange={handleConfirmarChange}
@@ -369,11 +401,11 @@ export default function Registro() {
                         </Link>
                     </div>
 
-                    <h1 className="auth-title">Regístrate</h1>
+                    <h1 className="auth-title">RegÃ­strate</h1>
 
                     <p className="auth-subtitle">
-                        ¿Ya tienes una cuenta?{' '}
-                        <Link to="/inicio-sesion" className="link-highlight">Inicia sesión</Link>
+                        Â¿Ya tienes una cuenta?{' '}
+                        <Link to="/inicio-sesion" className="link-highlight">Inicia sesiÃ³n</Link>
                     </p>
 
                     {devAuthActive ? (
@@ -389,7 +421,7 @@ export default function Registro() {
 
                             <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('psicologo')}>
                                 <div className="role-image-placeholder"></div>
-                                <h3 className="role-text">Soy psicólogo</h3>
+                                <h3 className="role-text">Soy psicÃ³logo</h3>
                             </button>
                         </div>
                     ) : (
@@ -400,7 +432,7 @@ export default function Registro() {
                                 onClick={handleRolTagClick}
                                 title="Haz clic para cambiar rol"
                             >
-                                {rolSeleccionado === 'padre' ? 'Soy padre, tutor o guardian' : 'Soy psicólogo'}
+                                {rolSeleccionado === 'padre' ? 'Soy padre, tutor o guardian' : 'Soy psicÃ³logo'}
                                 <span className="change-hint">cambiar rol</span>
                             </button>
 
@@ -415,7 +447,7 @@ export default function Registro() {
                                                 placeholder="Nombre de usuario"
                                                 value={username}
                                                 onChange={(event) => setUsername(event.target.value)}
-                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
+                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, nÃºmeros, punto, guion y guion bajo."
                                                 autoCapitalize="none"
                                                 required
                                             />
@@ -424,7 +456,7 @@ export default function Registro() {
                                             <input
                                                 type="email"
                                                 className="form-input"
-                                                placeholder="Correo electrónico"
+                                                placeholder="Correo electrÃ³nico"
                                                 value={email}
                                                 onChange={(event) => setEmail(event.target.value)}
                                                 required
@@ -452,7 +484,7 @@ export default function Registro() {
                                                 placeholder="Nombre de usuario"
                                                 value={username}
                                                 onChange={(event) => setUsername(event.target.value)}
-                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, números, punto, guion y guion bajo."
+                                                title="Debe tener entre 3 y 32 caracteres. Solo letras, nÃºmeros, punto, guion y guion bajo."
                                                 autoCapitalize="none"
                                                 required
                                             />
@@ -461,7 +493,7 @@ export default function Registro() {
                                             <input
                                                 type="email"
                                                 className="form-input"
-                                                placeholder="Correo electrónico"
+                                                placeholder="Correo electrÃ³nico"
                                                 value={email}
                                                 onChange={(event) => setEmail(event.target.value)}
                                                 required
@@ -471,7 +503,7 @@ export default function Registro() {
                                             <input
                                                 type="text"
                                                 className="form-input"
-                                                placeholder="Número de tarjeta profesional"
+                                                placeholder="NÃºmero de tarjeta profesional"
                                                 value={numeroOperador}
                                                 onChange={(event) => setNumeroOperador(event.target.value)}
                                                 required

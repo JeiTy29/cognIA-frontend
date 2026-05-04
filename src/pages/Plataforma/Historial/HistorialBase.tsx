@@ -77,7 +77,7 @@ const tagColorOptions = [
     { value: '#7b4bbf', label: 'Violeta' },
     { value: '#c23f5a', label: 'Frambuesa' },
     { value: '#4f7a6a', label: 'Oliva' },
-    { value: '#3e6ea8', label: 'Índigo' },
+    { value: '#3e6ea8', label: 'Ãndigo' },
     { value: '#6a6f7d', label: 'Gris' }
 ];
 
@@ -193,9 +193,9 @@ function getPdfStatusLabel(status: string | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
     if (!normalized) return 'Sin generar';
     if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
-    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
-    if (['processing', 'running', 'building'].includes(normalized)) return 'Generándose';
-    if (['failed', 'error'].includes(normalized)) return 'Error en generación';
+    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparaciÃ³n';
+    if (['processing', 'running', 'building'].includes(normalized)) return 'GenerÃ¡ndose';
+    if (['failed', 'error'].includes(normalized)) return 'Error en generaciÃ³n';
     return status ?? '--';
 }
 
@@ -204,8 +204,61 @@ function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number)
     if (named) return named;
     const mode = getModeLabel(item.mode, '');
     const status = getStatusLabel(item.status, '');
-    if (mode && status) return `${mode} · ${status}`;
+    if (mode && status) return `${mode} Â· ${status}`;
     return `Registro ${index + 1}`;
+}
+
+type HistoryDetailLoadResult =
+    | {
+        ok: true;
+        detail: QuestionnaireHistoryDetailV2DTO;
+        results: QuestionnaireSecureResultsV2DTO | null;
+        summary: QuestionnaireClinicalSummaryV2DTO | null;
+        notice: string | null;
+    }
+    | {
+        ok: false;
+        error: string;
+    };
+
+async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadResult> {
+    try {
+        const detail = await getQuestionnaireHistoryDetailV2(sessionId);
+        if (!canLoadClinicalArtifacts(detail.status)) {
+            return {
+                ok: true,
+                detail,
+                results: null,
+                summary: null,
+                notice: null
+            };
+        }
+
+        const [resultsResponse, summaryResponse] = await Promise.allSettled([
+            getQuestionnaireHistoryResultsV2(sessionId),
+            getQuestionnaireClinicalSummaryV2(sessionId)
+        ]);
+
+        const results = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
+        const summary = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
+        const notice =
+            summaryResponse.status === 'fulfilled' || resultsResponse.status !== 'fulfilled'
+                ? null
+                : 'No fue posible generar el informe orientativo en este momento.';
+
+        return {
+            ok: true,
+            detail,
+            results,
+            summary,
+            notice
+        };
+    } catch (requestError) {
+        return {
+            ok: false,
+            error: mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesiÃ³n.')
+        };
+    }
 }
 
 function KeyValueRows({
@@ -275,7 +328,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
     const title = 'Historial de cuestionarios';
-    const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';
+    const historyContextLabel = role === 'psicologo' ? 'psicÃ³logo' : 'padre o tutor';
     const totalPages = Math.max(1, pages);
     const currentPage = Math.min(Math.max(page, 1), totalPages);
     const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -300,10 +353,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     includeTechnical: true,
                     includeEmpty: false,
                     customLabels: {
-                        session_id: 'ID de sesión',
+                        session_id: 'ID de sesiÃ³n',
                         questionnaire_id: 'ID de cuestionario',
                         mode_key: 'Clave interna de modo',
-                        share_code: 'Código de acceso compartido'
+                        share_code: 'CÃ³digo de acceso compartido'
                     }
                 }
             ),
@@ -336,6 +389,34 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         () => getClinicalComorbiditySummary(clinicalSummaryPayload),
         [clinicalSummaryPayload]
     );
+    const historyRowsContent = (() => {
+        if (loading) {
+            return <div className="historial-v2-empty">Cargando historial...</div>;
+        }
+
+        if (items.length === 0) {
+            return <div className="historial-v2-empty">No hay sesiones para mostrar.</div>;
+        }
+
+        return items.map((item: QuestionnaireHistoryItemV2DTO, index) => {
+            const sessionTitle = resolveSessionTitle(item, index);
+            return (
+                <div className="historial-v2-row" key={item.id}>
+                    <div title={sessionTitle}>{sessionTitle}</div>
+                    <div>{getStatusLabel(item.status)}</div>
+                    <div>{getModeLabel(item.mode)}</div>
+                    <div>{getRoleLabel(item.role)}</div>
+                    <div>{formatDateTimeEsCO(item.created_at)}</div>
+                    <div>{formatDateTimeEsCO(item.updated_at)}</div>
+                    <div className="historial-v2-actions">
+                        <button type="button" className="historial-v2-btn" onClick={() => handleOpenDetail(item.id)}>
+                            Ver
+                        </button>
+                    </div>
+                </div>
+            );
+        });
+    })();
 
     const openDetail = async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
@@ -350,37 +431,22 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setSharePayload(null);
         setPdfPayload(null);
         setClinicalSummaryPayload(null);
-        try {
-            const detailResponse = await getQuestionnaireHistoryDetailV2(sessionId);
-            setDetailPayload(detailResponse);
-            setResultsPayload(null);
 
-            if (!canLoadClinicalArtifacts(detailResponse.status)) {
-                return;
-            }
-
-            const [resultsResponse, summaryResponse] = await Promise.allSettled([
-                getQuestionnaireHistoryResultsV2(sessionId),
-                getQuestionnaireClinicalSummaryV2(sessionId)
-            ]);
-
-            if (resultsResponse.status === 'fulfilled') {
-                setResultsPayload(resultsResponse.value);
-            }
-
-            if (summaryResponse.status === 'fulfilled') {
-                setClinicalSummaryPayload(summaryResponse.value);
-            } else if (resultsResponse.status === 'fulfilled') {
-                setDetailNotice('No fue posible generar el informe orientativo en este momento.');
-            }
-        } catch (requestError) {
-            setDetailError(mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesión.'));
+        const detailLoad = await loadHistoryDetail(sessionId);
+        if (!detailLoad.ok) {
+            setDetailError(detailLoad.error);
             setDetailPayload(null);
             setResultsPayload(null);
             setClinicalSummaryPayload(null);
-        } finally {
             setDetailLoading(false);
+            return;
         }
+
+        setDetailPayload(detailLoad.detail);
+        setResultsPayload(detailLoad.results);
+        setClinicalSummaryPayload(detailLoad.summary);
+        setDetailNotice(detailLoad.notice);
+        setDetailLoading(false);
     };
 
     const closeDetail = () => {
@@ -400,6 +466,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setShareMaxUses('');
         setShareGranteeUserId('');
         setShareUrl(null);
+    };
+
+    const handleOpenDetail = (nextSessionId: string) => {
+        runHistoryTask(() => openDetail(nextSessionId));
     };
 
     const handleAddTag = async () => {
@@ -450,7 +520,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailNotice(
                 resolvedUrl
                     ? 'Enlace compartido generado.'
-                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL pública.'
+                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL pÃºblica.'
             );
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el enlace compartido.'));
@@ -461,7 +531,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         if (!detailSessionId) return;
         try {
             await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setDetailNotice('Generación de PDF solicitada correctamente.');
+            setDetailNotice('GeneraciÃ³n de PDF solicitada correctamente.');
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el PDF.'));
         }
@@ -472,7 +542,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         try {
             const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
             setPdfPayload(payload);
-            setDetailNotice('Información de PDF cargada.');
+            setDetailNotice('InformaciÃ³n de PDF cargada.');
         } catch (actionError) {
             setDetailError(buildActionErrorMessage(actionError, 'No fue posible consultar el estado del PDF.'));
         }
@@ -491,14 +561,14 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const handleCopyShareLink = async () => {
         if (!shareLink) {
-            setDetailError('Aún no hay un enlace compartido disponible para copiar.');
+            setDetailError('AÃºn no hay un enlace compartido disponible para copiar.');
             return;
         }
         try {
             await navigator.clipboard.writeText(shareLink);
             setDetailNotice('Enlace copiado al portapapeles.');
         } catch {
-            setDetailError('No fue posible copiar el enlace automáticamente.');
+            setDetailError('No fue posible copiar el enlace automÃ¡ticamente.');
         }
     };
 
@@ -527,7 +597,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                 <div className="historial-v2-table">
                     <div className="historial-v2-head">
-                        <div>Sesión</div>
+                        <div>SesiÃ³n</div>
                         <div>Estado</div>
                         <div>Modo</div>
                         <div>Rol</div>
@@ -536,30 +606,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <div>Acciones</div>
                     </div>
                     <div className="historial-v2-body">
-                        {loading ? (
-                            <div className="historial-v2-empty">Cargando historial...</div>
-                        ) : items.length === 0 ? (
-                            <div className="historial-v2-empty">No hay sesiones para mostrar.</div>
-                        ) : (
-                            items.map((item: QuestionnaireHistoryItemV2DTO, index) => {
-                                const sessionTitle = resolveSessionTitle(item, index);
-                                return (
-                                    <div className="historial-v2-row" key={item.id}>
-                                        <div title={sessionTitle}>{sessionTitle}</div>
-                                        <div>{getStatusLabel(item.status)}</div>
-                                        <div>{getModeLabel(item.mode)}</div>
-                                        <div>{getRoleLabel(item.role)}</div>
-                                        <div>{formatDateTimeEsCO(item.created_at)}</div>
-                                        <div>{formatDateTimeEsCO(item.updated_at)}</div>
-                                        <div className="historial-v2-actions">
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(() => openDetail(item.id)); }}>
-                                                Ver
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
+                        {historyRowsContent}
                     </div>
                 </div>
 
@@ -567,12 +614,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <div>Mostrando {showFrom}-{showTo} de {total}</div>
                     <div className="historial-v2-pagination-right">
                         <label>
-                            Tamaño
+                            TamaÃ±o
                             <CustomSelect
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
                                 onChange={(value) => changePageSize(Number(value))}
-                                ariaLabel="Cambiar tamaño de página de historial"
+                                ariaLabel="Cambiar tamaÃ±o de pÃ¡gina de historial"
                             />
                         </label>
                         <button
@@ -581,16 +628,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             onClick={() => setPage(Math.max(1, currentPage - 1))}
                             disabled={currentPage <= 1}
                         >
-                            ‹
+                            â€¹
                         </button>
-                        <span>Página {currentPage} de {totalPages}</span>
+                        <span>PÃ¡gina {currentPage} de {totalPages}</span>
                         <button
                             type="button"
                             className="historial-v2-page-btn"
                             onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage >= totalPages}
                         >
-                            ›
+                            â€º
                         </button>
                     </div>
                 </div>
@@ -598,7 +645,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-v2-modal">
-                    <h2>Detalle de sesión</h2>
+                    <h2>Detalle de sesiÃ³n</h2>
                     {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
@@ -607,13 +654,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <>
                             <div className="historial-v2-modal-grid">
                                 <div><strong>Estado</strong><span>{getStatusLabel(getString(detailPayload.status, ''))}</span></div>
-                                <div><strong>Modo de evaluación</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
-                                <div><strong>Perfil que respondió</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
-                                <div><strong>Última actualización</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
+                                <div><strong>Modo de evaluaciÃ³n</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
+                                <div><strong>Perfil que respondiÃ³</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
+                                <div><strong>Ãšltima actualizaciÃ³n</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
                             </div>
 
                             <div className="historial-v2-warning">
-                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
+                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnÃ³stico clÃ­nico definitivo.
                             </div>
 
                             <div className="historial-v2-section">
@@ -626,7 +673,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         </div>
                                         {clinicalComorbiditySummary ? (
                                             <div className="historial-v2-warning">
-                                                <strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}
+                                                <strong>Posible coexistencia de seÃ±ales.</strong> {clinicalComorbiditySummary}
                                             </div>
                                         ) : null}
                                         <div className="historial-v2-kv-grid">
@@ -639,7 +686,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         </div>
                                     </>
                                 ) : (
-                                    <p>No fue posible cargar el informe orientativo completo para esta sesión.</p>
+                                    <p>No fue posible cargar el informe orientativo completo para esta sesiÃ³n.</p>
                                 )}
                             </div>
 
@@ -749,7 +796,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             <input
                                                 type="number"
                                                 min={1}
-                                                placeholder="Límite de usos (opcional)"
+                                                placeholder="LÃ­mite de usos (opcional)"
                                                 value={shareMaxUses}
                                                 onChange={(event) => setShareMaxUses(event.target.value)}
                                             />
@@ -761,11 +808,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             />
                                         </div>
                                         <div className="historial-v2-section-actions">
-                                            {!shareAvailable ? (
-                                                <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
-                                                    Generar enlace para compartir
-                                                </button>
-                                            ) : (
+                                            {shareAvailable ? (
                                                 <>
                                                     <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
                                                         Copiar enlace
@@ -782,6 +825,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                         Generar nuevo enlace
                                                     </button>
                                                 </>
+                                            ) : (
+                                                <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
+                                                    Generar enlace para compartir
+                                                </button>
                                             )}
                                         </div>
                                         {shareAvailable ? (
@@ -792,12 +839,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                 </a>
                                             </div>
                                         ) : (
-                                            <p className="historial-v2-helper-text">Aún no has generado un enlace compartido para esta sesión.</p>
+                                            <p className="historial-v2-helper-text">AÃºn no has generado un enlace compartido para esta sesiÃ³n.</p>
                                         )}
                                         <KeyValueRows
                                             data={toRecord(sharePayload)}
                                             exclude={hiddenShareFields}
-                                            emptyText="Sin información adicional del enlace."
+                                            emptyText="Sin informaciÃ³n adicional del enlace."
                                         />
                                     </div>
 
@@ -823,7 +870,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         <KeyValueRows
                                             data={toRecord(pdfPayload)}
                                             exclude={hiddenPdfFields}
-                                            emptyText="Todavía no hay información del PDF."
+                                            emptyText="TodavÃ­a no hay informaciÃ³n del PDF."
                                         />
                                     </div>
                                 </div>
