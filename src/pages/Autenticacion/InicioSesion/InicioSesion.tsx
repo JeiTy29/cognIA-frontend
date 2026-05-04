@@ -9,6 +9,7 @@ import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { Modal } from '../../../components/Modal/Modal';
 import { ApiError } from '../../../services/api/httpClient';
+import type { LoginErrorResponse, LoginResponse } from '../../../services/auth/auth.types';
 
 function isValidEmail(value: string) {
     const trimmed = value.trim();
@@ -31,6 +32,106 @@ function isValidEmail(value: string) {
     return true;
 }
 
+type InicioSesionLocationState = {
+    reason?: string;
+    mfaConfigured?: boolean;
+    message?: string;
+    openForgot?: boolean;
+    forgotEmail?: string;
+};
+
+function resolveInfoMessage(
+    locationState: InicioSesionLocationState | null,
+    search: string,
+    storedNotice: string | null
+) {
+    if (storedNotice === 'expired') {
+        return 'Tu sesión ha expirado. Inicia sesión nuevamente.';
+    }
+
+    if (locationState?.reason === 'unauthenticated') {
+        return 'Debes iniciar sesión para acceder a la plataforma.';
+    }
+
+    if (locationState?.message) {
+        return locationState.message;
+    }
+
+    if (locationState?.reason === 'expired') {
+        return 'Tu sesión ha expirado. Inicia sesión nuevamente.';
+    }
+
+    if (locationState?.mfaConfigured) {
+        return 'MFA configurado. Inicia sesión para continuar.';
+    }
+
+    const resetStatus = new URLSearchParams(search).get('reset');
+    if (resetStatus === 'missing') {
+        return 'Acceso inválido: falta el token de restablecimiento.';
+    }
+
+    if (resetStatus === 'invalid' || resetStatus === 'expired') {
+        return 'El enlace de restablecimiento es inválido o ha expirado.';
+    }
+
+    return null;
+}
+
+function isLoginErrorResponse(response: LoginResponse | LoginErrorResponse): response is LoginErrorResponse {
+    return 'error' in response;
+}
+
+function resolveLoginErrorMessage(errorCode: LoginErrorResponse['error']) {
+    if (errorCode === 'invalid_credentials') {
+        return 'Usuario o contraseña incorrectos.';
+    }
+    return 'Ocurrió un error al iniciar sesión. Intenta nuevamente.';
+}
+
+function handleSuccessfulLoginResponse(
+    response: LoginResponse,
+    username: string,
+    setSession: (token: string, expiresIn: number) => void,
+    navigate: ReturnType<typeof useNavigate>
+) {
+    if ('access_token' in response) {
+        setSession(response.access_token, response.expires_in);
+        const payload = decodeJwtPayload(response.access_token);
+        navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
+        return true;
+    }
+
+    if ('mfa_required' in response && response.mfa_required) {
+        navigate('/mfa', {
+            state: {
+                mode: 'challenge',
+                challengeId: response.challenge_id,
+                expiresIn: response.expires_in,
+                username
+            },
+        });
+        return true;
+    }
+
+    if ('mfa_enrollment_required' in response && response.mfa_enrollment_required) {
+        navigate('/mfa', {
+            state: {
+                mode: 'setup',
+                enrollmentToken: response.enrollment_token,
+                expiresIn: response.expires_in,
+                username
+            },
+        });
+        return true;
+    }
+
+    return false;
+}
+
+function shouldRedirectToDefaultRoute(isAuthenticated: boolean, devAuthActive: boolean) {
+    return isAuthenticated && !devAuthActive;
+}
+
 export default function InicioSesion() {
     const [mostrarContrasena, setMostrarContrasena] = useState(false);
     const [username, setUsername] = useState('');
@@ -51,35 +152,12 @@ export default function InicioSesion() {
 
     useEffect(() => {
         const storedNotice = consumeAuthNotice();
-        if (storedNotice === 'expired') {
-            setInfoMessage('Tu sesión ha expirado. Inicia sesión nuevamente.');
+        const state = location.state as InicioSesionLocationState | null;
+        const resolvedMessage = resolveInfoMessage(state, location.search, storedNotice);
+        if (resolvedMessage) {
+            setInfoMessage(resolvedMessage);
         }
-        const state = location.state as {
-            reason?: string;
-            mfaConfigured?: boolean;
-            message?: string;
-            openForgot?: boolean;
-            forgotEmail?: string;
-        } | null;
-        if (state?.reason === 'unauthenticated') {
-            setInfoMessage('Debes iniciar sesión para acceder a la plataforma.');
-        }
-        if (state?.message) {
-            setInfoMessage(state.message);
-        }
-        if (state?.reason === 'expired') {
-            setInfoMessage('Tu sesión ha expirado. Inicia sesión nuevamente.');
-        }
-        if (state?.mfaConfigured) {
-            setInfoMessage('MFA configurado. Inicia sesión para continuar.');
-        }
-        const searchParams = new URLSearchParams(location.search);
-        const resetStatus = searchParams.get('reset');
-        if (resetStatus === 'missing') {
-            setInfoMessage('Acceso inválido: falta el token de restablecimiento.');
-        } else if (resetStatus === 'invalid' || resetStatus === 'expired') {
-            setInfoMessage('El enlace de restablecimiento es inválido o ha expirado.');
-        }
+
         if (state?.openForgot) {
             setShowForgotModal(true);
             setForgotSuccess(false);
@@ -89,7 +167,7 @@ export default function InicioSesion() {
         }
     }, [location.search, location.state]);
 
-    if (isAuthenticated && !devAuthActive) {
+    if (shouldRedirectToDefaultRoute(isAuthenticated, devAuthActive)) {
         return <Navigate to={getDefaultRouteForRoles(roles)} replace />;
     }
 
@@ -112,40 +190,11 @@ export default function InicioSesion() {
                 return;
             }
             const response = await login({ username, password });
-            if ('access_token' in response) {
-                setSession(response.access_token, response.expires_in);
-                const payload = decodeJwtPayload(response.access_token);
-                navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
+            if (!isLoginErrorResponse(response) && handleSuccessfulLoginResponse(response, username, setSession, navigate)) {
                 return;
             }
-            if ('mfa_required' in response && response.mfa_required) {
-                navigate('/mfa', {
-                    state: {
-                        mode: 'challenge',
-                        challengeId: response.challenge_id,
-                        expiresIn: response.expires_in,
-                        username
-                    },
-                });
-                return;
-            }
-            if ('mfa_enrollment_required' in response && response.mfa_enrollment_required) {
-                navigate('/mfa', {
-                    state: {
-                        mode: 'setup',
-                        enrollmentToken: response.enrollment_token,
-                        expiresIn: response.expires_in,
-                        username
-                    },
-                });
-                return;
-            }
-            if ('error' in response) {
-                if (response.error === 'invalid_credentials') {
-                    setErrorMessage('Usuario o contraseña incorrectos.');
-                } else {
-                    setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
-                }
+            if (isLoginErrorResponse(response)) {
+                setErrorMessage(resolveLoginErrorMessage(response.error));
                 return;
             }
             setErrorMessage('No se pudo iniciar sesión. Intenta nuevamente.');

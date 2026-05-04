@@ -44,7 +44,7 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
                 status:
                     statusFilter === ''
                         ? undefined
-                        : (statusFilter as QuestionnaireHistoryStatusFilter),
+                        : statusFilter,
                 page,
                 page_size: pageSize
             });
