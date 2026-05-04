@@ -13,9 +13,12 @@ type MFAMode = 'setup' | 'challenge';
 type MFANavigationState = {
     mode?: MFAMode;
     challengeId?: string;
+    challenge_id?: string;
     enrollmentToken?: string;
+    enrollment_token?: string;
     username?: string;
     expiresIn?: number;
+    expires_in?: number;
 };
 
 type InputRefList = { current: Array<HTMLInputElement | null> };
@@ -23,6 +26,20 @@ type InputRef = { current: HTMLInputElement | null };
 
 function resolveMfaMode(state: MFANavigationState | null): MFAMode {
     return state?.mode ?? 'challenge';
+}
+
+function readMfaStateString(
+    state: MFANavigationState | null,
+    ...keys: Array<keyof MFANavigationState>
+) {
+    if (!state) return undefined;
+
+    for (const key of keys) {
+        const value = state[key];
+        if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+
+    return undefined;
 }
 
 const MFA_CODE_LENGTH = 6;
@@ -135,9 +152,9 @@ export default function MFA() {
     const { setSession } = useAuth();
     const state = location.state as MFANavigationState | null;
     const mode: MFAMode = useMemo(() => resolveMfaMode(state), [state]);
-    const challengeId = state?.challengeId;
-    const enrollmentToken = state?.enrollmentToken;
-    const username = state?.username;
+    const challengeId = useMemo(() => readMfaStateString(state, 'challengeId', 'challenge_id'), [state]);
+    const enrollmentToken = useMemo(() => readMfaStateString(state, 'enrollmentToken', 'enrollment_token'), [state]);
+    const username = useMemo(() => readMfaStateString(state, 'username'), [state]);
     const navigate = useNavigate();
     const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
     const recoveryInputRef = useRef<HTMLInputElement | null>(null);

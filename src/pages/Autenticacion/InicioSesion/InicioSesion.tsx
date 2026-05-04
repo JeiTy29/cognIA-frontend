@@ -40,6 +40,21 @@ type InicioSesionLocationState = {
     forgotEmail?: string;
 };
 
+type SuccessfulLoginResponse = {
+    accessToken: string;
+    expiresIn: number;
+};
+
+type MfaChallengeLoginResponse = {
+    challengeId: string | null;
+    expiresIn: number | null;
+};
+
+type MfaEnrollmentLoginResponse = {
+    enrollmentToken: string | null;
+    expiresIn: number | null;
+};
+
 function resolveInfoMessage(
     locationState: InicioSesionLocationState | null,
     search: string,
@@ -78,7 +93,12 @@ function resolveInfoMessage(
 }
 
 function isLoginErrorResponse(response: LoginResponse | LoginErrorResponse): response is LoginErrorResponse {
-    return 'error' in response;
+    const candidate = response as Partial<LoginErrorResponse>;
+
+    return (
+        typeof candidate.status === 'number' &&
+        (candidate.error === 'invalid_credentials' || candidate.error === 'request_failed')
+    );
 }
 
 function resolveLoginErrorMessage(errorCode: LoginErrorResponse['error']) {
@@ -88,44 +108,124 @@ function resolveLoginErrorMessage(errorCode: LoginErrorResponse['error']) {
     return 'Ocurrió un error al iniciar sesión. Intenta nuevamente.';
 }
 
+function readStringProperty(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return null;
+
+    const record = source as Record<string, unknown>;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+
+    return null;
+}
+
+function readNumberProperty(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return null;
+
+    const record = source as Record<string, unknown>;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+    }
+
+    return null;
+}
+
+function hasTrueFlag(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return false;
+
+    const record = source as Record<string, unknown>;
+    return keys.some((key) => record[key] === true);
+}
+
+function normalizeDirectLoginResponse(response: LoginResponse): SuccessfulLoginResponse | null {
+    const accessToken = readStringProperty(response, 'access_token', 'accessToken');
+    const expiresIn = readNumberProperty(response, 'expires_in', 'expiresIn');
+
+    if (!accessToken || expiresIn === null) return null;
+
+    return { accessToken, expiresIn };
+}
+
+function normalizeMfaChallengeResponse(response: LoginResponse): MfaChallengeLoginResponse | null {
+    if (!hasTrueFlag(response, 'mfa_required', 'mfaRequired')) return null;
+
+    return {
+        challengeId: readStringProperty(response, 'challenge_id', 'challengeId'),
+        expiresIn: readNumberProperty(response, 'expires_in', 'expiresIn')
+    };
+}
+
+function normalizeMfaEnrollmentResponse(response: LoginResponse): MfaEnrollmentLoginResponse | null {
+    if (!hasTrueFlag(response, 'mfa_enrollment_required', 'mfaEnrollmentRequired')) return null;
+
+    return {
+        enrollmentToken: readStringProperty(response, 'enrollment_token', 'enrollmentToken'),
+        expiresIn: readNumberProperty(response, 'expires_in', 'expiresIn')
+    };
+}
+
+type LoginHandleResult = {
+    handled: boolean;
+    errorMessage?: string;
+};
+
 function handleSuccessfulLoginResponse(
     response: LoginResponse,
     username: string,
     setSession: (token: string, expiresIn: number) => void,
     navigate: ReturnType<typeof useNavigate>
-) {
-    if ('access_token' in response) {
-        setSession(response.access_token, response.expires_in);
-        const payload = decodeJwtPayload(response.access_token);
+) : LoginHandleResult {
+    const directLogin = normalizeDirectLoginResponse(response);
+    if (directLogin) {
+        setSession(directLogin.accessToken, directLogin.expiresIn);
+        const payload = decodeJwtPayload(directLogin.accessToken);
         navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
-        return true;
+        return { handled: true };
     }
 
-    if ('mfa_required' in response && response.mfa_required) {
+    const challengeLogin = normalizeMfaChallengeResponse(response);
+    if (challengeLogin) {
+        if (!challengeLogin.challengeId) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo iniciar el challenge MFA. Intenta iniciar sesión nuevamente.'
+            };
+        }
+
         navigate('/mfa', {
             state: {
                 mode: 'challenge',
-                challengeId: response.challenge_id,
-                expiresIn: response.expires_in,
+                challengeId: challengeLogin.challengeId,
+                expiresIn: challengeLogin.expiresIn,
                 username
-            },
+            }
         });
-        return true;
+        return { handled: true };
     }
 
-    if ('mfa_enrollment_required' in response && response.mfa_enrollment_required) {
+    const enrollmentLogin = normalizeMfaEnrollmentResponse(response);
+    if (enrollmentLogin) {
+        if (!enrollmentLogin.enrollmentToken) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo iniciar la configuración de MFA. Intenta iniciar sesión nuevamente.'
+            };
+        }
+
         navigate('/mfa', {
             state: {
                 mode: 'setup',
-                enrollmentToken: response.enrollment_token,
-                expiresIn: response.expires_in,
+                enrollmentToken: enrollmentLogin.enrollmentToken,
+                expiresIn: enrollmentLogin.expiresIn,
                 username
-            },
+            }
         });
-        return true;
+        return { handled: true };
     }
 
-    return false;
+    return { handled: false };
 }
 
 function shouldRedirectToDefaultRoute(isAuthenticated: boolean, devAuthActive: boolean) {
@@ -190,13 +290,20 @@ export default function InicioSesion() {
                 return;
             }
             const response = await login({ username, password });
-            if (!isLoginErrorResponse(response) && handleSuccessfulLoginResponse(response, username, setSession, navigate)) {
-                return;
-            }
+
             if (isLoginErrorResponse(response)) {
                 setErrorMessage(resolveLoginErrorMessage(response.error));
                 return;
             }
+
+            const loginResult = handleSuccessfulLoginResponse(response, username, setSession, navigate);
+            if (loginResult.handled) {
+                if (loginResult.errorMessage) {
+                    setErrorMessage(loginResult.errorMessage);
+                }
+                return;
+            }
+
             setErrorMessage('No se pudo iniciar sesión. Intenta nuevamente.');
         } catch {
             setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');

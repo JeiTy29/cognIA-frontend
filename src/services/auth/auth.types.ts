@@ -24,12 +24,17 @@ export interface LoginSuccessResponse {
     access_token: string;
     token_type: string;
     expires_in: number;
+    accessToken?: string;
+    tokenType?: string;
+    expiresIn?: number;
 }
 
 export interface MFALoginChallengeResponse {
     mfa_required: true;
     challenge_id: string;
     expires_in: number;
+    challengeId?: string;
+    expiresIn?: number;
     msg?: string;
     error?: string;
 }
@@ -39,6 +44,9 @@ export interface MFAEnrollmentRequiredResponse {
     enrollment_token: string;
     token_type: string;
     expires_in: number;
+    enrollmentToken?: string;
+    tokenType?: string;
+    expiresIn?: number;
     msg?: string;
     error?: string;
 }
