@@ -77,6 +77,16 @@ function isDocumentVisible() {
     return typeof document !== 'object' || document.visibilityState === 'visible';
 }
 
+function isCoarsePointerDevice() {
+    if (typeof globalThis.matchMedia !== 'function') return false;
+    return globalThis.matchMedia('(pointer: coarse)').matches;
+}
+
+function resolvePollingDelay(isCoarsePointer: boolean, backoff: number) {
+    if (backoff > 0) return backoff;
+    return isCoarsePointer ? 10000 : 5000;
+}
+
 function resolveSnapshot(payload: unknown): MetricsSnapshot | null {
     const root = asObject(payload);
     if (!root) return null;
@@ -144,6 +154,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const backoffRef = useRef<number>(0);
     const errorCountRef = useRef<number>(0);
     const visibilityRef = useRef<boolean>(isDocumentVisible());
+    const coarsePointerRef = useRef<boolean>(isCoarsePointerDevice());
     const isMountedRef = useRef(true);
 
     const fetchAllRef = useRef<() => Promise<void>>(async () => { });
@@ -322,7 +333,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
             if (canScheduleNext) {
                 setIsRefreshing(false);
                 setIsLoading(false);
-                const delay = backoffRef.current > 0 ? backoffRef.current : 5000;
+                const delay = resolvePollingDelay(coarsePointerRef.current, backoffRef.current);
                 scheduleNext(delay);
             }
         }

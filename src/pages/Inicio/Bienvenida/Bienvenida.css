@@ -236,6 +236,21 @@
         padding: 56px 18px 80px;
     }
 
+    .waveLayer {
+        animation: none !important;
+        will-change: auto;
+        background-position: 0 bottom;
+    }
+
+    .waveLayer--2,
+    .waveLayer--3 {
+        display: none;
+    }
+
+    .blueArea {
+        height: 46vh;
+    }
+
     .bienvenida-title {
         font-size: 2.2rem;
     }

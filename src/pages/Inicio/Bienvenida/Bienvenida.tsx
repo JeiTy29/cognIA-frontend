@@ -15,7 +15,14 @@ export default function BienvenidaInicio() {
 
             <div className="bienvenida-content">
                 <div className="bienvenida-brand">
-                    <img className="bienvenida-logo" src={cogniaLogo} alt="CognIA" />
+                    <img
+                        className="bienvenida-logo"
+                        src={cogniaLogo}
+                        alt="CognIA"
+                        width={1280}
+                        height={1280}
+                        decoding="async"
+                    />
                     <span className="brand-text">cognIA</span>
                 </div>
 
@@ -32,6 +39,9 @@ export default function BienvenidaInicio() {
                             className="bienvenida-card-image"
                             src={conocerMasImage}
                             alt="Ilustración de exploración del sistema CognIA"
+                            width={2172}
+                            height={724}
+                            decoding="async"
                         />
                         <h2 className="cta-title">Conocer m&aacute;s</h2>
                         <p className="cta-text">
@@ -48,6 +58,9 @@ export default function BienvenidaInicio() {
                             className="bienvenida-card-image"
                             src={empezarCuestionarioImage}
                             alt="Ilustración de inicio del cuestionario CognIA"
+                            width={2172}
+                            height={724}
+                            decoding="async"
                         />
                         <h2 className="cta-title">Empezar cuestionario</h2>
                         <p className="cta-text">
