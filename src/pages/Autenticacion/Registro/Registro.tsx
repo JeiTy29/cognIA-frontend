@@ -11,6 +11,7 @@ import { useRegister } from '../../../hooks/auth/useRegister';
 import { ApiError } from '../../../services/api/httpClient';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 const passwordRules = [
@@ -396,7 +397,7 @@ export default function Registro() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>

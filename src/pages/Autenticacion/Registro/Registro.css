@@ -63,19 +63,12 @@
 }
 
 /* Brand Icon for Authentication Header */
-.brand-icon {
-    width: 36px;
-    height: 36px;
-    background-color: #51C2F4;
-    border-radius: 6px;
+.auth-brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
     flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    color: #111827;
-    font-size: 24px;
-    font-weight: 600;
-    font-family: 'Segoe UI', sans-serif;
-    line-height: 1;
+    display: block;
 }
 
 .brand-link {

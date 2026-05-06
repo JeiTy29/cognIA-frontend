@@ -2,11 +2,15 @@
     display: flex;
     justify-content: center;
     padding: 32px 24px 60px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .questionnaire-shell {
     width: 100%;
     max-width: 1100px;
+    min-width: 0;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -90,6 +94,7 @@
     border-radius: 999px;
     background: #E4EFF9;
     overflow: hidden;
+    min-width: 0;
 }
 
 .progress-fill {
@@ -356,6 +361,8 @@
 .questionnaire-resume-actions {
     display: flex;
     gap: 10px;
+    min-width: 0;
+    min-width: 0;
     flex-wrap: wrap;
 }
 
@@ -435,6 +442,9 @@
     flex-direction: column;
     gap: 28px;
     font-family: 'Segoe UI', sans-serif;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .questionnaire-top {
@@ -452,6 +462,8 @@
 
 .stack-item {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     text-align: left;
     border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.2);
@@ -521,6 +533,8 @@
     grid-template-columns: minmax(0, 1fr) 120px;
     gap: 18px;
     align-items: center;
+    width: 100%;
+    min-width: 0;
 }
 
 .stack-controls {
@@ -539,16 +553,21 @@
     font-size: 18px;
     color: #1e2a39;
     margin: 0 0 18px;
+    overflow-wrap: anywhere;
 }
 
 .question-options {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
+    min-width: 0;
 }
 
 .answer-option {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -592,6 +611,9 @@
 
 .answer-label {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 
 .question-input-block {
@@ -683,6 +705,7 @@
     gap: 14px;
     position: relative;
     overflow: hidden;
+    min-width: 0;
 }
 
 .questionnaire-processing-panel:focus-visible {
@@ -788,6 +811,8 @@
     padding: 10px;
     border-radius: 12px;
     border: 1px solid rgba(33, 95, 143, 0.14);
+    min-width: 0;
+    min-width: 0;
     background: rgba(255, 255, 255, 0.76);
 }
 
@@ -835,6 +860,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    min-width: 0;
 }
 
 .questionnaire-processing-meta div {
@@ -871,6 +897,7 @@
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(33, 95, 143, 0.14);
+    min-width: 0;
 }
 
 .questionnaire-risk-chip {
@@ -926,6 +953,7 @@
 .questionnaire-report-banner-copy {
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .questionnaire-report-banner-copy h3 {
@@ -974,6 +1002,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    min-width: 0;
 }
 
 .questionnaire-report-section {
@@ -983,6 +1012,7 @@
     background: rgba(255, 255, 255, 0.88);
     display: grid;
     gap: 8px;
+    min-width: 0;
 }
 
 .questionnaire-report-section.is-disclaimer {
@@ -1009,6 +1039,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    min-width: 0;
 }
 
 .questionnaire-result-grid div {
@@ -1055,6 +1086,7 @@
     background: rgba(255, 255, 255, 0.82);
     display: grid;
     gap: 8px;
+    min-width: 0;
 }
 
 .questionnaire-result-item header {
@@ -1062,6 +1094,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+    min-width: 0;
 }
 
 .questionnaire-result-item p {
@@ -1074,6 +1107,8 @@
 .questionnaire-result-item-meta {
     display: flex;
     flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
     gap: 10px;
 }
 
@@ -1146,6 +1181,8 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
 }
 
 .questionnaire-processing-error {
@@ -1166,12 +1203,11 @@
     }
 
     .stack-controls {
-        position: sticky;
-        bottom: 0;
+        position: static;
         flex-direction: row;
         justify-content: space-between;
         padding: 12px 0 0;
-        background: #ffffff;
+        background: transparent;
     }
 
     .questionnaire-processing-meta,
@@ -1201,6 +1237,29 @@
 }
 
 @media (max-width: 640px) {
+    .plataforma-view {
+        padding: 24px 0 40px;
+    }
+
+    .questionnaire-shell,
+    .questionnaire-heading,
+    .questionnaire-top,
+    .questionnaire-stack,
+    .stack-item,
+    .stack-active,
+    .stack-controls,
+    .questionnaire-processing-panel,
+    .questionnaire-processing-meta,
+    .questionnaire-report-banner,
+    .questionnaire-result-grid,
+    .questionnaire-clinical-sections,
+    .questionnaire-result-item,
+    .questionnaire-report-section {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
     .questionnaire-actions {
         flex-direction: column;
         align-items: stretch;
@@ -1212,6 +1271,35 @@
 
     .question-text {
         font-size: 16px;
+    }
+
+    .stack-controls {
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .answer-option {
+        align-items: flex-start;
+        padding: 12px 14px;
+    }
+
+    .questionnaire-risk-chip {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .questionnaire-result-item header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .questionnaire-result-actions {
+        flex-direction: column;
+    }
+
+    .questionnaire-result-actions .questionnaire-btn,
+    .stack-controls .questionnaire-btn {
+        width: 100%;
     }
 
     .questionnaire-intro-image img {

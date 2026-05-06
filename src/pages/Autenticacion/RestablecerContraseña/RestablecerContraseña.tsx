@@ -9,6 +9,7 @@ import {
 import { resetPassword, verifyResetToken } from '../../../services/auth/auth.api';
 import { ApiError } from '../../../services/api/httpClient';
 import { PASSWORD_RULES } from '../../../utils/passwordRules';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 const passwordRules = PASSWORD_RULES;
 
@@ -182,6 +183,13 @@ export default function RestablecerContraseña() {
 
             <div className="auth-right-panel">
                 <div className="auth-content">
+                    <div className="header-brand">
+                        <Link to="/" className="brand-link">
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
+                            <span className="brand-text">cognIA</span>
+                        </Link>
+                    </div>
+
                     <h1 className="auth-title">Restablecer contrasena</h1>
                     <p className="auth-subtitle">Crea una nueva contrasena para volver a ingresar.</p>
 

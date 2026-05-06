@@ -10,6 +10,7 @@ import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { Modal } from '../../../components/Modal/Modal';
 import { ApiError } from '../../../services/api/httpClient';
 import type { LoginErrorResponse, LoginResponse } from '../../../services/auth/auth.types';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 function isValidEmail(value: string) {
     const trimmed = value.trim();
@@ -352,7 +353,7 @@ export default function InicioSesion() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>

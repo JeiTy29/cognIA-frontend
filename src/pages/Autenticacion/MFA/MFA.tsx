@@ -7,6 +7,7 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 type MFAMode = 'setup' | 'challenge';
 
@@ -263,7 +264,7 @@ export default function MFA() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>
