@@ -16,7 +16,7 @@ const passwordRules = PASSWORD_RULES;
 function redirectToInvalidResetToken(navigate: ReturnType<typeof useNavigate>) {
     navigate('/inicio-sesion', {
         replace: true,
-        state: { message: 'El enlace de restablecimiento es invalido o ha expirado.' }
+        state: { message: 'El enlace de restablecimiento es inválido o ha expirado.' }
     });
 }
 
@@ -24,25 +24,25 @@ function resolveResetSubmitErrorMessage(error: unknown) {
     if (error instanceof ApiError && error.status === 400) {
         return {
             status: 400,
-            message: 'No se pudo actualizar la contrasena. Verifica el enlace e intentalo de nuevo.'
+            message: 'No se pudo actualizar la contraseña. Verifica el enlace e inténtalo de nuevo.'
         };
     }
     if (error instanceof ApiError && error.status === 429) {
         return {
             status: 429,
-            message: 'Demasiados intentos. Espera un momento e intentalo de nuevo.'
+            message: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.'
         };
     }
     if (error instanceof ApiError) {
         return {
             status: error.status,
-            message: 'Ocurrio un error inesperado. Intenta mas tarde.'
+            message: 'Ocurrió un error inesperado. Intenta más tarde.'
         };
     }
 
     return {
         status: null,
-        message: 'Ocurrio un error inesperado. Intenta mas tarde.'
+        message: 'Ocurrió un error inesperado. Intenta más tarde.'
     };
 }
 
@@ -78,15 +78,15 @@ export default function RestablecerContraseña() {
 
     const newPasswordError = useMemo(() => {
         if (!submitAttempted && !password) return '';
-        if (!password) return 'Ingresa una nueva contrasena.';
+        if (!password) return 'Ingresa una nueva contraseña.';
         if (allValid) return '';
-        return 'La nueva contrasena no cumple los requisitos.';
+        return 'La nueva contraseña no cumple los requisitos.';
     }, [allValid, password, submitAttempted]);
 
     const confirmPasswordError = useMemo(() => {
         if (!submitAttempted && !confirmPassword) return '';
-        if (!confirmPassword) return 'Confirma la nueva contrasena.';
-        if (password !== confirmPassword) return 'Las contrasenas no coinciden.';
+        if (!confirmPassword) return 'Confirma la nueva contraseña.';
+        if (password !== confirmPassword) return 'Las contraseñas no coinciden.';
         return '';
     }, [confirmPassword, password, submitAttempted]);
 
@@ -103,7 +103,7 @@ export default function RestablecerContraseña() {
         if (!token) {
             navigate('/inicio-sesion', {
                 replace: true,
-                state: { message: 'Acceso invalido: falta el token de restablecimiento.' }
+                state: { message: 'Acceso inválido: falta el token de restablecimiento.' }
             });
             return;
         }
@@ -149,7 +149,7 @@ export default function RestablecerContraseña() {
         setSubmitErrorStatus(null);
 
         if (!token) {
-            setSubmitError('Acceso invalido: falta el token de restablecimiento.');
+            setSubmitError('Acceso inválido: falta el token de restablecimiento.');
             return;
         }
 
@@ -190,8 +190,8 @@ export default function RestablecerContraseña() {
                         </Link>
                     </div>
 
-                    <h1 className="auth-title">Restablecer contrasena</h1>
-                    <p className="auth-subtitle">Crea una nueva contrasena para volver a ingresar.</p>
+                    <h1 className="auth-title">Restablecer contraseña</h1>
+                    <p className="auth-subtitle">Crea una nueva contraseña para volver a ingresar.</p>
 
                     {isVerifyingToken ? (
                         <div className="validation-success">Verificando enlace de restablecimiento...</div>
@@ -210,7 +210,7 @@ export default function RestablecerContraseña() {
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 className="form-input"
-                                placeholder="Nueva contrasena"
+                                placeholder="Nueva contraseña"
                                 value={password}
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
                                 onChange={(event) => {
@@ -225,20 +225,20 @@ export default function RestablecerContraseña() {
                                 className="password-toggle"
                                 onClick={() => setShowPassword((prev) => !prev)}
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
-                                aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
                                 <SharedPasswordVisibilityIcon visible={showPassword} />
                             </button>
                             {newPasswordError ? <div className="validation-error">{newPasswordError}</div> : null}
                         </div>
 
-                        <SharedPasswordChecklist checks={checks} title="Requisitos de contrasena" />
+                        <SharedPasswordChecklist checks={checks} title="Requisitos de contraseña" />
 
                         <div className="form-group password-group">
                             <input
                                 type={showConfirm ? 'text' : 'password'}
                                 className="form-input"
-                                placeholder="Confirmar nueva contrasena"
+                                placeholder="Confirmar nueva contraseña"
                                 value={confirmPassword}
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
                                 onChange={(event) => {
@@ -253,20 +253,20 @@ export default function RestablecerContraseña() {
                                 className="password-toggle"
                                 onClick={() => setShowConfirm((prev) => !prev)}
                                 disabled={submitLoading || isVerifyingToken || !isTokenValid}
-                                aria-label={showConfirm ? 'Ocultar confirmacion' : 'Mostrar confirmacion'}
+                                aria-label={showConfirm ? 'Ocultar confirmación' : 'Mostrar confirmación'}
                             >
                                 <SharedPasswordVisibilityIcon visible={showConfirm} />
                             </button>
                             {confirmPassword.length > 0 ? (
                                 <div className={passwordsMatch ? 'validation-success' : 'validation-error'}>
-                                    {passwordsMatch ? 'Las contrasenas coinciden.' : 'Las contrasenas no coinciden.'}
+                                    {passwordsMatch ? 'Las contraseñas coinciden.' : 'Las contraseñas no coinciden.'}
                                 </div>
                             ) : null}
                             {confirmPasswordError ? <div className="validation-error">{confirmPasswordError}</div> : null}
                         </div>
 
                         <button type="submit" className="btn-primary" disabled={!canSubmit}>
-                            {submitLoading ? 'Actualizando...' : 'Actualizar contrasena'}
+                            {submitLoading ? 'Actualizando...' : 'Actualizar contraseña'}
                         </button>
 
                         {submitErrorStatus === 400 ? (
@@ -277,7 +277,7 @@ export default function RestablecerContraseña() {
                                     navigate('/inicio-sesion', {
                                         replace: true,
                                         state: {
-                                            message: 'Solicita un nuevo enlace para restablecer tu contrasena.',
+                                            message: 'Solicita un nuevo enlace para restablecer tu contraseña.',
                                             openForgot: true
                                         }
                                     });
@@ -288,7 +288,7 @@ export default function RestablecerContraseña() {
                         ) : null}
 
                         <Link to="/inicio-sesion" className="forgot-password-link">
-                            Volver a inicio de sesion
+                            Volver a inicio de sesión
                         </Link>
                     </form>
                 </div>
@@ -297,13 +297,13 @@ export default function RestablecerContraseña() {
             {showSuccess ? (
                 <dialog className="reset-modal-overlay" open aria-modal="true">
                     <div className="reset-modal-content">
-                        <p className="reset-modal-text">Contrasena actualizada.</p>
+                        <p className="reset-modal-text">Contraseña actualizada.</p>
                         <button
                             type="button"
                             className="btn-primary"
                             onClick={() => navigate('/inicio-sesion')}
                         >
-                            Iniciar sesion
+                            Iniciar sesión
                         </button>
                     </div>
                 </dialog>

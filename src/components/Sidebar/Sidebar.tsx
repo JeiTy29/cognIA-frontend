@@ -6,12 +6,9 @@ import { getItemsForRole } from './SidebarConfig';
 
 type SidebarProps = Readonly<{
     role: Role;
-    drawerId?: string;
-    mobileOpen?: boolean;
-    onClose?: () => void;
 }>;
 
-export default function Sidebar({ role, drawerId, mobileOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ role }: SidebarProps) {
     const items = getItemsForRole(role);
     const location = useLocation();
     const listRef = useRef<HTMLUListElement | null>(null);
@@ -34,23 +31,7 @@ export default function Sidebar({ role, drawerId, mobileOpen = false, onClose }:
     }, [location.pathname, role]);
 
     return (
-        <aside
-            id={drawerId}
-            className={`sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}
-            aria-label="Navegacion principal"
-        >
-            <div className="sidebar-mobile-header">
-                <strong className="sidebar-mobile-title">Menu</strong>
-                <button
-                    type="button"
-                    className="sidebar-mobile-close"
-                    aria-label="Cerrar menu de navegacion"
-                    onClick={onClose}
-                >
-                    X
-                </button>
-            </div>
-
+        <aside className="sidebar" aria-label="Navegación principal">
             <nav className="sidebar-nav">
                 <ul className="sidebar-list" ref={listRef}>
                     <span
@@ -69,7 +50,6 @@ export default function Sidebar({ role, drawerId, mobileOpen = false, onClose }:
                                 to={item.paths[role] ?? '/'}
                                 className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
                                 aria-label={item.label}
-                                onClick={onClose}
                             >
                                 <span className="sidebar-icon" aria-hidden="true">
                                     {item.icon}

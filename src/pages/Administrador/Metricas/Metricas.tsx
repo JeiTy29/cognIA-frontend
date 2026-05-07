@@ -89,15 +89,15 @@ function renderStatusBreakdown(counts: Record<'200' | '401' | '500', number>, to
         <div className="metricas-legend">
             <div>
                 <span className="legend-dot legend-green" aria-hidden="true" />
-                200 â€” {counts['200']} ({totalStatus ? Math.round((counts['200'] / totalStatus) * 100) : 0}%)
+                200 — {counts['200']} ({totalStatus ? Math.round((counts['200'] / totalStatus) * 100) : 0}%)
             </div>
             <div>
                 <span className="legend-dot legend-yellow" aria-hidden="true" />
-                401 â€” {counts['401']} ({totalStatus ? Math.round((counts['401'] / totalStatus) * 100) : 0}%)
+                401 — {counts['401']} ({totalStatus ? Math.round((counts['401'] / totalStatus) * 100) : 0}%)
             </div>
             <div>
                 <span className="legend-dot legend-red" aria-hidden="true" />
-                500 â€” {counts['500']} ({totalStatus ? Math.round((counts['500'] / totalStatus) * 100) : 0}%)
+                500 — {counts['500']} ({totalStatus ? Math.round((counts['500'] / totalStatus) * 100) : 0}%)
             </div>
         </div>
     );
@@ -193,8 +193,8 @@ export default function Metricas() {
         if (metricsDisabled) {
             return (
                 <section className="metricas-disabled">
-                    <h2>MÃ©tricas deshabilitadas</h2>
-                    <p>El sistema no estÃ¡ exponiendo mÃ©tricas en este momento.</p>
+                    <h2>Métricas deshabilitadas</h2>
+                    <p>El sistema no está exponiendo métricas en este momento.</p>
                     <button type="button" className="metricas-refresh" onClick={reload}>
                         Recargar
                     </button>
@@ -205,7 +205,7 @@ export default function Metricas() {
         return (
             <section className="metricas-snapshot">
                 <div className="metricas-snapshot-main">
-                    <h2>Snapshot de mÃ©tricas</h2>
+                    <h2>Snapshot de métricas</h2>
                     <div className="metricas-grid">
                         <div>
                             <span className="metricas-label">Latencia promedio</span>
@@ -213,7 +213,7 @@ export default function Metricas() {
                             {renderSparkline(latencyHistory, 'Tendencia de latencia')}
                         </div>
                         <div>
-                            <span className="metricas-label">Latencia mÃ¡xima</span>
+                            <span className="metricas-label">Latencia máxima</span>
                             <div className={`metricas-value ${latencyStatusClass}`}>{maxLatencyText}</div>
                         </div>
                         <div>
@@ -240,7 +240,7 @@ export default function Metricas() {
         <div className="metricas">
             <header className="metricas-header">
                 <div>
-                    <h1>Metricas del sistema</h1>
+                    <h1>Métricas del sistema</h1>
                 </div>
             </header>
             <div className="metricas-divider" aria-hidden="true" />
@@ -291,7 +291,7 @@ export default function Metricas() {
 
             {renderSnapshotSection()}
 
-            <section className="metricas-table" aria-label="Detalle de metricas">
+            <section className="metricas-table" aria-label="Detalle de métricas">
                 <div className="metricas-table-row header">
                     <span aria-hidden="true" />
                     <span>Indicador</span>
@@ -308,7 +308,7 @@ export default function Metricas() {
                     <span className="indicator blue" aria-hidden="true" />
                     <span>Solicitudes</span>
                     <span>{requestsTotal ?? '--'}</span>
-                    <span>Trafico acumulado desde el arranque.</span>
+                    <span>Tráfico acumulado desde el arranque.</span>
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator teal" aria-hidden="true" />
@@ -318,7 +318,7 @@ export default function Metricas() {
                 </div>
                 <div className="metricas-table-row">
                     <span className="indicator orange" aria-hidden="true" />
-                    <span>Latencia maxima</span>
+                    <span>Latencia máxima</span>
                     <span>{maxLatencyText}</span>
                     <span>Picos de carga recientes.</span>
                 </div>
@@ -348,7 +348,7 @@ export default function Metricas() {
                 </div>
             ) : null}
 
-            {isLoading ? <div className="metricas-loading">Cargando metricas...</div> : null}
+            {isLoading ? <div className="metricas-loading">Cargando métricas...</div> : null}
         </div>
     );
 }

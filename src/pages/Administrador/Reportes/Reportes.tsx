@@ -40,7 +40,7 @@ const issueTypeOptions = [
 const reporterRoleOptions = [
     { value: '', label: 'Todos' },
     { value: 'ADMIN', label: 'Administrador' },
-    { value: 'PSYCHOLOGIST', label: 'PsicÃ³logo' },
+    { value: 'PSYCHOLOGIST', label: 'Psic?logo' },
     { value: 'GUARDIAN', label: 'Padre/Tutor' }
 ];
 
@@ -154,7 +154,7 @@ function ReportDetailContent({
         <>
             <div className="admin-detail-list">
                 <div className="admin-detail-row">
-                    <strong>CÃ³digo</strong>
+                    <strong>C?digo</strong>
                     <span>{detailItem.report_code}</span>
                 </div>
                 <div className="admin-detail-row">
@@ -170,7 +170,7 @@ function ReportDetailContent({
                     <span>{getProblemReportReporterRoleLabel(detailItem.reporter_role)}</span>
                 </div>
                 <div className="admin-detail-row">
-                    <strong>MÃ³dulo</strong>
+                    <strong>M?dulo</strong>
                     <span>{getSourceModuleLabel(detailItem.source_module)}</span>
                 </div>
                 <div className="admin-detail-row">
@@ -192,7 +192,7 @@ function ReportDetailContent({
             </div>
 
             <label>
-                <span>DescripciÃ³n</span>
+                <span>Descripci?n</span>
                 <textarea value={detailItem.description} readOnly />
             </label>
 
@@ -392,7 +392,7 @@ export default function ReportesAdmin() {
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por cÃ³digo, mÃ³dulo o descripciÃ³n"
+                        placeholder="Buscar por c?digo, m?dulo o descripci?n"
                         aria-label="Buscar reportes"
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -464,11 +464,11 @@ export default function ReportesAdmin() {
 
             <section className="admin-table" aria-label="Listado de reportes">
                 <div className="admin-table-head reportes-admin-grid">
-                    <span>CÃ³digo</span>
+                    <span>C?digo</span>
                     <span>Tipo</span>
                     <span>Estado</span>
                     <span>Reportante</span>
-                    <span>MÃ³dulo</span>
+                    <span>M?dulo</span>
                     <span>Fecha</span>
                     <span>Acciones</span>
                 </div>
@@ -476,7 +476,7 @@ export default function ReportesAdmin() {
                 {renderTableContent()}
             </section>
 
-            <footer className="admin-pagination" aria-label="PaginaciÃ³n de reportes">
+            <footer className="admin-pagination" aria-label="Paginaci?n de reportes">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -484,17 +484,17 @@ export default function ReportesAdmin() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="PÃ¡gina anterior"
+                        aria-label="P?gina anterior"
                         onClick={() => setPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">PÃ¡gina {currentPage}</span>
+                    <span className="admin-page-current">P?gina {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="PÃ¡gina siguiente"
+                        aria-label="P?gina siguiente"
                         onClick={() => setPage(Math.min(pages, currentPage + 1))}
                         disabled={currentPage >= pages}
                     >
@@ -503,9 +503,9 @@ export default function ReportesAdmin() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>TamaÃ±o</span>
+                        <span>Tama?o</span>
                         <CustomSelect
-                            ariaLabel="TamaÃ±o de pÃ¡gina"
+                            ariaLabel="Tama?o de p?gina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => changePageSize(Number(value))}

@@ -59,9 +59,9 @@ function requiresLoginRedirect(
 
 function resolveMfaVerificationError(status: number | null) {
     if (status === 403) {
-        return 'Debes configurar MFA antes de verificar. Inicia sesion nuevamente.';
+        return 'Debes configurar MFA antes de verificar. Inicia sesión nuevamente.';
     }
-    return 'El codigo ingresado no es valido. Intenta nuevamente.';
+    return 'El código ingresado no es válido. Intenta nuevamente.';
 }
 
 function validateMfaSubmitInput(
@@ -72,10 +72,10 @@ function validateMfaSubmitInput(
 ) {
     if (!challengeId) return '';
     if (useRecovery && !recoveryCode.trim()) {
-        return 'Ingresa el codigo de recuperacion.';
+        return 'Ingresa el código de recuperación.';
     }
     if (!useRecovery && code.length !== MFA_CODE_LENGTH) {
-        return 'Ingresa un codigo de 6 digitos.';
+        return 'Ingresa un código de 6 dígitos.';
     }
     return null;
 }
@@ -270,7 +270,7 @@ export default function MFA() {
                     </div>
 
                     <h1 className="auth-title">
-                        {mode === 'setup' ? 'Configurar verificacion en dos pasos' : 'Verificacion requerida'}
+                        {mode === 'setup' ? 'Configurar verificación en dos pasos' : 'Verificación requerida'}
                     </h1>
 
                     {mode === 'setup' ? (
@@ -285,7 +285,7 @@ export default function MFA() {
                     ) : (
                         <>
                             <p className="auth-subtitle">
-                                Abre tu aplicacion de autenticacion y escribe el codigo de 6 digitos que se muestra alli.
+                                Abre tu aplicación de autenticación y escribe el código de 6 dígitos que se muestra allí.
                             </p>
                             <form className="auth-form" onSubmit={handleVerify}>
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
@@ -294,7 +294,7 @@ export default function MFA() {
                                 {isTotpMode ? (
                                     <div className="form-group">
                                         <fieldset className="mfa-code-fieldset">
-                                            <legend className="mfa-code-legend">Codigo MFA de 6 digitos</legend>
+                                            <legend className="mfa-code-legend">Código MFA de 6 dígitos</legend>
                                             <div className="mfa-code-grid">
                                                 {codeDigits.map((digit, index) => (
                                                     <input
@@ -312,7 +312,7 @@ export default function MFA() {
                                                         onChange={(event) => handleDigitChange(index, event.target.value)}
                                                         onKeyDown={(event) => handleDigitKeyDown(index, event)}
                                                         onPaste={handleDigitPaste}
-                                                        aria-label={`Digito ${index + 1} de 6`}
+                                                        aria-label={`Dígito ${index + 1} de 6`}
                                                         required
                                                     />
                                                 ))}
@@ -322,7 +322,7 @@ export default function MFA() {
                                 ) : null}
 
                                 <div className="form-group">
-                                    <div className="mfa-mode-toggle" role="tablist" aria-label="Modo de verificacion MFA">
+                                    <div className="mfa-mode-toggle" role="tablist" aria-label="Modo de verificación MFA">
                                         <button
                                             type="button"
                                             role="tab"
@@ -330,7 +330,7 @@ export default function MFA() {
                                             className={`mfa-mode-toggle-btn ${isTotpMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(false)}
                                         >
-                                            Codigo TOTP
+                                            Código TOTP
                                         </button>
                                         <button
                                             type="button"
@@ -339,7 +339,7 @@ export default function MFA() {
                                             className={`mfa-mode-toggle-btn ${isRecoveryMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(true)}
                                         >
-                                            Codigo de recuperacion
+                                            Código de recuperación
                                         </button>
                                     </div>
                                     {isRecoveryMode ? (
@@ -347,7 +347,7 @@ export default function MFA() {
                                             ref={recoveryInputRef}
                                             type="text"
                                             className="form-input"
-                                            placeholder="Codigo de recuperacion"
+                                            placeholder="Código de recuperación"
                                             value={recoveryCode}
                                             onChange={(event) => setRecoveryCode(event.target.value.trim())}
                                             required
@@ -364,7 +364,7 @@ export default function MFA() {
 
                     {mode === 'setup' ? (
                         <p className="auth-mfa-note">
-                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el codigo.
+                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el código.
                         </p>
                     ) : null}
 

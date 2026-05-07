@@ -29,38 +29,38 @@ const verifiedActionLabels: Record<string, string> = {
     USER_CREATED: 'Usuario creado',
     USER_UPDATED: 'Usuario actualizado',
     USER_DEACTIVATED: 'Usuario desactivado',
-    [userCredentialResetAction]: 'ContraseÃ±a de usuario restablecida',
+    [userCredentialResetAction]: 'Contrase?a de usuario restablecida',
     USER_MFA_RESET: 'MFA de usuario restablecido',
-    USER_LOGIN: 'Inicio de sesiÃ³n',
-    USER_LOGOUT: 'Cierre de sesiÃ³n',
-    LOGIN_SUCCESS: 'Inicio de sesiÃ³n exitoso',
-    LOGIN_FAILED: 'Intento de inicio de sesiÃ³n fallido',
-    MFA_SETUP: 'ConfiguraciÃ³n de MFA',
-    MFA_CONFIRM: 'ConfirmaciÃ³n de MFA',
-    MFA_DISABLE: 'DesactivaciÃ³n de MFA',
-    MFA_RECOVERY_USED: 'Uso de cÃ³digo de recuperaciÃ³n MFA',
+    USER_LOGIN: 'Inicio de sesi?n',
+    USER_LOGOUT: 'Cierre de sesi?n',
+    LOGIN_SUCCESS: 'Inicio de sesi?n exitoso',
+    LOGIN_FAILED: 'Intento de inicio de sesi?n fallido',
+    MFA_SETUP: 'Configuraci?n de MFA',
+    MFA_CONFIRM: 'Confirmaci?n de MFA',
+    MFA_DISABLE: 'Desactivaci?n de MFA',
+    MFA_RECOVERY_USED: 'Uso de c?digo de recuperaci?n MFA',
     QUESTIONNAIRE_CREATED: 'Cuestionario creado',
     QUESTIONNAIRE_PUBLISHED: 'Cuestionario publicado',
     QUESTIONNAIRE_ARCHIVED: 'Cuestionario archivado',
     QUESTIONNAIRE_CLONED: 'Cuestionario clonado',
     QUESTIONNAIRE_QUESTION_CREATED: 'Pregunta de cuestionario agregada',
-    QUESTIONNAIRE_SESSION_CREATED: 'SesiÃ³n de cuestionario iniciada',
-    QUESTIONNAIRE_SESSION_SUBMITTED: 'SesiÃ³n de cuestionario enviada',
+    QUESTIONNAIRE_SESSION_CREATED: 'Sesi?n de cuestionario iniciada',
+    QUESTIONNAIRE_SESSION_SUBMITTED: 'Sesi?n de cuestionario enviada',
     QUESTIONNAIRE_PDF_GENERATED: 'PDF de cuestionario generado',
     QUESTIONNAIRE_SHARED: 'Resultado de cuestionario compartido',
-    EVALUATION_STATUS_UPDATED: 'Estado de evaluaciÃ³n actualizado',
-    PSYCHOLOGIST_APPROVED: 'PsicÃ³logo aprobado',
-    PSYCHOLOGIST_REJECTED: 'PsicÃ³logo rechazado',
+    EVALUATION_STATUS_UPDATED: 'Estado de evaluaci?n actualizado',
+    PSYCHOLOGIST_APPROVED: 'Psic?logo aprobado',
+    PSYCHOLOGIST_REJECTED: 'Psic?logo rechazado',
     PROBLEM_REPORT_CREATED: 'Reporte de problema creado',
     PROBLEM_REPORT_UPDATED: 'Reporte de problema actualizado',
-    AUDIT_LOG_VIEWED: 'Consulta de auditorÃ­a'
+    AUDIT_LOG_VIEWED: 'Consulta de auditor?a'
 };
 
 const actionTokenLabels: Record<string, string> = {
     REGISTER: 'Registro',
-    LOGIN: 'Inicio de sesiÃ³n',
-    LOGOUT: 'Cierre de sesiÃ³n',
-    AUTH: 'AutenticaciÃ³n',
+    LOGIN: 'Inicio de sesi?n',
+    LOGOUT: 'Cierre de sesi?n',
+    AUTH: 'Autenticaci?n',
     MFA: 'MFA',
     USER: 'Usuario',
     USERS: 'Usuarios',
@@ -76,11 +76,11 @@ const actionTokenLabels: Record<string, string> = {
     APPROVE: 'Aprobar',
     REJECTED: 'Rechazado',
     REJECT: 'Rechazar',
-    PSYCHOLOGIST: 'PsicÃ³logo',
+    PSYCHOLOGIST: 'Psic?logo',
     QUESTIONNAIRE: 'Cuestionario',
     QUESTIONNAIRES: 'Cuestionarios',
-    SESSION: 'SesiÃ³n',
-    EVALUATION: 'EvaluaciÃ³n',
+    SESSION: 'Sesi?n',
+    EVALUATION: 'Evaluaci?n',
     PROFILE: 'Perfil',
     ACCOUNT: 'Cuenta',
     EMAIL: 'Correo',
@@ -88,31 +88,31 @@ const actionTokenLabels: Record<string, string> = {
     SHARE: 'Compartir',
     REPORT: 'Reporte',
     REPORTS: 'Reportes',
-    AUDIT: 'AuditorÃ­a'
+    AUDIT: 'Auditor?a'
 };
 
 
-actionTokenLabels[accessCredentialToken] = 'ContraseÃ±a';
+actionTokenLabels[accessCredentialToken] = 'Contrase?a';
 
 const detailFieldLabels: Record<string, string> = {
-    ip: 'DirecciÃ³n IP',
-    ip_address: 'DirecciÃ³n IP',
+    ip: 'Direcci?n IP',
+    ip_address: 'Direcci?n IP',
     user_agent: 'Dispositivo o navegador',
     request_id: 'ID de solicitud',
-    session_id: 'ID de sesiÃ³n',
-    status_code: 'CÃ³digo de estado',
-    http_status: 'CÃ³digo de estado',
-    method: 'MÃ©todo HTTP',
-    path: 'Ruta tÃ©cnica',
+    session_id: 'ID de sesi?n',
+    status_code: 'C?digo de estado',
+    http_status: 'C?digo de estado',
+    method: 'M?todo HTTP',
+    path: 'Ruta t?cnica',
     endpoint: 'Endpoint',
     resource: 'Recurso',
     resource_id: 'ID de recurso',
     reason: 'Motivo',
     message: 'Mensaje',
-    description: 'DescripciÃ³n',
+    description: 'Descripci?n',
     detail: 'Detalle',
     outcome: 'Resultado',
-    source_module: 'MÃ³dulo de origen',
+    source_module: 'M?dulo de origen',
     source_path: 'Pantalla o ruta de origen'
 };
 
@@ -122,7 +122,7 @@ function formatDateTime(value: string | null) {
 
 function humanizeAction(action: string) {
     const normalized = action.trim();
-    if (!normalized) return 'Sin acciÃ³n';
+    if (!normalized) return 'Sin acci?n';
     if (verifiedActionLabels[normalized]) return verifiedActionLabels[normalized];
 
     const tokens = normalized
@@ -235,7 +235,7 @@ export default function Auditoria() {
         <div className="admin-page auditoria-page">
             <header className="admin-header">
                 <div className="admin-title">
-                    <h1>AuditorÃ­a</h1>
+                    <h1>Auditor?a</h1>
                 </div>
             </header>
 
@@ -243,15 +243,15 @@ export default function Auditoria() {
 
             {error ? <div className="admin-alert error">{error}</div> : null}
 
-            <section className="admin-controls" aria-label="Controles de auditorÃ­a">
+            <section className="admin-controls" aria-label="Controles de auditor?a">
                 <div className="admin-search">
                     <span className="admin-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por acciÃ³n, actor, objetivo o ID..."
-                        aria-label="Buscar auditorÃ­a"
+                        placeholder="Buscar por acci?n, actor, objetivo o ID..."
+                        aria-label="Buscar auditor?a"
                         value={searchTerm}
                         onChange={(event) => {
                             setSearchTerm(event.target.value);
@@ -261,9 +261,9 @@ export default function Auditoria() {
                 </div>
                 <div className="admin-filters">
                     <label>
-                        <span>AcciÃ³n</span>
+                        <span>Acci?n</span>
                         <CustomSelect
-                            ariaLabel="Filtrar por acciÃ³n"
+                            ariaLabel="Filtrar por acci?n"
                             value={actionFilter}
                             options={actionOptions}
                             onChange={(value) => {
@@ -276,7 +276,7 @@ export default function Auditoria() {
                 </div>
             </section>
 
-            <section className="admin-table" aria-label="Listado de auditorÃ­a">
+            <section className="admin-table" aria-label="Listado de auditor?a">
                 <div className="admin-table-head auditoria-grid">
                     <button
                         type="button"
@@ -289,14 +289,14 @@ export default function Auditoria() {
                         <span>Fecha</span>
                         <span aria-hidden="true">{dateOrder === 'desc' ? '↓' : '↑'}</span>
                     </button>
-                    <span>AcciÃ³n</span>
+                    <span>Acci?n</span>
                     <span>Actor</span>
                     <span>Objetivo</span>
                     <span>Resumen</span>
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando registros de auditorÃ­a...</div> : null}
+                {loading ? <div className="admin-loading">Cargando registros de auditor?a...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
                     <div className="admin-empty">
@@ -332,7 +332,7 @@ export default function Auditoria() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="PaginaciÃ³n de auditorÃ­a">
+            <footer className="admin-pagination" aria-label="Paginaci?n de auditor?a">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -340,17 +340,17 @@ export default function Auditoria() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="PÃ¡gina anterior"
+                        aria-label="P?gina anterior"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">PÃ¡gina {currentPage}</span>
+                    <span className="admin-page-current">P?gina {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="PÃ¡gina siguiente"
+                        aria-label="P?gina siguiente"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage >= totalPages}
                     >
@@ -359,9 +359,9 @@ export default function Auditoria() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>TamaÃ±o</span>
+                        <span>Tama?o</span>
                         <CustomSelect
-                            ariaLabel="TamaÃ±o de pÃ¡gina"
+                            ariaLabel="Tama?o de p?gina"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => {
@@ -375,12 +375,12 @@ export default function Auditoria() {
 
             <Modal isOpen={selectedItem !== null} onClose={() => setSelectedItem(null)}>
                 <div className="admin-modal">
-                    <h2>Detalle de auditorÃ­a</h2>
+                    <h2>Detalle de auditor?a</h2>
                     {selectedItem ? (
                         <>
                             <div className="admin-detail-list">
                                 <div className="admin-detail-row">
-                                    <strong>AcciÃ³n</strong>
+                                    <strong>Acci?n</strong>
                                     <span>{humanizeAction(selectedItem.action)}</span>
                                 </div>
                                 <div className="admin-detail-row">
@@ -401,7 +401,7 @@ export default function Auditoria() {
                                 </div>
                                 {selectedItem.section ? (
                                     <div className="admin-detail-row">
-                                        <strong>SecciÃ³n</strong>
+                                        <strong>Secci?n</strong>
                                         <span>{selectedItem.section}</span>
                                     </div>
                                 ) : null}

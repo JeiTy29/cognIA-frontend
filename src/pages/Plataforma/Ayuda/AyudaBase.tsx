@@ -81,17 +81,17 @@ function mapCreateProblemReportError(error: unknown) {
     ].filter((value): value is string => Boolean(value));
     const normalized = candidates.map((value) => value.toLowerCase()).join(' ');
 
-    if (normalized.includes('invalid_user') || status === 401) return 'Tu sesiÃƒÂ³n no es vÃƒÂ¡lida. Inicia sesiÃƒÂ³n nuevamente.';
-    if (normalized.includes('inactive_account') || status === 403) return 'Tu cuenta estÃƒÂ¡ inactiva.';
+    if (normalized.includes('invalid_user') || status === 401) return 'Tu sesi?n no es v?lida. Inicia sesi?n nuevamente.';
+    if (normalized.includes('inactive_account') || status === 403) return 'Tu cuenta est? inactiva.';
     if (normalized.includes('attachment_missing')) return 'No se pudo procesar el archivo adjunto.';
-    if (normalized.includes('attachment_filename_missing')) return 'El archivo adjunto debe conservar un nombre vÃƒÂ¡lido.';
+    if (normalized.includes('attachment_filename_missing')) return 'El archivo adjunto debe conservar un nombre v?lido.';
     if (normalized.includes('attachment_mime_not_allowed')) return 'Solo se permiten archivos PNG, JPG o WEBP.';
-    if (normalized.includes('attachment_empty')) return 'El archivo adjunto estÃƒÂ¡ vacÃƒÂ­o.';
-    if (normalized.includes('attachment_too_large')) return 'El archivo adjunto supera el mÃƒÂ¡ximo de 5 MB.';
+    if (normalized.includes('attachment_empty')) return 'El archivo adjunto est? vac?o.';
+    if (normalized.includes('attachment_too_large')) return 'El archivo adjunto supera el m?ximo de 5 MB.';
     if (normalized.includes('attachment_content_mismatch')) return 'El contenido del archivo no coincide con el tipo permitido.';
     if (normalized.includes('problem_report_create_failed')) return 'No fue posible crear el reporte. Intenta nuevamente.';
     if (normalized.includes('validation_error') || status === 400) return 'Revisa los datos del reporte e intenta de nuevo.';
-    if (status >= 500) return 'No fue posible consultar reportes en este momento. Intenta nuevamente mÃƒÂ¡s tarde.';
+    if (status >= 500) return 'No fue posible consultar reportes en este momento. Intenta nuevamente m?s tarde.';
 
     return 'No fue posible enviar el reporte.';
 }
@@ -128,14 +128,14 @@ function resolveHelpRole(role: HelpRole | undefined, pathname: string): HelpRole
 
 function validateProblemReportSubmission(issueType: string, description: string) {
     if (!issueType) return 'Selecciona el tipo de problema.';
-    if (description.length < 10) return 'La descripciÃ³n debe tener al menos 10 caracteres.';
-    if (description.length > 4000) return 'La descripciÃ³n no puede superar los 4000 caracteres.';
+    if (description.length < 10) return 'La descripción debe tener al menos 10 caracteres.';
+    if (description.length > 4000) return 'La descripción no puede superar los 4000 caracteres.';
     return null;
 }
 
 function resolveProblemReportSuccessMessage(reportCode: string | undefined) {
     if (reportCode) {
-        return `Reporte enviado correctamente. CÃ³digo: ${reportCode}.`;
+        return `Reporte enviado correctamente. Código: ${reportCode}.`;
     }
     return 'Reporte enviado correctamente.';
 }
@@ -165,7 +165,7 @@ function resolveSelectedAttachment(file: File | null): SelectedAttachment {
         return {
             file: null,
             previewUrl: null,
-            error: 'El archivo adjunto supera el mÃ¡ximo de 5 MB.',
+            error: 'El archivo adjunto supera el máximo de 5 MB.',
             clearInput: true
         };
     }
@@ -191,17 +191,17 @@ async function syncProblemReportsAfterCreate(
 }
 
 const faqsPadre = [
-    { id: 'padre-1', question: 'Ã‚Â¿QuÃƒÂ© significa la alerta que muestra el sistema?', answer: 'La alerta indica un posible trastorno segÃƒÂºn el cuestionario. No es un diagnÃƒÂ³stico clÃƒÂ­nico.' },
-    { id: 'padre-2', question: 'Ã‚Â¿CÃƒÂ³mo diligencio el cuestionario correctamente?', answer: 'Responde con honestidad y completa todas las preguntas para obtener un resultado confiable.' },
-    { id: 'padre-3', question: 'Ã‚Â¿DÃƒÂ³nde veo el historial de mis cuestionarios?', answer: 'En la secciÃƒÂ³n Historial puedes consultar los cuestionarios realizados por tu cuenta.' },
-    { id: 'padre-4', question: 'Ã‚Â¿QuÃƒÂ© datos se guardan sobre mi hijo?', answer: 'Solo se registran respuestas de comportamiento sin datos personales identificables.' }
+    { id: 'padre-1', question: '?Qu? significa la alerta que muestra el sistema?', answer: 'La alerta indica un posible trastorno seg?n el cuestionario. No es un diagn?stico cl?nico.' },
+    { id: 'padre-2', question: '?C?mo diligencio el cuestionario correctamente?', answer: 'Responde con honestidad y completa todas las preguntas para obtener un resultado confiable.' },
+    { id: 'padre-3', question: '?D?nde veo el historial de mis cuestionarios?', answer: 'En la secci?n Historial puedes consultar los cuestionarios realizados por tu cuenta.' },
+    { id: 'padre-4', question: '?Qu? datos se guardan sobre mi hijo?', answer: 'Solo se registran respuestas de comportamiento sin datos personales identificables.' }
 ];
 
 const faqsPsicologo = [
-    { id: 'psicologo-1', question: 'Ã‚Â¿CÃƒÂ³mo interpreto los resultados detallados?', answer: 'Los resultados muestran la alerta y el razonamiento del modelo para apoyar tu anÃƒÂ¡lisis profesional.' },
-    { id: 'psicologo-2', question: 'Ã‚Â¿Puedo ver mÃƒÂºltiples evaluaciones de un mismo caso?', answer: 'SÃƒÂ­, si el tutor otorgÃƒÂ³ permisos, puedes acceder al historial completo de cuestionarios.' },
-    { id: 'psicologo-3', question: 'Ã‚Â¿QuÃƒÂ© hacer si necesito reportes adicionales?', answer: 'Puedes usar la secciÃƒÂ³n de reporte de problemas o contactarnos para solicitar soporte.' },
-    { id: 'psicologo-4', question: 'Ã‚Â¿CÃƒÂ³mo se muestran las sugerencias del sistema?', answer: 'Las sugerencias se presentan como apoyo y no reemplazan la evaluaciÃƒÂ³n clÃƒÂ­nica.' }
+    { id: 'psicologo-1', question: '?C?mo interpreto los resultados detallados?', answer: 'Los resultados muestran la alerta y el razonamiento del modelo para apoyar tu an?lisis profesional.' },
+    { id: 'psicologo-2', question: '?Puedo ver m?ltiples evaluaciones de un mismo caso?', answer: 'S?, si el tutor otorg? permisos, puedes acceder al historial completo de cuestionarios.' },
+    { id: 'psicologo-3', question: '?Qu? hacer si necesito reportes adicionales?', answer: 'Puedes usar la secci?n de reporte de problemas o contactarnos para solicitar soporte.' },
+    { id: 'psicologo-4', question: '?C?mo se muestran las sugerencias del sistema?', answer: 'Las sugerencias se presentan como apoyo y no reemplazan la evaluaci?n cl?nica.' }
 ];
 
 export default function AyudaBase({ role }: AyudaBaseProps) {
@@ -247,7 +247,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
     } = useMyProblemReports({ enabled: showMyReports });
 
     const faqs = resolvedRole === 'psicologo' ? faqsPsicologo : faqsPadre;
-    const roleLabel = resolvedRole === 'psicologo' ? 'PsicÃƒÂ³logo' : 'Padre/Tutor';
+    const roleLabel = resolvedRole === 'psicologo' ? 'Psic?logo' : 'Padre/Tutor';
     const selectedIssueOption = issueOptions.find((option) => option.value === issueType) ?? null;
     const orderValue = useMemo(() => `${sort}:${order}`, [sort, order]);
     const currentPage = Math.min(page, Math.max(1, pages));
@@ -399,7 +399,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                             onClick={handleSelectToggle}
                                             aria-expanded={selectOpen}
                                         >
-                                            <span>{selectedIssueOption?.label ?? 'Selecciona una opciÃƒÂ³n'}</span>
+                                            <span>{selectedIssueOption?.label ?? 'Selecciona una opci?n'}</span>
                                             <span className={`ayuda-select-icon ${selectOpen ? 'open' : ''}`}>
                                                 <ChevronIcon />
                                             </span>
@@ -419,7 +419,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                     </div>
                                 </div>
                                 <label className="ayuda-input-group">
-                                    <span className="ayuda-label">DescripciÃƒÂ³n</span>
+                                    <span className="ayuda-label">Descripci?n</span>
                                     <textarea
                                         className="ayuda-input ayuda-textarea"
                                         placeholder="Describe el problema de forma breve."
@@ -554,7 +554,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                             <button
                                                 type="button"
                                                 className="ayuda-page-btn"
-                                                aria-label="PÃƒÂ¡gina anterior"
+                                                aria-label="P?gina anterior"
                                                 onClick={() => setPage(Math.max(1, currentPage - 1))}
                                                 disabled={currentPage <= 1}
                                             >
@@ -562,11 +562,11 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                                     <path d="m15 5-7 7 7 7" />
                                                 </svg>
                                             </button>
-                                            <span className="ayuda-page-current">PÃƒÂ¡gina {currentPage}</span>
+                                            <span className="ayuda-page-current">P?gina {currentPage}</span>
                                             <button
                                                 type="button"
                                                 className="ayuda-page-btn"
-                                                aria-label="PÃƒÂ¡gina siguiente"
+                                                aria-label="P?gina siguiente"
                                                 onClick={() => setPage(Math.min(pages, currentPage + 1))}
                                                 disabled={currentPage >= pages}
                                             >
@@ -577,9 +577,9 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                         </div>
                                         <div className="ayuda-page-size">
                                             <label>
-                                                <span>TamaÃƒÂ±o</span>
+                                                <span>Tama?o</span>
                                                 <CustomSelect
-                                                    ariaLabel="TamaÃƒÂ±o de pÃƒÂ¡gina"
+                                                    ariaLabel="Tama?o de p?gina"
                                                     value={String(pageSize)}
                                                     options={pageSizeOptions}
                                                     onChange={(value) => changePageSize(Number(value))}
@@ -601,10 +601,10 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                             <h2 className="ayuda-section-title">Legal</h2>
                             <div className="ayuda-legal">
                                 <button type="button" className="ayuda-link" onClick={() => setShowPrivacy(true)}>
-                                    PolÃƒÂ­tica de privacidad
+                                    Pol?tica de privacidad
                                 </button>
                                 <button type="button" className="ayuda-link" onClick={() => setShowTerms(true)}>
-                                    TÃƒÂ©rminos de uso
+                                    T?rminos de uso
                                 </button>
                             </div>
                         </div>
@@ -618,7 +618,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                             <>
                                 <div className="ayuda-detail-grid">
                                     <div>
-                                        <strong>CÃƒÂ³digo</strong>
+                                        <strong>C?digo</strong>
                                         <span>{selectedReport.report_code}</span>
                                     </div>
                                     <div>
@@ -638,7 +638,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                         <span>{formatDateTime(selectedReport.updated_at)}</span>
                                     </div>
                                     <div>
-                                        <strong>MÃƒÂ³dulo</strong>
+                                        <strong>M?dulo</strong>
                                         <span>{selectedReport.source_module ?? '--'}</span>
                                     </div>
                                     <div>
@@ -651,7 +651,7 @@ export default function AyudaBase({ role }: AyudaBaseProps) {
                                     </div>
                                 </div>
                                 <div className="ayuda-detail-block">
-                                    <strong>DescripciÃƒÂ³n</strong>
+                                    <strong>Descripci?n</strong>
                                     <p>{selectedReport.description}</p>
                                 </div>
                                 {selectedReport.attachments.length > 0 ? (
