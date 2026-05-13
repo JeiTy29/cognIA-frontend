@@ -150,7 +150,7 @@ export default function MFA() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
     const location = useLocation();
-    const { setSession } = useAuth();
+    const { setSession, verifySession } = useAuth();
     const state = location.state as MFANavigationState | null;
     const mode: MFAMode = useMemo(() => resolveMfaMode(state), [state]);
     const challengeId = useMemo(() => readMfaStateString(state, 'challengeId', 'challenge_id'), [state]);
@@ -246,6 +246,12 @@ export default function MFA() {
             const payload = buildMfaPayload(safeChallengeId, useRecovery, recoveryCode, code);
             const response = await loginMfa(payload);
             setSession(response.access_token, response.expires_in);
+            const verified = await verifySession({ silent: true, allowRefresh: false });
+            if (!verified) {
+                setSubmitError('No se pudo validar la sesión MFA. Intenta iniciar sesión nuevamente.');
+                return;
+            }
+
             const jwtPayload = decodeJwtPayload(response.access_token);
             navigate(getDefaultRouteForRoles(jwtPayload?.roles), { replace: true });
         } catch (error) {

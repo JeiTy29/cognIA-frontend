@@ -8,6 +8,8 @@ export interface AuthContextValue {
     roles: string[];
     userId: string | null;
     expiresAt: number | null;
+    authStatus: 'checking' | 'authenticated' | 'anonymous';
+    sessionVerified: boolean;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
     primaryRole: AppRole | null;
@@ -24,6 +26,7 @@ export interface AuthContextValue {
     logout: (reason?: LogoutReason) => void;
     devLogout: () => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
+    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean }) => Promise<boolean>;
     reloadProfile: () => Promise<void>;
 }
 

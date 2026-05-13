@@ -25,7 +25,6 @@ import type {
     AuthMeErrorResponse
 } from './auth.types';
 import { getCsrfToken } from '../../utils/auth/csrf';
-import { getStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 import { joinApiUrl } from '../api/url';
 
@@ -121,10 +120,6 @@ export function resetPassword(payload: ResetPasswordRequest): Promise<ResetPassw
 }
 
 export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse> {
-    const token = getStoredToken();
-    if (!token) {
-        return { error: 'missing_token', status: 401 };
-    }
     try {
         return await apiGet<AuthMeResponse>('/api/auth/me', {
             auth: true,
@@ -144,7 +139,8 @@ export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {
     try {
         return await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
             headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-            credentials: 'include'
+            credentials: 'include',
+            retryAuth: false
         });
     } catch (error) {
         if (error instanceof Error && 'status' in error) {

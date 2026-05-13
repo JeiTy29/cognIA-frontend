@@ -1,7 +1,8 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
+import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
 import './ProtectedRoute.css';
 import SupportContact from '../SupportContact/SupportContact';
 
@@ -42,46 +43,36 @@ function getRoleLabel(roles: string[] | undefined) {
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { isAuthenticated, roles, isAuthLoading, refreshSession, profileStatus } = useAuth();
+    const { authStatus, sessionVerified, roles, isAuthLoading, profileStatus, verifySession } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
-    const refreshAttemptedRef = useRef(false);
 
     useEffect(() => {
-        if (!isAuthLoading && !isAuthenticated && !refreshAttemptedRef.current) {
-            refreshAttemptedRef.current = true;
-            refreshSession({ silent: true }).catch(() => false);
-        }
-    }, [isAuthLoading, isAuthenticated, refreshSession]);
+        const allowRefresh = !hasManualLogoutFlag();
+        void verifySession({ silent: true, allowRefresh }).catch(() => false);
+    }, [location.key, verifySession]);
 
-    const shouldShowLoader = isAuthLoading || (isAuthenticated && profileStatus === 'loading');
-    const isRoleGuard = Array.isArray(allowedRoles) && allowedRoles.length > 0;
+    const shouldShowLoader =
+        isAuthLoading ||
+        authStatus === 'checking' ||
+        (authStatus === 'authenticated' && !sessionVerified) ||
+        (authStatus === 'authenticated' && profileStatus === 'loading');
 
     if (shouldShowLoader) {
-        if (isAuthenticated && !isRoleGuard) {
-            return <Outlet />;
-        }
-
-        if (isAuthenticated && isRoleGuard) {
-            return (
-                <div className="auth-guard-content-loading" aria-live="polite">
-                    <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
-                    <p>Cargando vista...</p>
-                </div>
-            );
-        }
-
-        return null;
+        return (
+            <div className="auth-guard-content-loading" aria-live="polite">
+                <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
+                <p>Cargando vista...</p>
+            </div>
+        );
     }
 
-    if (!isAuthenticated) {
-        return (
-            <Navigate
-                to="/inicio-sesion"
-                replace
-                state={{ message: 'Debes iniciar sesión para acceder a esta sección.', from: location.pathname }}
-            />
-        );
+    if (authStatus !== 'authenticated' || !sessionVerified) {
+        const nextState = hasManualLogoutFlag()
+            ? { message: 'Debes iniciar sesión para acceder a esta sección.' }
+            : { message: 'Debes iniciar sesión para acceder a esta sección.', from: location.pathname };
+
+        return <Navigate to="/inicio-sesion" replace state={nextState} />;
     }
 
     const isAllowed = hasAnyRole(roles, allowedRoles);

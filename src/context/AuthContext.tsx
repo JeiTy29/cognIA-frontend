@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
-import { getAuthMe } from '../services/auth/auth.api';
+import { getAuthMe, logout as requestLogout } from '../services/auth/auth.api';
 import type { AuthMeResponse } from '../services/auth/auth.types';
 import { onAuthRefresh } from '../utils/auth/events';
 import {
@@ -18,14 +18,21 @@ import {
 import { AuthContext, type AuthContextValue, type LogoutReason } from './AuthContextBase';
 import type { DevRole } from '../utils/auth/devBypass';
 import {
-    getStoredToken,
     getStoredExpiresAt,
-    removeStoredExpiresAt,
-    removeStoredToken,
+    getStoredToken,
     setStoredExpiresAt,
     setStoredToken
 } from '../utils/auth/storage';
-const AUTH_NOTICE_KEY = 'cognia_auth_notice';
+import {
+    clearAuthClientState,
+    clearAuthNotice,
+    clearManualLogoutFlag,
+    hasManualLogoutFlag,
+    markManualLogoutFlag,
+    setAuthNotice
+} from '../utils/auth/sessionLifecycle';
+
+type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
 type AuthProviderProps = Readonly<{
     children: ReactNode;
@@ -59,11 +66,18 @@ function isTokenExpired(
     return true;
 }
 
+function resolvePageShowRevalidation(event: PageTransitionEvent) {
+    if (event.persisted) return true;
+    const navigationEntries = globalThis.performance?.getEntriesByType('navigation') as PerformanceNavigationTiming[] | undefined;
+    return navigationEntries?.[0]?.type === 'back_forward';
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
-    const storedToken = getStoredToken();
-    const storedPayload = useMemo(() => (storedToken ? decodeJwtPayload(storedToken) : null), [storedToken]);
-    const storedExpiresAt = getStoredExpiresAt();
-    const refreshAttemptedRef = useRef(false);
+    const initialToken = getStoredToken();
+    const initialPayload = initialToken ? decodeJwtPayload(initialToken) : null;
+    const initialExpiresAt = getStoredExpiresAt() ?? computeExpiresAt(initialPayload);
+    const manualLogoutActive = hasManualLogoutFlag();
+
     const [devAuthActive, setDevAuthActive] = useState(() => (
         devAuthBypassEnabled ? resolveDevAuthActive() : false
     ));
@@ -75,14 +89,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         [devAuthActive, devRole]
     );
 
-    const [accessToken, setAccessToken] = useState<string | null>(storedToken);
-    const [roles, setRoles] = useState<string[]>(storedPayload?.roles ?? []);
-    const [userId, setUserId] = useState<string | null>(storedPayload?.sub ?? null);
-    const [expiresAt, setExpiresAt] = useState<number | null>(storedExpiresAt ?? computeExpiresAt(storedPayload));
-    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
-    const [profile, setProfile] = useState<AuthMeResponse | null>(null);
-    const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [accessToken, setAccessToken] = useState<string | null>(manualLogoutActive ? null : initialToken);
+    const [roles, setRoles] = useState<string[]>(manualLogoutActive ? [] : (initialPayload?.roles ?? []));
+    const [userId, setUserId] = useState<string | null>(manualLogoutActive ? null : (initialPayload?.sub ?? null));
+    const [expiresAt, setExpiresAt] = useState<number | null>(manualLogoutActive ? null : initialExpiresAt);
+    const [authStatus, setAuthStatus] = useState<AuthStatus>(devAuthActive ? 'authenticated' : (manualLogoutActive ? 'anonymous' : 'checking'));
+    const [sessionVerified, setSessionVerified] = useState<boolean>(devAuthActive);
+    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(!manualLogoutActive && !devAuthActive);
+    const [profile, setProfile] = useState<AuthMeResponse | null>(devAuthActive ? devProfile : null);
+    const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(devAuthActive ? 'success' : 'idle');
     const [profileErrorStatus, setProfileErrorStatus] = useState<number | null>(null);
+
+    const verificationPromiseRef = useRef<Promise<boolean> | null>(null);
 
     const updateDevAuthActive = useCallback((active: boolean) => {
         if (!devAuthBypassEnabled) return;
@@ -100,25 +118,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
         persistDevRole(role);
     }, []);
 
-    const devLogout = useCallback(() => {
-        if (!devAuthBypassEnabled) return;
-        updateDevAuthActive(false);
-        setProfile(null);
-        setProfileStatus('idle');
-        setProfileErrorStatus(null);
-        setIsAuthLoading(false);
-    }, [updateDevAuthActive]);
-
-    const logout = useCallback((reason?: LogoutReason) => {
+    const applyAnonymousState = useCallback((reason?: LogoutReason) => {
         setAccessToken(null);
         setRoles([]);
         setUserId(null);
         setExpiresAt(null);
+        setProfile(null);
+        setProfileStatus('idle');
+        setProfileErrorStatus(reason === 'expired' ? 401 : null);
+        setAuthStatus('anonymous');
+        setSessionVerified(false);
         setIsAuthLoading(false);
-        removeStoredToken();
-        removeStoredExpiresAt();
+        verificationPromiseRef.current = null;
+        clearAuthClientState();
+
+        if (reason === 'manual') {
+            markManualLogoutFlag();
+        } else {
+            clearManualLogoutFlag();
+        }
+
         if (reason === 'expired') {
-            sessionStorage.setItem(AUTH_NOTICE_KEY, 'expired');
+            setAuthNotice('expired');
+        } else {
+            clearAuthNotice();
         }
     }, []);
 
@@ -129,167 +152,231 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setRoles(payload?.roles ?? []);
         setUserId(payload?.sub ?? null);
         setExpiresAt(nextExpiresAt);
-        setIsAuthLoading(false);
+        setProfile(null);
+        setAuthStatus('checking');
+        setSessionVerified(false);
+        setIsAuthLoading(true);
+        setProfileStatus('loading');
+        setProfileErrorStatus(null);
         setStoredToken(token);
         setStoredExpiresAt(nextExpiresAt);
-        sessionStorage.removeItem(AUTH_NOTICE_KEY);
+        clearManualLogoutFlag();
+        clearAuthNotice();
     }, []);
 
     const refreshSession = useCallback(async (options?: { silent?: boolean }) => {
         if (devAuthActive) {
+            setAuthStatus('authenticated');
+            setSessionVerified(true);
             setIsAuthLoading(false);
             return true;
         }
+
+        if (hasManualLogoutFlag()) {
+            applyAnonymousState('manual');
+            return false;
+        }
+
         if (!options?.silent) {
             setIsAuthLoading(true);
         }
+
         try {
             const response = await refreshAccessToken();
             if ('error' in response) {
-                if (accessToken) {
-                    setIsAuthLoading(false);
-                } else {
-                    logout('expired');
-                }
+                applyAnonymousState('expired');
                 return false;
             }
+
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
-            if (accessToken) {
-                setIsAuthLoading(false);
-            } else {
-                logout('expired');
-            }
+            applyAnonymousState('expired');
             return false;
+        } finally {
+            if (!options?.silent && hasManualLogoutFlag()) {
+                setIsAuthLoading(false);
+            }
         }
-    }, [devAuthActive, logout, setSession, accessToken]);
+    }, [applyAnonymousState, devAuthActive, setSession]);
 
-    const reloadProfile = useCallback(async () => {
-        if (devAuthActive && devProfile) {
-            setProfile(devProfile);
-            setProfileStatus('success');
+    const verifySession = useCallback(async (options?: { silent?: boolean; allowRefresh?: boolean }): Promise<boolean> => {
+        if (verificationPromiseRef.current) {
+            return verificationPromiseRef.current;
+        }
+
+        const verificationTask: Promise<boolean> = (async (): Promise<boolean> => {
+            if (devAuthActive) {
+                if (devProfile) {
+                    setProfile(devProfile);
+                    setProfileStatus('success');
+                    setProfileErrorStatus(null);
+                }
+                setAuthStatus('authenticated');
+                setSessionVerified(true);
+                setIsAuthLoading(false);
+                return true;
+            }
+
+            if (hasManualLogoutFlag()) {
+                applyAnonymousState('manual');
+                return false;
+            }
+
+            const allowRefresh = options?.allowRefresh ?? true;
+            if (!options?.silent) {
+                setIsAuthLoading(true);
+            }
+
+            setAuthStatus('checking');
+            setSessionVerified(false);
+            setProfileStatus('loading');
             setProfileErrorStatus(null);
-            return;
-        }
-        if (!getStoredToken()) {
-            setProfile(null);
-            setProfileStatus('idle');
-            setProfileErrorStatus(401);
-            return;
-        }
-        setProfileStatus('loading');
-        setProfileErrorStatus(null);
-        const response = await getAuthMe();
-        if ('error' in response) {
+
+            const currentToken = getStoredToken();
+            const currentPayload = currentToken ? decodeJwtPayload(currentToken) : null;
+            const currentExpiresAt = getStoredExpiresAt() ?? computeExpiresAt(currentPayload);
+
+            if (!currentToken || isTokenExpired(currentToken, currentPayload, currentExpiresAt)) {
+                clearAuthClientState();
+                if (!allowRefresh) {
+                    applyAnonymousState(currentToken ? 'expired' : undefined);
+                    return false;
+                }
+
+                const refreshed = await refreshSession({ silent: true });
+                if (!refreshed) {
+                    return false;
+                }
+            }
+
+            const meResponse = await getAuthMe();
+            if (!('error' in meResponse)) {
+                setProfile(meResponse);
+                setProfileStatus('success');
+                setProfileErrorStatus(null);
+                if (Array.isArray(meResponse.roles) && meResponse.roles.length > 0) {
+                    setRoles(meResponse.roles);
+                }
+                if (typeof meResponse.id === 'string' && meResponse.id.trim().length > 0) {
+                    setUserId(meResponse.id.trim());
+                }
+                setAuthStatus('authenticated');
+                setSessionVerified(true);
+                setIsAuthLoading(false);
+                clearManualLogoutFlag();
+                return true;
+            }
+
+            if ((meResponse.status === 401 || meResponse.status === 403) && allowRefresh) {
+                const refreshed = await refreshSession({ silent: true });
+                if (refreshed) {
+                    return verifySession({ silent: true, allowRefresh: false });
+                }
+            }
+
             setProfile(null);
             setProfileStatus('error');
-            setProfileErrorStatus(response.status);
-            if (response.status === 401) {
-                logout('expired');
-            }
-            return;
+            setProfileErrorStatus(meResponse.status);
+            applyAnonymousState(meResponse.status === 401 || meResponse.status === 403 ? 'expired' : undefined);
+            return false;
+        })();
+
+        verificationPromiseRef.current = verificationTask;
+        try {
+            return await verificationTask;
+        } finally {
+            verificationPromiseRef.current = null;
         }
-        setProfile(response);
-        setProfileStatus('success');
+    }, [applyAnonymousState, devAuthActive, devProfile, refreshSession]);
+
+    const reloadProfile = useCallback(async () => {
+        await verifySession({ silent: true, allowRefresh: true });
+    }, [verifySession]);
+
+    const devLogout = useCallback(() => {
+        if (!devAuthBypassEnabled) return;
+        updateDevAuthActive(false);
+        clearManualLogoutFlag();
+        clearAuthNotice();
+        clearAuthClientState();
+        setProfile(null);
+        setProfileStatus('idle');
         setProfileErrorStatus(null);
-    }, [logout, devProfile, devAuthActive]);
+        setAuthStatus('anonymous');
+        setSessionVerified(false);
+        setIsAuthLoading(false);
+    }, [updateDevAuthActive]);
 
-    useEffect(() => {
-        if (devAuthActive) {
-            const timeoutId = globalThis.setTimeout(() => {
-                setIsAuthLoading(false);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
+    const logout = useCallback((reason: LogoutReason = 'manual') => {
+        if (reason === 'manual' && !devAuthActive) {
+            markManualLogoutFlag();
+            void requestLogout().catch(() => undefined);
         }
-        const invalidToken = Boolean(storedToken) && !storedPayload;
-        const expired = isTokenExpired(storedToken, storedPayload, storedExpiresAt);
-
-        if (invalidToken || expired) {
-            removeStoredToken();
-            removeStoredExpiresAt();
-            const timeoutId = globalThis.setTimeout(() => {
-                setAccessToken(null);
-                setRoles([]);
-                setUserId(null);
-                setExpiresAt(null);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
-        }
-
-        if (!storedToken || invalidToken || expired) {
-            if (!refreshAttemptedRef.current) {
-                refreshAttemptedRef.current = true;
-                const timeoutId = globalThis.setTimeout(() => {
-                    refreshSession().catch(() => false);
-                }, 0);
-                return () => globalThis.clearTimeout(timeoutId);
-            }
-            const timeoutId = globalThis.setTimeout(() => {
-                setIsAuthLoading(false);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
-        }
-
-        const timeoutId = globalThis.setTimeout(() => {
-            setIsAuthLoading(false);
-        }, 0);
-        return () => globalThis.clearTimeout(timeoutId);
-    }, [devAuthActive, storedToken, storedPayload, storedExpiresAt, refreshSession]);
+        applyAnonymousState(reason);
+    }, [applyAnonymousState, devAuthActive]);
 
     useEffect(() => {
         if (devAuthActive) {
             if (devProfile) {
-                const timeoutId = globalThis.setTimeout(() => {
-                    setProfile(devProfile);
-                    setProfileStatus('success');
-                    setProfileErrorStatus(null);
-                }, 0);
-                return () => globalThis.clearTimeout(timeoutId);
+                setProfile(devProfile);
+                setProfileStatus('success');
+                setProfileErrorStatus(null);
             }
+            setAuthStatus('authenticated');
+            setSessionVerified(true);
+            setIsAuthLoading(false);
             return;
         }
-        if (!accessToken) {
-            const timeoutId = globalThis.setTimeout(() => {
-                setProfile(null);
-                setProfileStatus('idle');
-                setProfileErrorStatus(null);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
-        }
-        if (isAuthLoading) return;
-        if (expiresAt && Date.now() >= expiresAt) return;
-        const timeoutId = globalThis.setTimeout(() => {
-            reloadProfile().catch(() => undefined);
-        }, 0);
-        return () => globalThis.clearTimeout(timeoutId);
-    }, [accessToken, isAuthLoading, expiresAt, reloadProfile, devProfile, devAuthActive]);
+
+        void verifySession({ allowRefresh: true }).catch(() => false);
+    }, [devAuthActive, devProfile, verifySession]);
 
     useEffect(() => {
-        if (devAuthActive) return;
+        if (devAuthActive) return undefined;
+
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (!resolvePageShowRevalidation(event)) return;
+            void verifySession({
+                silent: true,
+                allowRefresh: !hasManualLogoutFlag()
+            }).catch(() => false);
+        };
+
+        globalThis.addEventListener('pageshow', handlePageShow);
+        return () => {
+            globalThis.removeEventListener('pageshow', handlePageShow);
+        };
+    }, [devAuthActive, verifySession]);
+
+    useEffect(() => {
+        if (devAuthActive) return undefined;
+
         return onAuthRefresh((detail) => {
             setSession(detail.accessToken, detail.expiresIn);
+            void verifySession({ silent: true, allowRefresh: false }).catch(() => false);
         });
-    }, [setSession, devAuthActive]);
+    }, [setSession, verifySession, devAuthActive]);
 
     useEffect(() => {
         if (devAuthActive) return;
-        if (!expiresAt) return;
+        if (!expiresAt || authStatus !== 'authenticated' || hasManualLogoutFlag()) return;
+
         const timeLeft = expiresAt - Date.now();
         if (timeLeft <= 0) {
-            const timeoutId = globalThis.setTimeout(() => {
-                refreshSession({ silent: true }).catch(() => false);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
+            void refreshSession({ silent: true }).catch(() => false);
+            return;
         }
+
         const timeoutId = globalThis.setTimeout(() => {
-            refreshSession({ silent: true }).catch(() => false);
+            void refreshSession({ silent: true }).catch(() => false);
         }, timeLeft);
+
         return () => globalThis.clearTimeout(timeoutId);
-    }, [expiresAt, refreshSession, devAuthActive]);
+    }, [authStatus, expiresAt, refreshSession, devAuthActive]);
 
     const effectiveRoles = devAuthActive && devProfile?.roles ? devProfile.roles : roles;
-    const isAuthenticated = devAuthActive ? true : !!accessToken;
+    const isAuthenticated = devAuthActive ? true : authStatus === 'authenticated' && sessionVerified;
     const primaryRole = getPrimaryRole(effectiveRoles);
     const effectiveProfile = devAuthActive ? devProfile : profile;
     const devBypassLabel = devAuthActive && devRole ? getDevRoleLabel(devRole) : null;
@@ -299,6 +386,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         roles: effectiveRoles,
         userId,
         expiresAt,
+        authStatus,
+        sessionVerified,
         isAuthenticated,
         isAuthLoading,
         primaryRole,
@@ -315,12 +404,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         logout,
         devLogout,
         refreshSession,
+        verifySession,
         reloadProfile
     }), [
         accessToken,
         effectiveRoles,
         userId,
         expiresAt,
+        authStatus,
+        sessionVerified,
         isAuthenticated,
         isAuthLoading,
         primaryRole,
@@ -336,6 +428,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         logout,
         devLogout,
         refreshSession,
+        verifySession,
         reloadProfile
     ]);
 

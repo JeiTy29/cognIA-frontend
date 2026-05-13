@@ -172,15 +172,23 @@ type LoginHandleResult = {
     errorMessage?: string;
 };
 
-function handleSuccessfulLoginResponse(
+async function handleSuccessfulLoginResponse(
     response: LoginResponse,
     username: string,
     setSession: (token: string, expiresIn: number) => void,
+    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean }) => Promise<boolean>,
     navigate: ReturnType<typeof useNavigate>
-) : LoginHandleResult {
+) : Promise<LoginHandleResult> {
     const directLogin = normalizeDirectLoginResponse(response);
     if (directLogin) {
         setSession(directLogin.accessToken, directLogin.expiresIn);
+        const verified = await verifySession({ silent: true, allowRefresh: false });
+        if (!verified) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo validar la sesión activa. Intenta iniciar sesión nuevamente.'
+            };
+        }
         const payload = decodeJwtPayload(directLogin.accessToken);
         navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
         return { handled: true };
@@ -196,6 +204,7 @@ function handleSuccessfulLoginResponse(
         }
 
         navigate('/mfa', {
+            replace: true,
             state: {
                 mode: 'challenge',
                 challengeId: challengeLogin.challengeId,
@@ -216,6 +225,7 @@ function handleSuccessfulLoginResponse(
         }
 
         navigate('/mfa', {
+            replace: true,
             state: {
                 mode: 'setup',
                 enrollmentToken: enrollmentLogin.enrollmentToken,
@@ -248,7 +258,7 @@ export default function InicioSesion() {
     const [forgotGeneralError, setForgotGeneralError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, roles, setSession, devAuthActive } = useAuth();
+    const { isAuthenticated, roles, setSession, verifySession, devAuthActive } = useAuth();
     const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
     useEffect(() => {
@@ -297,7 +307,7 @@ export default function InicioSesion() {
                 return;
             }
 
-            const loginResult = handleSuccessfulLoginResponse(response, username, setSession, navigate);
+            const loginResult = await handleSuccessfulLoginResponse(response, username, setSession, verifySession, navigate);
             if (loginResult.handled) {
                 if (loginResult.errorMessage) {
                     setErrorMessage(loginResult.errorMessage);

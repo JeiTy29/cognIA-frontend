@@ -1,8 +1,13 @@
 import { joinApiUrl } from '../api/url';
 import { getCsrfToken } from '../../utils/auth/csrf';
 import type { RefreshErrorResponse, RefreshResponse } from './auth.types';
+import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
 
 export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErrorResponse> {
+    if (hasManualLogoutFlag()) {
+        return { error: 'invalid_session', status: 401 };
+    }
+
     const csrfToken = getCsrfToken();
     if (!csrfToken) {
         return { error: 'invalid_session', status: 401 };

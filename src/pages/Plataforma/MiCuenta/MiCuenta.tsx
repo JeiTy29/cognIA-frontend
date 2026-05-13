@@ -5,7 +5,7 @@ import { validatePassword } from '../../../utils/passwordValidation';
 import { PASSWORD_RULES } from '../../../utils/passwordRules';
 import './MiCuenta.css';
 import '../../../styles/password-ui.css';
-import { changePassword, logout, mfaDisable } from '../../../services/auth/auth.api';
+import { changePassword, mfaDisable } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isAdminProfile, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 import { Modal } from '../../../components/Modal/Modal';
@@ -121,7 +121,7 @@ type RunDisableMfaFlowArgs = Readonly<{
     disableMode: 'totp' | 'recovery';
     disablePassword: string;
     disableCode: string;
-    clearSession: (reason: 'manual' | 'expired') => void;
+    logoutSession: (reason: 'manual' | 'expired') => void;
     navigate: ReturnType<typeof useNavigate>;
     setDisableLoading: (value: boolean) => void;
     setDisableError: (value: string | null) => void;
@@ -134,7 +134,7 @@ async function runDisableMfaFlow({
     disableMode,
     disablePassword,
     disableCode,
-    clearSession,
+    logoutSession,
     navigate,
     setDisableLoading,
     setDisableError,
@@ -158,7 +158,7 @@ async function runDisableMfaFlow({
         setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
         globalThis.setTimeout(() => {
             setShowMfaDisable(false);
-            clearSession('manual');
+            logoutSession('manual');
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }, 600);
     } catch (error) {
@@ -228,7 +228,7 @@ function PasswordVisibilityInputField({
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
+    const { logout: logoutSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
     const [openPanel, setOpenPanel] = useState<'contrasena' | null>(null);
 
     const [contrasenaActual, setContrasenaActual] = useState('');
@@ -280,10 +280,10 @@ export default function MiCuenta() {
 
     useEffect(() => {
         if (profileStatus === 'error' && profileErrorStatus === 401) {
-            clearSession('manual');
+            logoutSession('manual');
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
-    }, [profileStatus, profileErrorStatus, clearSession, navigate]);
+    }, [profileStatus, profileErrorStatus, logoutSession, navigate]);
 
     const profileMessage = useMemo(() => {
         if (profileStatus !== 'error') return null;
@@ -379,7 +379,7 @@ export default function MiCuenta() {
         } catch (error) {
             const submitFailure = resolvePasswordSubmitFailure(error);
             if (submitFailure.type === 'redirect') {
-                clearSession('expired');
+                logoutSession('expired');
                 navigate('/inicio-sesion', {
                     replace: true,
                     state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
@@ -401,22 +401,14 @@ export default function MiCuenta() {
         setLogoutMessage(null);
         setLogoutError(false);
         try {
-            const response = await logout();
-            if ('error' in response) {
-                setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
-                setLogoutError(true);
-            } else {
-                setLogoutMessage('Sesión cerrada.');
-            }
+            logoutSession('manual');
+            setLogoutMessage('Sesión cerrada.');
         } catch {
             setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
             setLogoutError(true);
         } finally {
-            clearSession('manual');
             setLogoutLoading(false);
-            globalThis.setTimeout(() => {
-                navigate('/inicio-sesion', { replace: true });
-            }, 500);
+            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
     };
 
@@ -431,7 +423,7 @@ export default function MiCuenta() {
             disableMode,
             disablePassword,
             disableCode,
-            clearSession,
+            logoutSession,
             navigate,
             setDisableLoading,
             setDisableError,

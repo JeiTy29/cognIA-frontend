@@ -75,6 +75,7 @@ const DEFAULT_NUMBER_STEP = 0.1;
 
 type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
 type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
+type AnswerPersistenceState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 type PollTimer = ReturnType<typeof globalThis.setTimeout> | null;
 
 interface ProcessingStep {
@@ -1101,7 +1102,7 @@ function resolveShellState(activeLoading: boolean, activeError: string | null, s
 }
 
 export default function Cuestionario() {
-    const { primaryRole } = useAuth();
+    const { primaryRole, verifySession } = useAuth();
     const apiRole = useMemo(() => roleToApiRole(primaryRole), [primaryRole]);
 
     const [selectedMode, setSelectedMode] = useState<QuestionnaireV2Mode>(DEFAULT_MODE);
@@ -1117,6 +1118,8 @@ export default function Cuestionario() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [working, setWorking] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [saveState, setSaveState] = useState<AnswerPersistenceState>('idle');
+    const [saveError, setSaveError] = useState<string | null>(null);
     const [completionPhase, setCompletionPhase] = useState<CompletionPhase>('idle');
     const [backendStatus, setBackendStatus] = useState<QuestionnaireV2Status | null>(null);
     const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -1132,6 +1135,11 @@ export default function Cuestionario() {
     const pollingStartedAtRef = useRef<number | null>(null);
     const completionPayloadRef = useRef<QuestionnaireSubmitResponseV2DTO | null>(null);
     const processingPanelRef = useRef<HTMLDivElement | null>(null);
+    const answersRef = useRef<Record<string, QuestionnaireResponseValue>>({});
+    const dirtyQuestionIdsRef = useRef<Set<string>>(new Set());
+    const savePromiseRef = useRef<Promise<boolean> | null>(null);
+    const autoSaveTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+    const actionLockRef = useRef(false);
 
     const modeMeta = useMemo(
         () => MODE_OPTIONS.find((mode) => mode.value === selectedMode) ?? MODE_OPTIONS[2],
@@ -1141,6 +1149,10 @@ export default function Cuestionario() {
     useEffect(() => {
         completionPayloadRef.current = completionPayload;
     }, [completionPayload]);
+
+    useEffect(() => {
+        answersRef.current = answers;
+    }, [answers]);
 
     const stopPolling = useCallback(() => {
         if (pollingTimerRef.current !== null) {
@@ -1153,6 +1165,10 @@ export default function Cuestionario() {
         return () => {
             isMountedRef.current = false;
             stopPolling();
+            if (autoSaveTimerRef.current !== null) {
+                globalThis.clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
         };
     }, [stopPolling]);
 
@@ -1318,6 +1334,13 @@ export default function Cuestionario() {
         return () => cancelAnimationFrame(rafId);
     }, [completionPhase]);
 
+    const resetAnswerPersistence = useCallback(() => {
+        dirtyQuestionIdsRef.current.clear();
+        savePromiseRef.current = null;
+        setSaveState('idle');
+        setSaveError(null);
+    }, []);
+
     const continueSession = useCallback(async (sessionIdToContinue: string) => {
         stopPolling();
         setWorking(true);
@@ -1330,6 +1353,7 @@ export default function Cuestionario() {
         setSecureResults(null);
         setClinicalSummary(null);
         setReportNotice(null);
+        resetAnswerPersistence();
         let failedStep: StartSessionStep = 'load_questions';
         try {
             const allQuestions = await loadAllSessionQuestions(sessionIdToContinue);
@@ -1357,7 +1381,7 @@ export default function Cuestionario() {
         } finally {
             setWorking(false);
         }
-    }, [loadAllSessionQuestions, stopPolling]);
+    }, [loadAllSessionQuestions, resetAnswerPersistence, stopPolling]);
 
     const startSession = useCallback(async () => {
         stopPolling();
@@ -1371,6 +1395,7 @@ export default function Cuestionario() {
         setSecureResults(null);
         setClinicalSummary(null);
         setReportNotice(null);
+        resetAnswerPersistence();
         let failedStep: StartSessionStep = 'create_session';
         try {
             const created = await createQuestionnaireSessionV2({
@@ -1403,7 +1428,103 @@ export default function Cuestionario() {
         } finally {
             setWorking(false);
         }
-    }, [apiRole, loadAllSessionQuestions, selectedMode, stopPolling]);
+    }, [apiRole, loadAllSessionQuestions, resetAnswerPersistence, selectedMode, stopPolling]);
+
+    const markQuestionDirty = useCallback((question: QuestionnaireQuestionV2DTO) => {
+        const questionId = getApiQuestionId(question);
+        if (!questionId) return;
+        dirtyQuestionIdsRef.current.add(questionId);
+        setSaveState('dirty');
+        setSaveError(null);
+    }, []);
+
+    const buildPendingAnswerPayload = useCallback(() => {
+        if (dirtyQuestionIdsRef.current.size === 0) {
+            return [];
+        }
+
+        return questions.reduce<Array<{ question_id: string; answer: QuestionnaireResponseValue }>>((acc, question) => {
+            const questionId = getApiQuestionId(question);
+            if (!questionId || !dirtyQuestionIdsRef.current.has(questionId)) {
+                return acc;
+            }
+
+            acc.push({
+                question_id: questionId,
+                answer: getAnswerForQuestion(answersRef.current, question) ?? null
+            });
+            return acc;
+        }, []);
+    }, [questions]);
+
+    const flushPendingAnswers = useCallback(async () => {
+        if (!sessionId) return false;
+        if (savePromiseRef.current) {
+            return savePromiseRef.current;
+        }
+
+        const pendingAnswers = buildPendingAnswerPayload();
+        if (pendingAnswers.length === 0) {
+            return saveState !== 'error';
+        }
+
+        const saveTask = (async () => {
+            setSaveState('saving');
+            setSaveError(null);
+            try {
+                await patchQuestionnaireSessionAnswersV2(sessionId, {
+                    answers: pendingAnswers
+                });
+                dirtyQuestionIdsRef.current.clear();
+                setSaveState('saved');
+                return true;
+            } catch (requestError) {
+                const nextSaveError = mapError(requestError, 'No se pudieron guardar las respuestas.');
+                setSaveState('error');
+                setSaveError(nextSaveError);
+                return false;
+            } finally {
+                savePromiseRef.current = null;
+            }
+        })();
+
+        savePromiseRef.current = saveTask;
+        return saveTask;
+    }, [buildPendingAnswerPayload, saveState, sessionId]);
+
+    useEffect(() => {
+        if (!started || completionPhase !== 'idle' || saveState !== 'dirty') {
+            if (autoSaveTimerRef.current !== null) {
+                globalThis.clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+            return undefined;
+        }
+
+        autoSaveTimerRef.current = globalThis.setTimeout(() => {
+            void flushPendingAnswers().catch(() => false);
+        }, 700);
+
+        return () => {
+            if (autoSaveTimerRef.current !== null) {
+                globalThis.clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+        };
+    }, [completionPhase, flushPendingAnswers, saveState, started]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (saveState !== 'dirty' && saveState !== 'saving') return;
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        globalThis.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            globalThis.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [saveState]);
 
     const currentQuestion = questions[currentIndex] ?? null;
     const currentAnswer = currentQuestion ? getAnswerForQuestion(answers, currentQuestion) : null;
@@ -1414,50 +1535,71 @@ export default function Cuestionario() {
             : null;
     const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
     const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
-
-    const saveCurrent = async () => {
-        if (!sessionId || !currentQuestion) return false;
-        const value = getAnswerForQuestion(answers, currentQuestion);
-        if (!isValid(currentQuestion, value)) return false;
-        const questionId = getApiQuestionId(currentQuestion);
-        if (!questionId) return false;
-
-        await patchQuestionnaireSessionAnswersV2(sessionId, {
-            answers: [{ question_id: questionId, answer: value ?? null }]
-        });
-        return true;
-    };
+    const hasPendingChanges = dirtyQuestionIdsRef.current.size > 0 || saveState === 'dirty';
+    const hasSaveError = saveState === 'error';
+    const hasRequiredAnswersPending = findFirstInvalidQuestionIndex(questions, answers) >= 0;
+    const canSubmitQuestionnaire =
+        Boolean(sessionId) &&
+        Boolean(currentQuestion) &&
+        canContinue &&
+        !working &&
+        saveState !== 'saving' &&
+        !hasPendingChanges &&
+        !hasSaveError &&
+        !hasRequiredAnswersPending &&
+        completionPhase === 'idle';
 
     const handleNext = async () => {
-        if (!currentQuestion || !canContinue) return;
+        if (!currentQuestion || !canContinue || actionLockRef.current) return;
+        actionLockRef.current = true;
         setWorking(true);
         setError(null);
         try {
-            const saved = await saveCurrent();
-            if (!saved) return;
+            const saved = await flushPendingAnswers();
+            if (!saved) {
+                setError('No se pudieron guardar las respuestas antes de avanzar.');
+                return;
+            }
             if (currentIndex < questions.length - 1) {
                 setCurrentIndex((prev) => prev + 1);
             }
         } catch (requestError) {
             setError(mapError(requestError, 'No se pudo guardar la respuesta.'));
         } finally {
+            actionLockRef.current = false;
             setWorking(false);
         }
     };
 
     const handleFinish = async () => {
-        if (!sessionId || !currentQuestion || !canContinue) return;
+        if (!sessionId || !currentQuestion || !canContinue || actionLockRef.current) return;
+        actionLockRef.current = true;
         setWorking(true);
         setError(null);
         setCompletionError(null);
-        setCompletionPhase('submitting');
         setReportNotice(null);
         try {
-            const saved = await saveCurrent();
-            if (!saved) {
-                setCompletionPhase('idle');
+            const sessionActive = await verifySession({ silent: true, allowRefresh: true });
+            if (!sessionActive) {
+                setCompletionError('Tu sesión expiró. Inicia sesión nuevamente para enviar el cuestionario.');
                 return;
             }
+
+            const firstInvalidQuestion = findFirstInvalidQuestionIndex(questions, answersRef.current);
+            if (firstInvalidQuestion >= 0) {
+                setCurrentIndex(firstInvalidQuestion);
+                setError('Completa las respuestas obligatorias antes de enviar el cuestionario.');
+                return;
+            }
+
+            setCompletionPhase('submitting');
+            const saved = await flushPendingAnswers();
+            if (!saved) {
+                setCompletionPhase('idle');
+                setCompletionError('No se pudieron guardar las respuestas antes de enviar el cuestionario.');
+                return;
+            }
+
             const submitPayload = await submitQuestionnaireSessionV2(sessionId);
             const mergedPayload = mergeCompletionPayload(
                 null,
@@ -1486,18 +1628,36 @@ export default function Cuestionario() {
             setCompletionPhase('failed');
             setCompletionError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
         } finally {
+            actionLockRef.current = false;
             setWorking(false);
         }
     };
 
     const onAnswerChange = (value: QuestionnaireResponseValue) => {
         if (!currentQuestion) return;
+        setError(null);
+        setSaveError(null);
+        markQuestionDirty(currentQuestion);
         setAnswers((prev) => setAnswerForQuestion(prev, currentQuestion, value));
     };
 
-    const handlePrevious = () => {
-        if (currentIndex > 0) {
+    const handlePrevious = async () => {
+        if (currentIndex <= 0 || actionLockRef.current) return;
+        actionLockRef.current = true;
+        setWorking(true);
+        setError(null);
+        try {
+            if (hasPendingChanges) {
+                const saved = await flushPendingAnswers();
+                if (!saved) {
+                    setError('No se pudieron guardar las respuestas antes de volver.');
+                    return;
+                }
+            }
             setCurrentIndex((prev) => prev - 1);
+        } finally {
+            actionLockRef.current = false;
+            setWorking(false);
         }
     };
 
@@ -1518,6 +1678,7 @@ export default function Cuestionario() {
         setClinicalSummary(null);
         setReportNotice(null);
         setReusableSession(null);
+        resetAnswerPersistence();
         loadActive().catch(() => undefined);
     };
 
@@ -1717,6 +1878,13 @@ export default function Cuestionario() {
                         onAnswerChange={onAnswerChange}
                     />
 
+                <div className={`questionnaire-save-state is-${saveState}`} aria-live="polite">
+                    {saveState === 'dirty' ? 'Cambios pendientes por guardar.' : null}
+                    {saveState === 'saving' ? 'Guardando respuestas...' : null}
+                    {saveState === 'saved' ? 'Respuestas guardadas.' : null}
+                    {saveState === 'error' ? (saveError ?? 'No se pudieron guardar las respuestas.') : null}
+                </div>
+
                 {error ? <div className="question-warning">{error}</div> : null}
 
                 <div className="questionnaire-progress">
@@ -1733,8 +1901,10 @@ export default function Cuestionario() {
                 <button
                     type="button"
                     className="questionnaire-btn ghost"
-                    onClick={handlePrevious}
-                    disabled={currentIndex <= 0 || working}
+                    onClick={() => {
+                        handlePrevious().catch(swallowQuestionnaireAsyncError);
+                    }}
+                    disabled={currentIndex <= 0 || working || saveState === 'saving'}
                 >
                     Anterior
                 </button>
@@ -1742,7 +1912,7 @@ export default function Cuestionario() {
                     type="button"
                     className="questionnaire-btn primary"
                     onClick={handlePrimaryActionClick}
-                    disabled={!canContinue || working}
+                    disabled={isLastQuestion ? !canSubmitQuestionnaire : (!canContinue || working || saveState === 'saving' || hasSaveError)}
                 >
                     {submitActionLabel}
                 </button>

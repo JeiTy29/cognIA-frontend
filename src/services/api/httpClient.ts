@@ -3,6 +3,7 @@ import type { RefreshResponse } from '../auth/auth.types';
 import { emitAuthRefresh } from '../../utils/auth/events';
 import { getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
+import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
 import {
     clearTransportKeyCache,
     encryptedJsonFetch
@@ -79,6 +80,10 @@ function buildHeaders(options: ApiRequestOptions | undefined, includeJson: boole
 }
 
 async function attemptRefresh() {
+    if (hasManualLogoutFlag()) {
+        return false;
+    }
+
     refreshPromise ??= refreshAccessToken();
     const result = await refreshPromise;
     refreshPromise = null;

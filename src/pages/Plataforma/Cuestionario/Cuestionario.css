@@ -690,6 +690,30 @@
     font-family: 'Segoe UI', sans-serif;
 }
 
+.questionnaire-save-state {
+    min-height: 20px;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #215f8f;
+}
+
+.questionnaire-save-state.is-dirty {
+    color: #92400e;
+}
+
+.questionnaire-save-state.is-saving {
+    color: #1d4ed8;
+}
+
+.questionnaire-save-state.is-saved {
+    color: #166534;
+}
+
+.questionnaire-save-state.is-error {
+    color: #991b1b;
+}
+
 .question-warning {
     margin-top: 12px;
     color: #b26a00;
