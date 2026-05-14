@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { decodeJwtPayload, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
@@ -90,7 +91,23 @@ function timeoutPromise<T>(promise: Promise<T>, timeoutMs: number) {
     });
 }
 
+function isPublicAuthRoute(pathname: string) {
+    return (
+        pathname === '/' ||
+        pathname === '/inicio-sesion' ||
+        pathname === '/registro' ||
+        pathname === '/bienvenida' ||
+        pathname === '/mfa' ||
+        pathname === '/restablecer-contrasena' ||
+        pathname.startsWith('/cuestionario/compartido/') ||
+        pathname === '/nuestro-sistema' ||
+        pathname === '/sobre-nosotros' ||
+        pathname === '/trastornos'
+    );
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
+    const location = useLocation();
     const initialToken = getStoredToken();
     const initialPayload = initialToken ? decodeJwtPayload(initialToken) : null;
     const initialExpiresAt = getStoredExpiresAt() ?? computeExpiresAt(initialPayload);
@@ -525,6 +542,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return;
         }
 
+        const isPublicRoute = isPublicAuthRoute(location.pathname);
+        if (isPublicRoute) {
+            debugAuth('bootstrap:skip-public-route', { pathname: location.pathname });
+            setIsAuthLoading(false);
+            if (authStatus === 'checking' && !accessToken && !hasManualLogoutFlag()) {
+                setAuthStatus('anonymous');
+                setSessionVerified(false);
+            }
+            return;
+        }
+
         const alreadyVerified =
             authStatus === 'authenticated' &&
             sessionVerified &&
@@ -534,14 +562,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return;
         }
 
+        debugAuth('bootstrap:verify-protected-context', { pathname: location.pathname });
         void verifySession({ allowRefresh: true }).catch(() => false);
-    }, [authStatus, devAuthActive, devProfile, profileStatus, sessionVerified, verifySession]);
+    }, [accessToken, authStatus, devAuthActive, devProfile, location.pathname, profileStatus, sessionVerified, verifySession]);
 
     useEffect(() => {
         if (devAuthActive) return undefined;
 
         const handlePageShow = (event: PageTransitionEvent) => {
             if (!resolvePageShowRevalidation(event)) return;
+            if (isPublicAuthRoute(location.pathname)) {
+                debugAuth('bootstrap:skip-public-route', { pathname: location.pathname });
+                return;
+            }
             void verifySession({
                 silent: true,
                 allowRefresh: !hasManualLogoutFlag()
@@ -552,7 +585,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return () => {
             globalThis.removeEventListener('pageshow', handlePageShow);
         };
-    }, [devAuthActive, verifySession]);
+    }, [devAuthActive, location.pathname, verifySession]);
 
     useEffect(() => {
         if (devAuthActive) return undefined;

@@ -111,17 +111,27 @@ export default function RestablecerContraseña() {
         let cancelled = false;
 
         const runVerify = async () => {
+            if (import.meta.env.DEV) {
+                console.debug('[auth] reset-password:verify-token:start');
+            }
             setIsVerifyingToken(true);
             setTokenVerifyError('');
             try {
                 const response = await verifyResetToken(token);
                 if (cancelled) return;
                 if (response.valid) {
+                    if (import.meta.env.DEV) {
+                        console.debug('[auth] reset-password:verify-token:ok');
+                    }
                     setIsTokenValid(true);
                     return;
                 }
                 redirectToInvalidResetToken(navigate);
             } catch (error) {
+                if (import.meta.env.DEV) {
+                    const status = error instanceof ApiError ? error.status : undefined;
+                    console.debug('[auth] reset-password:verify-token:error', { status });
+                }
                 if (cancelled) return;
                 if (error instanceof ApiError && error.status === 400) {
                     redirectToInvalidResetToken(navigate);

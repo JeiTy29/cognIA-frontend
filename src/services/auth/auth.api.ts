@@ -126,20 +126,26 @@ export function changePassword(payload: ChangePasswordRequest): Promise<ChangePa
 export function requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
     const payload: ForgotPasswordRequest = { email };
     return apiPost<ForgotPasswordResponse, ForgotPasswordRequest>('/api/auth/password/forgot', payload, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
 export function verifyResetToken(token: string): Promise<VerifyResetTokenResponse> {
     const encodedToken = encodeURIComponent(token);
     return apiGet<VerifyResetTokenResponse>(`/api/auth/password/reset/verify?token=${encodedToken}`, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
 export function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswordResponse> {
     return apiPost<ResetPasswordResponse, ResetPasswordRequest>('/api/auth/password/reset', payload, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
