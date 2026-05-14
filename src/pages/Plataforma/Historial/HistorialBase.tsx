@@ -7,11 +7,8 @@ import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
-    downloadQuestionnaireHistoryPdfV2,
-    generateQuestionnaireHistoryPdfV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
-    getQuestionnaireHistoryPdfV2,
     getQuestionnaireHistoryResultsV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
@@ -19,7 +16,6 @@ import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
-    QuestionnairePdfInfoV2DTO,
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
@@ -37,7 +33,7 @@ import {
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
-import { buildReportFileName } from '../../../utils/presentation/reportFileName';
+import { buildReportFileName, buildReportTitle } from '../../../utils/presentation/reportFileName';
 import { buildAbsoluteShareUrl } from '../../../utils/presentation/shareUrl';
 import './HistorialBase.css';
 
@@ -295,15 +291,6 @@ function resolveQuestionnaireId(
     return null;
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-    const href = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = href;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(href);
-}
-
 function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number) {
     const named = getString(item.title ?? item.name, '');
     if (named) return normalizeClinicalTextPresentation(named, '');
@@ -468,7 +455,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
-    const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
     const [sharePayload, setSharePayload] = useState<QuestionnaireShareResponseDTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
@@ -574,7 +560,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailError(null);
         setDetailNotice(null);
         setSharePayload(null);
-        setPdfPayload(null);
         setClinicalSummaryPayload(null);
         resetActionMessages();
 
@@ -600,7 +585,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(null);
         setResultsPayload(null);
         setClinicalSummaryPayload(null);
-        setPdfPayload(null);
         setSharePayload(null);
         setDetailLoading(false);
         setDetailError(null);
@@ -707,15 +691,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 results: nextResults,
                 clinicalSummary: nextSummary
             });
-            const fileName = buildReportFileName(
-                {
-                    questionnaire_id: detailPayload?.questionnaire_id
-                },
-                'pdf'
-            );
+            const reportTitle = buildReportTitle(detailPayload);
+            const fileName = buildReportFileName(detailPayload, 'html');
             const reportHtml = buildClinicalReportHtml(nextViewModel, {
                 logoUrl: cogniaLogoLight,
-                fileTitle: fileName
+                fileTitle: reportTitle
             });
 
             const reportWindow = window.open('', '_blank', 'noopener,noreferrer');
@@ -726,29 +706,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             reportWindow.document.open();
             reportWindow.document.write(reportHtml);
             reportWindow.document.close();
+            reportWindow.document.title = reportTitle;
             reportWindow.focus();
-            setPdfNotice('Reporte abierto. Usa Guardar como PDF para descargarlo.');
-        } catch {
-            try {
-                await generateQuestionnaireHistoryPdfV2(detailSessionId);
-                const pdfInfo = await getQuestionnaireHistoryPdfV2(detailSessionId);
-                setPdfPayload(pdfInfo);
-                const download = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
-                downloadBlob(
-                    download.blob,
-                    buildReportFileName(
-                        {
-                            questionnaire_id: detailPayload?.questionnaire_id
-                        },
-                        'pdf'
-                    )
-                );
-                setPdfNotice('Se descargó una versión resumida del reporte.');
-                setPdfError(null);
-            } catch (fallbackError) {
-                setPdfError(buildActionErrorMessage(fallbackError, 'No se pudo preparar el reporte. Intenta nuevamente.'));
-                setPdfNotice(null);
+            setPdfNotice(`Reporte abierto. Título sugerido: ${fileName.replace(/\.html$/i, '')}. Usa "Imprimir o guardar como PDF".`);
+        } catch (actionError) {
+            if (actionError instanceof Error && actionError.message === 'report_window_blocked') {
+                setPdfError('El navegador bloqueó la apertura del reporte. Permite ventanas emergentes o intenta nuevamente.');
+            } else {
+                setPdfError(buildActionErrorMessage(actionError, 'No se pudo preparar el reporte. Intenta nuevamente.'));
             }
+            setPdfNotice(null);
         } finally {
             setPdfWorking(false);
         }
@@ -1115,14 +1082,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             onClick={() => { runHistoryTask(handleDownloadReport); }}
                                             disabled={pdfWorking}
                                         >
-                                            {pdfWorking ? 'Preparando reporte...' : 'Descargar reporte'}
+                                            {pdfWorking ? 'Preparando reporte...' : 'Abrir reporte para imprimir'}
                                         </button>
                                     </div>
-                                    {pdfPayload?.generated_at ? (
-                                        <p className="historial-v2-helper-text">
-                                            Última generación: {formatDateTimeEsCO(pdfPayload.generated_at)}
-                                        </p>
-                                    ) : null}
                                 </div>
                             </div>
                         </>

@@ -598,6 +598,29 @@ export function buildClinicalReportHtml(
             margin: 0 auto;
             padding: 24px;
         }
+        .report-print-bar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: flex-end;
+            padding: 14px 20px 0;
+            background: linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(248, 251, 255, 0));
+        }
+        .report-print-button {
+            border: 1px solid rgba(33,95,143,0.18);
+            background: #ffffff;
+            color: #12385a;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(21, 58, 90, 0.08);
+        }
+        .report-print-button:hover {
+            background: #eef7ff;
+        }
         .report-cover {
             position: relative;
             overflow: hidden;
@@ -748,11 +771,15 @@ export function buildClinicalReportHtml(
             color: #48637d;
         }
         @media print {
+            .report-print-bar { display: none; }
             .report-page { padding: 0; }
         }
     </style>
 </head>
 <body>
+    <div class="report-print-bar">
+        <button class="report-print-button" type="button" onclick="window.print()">Imprimir o guardar como PDF</button>
+    </div>
     <section class="report-cover">
         <div class="report-cover-orb report-cover-orb--primary"></div>
         <div class="report-cover-orb report-cover-orb--secondary"></div>
