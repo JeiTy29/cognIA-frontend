@@ -584,7 +584,7 @@ export function buildClinicalReportHtml(
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(options.fileTitle.replace(/\.pdf$/i, ''))}</title>
     <style>
-        @page { margin: 16mm; }
+        @page { margin: 12mm; }
         * { box-sizing: border-box; }
         body {
             margin: 0;
@@ -594,25 +594,27 @@ export function buildClinicalReportHtml(
         }
         .report-page {
             width: 100%;
-            max-width: 980px;
+            max-width: 960px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 18px 22px 22px;
         }
         .report-pdf-page {
             page-break-after: always;
             break-after: page;
-            min-height: 271mm;
         }
         .report-pdf-page:last-child {
             page-break-after: auto;
             break-after: auto;
+        }
+        .report-pdf-page--content {
+            padding: 10px 12px 14px;
         }
         .report-cover {
             position: relative;
             overflow: hidden;
             min-height: 100vh;
             background: #f8fbff;
-            padding: 56px 40px;
+            padding: 52px 40px;
             page-break-after: always;
         }
         .report-cover-orb {
@@ -698,67 +700,81 @@ export function buildClinicalReportHtml(
         .report-alert {
             background: #e8f5ff;
             border: 1px solid rgba(23, 144, 233, 0.24);
-            border-radius: 18px;
-            padding: 16px 18px;
+            border-radius: 16px;
+            padding: 14px 16px;
             color: #1a3a59;
-            line-height: 1.6;
+            line-height: 1.55;
         }
         .report-section {
             background: #ffffff;
             border: 1px solid rgba(33,95,143,0.12);
-            border-radius: 22px;
-            padding: 24px;
-            margin-bottom: 18px;
-            box-shadow: 0 12px 24px rgba(21, 58, 90, 0.04);
+            border-radius: 18px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            box-shadow: 0 10px 18px rgba(21, 58, 90, 0.04);
         }
         .report-section h2 {
-            margin: 0 0 12px;
-            font-size: 20px;
+            margin: 0 0 8px;
+            font-size: 18px;
             color: #12385a;
         }
         .report-section p,
         .report-section li {
-            font-size: 14px;
-            line-height: 1.7;
+            font-size: 13px;
+            line-height: 1.5;
             color: #314f69;
         }
+        .report-section p {
+            margin: 0 0 8px;
+        }
+        .report-section p:last-child {
+            margin-bottom: 0;
+        }
         .report-section-label {
-            font-size: 12px;
+            margin: 0 0 8px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: #55738f;
-            margin-bottom: 10px;
         }
         .report-domain-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
+            gap: 10px;
         }
         .report-domain-card {
             border: 1px solid rgba(33,95,143,0.12);
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 14px;
+            padding: 13px 14px;
             background: #fbfdff;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
         .report-domain-card h3 {
-            margin: 0 0 10px;
-            font-size: 17px;
+            margin: 0 0 8px;
+            font-size: 15px;
             color: #12385a;
         }
         .report-domain-card p {
-            margin: 0 0 6px;
+            margin: 0 0 4px;
         }
         ul {
             margin: 0;
-            padding-left: 20px;
+            padding-left: 18px;
+        }
+        li + li {
+            margin-top: 4px;
         }
         .report-footer-note {
-            font-size: 13px;
+            margin-top: 10px;
+            font-size: 12px;
             color: #48637d;
         }
         .report-page-group {
             display: grid;
-            gap: 18px;
+            gap: 12px;
         }
         @media print {
             .report-page { padding: 0; }
@@ -793,7 +809,7 @@ export function buildClinicalReportHtml(
         </div>
     </section>
     <main class="report-page">
-        <section class="report-pdf-page">
+        <section class="report-pdf-page report-pdf-page--content">
             <div class="report-page-group">
                 <section class="report-section">
                     <h2>Aviso importante</h2>
@@ -805,22 +821,18 @@ export function buildClinicalReportHtml(
                     <h2>Resumen del caso</h2>
                     ${summaryHtml}
                 </section>
-            </div>
-        </section>
-        <section class="report-pdf-page">
-            <div class="report-page-group">
                 <section class="report-section">
                     <h2>Resultado por áreas</h2>
                     <div class="report-domain-grid">${domainCardsHtml}</div>
                 </section>
+            </div>
+        </section>
+        <section class="report-pdf-page report-pdf-page--content">
+            <div class="report-page-group">
                 <section class="report-section">
                     <h2>Niveles de compatibilidad</h2>
                     ${compatibilityHtml}
                 </section>
-            </div>
-        </section>
-        <section class="report-pdf-page">
-            <div class="report-page-group">
                 <section class="report-section">
                     <h2>Patrones e indicadores observados</h2>
                     ${indicatorsHtml}
@@ -831,7 +843,7 @@ export function buildClinicalReportHtml(
                 </section>
             </div>
         </section>
-        <section class="report-pdf-page">
+        <section class="report-pdf-page report-pdf-page--content">
             <div class="report-page-group">
                 <section class="report-section">
                     <h2>Recomendación profesional</h2>
@@ -845,18 +857,11 @@ export function buildClinicalReportHtml(
                     <h2>Aclaración importante</h2>
                     <p>${escapeHtml(viewModel.clarification)}</p>
                 </section>
-            </div>
-        </section>
-        <section class="report-pdf-page">
-            <div class="report-page-group">
                 <section class="report-section">
                     <h2>Limitaciones</h2>
                     <p>${escapeHtml(viewModel.disclaimer)}</p>
                     <p class="report-footer-note">Este reporte no reemplaza evaluación clínica, entrevista, historia evolutiva ni juicio profesional.</p>
-                </section>
-                <section class="report-section">
-                    <h2>Cuestionario completo respondido</h2>
-                    <p>${escapeHtml(viewModel.answersAvailabilityNote)}</p>
+                    <p class="report-footer-note"><strong>Cuestionario completo respondido:</strong> ${escapeHtml(viewModel.answersAvailabilityNote)}</p>
                 </section>
             </div>
         </section>
