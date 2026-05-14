@@ -40,6 +40,15 @@ type AuthProviderProps = Readonly<{
 
 const SESSION_TIMEOUT_MS = 10000;
 
+function debugAuth(label: string, payload?: unknown) {
+    if (!import.meta.env.DEV) return;
+    if (payload === undefined) {
+        console.debug(`[auth] ${label}`);
+        return;
+    }
+    console.debug(`[auth] ${label}`, payload);
+}
+
 function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
     if (payload?.exp) {
         return payload.exp * 1000;
@@ -147,6 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const applyAnonymousState = useCallback((reason?: LogoutReason) => {
         authEpochRef.current += 1;
+        debugAuth('applyAnonymousState', { reason, epoch: authEpochRef.current });
         setAccessToken(null);
         setRoles([]);
         setUserId(null);
@@ -175,6 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const setSession = useCallback((token: string, expiresIn?: number) => {
         authEpochRef.current += 1;
+        debugAuth('setSession', { expiresIn, epoch: authEpochRef.current });
         const payload = decodeJwtPayload(token);
         const nextExpiresAt = computeExpiresAt(payload, expiresIn);
         setAccessToken(token);
@@ -219,6 +230,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [applyAnonymousState]);
 
     const refreshSession = useCallback(async (options?: { silent?: boolean }) => {
+        debugAuth('refreshSession:start', { options });
         if (devAuthActive) {
             setAuthStatus('authenticated');
             setSessionVerified(true);
@@ -238,6 +250,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         try {
             const response = await timeoutPromise(refreshAccessToken(), SESSION_TIMEOUT_MS);
+            debugAuth('refreshSession:response', response);
             if (hasManualLogoutFlag()) {
                 applyAnonymousState('manual');
                 return false;
@@ -253,6 +266,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
+            debugAuth('refreshSession:error');
             if (hasManualLogoutFlag()) {
                 applyAnonymousState('manual');
                 return false;
@@ -268,10 +282,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const verifySession = useCallback(async (options?: { silent?: boolean; allowRefresh?: boolean }): Promise<boolean> => {
         if (verificationPromiseRef.current) {
+            debugAuth('verifySession:reuse-promise', options);
             return verificationPromiseRef.current;
         }
 
         const verificationTask: Promise<boolean> = (async () => {
+            debugAuth('verifySession:start', {
+                options,
+                authStatus,
+                sessionVerified,
+                profileStatus,
+                epoch: authEpochRef.current,
+                manualLogout: hasManualLogoutFlag()
+            });
             if (devAuthActive) {
                 if (devProfile) {
                     setProfile(devProfile);
@@ -313,12 +336,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 const refreshed = await refreshSession({ silent: true });
                 if (!refreshed) {
+                    debugAuth('verifySession:refresh-pre-me:failed');
                     return false;
                 }
                 startedEpoch = authEpochRef.current;
             }
 
             let meResponse = await timeoutPromise(getAuthMe(), SESSION_TIMEOUT_MS);
+            debugAuth('verifySession:me:first', meResponse);
             if (hasManualLogoutFlag()) {
                 applyAnonymousState('manual');
                 return false;
@@ -331,12 +356,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 if (isUnauthorizedMeResponse(meResponse) && allowRefresh) {
                     const refreshed = await refreshSession({ silent: true });
                     if (!refreshed) {
+                        debugAuth('verifySession:refresh-after-401:failed', meResponse);
                         applyAnonymousState('expired');
                         return false;
                     }
 
                     startedEpoch = authEpochRef.current;
                     meResponse = await timeoutPromise(getAuthMe(), SESSION_TIMEOUT_MS);
+                    debugAuth('verifySession:me:after-refresh', meResponse);
                     if (hasManualLogoutFlag()) {
                         applyAnonymousState('manual');
                         return false;
@@ -348,9 +375,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             if (!('error' in meResponse)) {
-                return applyAuthenticatedProfile(meResponse, startedEpoch);
+                debugAuth('verifySession:me:ok', meResponse);
+                const authenticated = applyAuthenticatedProfile(meResponse, startedEpoch);
+                if (authenticated) {
+                    debugAuth('verifySession:authenticated', {
+                        roles: meResponse.roles,
+                        userId: meResponse.id,
+                        epoch: startedEpoch
+                    });
+                }
+                return authenticated;
             }
 
+            debugAuth('verifySession:error', meResponse);
             setProfile(null);
             setProfileStatus('error');
             setProfileErrorStatus(meResponse.status);
@@ -364,7 +401,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } finally {
             verificationPromiseRef.current = null;
         }
-    }, [applyAnonymousState, applyAuthenticatedProfile, devAuthActive, devProfile, refreshSession]);
+    }, [applyAnonymousState, applyAuthenticatedProfile, authStatus, devAuthActive, devProfile, profileStatus, refreshSession, sessionVerified]);
 
     const reloadProfile = useCallback(async () => {
         await verifySession({ silent: true, allowRefresh: true });
@@ -387,6 +424,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const logoutAsync = useCallback(async (reason: LogoutReason = 'manual') => {
         authEpochRef.current += 1;
+        debugAuth('logout:start', { reason, epoch: authEpochRef.current });
 
         if (reason === 'manual') {
             markManualLogoutFlag();
@@ -399,7 +437,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         try {
-            await requestLogout();
+            const response = await requestLogout();
+            debugAuth('logout:request:status', response);
         } catch (error) {
             if (import.meta.env.DEV) {
                 const status = error instanceof Error && 'status' in error
@@ -408,6 +447,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 const payload = error instanceof Error && 'payload' in error
                     ? (error as { payload?: unknown }).payload
                     : undefined;
+                console.debug('[auth] logout:request:error', { status, payload });
                 console.warn('No fue posible completar /api/auth/logout en frontend.', { status, payload });
             }
         }
@@ -464,6 +504,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (hasManualLogoutFlag()) return;
             const startedEpoch = authEpochRef.current;
             if (!isMountedRef.current || authEpochRef.current !== startedEpoch) return;
+            debugAuth('onAuthRefresh', { expiresIn: detail.expiresIn, epoch: startedEpoch });
             setSession(detail.accessToken, detail.expiresIn);
             void verifySession({ silent: true, allowRefresh: false }).catch(() => false);
         });

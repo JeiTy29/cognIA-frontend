@@ -136,18 +136,39 @@ export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse>
 
 export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {
     const csrfToken = getCsrfToken();
+    if (import.meta.env.DEV && !csrfToken) {
+        console.warn('[auth] logout:csrf-missing', {
+            csrfCookieName: 'csrf_refresh_token'
+        });
+    }
     try {
-        return await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
+        const response = await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
             headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
             credentials: 'include',
             retryAuth: false
         });
+        if (import.meta.env.DEV) {
+            console.debug('[auth] logout:api:ok', response);
+        }
+        return response;
     } catch (error) {
         if (error instanceof Error && 'status' in error) {
             const status = (error as { status?: number }).status;
             if (status === 401) {
+                if (import.meta.env.DEV) {
+                    console.debug('[auth] logout:api:unauthorized', { status });
+                }
                 return { error: 'invalid_credentials', status: status ?? 401 };
             }
+        }
+        if (import.meta.env.DEV) {
+            const status = error instanceof Error && 'status' in error
+                ? (error as { status?: number }).status
+                : undefined;
+            const payload = error instanceof Error && 'payload' in error
+                ? (error as { payload?: unknown }).payload
+                : undefined;
+            console.debug('[auth] logout:api:error', { status, payload });
         }
         throw error;
     }

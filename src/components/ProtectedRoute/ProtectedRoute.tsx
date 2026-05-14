@@ -84,9 +84,18 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     const navigate = useNavigate();
 
     useEffect(() => {
+        const alreadyVerified =
+            authStatus === 'authenticated' &&
+            sessionVerified &&
+            profileStatus === 'success';
+
+        if (alreadyVerified) {
+            return;
+        }
+
         const allowRefresh = !hasManualLogoutFlag();
         void verifySession({ silent: true, allowRefresh }).catch(() => false);
-    }, [location.key, verifySession]);
+    }, [authStatus, location.key, profileStatus, sessionVerified, verifySession]);
 
     const shouldShowLoader =
         isAuthLoading ||
