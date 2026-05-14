@@ -121,7 +121,7 @@ type RunDisableMfaFlowArgs = Readonly<{
     disableMode: 'totp' | 'recovery';
     disablePassword: string;
     disableCode: string;
-    logoutSession: (reason: 'manual' | 'expired') => void;
+    logoutSessionAsync: (reason: 'manual' | 'expired') => Promise<void>;
     navigate: ReturnType<typeof useNavigate>;
     setDisableLoading: (value: boolean) => void;
     setDisableError: (value: string | null) => void;
@@ -134,7 +134,7 @@ async function runDisableMfaFlow({
     disableMode,
     disablePassword,
     disableCode,
-    logoutSession,
+    logoutSessionAsync,
     navigate,
     setDisableLoading,
     setDisableError,
@@ -158,8 +158,9 @@ async function runDisableMfaFlow({
         setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
         globalThis.setTimeout(() => {
             setShowMfaDisable(false);
-            logoutSession('manual');
-            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            void logoutSessionAsync('manual').finally(() => {
+                navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            });
         }, 600);
     } catch (error) {
         if (error instanceof ApiError) {
@@ -228,7 +229,7 @@ function PasswordVisibilityInputField({
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: logoutSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
+    const { logout: logoutSession, logoutAsync, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
     const [openPanel, setOpenPanel] = useState<'contrasena' | null>(null);
 
     const [contrasenaActual, setContrasenaActual] = useState('');
@@ -401,7 +402,7 @@ export default function MiCuenta() {
         setLogoutMessage(null);
         setLogoutError(false);
         try {
-            logoutSession('manual');
+            await logoutAsync('manual');
             setLogoutMessage('Sesión cerrada.');
         } catch {
             setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
@@ -423,7 +424,7 @@ export default function MiCuenta() {
             disableMode,
             disablePassword,
             disableCode,
-            logoutSession,
+            logoutSessionAsync: logoutAsync,
             navigate,
             setDisableLoading,
             setDisableError,

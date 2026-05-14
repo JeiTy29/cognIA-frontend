@@ -3,7 +3,7 @@ import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/j
 import { getPrimaryRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
 import { getAuthMe, logout as requestLogout } from '../services/auth/auth.api';
-import type { AuthMeResponse } from '../services/auth/auth.types';
+import type { AuthMeErrorResponse, AuthMeResponse } from '../services/auth/auth.types';
 import { onAuthRefresh } from '../utils/auth/events';
 import {
     devAuthBypassEnabled,
@@ -37,6 +37,8 @@ type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 type AuthProviderProps = Readonly<{
     children: ReactNode;
 }>;
+
+const SESSION_TIMEOUT_MS = 10000;
 
 function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
     if (payload?.exp) {
@@ -72,6 +74,29 @@ function resolvePageShowRevalidation(event: PageTransitionEvent) {
     return navigationEntries?.[0]?.type === 'back_forward';
 }
 
+function isUnauthorizedMeResponse(response: AuthMeResponse | AuthMeErrorResponse) {
+    return 'error' in response && (response.status === 401 || response.status === 403);
+}
+
+function timeoutPromise<T>(promise: Promise<T>, timeoutMs: number) {
+    return new Promise<T>((resolve, reject) => {
+        const timeoutId = globalThis.setTimeout(() => {
+            reject(new Error('auth_timeout'));
+        }, timeoutMs);
+
+        promise.then(
+            (value) => {
+                globalThis.clearTimeout(timeoutId);
+                resolve(value);
+            },
+            (error) => {
+                globalThis.clearTimeout(timeoutId);
+                reject(error);
+            }
+        );
+    });
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
     const initialToken = getStoredToken();
     const initialPayload = initialToken ? decodeJwtPayload(initialToken) : null;
@@ -101,6 +126,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [profileErrorStatus, setProfileErrorStatus] = useState<number | null>(null);
 
     const verificationPromiseRef = useRef<Promise<boolean> | null>(null);
+    const authEpochRef = useRef(0);
+    const isMountedRef = useRef(true);
 
     const updateDevAuthActive = useCallback((active: boolean) => {
         if (!devAuthBypassEnabled) return;
@@ -119,6 +146,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const applyAnonymousState = useCallback((reason?: LogoutReason) => {
+        authEpochRef.current += 1;
         setAccessToken(null);
         setRoles([]);
         setUserId(null);
@@ -146,6 +174,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const setSession = useCallback((token: string, expiresIn?: number) => {
+        authEpochRef.current += 1;
         const payload = decodeJwtPayload(token);
         const nextExpiresAt = computeExpiresAt(payload, expiresIn);
         setAccessToken(token);
@@ -164,6 +193,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
         clearAuthNotice();
     }, []);
 
+    const applyAuthenticatedProfile = useCallback((meResponse: AuthMeResponse, startedEpoch: number) => {
+        if (hasManualLogoutFlag()) {
+            applyAnonymousState('manual');
+            return false;
+        }
+        if (authEpochRef.current !== startedEpoch || !isMountedRef.current) {
+            return false;
+        }
+
+        setProfile(meResponse);
+        setProfileStatus('success');
+        setProfileErrorStatus(null);
+        if (Array.isArray(meResponse.roles) && meResponse.roles.length > 0) {
+            setRoles(meResponse.roles);
+        }
+        if (typeof meResponse.id === 'string' && meResponse.id.trim().length > 0) {
+            setUserId(meResponse.id.trim());
+        }
+        setAuthStatus('authenticated');
+        setSessionVerified(true);
+        setIsAuthLoading(false);
+        clearManualLogoutFlag();
+        return true;
+    }, [applyAnonymousState]);
+
     const refreshSession = useCallback(async (options?: { silent?: boolean }) => {
         if (devAuthActive) {
             setAuthStatus('authenticated');
@@ -177,12 +231,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return false;
         }
 
+        const startedEpoch = authEpochRef.current;
         if (!options?.silent) {
             setIsAuthLoading(true);
         }
 
         try {
-            const response = await refreshAccessToken();
+            const response = await timeoutPromise(refreshAccessToken(), SESSION_TIMEOUT_MS);
+            if (hasManualLogoutFlag()) {
+                applyAnonymousState('manual');
+                return false;
+            }
+            if (authEpochRef.current !== startedEpoch || !isMountedRef.current) {
+                return false;
+            }
             if ('error' in response) {
                 applyAnonymousState('expired');
                 return false;
@@ -191,6 +253,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
+            if (hasManualLogoutFlag()) {
+                applyAnonymousState('manual');
+                return false;
+            }
             applyAnonymousState('expired');
             return false;
         } finally {
@@ -205,7 +271,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return verificationPromiseRef.current;
         }
 
-        const verificationTask: Promise<boolean> = (async (): Promise<boolean> => {
+        const verificationTask: Promise<boolean> = (async () => {
             if (devAuthActive) {
                 if (devProfile) {
                     setProfile(devProfile);
@@ -223,6 +289,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return false;
             }
 
+            let startedEpoch = authEpochRef.current;
             const allowRefresh = options?.allowRefresh ?? true;
             if (!options?.silent) {
                 setIsAuthLoading(true);
@@ -248,31 +315,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 if (!refreshed) {
                     return false;
                 }
+                startedEpoch = authEpochRef.current;
             }
 
-            const meResponse = await getAuthMe();
+            let meResponse = await timeoutPromise(getAuthMe(), SESSION_TIMEOUT_MS);
+            if (hasManualLogoutFlag()) {
+                applyAnonymousState('manual');
+                return false;
+            }
+            if (authEpochRef.current !== startedEpoch || !isMountedRef.current) {
+                return false;
+            }
+
+            if ('error' in meResponse) {
+                if (isUnauthorizedMeResponse(meResponse) && allowRefresh) {
+                    const refreshed = await refreshSession({ silent: true });
+                    if (!refreshed) {
+                        applyAnonymousState('expired');
+                        return false;
+                    }
+
+                    startedEpoch = authEpochRef.current;
+                    meResponse = await timeoutPromise(getAuthMe(), SESSION_TIMEOUT_MS);
+                    if (hasManualLogoutFlag()) {
+                        applyAnonymousState('manual');
+                        return false;
+                    }
+                    if (authEpochRef.current !== startedEpoch || !isMountedRef.current) {
+                        return false;
+                    }
+                }
+            }
+
             if (!('error' in meResponse)) {
-                setProfile(meResponse);
-                setProfileStatus('success');
-                setProfileErrorStatus(null);
-                if (Array.isArray(meResponse.roles) && meResponse.roles.length > 0) {
-                    setRoles(meResponse.roles);
-                }
-                if (typeof meResponse.id === 'string' && meResponse.id.trim().length > 0) {
-                    setUserId(meResponse.id.trim());
-                }
-                setAuthStatus('authenticated');
-                setSessionVerified(true);
-                setIsAuthLoading(false);
-                clearManualLogoutFlag();
-                return true;
-            }
-
-            if ((meResponse.status === 401 || meResponse.status === 403) && allowRefresh) {
-                const refreshed = await refreshSession({ silent: true });
-                if (refreshed) {
-                    return verifySession({ silent: true, allowRefresh: false });
-                }
+                return applyAuthenticatedProfile(meResponse, startedEpoch);
             }
 
             setProfile(null);
@@ -288,7 +364,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } finally {
             verificationPromiseRef.current = null;
         }
-    }, [applyAnonymousState, devAuthActive, devProfile, refreshSession]);
+    }, [applyAnonymousState, applyAuthenticatedProfile, devAuthActive, devProfile, refreshSession]);
 
     const reloadProfile = useCallback(async () => {
         await verifySession({ silent: true, allowRefresh: true });
@@ -296,6 +372,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const devLogout = useCallback(() => {
         if (!devAuthBypassEnabled) return;
+        authEpochRef.current += 1;
         updateDevAuthActive(false);
         clearManualLogoutFlag();
         clearAuthNotice();
@@ -308,13 +385,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setIsAuthLoading(false);
     }, [updateDevAuthActive]);
 
-    const logout = useCallback((reason: LogoutReason = 'manual') => {
-        if (reason === 'manual' && !devAuthActive) {
+    const logoutAsync = useCallback(async (reason: LogoutReason = 'manual') => {
+        authEpochRef.current += 1;
+
+        if (reason === 'manual') {
             markManualLogoutFlag();
-            void requestLogout().catch(() => undefined);
         }
+
         applyAnonymousState(reason);
+
+        if (reason !== 'manual' || devAuthActive) {
+            return;
+        }
+
+        try {
+            await requestLogout();
+        } catch (error) {
+            if (import.meta.env.DEV) {
+                const status = error instanceof Error && 'status' in error
+                    ? (error as { status?: number }).status
+                    : undefined;
+                const payload = error instanceof Error && 'payload' in error
+                    ? (error as { payload?: unknown }).payload
+                    : undefined;
+                console.warn('No fue posible completar /api/auth/logout en frontend.', { status, payload });
+            }
+        }
     }, [applyAnonymousState, devAuthActive]);
+
+    const logout = useCallback((reason: LogoutReason = 'manual') => {
+        void logoutAsync(reason);
+    }, [logoutAsync]);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         if (devAuthActive) {
@@ -353,6 +461,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (devAuthActive) return undefined;
 
         return onAuthRefresh((detail) => {
+            if (hasManualLogoutFlag()) return;
+            const startedEpoch = authEpochRef.current;
+            if (!isMountedRef.current || authEpochRef.current !== startedEpoch) return;
             setSession(detail.accessToken, detail.expiresIn);
             void verifySession({ silent: true, allowRefresh: false }).catch(() => false);
         });
@@ -402,6 +513,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setDevRole: updateDevRole,
         setSession,
         logout,
+        logoutAsync,
         devLogout,
         refreshSession,
         verifySession,
@@ -426,6 +538,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         updateDevRole,
         setSession,
         logout,
+        logoutAsync,
         devLogout,
         refreshSession,
         verifySession,

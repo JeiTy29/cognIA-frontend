@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
@@ -17,6 +17,8 @@ const roleMap: Record<string, string[]> = {
     PSYCHOLOGIST: ['PSYCHOLOGIST'],
     ADMIN: ['ADMIN']
 };
+
+const LOADER_TIMEOUT_MS = 9000;
 
 function normalizeRole(value: string) {
     return value.trim().toUpperCase();
@@ -42,8 +44,42 @@ function getRoleLabel(roles: string[] | undefined) {
     return 'Usuario';
 }
 
+type ProtectedRouteLoaderProps = Readonly<{
+    onResetSession: () => void;
+}>;
+
+function ProtectedRouteLoader({ onResetSession }: ProtectedRouteLoaderProps) {
+    const [loaderTimedOut, setLoaderTimedOut] = useState(false);
+
+    useEffect(() => {
+        const timeoutId = globalThis.setTimeout(() => {
+            setLoaderTimedOut(true);
+        }, LOADER_TIMEOUT_MS);
+
+        return () => {
+            globalThis.clearTimeout(timeoutId);
+        };
+    }, []);
+
+    return (
+        <div className="auth-guard-content-loading" aria-live="polite">
+            <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
+            <p>{loaderTimedOut ? 'La validación de la sesión está tardando más de lo esperado.' : 'Cargando vista...'}</p>
+            {loaderTimedOut ? (
+                <button
+                    type="button"
+                    className="auth-guard-retry"
+                    onClick={onResetSession}
+                >
+                    Volver a iniciar sesión
+                </button>
+            ) : null}
+        </div>
+    );
+}
+
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { authStatus, sessionVerified, roles, isAuthLoading, profileStatus, verifySession } = useAuth();
+    const { authStatus, sessionVerified, roles, isAuthLoading, profileStatus, verifySession, logoutAsync } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -60,10 +96,14 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
     if (shouldShowLoader) {
         return (
-            <div className="auth-guard-content-loading" aria-live="polite">
-                <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
-                <p>Cargando vista...</p>
-            </div>
+            <ProtectedRouteLoader
+                key={location.key}
+                onResetSession={() => {
+                    void logoutAsync('manual').finally(() => {
+                        navigate('/inicio-sesion', { replace: true });
+                    });
+                }}
+            />
         );
     }
 

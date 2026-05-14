@@ -85,8 +85,17 @@ async function attemptRefresh() {
     }
 
     refreshPromise ??= refreshAccessToken();
-    const result = await refreshPromise;
-    refreshPromise = null;
+    let result: RefreshResponse | { error: string };
+    try {
+        result = await refreshPromise;
+    } finally {
+        refreshPromise = null;
+    }
+
+    if (hasManualLogoutFlag()) {
+        return false;
+    }
+
     if ('access_token' in result) {
         setStoredToken(result.access_token);
         setStoredExpiresAt(Date.now() + result.expires_in * 1000);

@@ -24,6 +24,7 @@ export interface AuthContextValue {
     setDevRole: (role: DevRole) => void;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
+    logoutAsync: (reason?: LogoutReason) => Promise<void>;
     devLogout: () => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
     verifySession: (options?: { silent?: boolean; allowRefresh?: boolean }) => Promise<boolean>;
