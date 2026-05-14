@@ -119,7 +119,7 @@ const MIME_LABELS: Record<string, string> = {
 const SOURCE_MODULE_LABELS: Record<string, string> = {
     questionnaire: 'Cuestionario',
     history: 'Historial',
-    dashboard: 'Dashboard',
+    dashboard: 'Panel general',
     metrics: 'Métricas',
     account: 'Mi cuenta',
     audit: 'Auditoría',

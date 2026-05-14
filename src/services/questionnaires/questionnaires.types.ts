@@ -56,12 +56,26 @@ export interface QuestionnaireQuestionV2DTO {
     response_max?: number | null;
     response_step?: number | null;
     response_options?: unknown[] | null;
+    answer?: QuestionnaireResponseValue;
+    answer_value?: string | null;
+    answer_updated_at?: string | null;
+    answered?: boolean;
+    question_id?: string;
+    question_code?: string;
+    session_item_id?: string;
+    section?: string | null;
+    feature?: string | null;
     [key: string]: unknown;
 }
 
 export interface QuestionnaireAnswerV2DTO {
     question_id: string;
+    question_code?: string | null;
+    section?: string | null;
     answer: QuestionnaireResponseValue;
+    answer_value?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
 }
 
 export interface QuestionnaireOptionDTO {
@@ -198,6 +212,9 @@ export interface QuestionnaireSessionV2DTO {
     role?: QuestionnaireV2Role;
     mode_key?: string | null;
     progress_pct?: number | null;
+    progress_percent?: number | null;
+    total_questions?: number | null;
+    answered_count?: number | null;
     version?: string | null;
     result?: QuestionnaireEvaluationResultDTO | null;
     domains?: QuestionnaireEvaluationDomainDTO[];

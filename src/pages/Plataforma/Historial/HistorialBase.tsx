@@ -7,16 +7,20 @@ import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
+    getAllQuestionnaireSessionQuestionsV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryResultsV2,
+    getQuestionnaireSessionV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnaireQuestionV2DTO,
     QuestionnaireSecureResultsV2DTO,
+    QuestionnaireSessionV2DTO,
     QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
@@ -672,6 +676,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         try {
             let nextResults = resultsPayload;
             let nextSummary = clinicalSummaryPayload;
+            let nextSessionDetail: QuestionnaireSessionV2DTO | null = null;
+            let nextQuestions: QuestionnaireQuestionV2DTO[] = [];
 
             if (!nextResults && canLoadClinicalArtifacts(detailPayload?.status)) {
                 nextResults = await getQuestionnaireHistoryResultsV2(detailSessionId);
@@ -687,10 +693,24 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 }
             }
 
+            try {
+                const [sessionDetail, sessionQuestions] = await Promise.all([
+                    getQuestionnaireSessionV2(detailSessionId),
+                    getAllQuestionnaireSessionQuestionsV2(detailSessionId)
+                ]);
+                nextSessionDetail = sessionDetail;
+                nextQuestions = sessionQuestions;
+            } catch {
+                nextSessionDetail = null;
+                nextQuestions = [];
+            }
+
             const nextViewModel = buildReportViewModel({
                 session: detailPayload,
                 results: nextResults,
-                clinicalSummary: nextSummary
+                clinicalSummary: nextSummary,
+                questions: nextQuestions,
+                sessionAnswers: nextSessionDetail?.answers ?? detailPayload?.answers ?? null
             });
             const reportTitle = buildReportTitle(detailPayload);
             const fileName = buildReportFileName(detailPayload, 'pdf');

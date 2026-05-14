@@ -323,6 +323,9 @@ function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
         questionnaire_id: firstNonEmptyString([record.questionnaire_id, record.questionnaireId]) ?? undefined,
         mode_key: firstNonEmptyString([record.mode_key]),
         progress_pct: toNumberOrNull(record.progress_pct),
+        progress_percent: toNumberOrNull(record.progress_percent),
+        total_questions: toNumberOrNull(record.total_questions),
+        answered_count: toNumberOrNull(record.answered_count),
         version: firstNonEmptyString([record.version]),
         result,
         domains: normalizeEvaluationDomains(record.domains ?? resultPayload?.domains),
@@ -964,6 +967,30 @@ export function getQuestionnaireSessionPageV2(sessionId: string, params?: { page
     );
 }
 
+export async function getAllQuestionnaireSessionQuestionsV2(sessionId: string, pageSize = sessionDefaultPageSize) {
+    const firstPage = await getQuestionnaireSessionPageV2(sessionId, { page: 1, page_size: pageSize });
+    const firstQuestions = firstPage.items;
+    const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
+
+    if (totalPages <= 1) {
+        return firstQuestions;
+    }
+
+    const remainingResponses = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, index) =>
+            getQuestionnaireSessionPageV2(sessionId, { page: index + 2, page_size: pageSize })
+        )
+    );
+
+    const uniqueById = new Map<string, QuestionnaireQuestionV2DTO>();
+    [...firstQuestions, ...remainingResponses.flatMap((response) => response.items)].forEach((question) => {
+        if (!question?.id || uniqueById.has(question.id)) return;
+        uniqueById.set(question.id, question);
+    });
+
+    return Array.from(uniqueById.values()).sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
+}
+
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
     if (sensitiveTransportEnabled) {
         return apiSecurePatch<unknown, PatchSessionAnswersV2Payload>(
@@ -980,14 +1007,17 @@ export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: P
     );
 }
 
-export function submitQuestionnaireSessionV2(sessionId: string) {
+export function submitQuestionnaireSessionV2(sessionId: string, payload?: { force_reprocess?: boolean }) {
+    const requestBody = payload ?? {};
     const request = sensitiveTransportEnabled
-        ? apiSecurePostNoBody<unknown>(
+        ? apiSecurePost<unknown, { force_reprocess?: boolean }>(
             `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestBody,
             requestOptions
         )
-        : apiPostNoBody<unknown>(
+        : apiPost<unknown, { force_reprocess?: boolean }>(
             `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestBody,
             requestOptions
         );
 

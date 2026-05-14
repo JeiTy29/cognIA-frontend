@@ -28,7 +28,6 @@ const Metricas = lazy(() => import('./pages/Administrador/Metricas/Metricas'));
 const Dashboard = lazy(() => import('./pages/Administrador/Dashboard/Dashboard'));
 const Cuestionarios = lazy(() => import('./pages/Administrador/Cuestionarios/Cuestionarios'));
 const PreguntasCuestionario = lazy(() => import('./pages/Administrador/Cuestionarios/PreguntasCuestionario'));
-const Evaluaciones = lazy(() => import('./pages/Administrador/Evaluaciones/Evaluaciones'));
 const Usuarios = lazy(() => import('./pages/Administrador/Usuarios/Usuarios'));
 const Psicologos = lazy(() => import('./pages/Administrador/Psicologos/Psicologos'));
 const Auditoria = lazy(() => import('./pages/Administrador/Auditoria/Auditoria'));
@@ -139,7 +138,7 @@ export default function App() {
                                 <Route path="dashboard" element={<Dashboard />} />
                                 <Route path="cuestionarios" element={<Cuestionarios />} />
                                 <Route path="cuestionarios/:templateId/preguntas" element={<PreguntasCuestionario />} />
-                                <Route path="evaluaciones" element={<Evaluaciones />} />
+                                <Route path="evaluaciones" element={<Navigate to="/admin/dashboard" replace />} />
                                 <Route path="usuarios" element={<Usuarios />} />
                                 <Route path="psicologos" element={<Psicologos />} />
                                 <Route path="auditoria" element={<Auditoria />} />

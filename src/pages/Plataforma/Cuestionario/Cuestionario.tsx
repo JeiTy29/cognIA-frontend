@@ -4,11 +4,11 @@ import './Cuestionario.css';
 import { ApiError } from '../../../services/api/httpClient';
 import {
     createQuestionnaireSessionV2,
+    getAllQuestionnaireSessionQuestionsV2,
     getActiveQuestionnairesV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryV2,
     getQuestionnaireHistoryResultsV2,
-    getQuestionnaireSessionPageV2,
     getQuestionnaireSessionV2,
     patchQuestionnaireSessionAnswersV2,
     submitQuestionnaireSessionV2
@@ -40,11 +40,16 @@ import {
     type RiskLevelPresentation
 } from '../../../services/questionnaires/clinicalSummary';
 import {
+    formatDomainLabel,
+    formatProbability,
+    normalizeClinicalTextPresentation,
+    sanitizeClinicalIndicatorText,
+    sanitizeClinicalIndicatorsList
+} from '../../../utils/presentation/clinicalReport';
+import {
     formatDateTimeEsCO,
-    formatPercentEs,
     getAlertLevelLabel,
     getConfidenceBandLabel,
-    getDomainLabel
 } from '../../../utils/presentation/naturalLanguage';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -77,6 +82,15 @@ type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'fai
 type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
 type AnswerPersistenceState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 type PollTimer = ReturnType<typeof globalThis.setTimeout> | null;
+
+function debugQuestionnaire(label: string, payload?: unknown) {
+    if (!import.meta.env.DEV) return;
+    if (payload === undefined) {
+        console.debug(`[questionnaire] ${label}`);
+        return;
+    }
+    console.debug(`[questionnaire] ${label}`, payload);
+}
 
 interface ProcessingStep {
     id: 'receive' | 'analyze' | 'generate';
@@ -154,18 +168,54 @@ function toText(value: unknown, fallback = '') {
     return typeof value === 'string' ? value : fallback;
 }
 
+function pickAnswerValue(record: Record<string, unknown>) {
+    const candidates = [
+        record.answer,
+        record.value,
+        record.response,
+        record.response_value,
+        record.selected_value,
+        record.current_answer,
+        record.answer_value
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate === null) return null;
+        if (typeof candidate === 'string' || typeof candidate === 'number' || typeof candidate === 'boolean') {
+            return candidate;
+        }
+    }
+
+    return undefined;
+}
+
+function pickQuestionAnswerKeys(record: Record<string, unknown>) {
+    return [
+        record.question_id,
+        record.questionId,
+        record.id,
+        record.item_id,
+        record.questionnaire_item_id,
+        record.question_code,
+        record.code
+    ]
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter((item, index, items) => item.length > 0 && items.indexOf(item) === index);
+}
+
 function normalizeAnswerDictionary(value: unknown): Record<string, QuestionnaireResponseValue> {
     if (!value) return {};
 
     if (Array.isArray(value)) {
         return value.reduce<Record<string, QuestionnaireResponseValue>>((acc, item) => {
             if (!item || typeof item !== 'object' || Array.isArray(item)) return acc;
-            const answer = item as Record<string, unknown>;
-            const questionId = toText(answer.question_id);
-            if (!questionId) return acc;
-            acc[questionId] =
-                (answer.answer as QuestionnaireResponseValue) ??
-                null;
+            const answerRecord = item as Record<string, unknown>;
+            const keys = pickQuestionAnswerKeys(answerRecord);
+            const answerValue = pickAnswerValue(answerRecord);
+            if (keys.length === 0 || answerValue === undefined) return acc;
+            keys.forEach((key) => {
+                acc[key] = answerValue;
+            });
             return acc;
         }, {});
     }
@@ -365,8 +415,10 @@ function getQuestionKeyCandidates(question: QuestionnaireQuestionV2DTO) {
         question.id,
         question.code,
         toText(rawQuestion.question_id),
+        toText(rawQuestion.question_code),
         toText(rawQuestion.item_id),
-        toText(rawQuestion.questionnaire_item_id)
+        toText(rawQuestion.questionnaire_item_id),
+        toText(rawQuestion.session_item_id)
     ];
 
     const normalized: string[] = [];
@@ -376,6 +428,52 @@ function getQuestionKeyCandidates(question: QuestionnaireQuestionV2DTO) {
         normalized.push(key);
     }
     return normalized;
+}
+
+function coerceAnswerForQuestion(question: QuestionnaireQuestionV2DTO, value: QuestionnaireResponseValue | undefined) {
+    if (value === null || value === undefined) return null;
+
+    const type = String(question.response_type).toLowerCase();
+    if (type === 'boolean') {
+        if (typeof value === 'boolean') return value;
+        const text = String(value).trim().toLowerCase();
+        if (['true', '1', 'si', 'sí', 'yes'].includes(text)) return true;
+        if (['false', '0', 'no'].includes(text)) return false;
+        return value;
+    }
+
+    if ([
+        'integer',
+        'number',
+        'count',
+        'likert',
+        'likert_0_4',
+        'likert_1_5',
+        'frequency_0_3',
+        'intensity_0_10'
+    ].includes(type)) {
+        const parsed = Number(String(value).replace(',', '.'));
+        if (Number.isFinite(parsed)) {
+            return type === 'number' ? parsed : Math.trunc(parsed);
+        }
+    }
+
+    return value;
+}
+
+function extractSessionAnswers(detail: unknown): Record<string, QuestionnaireResponseValue> {
+    if (!detail || typeof detail !== 'object' || Array.isArray(detail)) {
+        return {};
+    }
+
+    const record = detail as Record<string, unknown>;
+    return {
+        ...normalizeAnswerDictionary(record.payload && typeof record.payload === 'object' ? (record.payload as Record<string, unknown>).answers : undefined),
+        ...normalizeAnswerDictionary(record.result && typeof record.result === 'object' ? (record.result as Record<string, unknown>).answers : undefined),
+        ...normalizeAnswerDictionary(record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>).answers : undefined),
+        ...normalizeAnswerDictionary(record.session && typeof record.session === 'object' ? (record.session as Record<string, unknown>).answers : undefined),
+        ...normalizeAnswerDictionary(record.answers)
+    };
 }
 
 function getAnswerForQuestion(
@@ -400,12 +498,9 @@ function setAnswerForQuestion(
     const keys = getQuestionKeyCandidates(question);
     if (keys.length === 0) return next;
 
-    next[keys[0]] = value;
-    for (let index = 1; index < keys.length; index += 1) {
-        if (Object.hasOwn(next, keys[index])) {
-            next[keys[index]] = value;
-        }
-    }
+    keys.forEach((key) => {
+        next[key] = value;
+    });
     return next;
 }
 
@@ -421,30 +516,16 @@ function getApiQuestionId(question: QuestionnaireQuestionV2DTO) {
 
 function extractAnswerFromQuestionRecord(question: QuestionnaireQuestionV2DTO): QuestionnaireResponseValue | undefined {
     const rawQuestion = question as Record<string, unknown>;
-    const candidates = [
-        rawQuestion.answer,
-        rawQuestion.current_answer,
-        rawQuestion.response,
-        rawQuestion.response_value,
-        rawQuestion.selected_value,
-        rawQuestion.value
-    ];
-
-    for (const candidate of candidates) {
-        if (candidate === null) return null;
-        if (typeof candidate === 'string' || typeof candidate === 'number' || typeof candidate === 'boolean') {
-            return candidate;
-        }
-    }
-
-    return undefined;
+    return pickAnswerValue(rawQuestion);
 }
 
 function buildAnswersFromQuestions(questions: QuestionnaireQuestionV2DTO[]) {
     return questions.reduce<Record<string, QuestionnaireResponseValue>>((acc, question) => {
-        const inferredAnswer = extractAnswerFromQuestionRecord(question);
+        const inferredAnswer = coerceAnswerForQuestion(question, extractAnswerFromQuestionRecord(question));
         if (inferredAnswer !== undefined) {
-            acc[question.id] = inferredAnswer;
+            getQuestionKeyCandidates(question).forEach((key) => {
+                acc[key] = inferredAnswer;
+            });
         }
         return acc;
     }, {});
@@ -454,8 +535,8 @@ function mapError(error: unknown, fallback: string) {
     if (!(error instanceof ApiError)) return fallback;
     if (error.status === 400) return 'Revisa los datos e intenta nuevamente.';
     if (error.status === 401) return 'Sesion expirada o no autenticado.';
-    if (error.status === 403) return 'No tienes permisos para esta operacion.';
-    if (error.status === 404) return 'No se encontro informacion para este cuestionario.';
+    if (error.status === 403) return 'No tienes permisos para esta operación.';
+    if (error.status === 404) return 'No se encontró información para este cuestionario.';
     if (error.status >= 500) return 'Error del servidor. Intenta mas tarde.';
     return fallback;
 }
@@ -496,19 +577,19 @@ type StartSessionStep =
     | 'validate_questions';
 
 function mapStartSessionStepLabel(step: StartSessionStep) {
-    if (step === 'create_session') return 'crear la sesion';
+    if (step === 'create_session') return 'crear la sesión';
     if (step === 'load_questions') return 'cargar las preguntas';
-    if (step === 'load_session_detail') return 'cargar el detalle de la sesion';
+    if (step === 'load_session_detail') return 'cargar el detalle de la sesión';
     return 'validar la estructura del cuestionario';
 }
 
 function mapStartSessionError(error: unknown, step: StartSessionStep) {
     if (error instanceof Error && error.message === 'missing_session_id') {
-        return 'El backend respondio al crear la sesion, pero no devolvio un identificador usable (id/session_id).';
+        return 'El backend respondió al crear la sesión, pero no devolvió un identificador usable (id/session_id).';
     }
 
     if (error instanceof Error && error.message === 'empty_questions') {
-        return 'La sesion se creo, pero la API no devolvio preguntas en la primera carga de pagina (page=1, page_size=20).';
+        return 'La sesión se creó, pero la API no devolvió preguntas en la primera carga de página (page=1, page_size=20).';
     }
 
     if (error instanceof ApiError) {
@@ -604,26 +685,26 @@ function sessionToCompletionPayload(session: QuestionnaireSessionV2DTO): Questio
 
 function getProcessingMessage(phase: CompletionPhase, status: QuestionnaireV2Status | null | undefined) {
     if (phase === 'submitting') {
-        return 'Estamos enviando tus respuestas y preparando la evaluacion para analisis.';
+        return 'Estamos enviando tus respuestas y preparando la evaluación para análisis.';
     }
 
     const normalized = (status ?? '').toLowerCase();
     if (normalized === 'draft' || normalized === 'in_progress') {
-        return 'El motor esta validando consistencia y preparando el analisis clinico orientativo.';
+        return 'El motor está validando consistencia y preparando el análisis clínico orientativo.';
     }
     if (normalized === 'submitted') {
-        return 'La evaluacion esta en cola de procesamiento y generacion de resultado.';
+        return 'La evaluación está en cola de procesamiento y generación de resultado.';
     }
     if (normalized === 'processed') {
-        return 'La evaluacion finalizo correctamente.';
+        return 'La evaluación finalizó correctamente.';
     }
     if (normalized === 'failed') {
-        return 'No se logro completar el procesamiento de la evaluacion.';
+        return 'No se logró completar el procesamiento de la evaluación.';
     }
     if (normalized === 'archived') {
-        return 'La sesion fue archivada antes de completar el resultado.';
+        return 'La sesión fue archivada antes de completar el resultado.';
     }
-    return 'Estamos consolidando la informacion para generar un resultado util.';
+    return 'Estamos consolidando la información para generar un resultado útil.';
 }
 
 function resolveReceiveStepState(phase: CompletionPhase): ProcessingStepState {
@@ -669,19 +750,19 @@ function buildProcessingSteps(phase: CompletionPhase, status: QuestionnaireV2Sta
     return [
         {
             id: 'receive',
-            title: 'Recepcion de respuestas',
-            description: 'Confirmamos y sellamos tus respuestas en la sesion activa.',
+            title: 'Recepción de respuestas',
+            description: 'Confirmamos y sellamos tus respuestas en la sesión activa.',
             state: receiveState
         },
         {
             id: 'analyze',
-            title: 'Analisis de evaluacion',
+            title: 'Análisis de evaluación',
             description: 'Corremos validaciones y consistencia del cuestionario.',
             state: analyze
         },
         {
             id: 'generate',
-            title: 'Generacion de resultado',
+            title: 'Generación de resultado',
             description: 'Consolidamos hallazgos para mostrar un resumen accionable.',
             state: generate
         }
@@ -718,7 +799,7 @@ function getQuestionnaireReportNotice(error: unknown, target: 'results' | 'clini
     }
 
     if (errorCode === 'runtime_artifact_unavailable') {
-        return 'El artefacto de resultados todavia no esta disponible. Intenta nuevamente en unos minutos.';
+        return 'El artefacto de resultados todavía no está disponible. Intenta nuevamente en unos minutos.';
     }
 
     if (
@@ -739,6 +820,66 @@ function getQuestionnaireReportNotice(error: unknown, target: 'results' | 'clini
         : mapError(error, 'No fue posible recuperar el resultado seguro del cuestionario.');
 }
 
+function getApiErrorPayloadRecord(error: unknown) {
+    if (!(error instanceof ApiError) || !error.payload || typeof error.payload !== 'object' || Array.isArray(error.payload)) {
+        return null;
+    }
+    return error.payload as Record<string, unknown>;
+}
+
+function getApiErrorCode(error: unknown) {
+    const payload = getApiErrorPayloadRecord(error);
+    return typeof payload?.error === 'string' ? payload.error.trim().toLowerCase() : '';
+}
+
+function getApiErrorMessageDetail(error: unknown) {
+    const payload = getApiErrorPayloadRecord(error);
+    return typeof payload?.detail === 'string'
+        ? payload.detail.trim()
+        : (typeof payload?.msg === 'string' ? payload.msg.trim() : '');
+}
+
+function resolveSubmitErrorState(error: unknown) {
+    const status = error instanceof ApiError ? error.status : null;
+    const code = getApiErrorCode(error);
+    const detail = getApiErrorMessageDetail(error);
+
+    if (status === 400 && code === 'empty_answers') {
+        return {
+            code,
+            message: 'Debes responder al menos una pregunta antes de enviar.',
+            retryMode: 'submit' as const
+        };
+    }
+
+    if (status === 400 && code === 'validation_error') {
+        return {
+            code,
+            message: detail || 'La información enviada no pasó la validación del backend.',
+            retryMode: 'submit' as const
+        };
+    }
+
+    if (
+        status === 503 &&
+        ['runtime_artifact_unavailable', 'runtime_assets_unavailable', 'db_unavailable'].includes(code)
+    ) {
+        return {
+            code,
+            message: code === 'runtime_artifact_unavailable'
+                ? 'El motor de evaluación no está disponible en este momento. Tus respuestas quedaron guardadas, pero no fue posible generar el resultado. Intenta nuevamente más tarde.'
+                : 'El servicio de evaluación no está disponible temporalmente.',
+            retryMode: 'submit' as const
+        };
+    }
+
+    return {
+        code: code || null,
+        message: mapError(error, 'No se pudo enviar el cuestionario.'),
+        retryMode: 'submit' as const
+    };
+}
+
 function getClinicalDomainCardKey(domain: QuestionnaireClinicalDomainV2DTO, index: number) {
     return `${toText(domain.domain, 'clinical-domain')}-${toText(domain.compatibility_level, 'level')}-${index}`;
 }
@@ -750,7 +891,7 @@ function getEvaluationDomainCardKey(domain: QuestionnaireEvaluationDomainDTO, in
 function getEvaluationComorbiditySummary(items: QuestionnaireEvaluationComorbidityDTO[]) {
     const firstSummary = items.find((item) => hasText(item.summary))?.summary;
     if (hasText(firstSummary)) {
-        return toText(firstSummary);
+        return normalizeClinicalTextPresentation(firstSummary, '');
     }
 
     const domains = items
@@ -758,7 +899,7 @@ function getEvaluationComorbiditySummary(items: QuestionnaireEvaluationComorbidi
         .filter((domain): domain is string => typeof domain === 'string' && domain.trim().length > 0);
 
     if (domains.length > 0) {
-        return `Se observan posibles senales compartidas entre ${domains.join(', ')}.`;
+        return `Se observan posibles señales compartidas entre ${domains.map((domain) => formatDomainLabel(domain)).join(', ')}.`;
     }
 
     return '';
@@ -767,12 +908,12 @@ function getEvaluationComorbiditySummary(items: QuestionnaireEvaluationComorbidi
 function getQuestionnaireStatusChipLabel(phase: CompletionPhase) {
     if (phase === 'processed') return 'Resultado listo';
     if (phase === 'failed') return 'Procesamiento interrumpido';
-    return 'Procesando evaluacion';
+    return 'Procesando evaluación';
 }
 
 function getQuestionnaireStatusTitle(phase: CompletionPhase) {
     if (phase === 'processed') return 'Evaluacion completada';
-    if (phase === 'failed') return 'No pudimos completar la evaluacion';
+    if (phase === 'failed') return 'No pudimos completar la evaluación';
     return 'Estamos analizando tus respuestas';
 }
 
@@ -821,17 +962,21 @@ function QuestionnaireProcessedView({
             typeof resultBlock.needs_professional_review === 'boolean' ||
             hasText(resultBlock.summary) ||
             hasText(resultBlock.operational_recommendation));
+    const normalizedRiskLabel = normalizeClinicalTextPresentation(riskPresentation.label, riskPresentation.label);
+    const normalizedRiskHint = normalizeClinicalTextPresentation(riskPresentation.hint, riskPresentation.hint);
+    const normalizedComorbiditySummary = normalizeClinicalTextPresentation(comorbiditySummary, comorbiditySummary);
+    const normalizedDisclaimer = normalizeClinicalTextPresentation(disclaimer, disclaimer);
 
     return (
         <div className="questionnaire-result-view">
             <div className="questionnaire-report-banner">
                 <div className={`questionnaire-risk-chip is-${riskPresentation.tone}`}>
                     <strong>Nivel de alerta</strong>
-                    <span>{riskPresentation.label}</span>
+                    <span>{normalizedRiskLabel}</span>
                 </div>
                 <div className="questionnaire-report-banner-copy">
                     <h3>Informe final orientativo</h3>
-                    <p>{riskPresentation.hint}</p>
+                    <p>{normalizedRiskHint}</p>
                     {generatedAt === '--' ? null : (
                         <span className="questionnaire-report-generated-at">Generado: {generatedAt}</span>
                     )}
@@ -844,10 +989,10 @@ function QuestionnaireProcessedView({
                 </output>
             ) : null}
 
-            {comorbiditySummary ? (
+            {normalizedComorbiditySummary ? (
                 <div className="questionnaire-comorbidity-banner">
-                    <strong>Posible coexistencia de senales</strong>
-                    <p>{comorbiditySummary}</p>
+                    <strong>Posible coexistencia de señales</strong>
+                    <p>{normalizedComorbiditySummary}</p>
                 </div>
             ) : null}
 
@@ -857,36 +1002,35 @@ function QuestionnaireProcessedView({
                         key={section.key}
                         className={`questionnaire-report-section ${section.key === 'aclaracion_importante' ? 'is-disclaimer' : ''}`}
                     >
-                        <h4>{section.title}</h4>
-                        <p>{section.content}</p>
+                        <h4>{normalizeClinicalTextPresentation(section.title, section.title)}</h4>
+                        <p>{normalizeClinicalTextPresentation(section.content, section.content)}</p>
                     </article>
                 ))}
             </div>
 
             {showClinicalDomains ? (
                 <div className="questionnaire-result-section">
-                    <h4>Compatibilidad por area evaluada</h4>
+                    <h4>Compatibilidad por área evaluada</h4>
                     <div className="questionnaire-result-list">
                         {clinicalDomains.map((domain, index) => {
                             const compatibility = domain.compatibility_level ?? domain.risk_level ?? riskPresentation.key;
                             const presentation = getRiskLevelPresentation(compatibility as QuestionnaireRiskLevel);
+                            const indicators = Array.isArray(domain.main_indicators)
+                                ? sanitizeClinicalIndicatorsList(domain.main_indicators, domain.domain)
+                                : ['No hay indicadores clínicos adicionales disponibles para mostrar.'];
                             return (
                                 <article key={getClinicalDomainCardKey(domain, index)} className="questionnaire-result-item">
                                     <header>
-                                        <strong>{getDomainLabel(domain.domain, `Dominio ${index + 1}`)}</strong>
+                                        <strong>{formatDomainLabel(domain.domain ?? `Dominio ${index + 1}`)}</strong>
                                         <span className={`questionnaire-domain-chip is-${presentation.tone}`}>
-                                            {presentation.label}
+                                            {normalizeClinicalTextPresentation(presentation.label, presentation.label)}
                                         </span>
                                     </header>
-                                    <p>
-                                        {Array.isArray(domain.main_indicators) && domain.main_indicators.length > 0
-                                            ? domain.main_indicators.join(', ')
-                                            : 'No se recibieron indicadores principales para esta area.'}
-                                    </p>
+                                    <p>{indicators.join(' ')}</p>
                                     <div className="questionnaire-result-item-meta">
-                                        <span>Probabilidad: {formatPercentEs(domain.probability, { mode: 'auto' })}</span>
-                                        <span>Confianza: {formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span>
-                                        <span>Banda: {getConfidenceBandLabel(domain.confidence_band)}</span>
+                                        <span>Probabilidad: {formatProbability(domain.probability)}</span>
+                                        <span>Confianza: {formatProbability(domain.confidence_pct)}</span>
+                                        <span>Banda: {normalizeClinicalTextPresentation(getConfidenceBandLabel(domain.confidence_band), '--')}</span>
                                     </div>
                                 </article>
                             );
@@ -902,16 +1046,16 @@ function QuestionnaireProcessedView({
                         {evaluationDomains.map((domain, index) => (
                             <article key={getEvaluationDomainCardKey(domain, index)} className="questionnaire-result-item">
                                 <header>
-                                    <strong>{getDomainLabel(domain.domain, `Dominio ${index + 1}`)}</strong>
+                                    <strong>{formatDomainLabel(domain.domain ?? `Dominio ${index + 1}`)}</strong>
                                     <span className="questionnaire-domain-chip is-neutral">
-                                        {getAlertLevelLabel(domain.alert_level)}
+                                        {normalizeClinicalTextPresentation(getAlertLevelLabel(domain.alert_level), '--')}
                                     </span>
                                 </header>
-                                <p>{toText(domain.result_summary, 'Sin resumen operativo para este dominio.')}</p>
+                                <p>{sanitizeClinicalIndicatorText(String(domain.result_summary ?? '')) ?? normalizeClinicalTextPresentation(domain.result_summary, 'Sin resumen operativo para esta área.')}</p>
                                 <div className="questionnaire-result-item-meta">
-                                    <span>Probabilidad: {formatPercentEs(domain.probability, { mode: 'auto' })}</span>
-                                    <span>Confianza: {formatPercentEs(domain.confidence_pct, { mode: 'percent' })}</span>
-                                    <span>Banda: {getConfidenceBandLabel(domain.confidence_band)}</span>
+                                    <span>Probabilidad: {formatProbability(domain.probability)}</span>
+                                    <span>Confianza: {formatProbability(domain.confidence_pct)}</span>
+                                    <span>Banda: {normalizeClinicalTextPresentation(getConfidenceBandLabel(domain.confidence_band), '--')}</span>
                                 </div>
                             </article>
                         ))}
@@ -925,22 +1069,22 @@ function QuestionnaireProcessedView({
                     <div className="questionnaire-result-grid">
                         <div>
                             <strong>Resumen orientativo</strong>
-                            <p>{toText(resultBlock?.summary, 'Sin resumen disponible.')}</p>
+                            <p>{normalizeClinicalTextPresentation(resultBlock?.summary, 'Sin resumen disponible.')}</p>
                         </div>
                         <div>
-                            <strong>Recomendacion operativa</strong>
-                            <p>{toText(resultBlock?.operational_recommendation, 'Sin recomendacion registrada.')}</p>
+                            <strong>Recomendación operativa</strong>
+                            <p>{normalizeClinicalTextPresentation(resultBlock?.operational_recommendation, 'Sin recomendación registrada.')}</p>
                         </div>
                         <div>
                             <strong>Calidad de completitud</strong>
-                            <p>{formatPercentEs(resultBlock?.completion_quality_score, { mode: 'auto' })}</p>
+                            <p>{formatProbability(resultBlock?.completion_quality_score)}</p>
                         </div>
                         <div>
-                            <strong>Nivel de datos faltantes</strong>
-                            <p>{formatPercentEs(resultBlock?.missingness_score, { mode: 'auto' })}</p>
+                            <strong>Datos faltantes</strong>
+                            <p>{formatProbability(resultBlock?.missingness_score)}</p>
                         </div>
                         <div>
-                            <strong>Valoracion profesional</strong>
+                            <strong>Valoración profesional</strong>
                             <p>{getProfessionalReviewLabel(resultBlock?.needs_professional_review)}</p>
                         </div>
                     </div>
@@ -948,8 +1092,8 @@ function QuestionnaireProcessedView({
             ) : null}
 
             <div className="questionnaire-disclaimer-card">
-                <strong>Aclaracion importante</strong>
-                <p>{disclaimer}</p>
+                <strong>Aclaración importante</strong>
+                <p>{normalizedDisclaimer}</p>
             </div>
 
             <div className="questionnaire-result-actions">
@@ -1041,6 +1185,15 @@ function findFirstInvalidQuestionIndex(
         }
     }
     return -1;
+}
+
+function findFirstLegacyPendingQuestionIndex(questions: QuestionnaireQuestionV2DTO[]) {
+    const firstPending = questions.findIndex((question) => {
+        const raw = question as Record<string, unknown>;
+        return raw.answered !== true;
+    });
+
+    return firstPending >= 0 ? firstPending : (questions.length > 0 ? questions.length - 1 : 0);
 }
 
 type AnswerControlProps = Readonly<{
@@ -1231,29 +1384,10 @@ export default function Cuestionario() {
     }, [apiRole, selectedMode]);
 
     const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
-        const firstPage = await getQuestionnaireSessionPageV2(sessionIdToLoad, { page: 1, page_size: SESSION_PAGE_SIZE });
-        const firstQuestions = normalizeQuestions(firstPage.items);
-        const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
-
-        if (totalPages <= 1) {
-            return firstQuestions;
-        }
-
-        const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
-            getQuestionnaireSessionPageV2(sessionIdToLoad, { page: index + 2, page_size: SESSION_PAGE_SIZE })
-        );
-        const remainingResponses = await Promise.all(remainingRequests);
-        const remainingQuestions = remainingResponses.flatMap((response) => normalizeQuestions(response.items));
-        const merged = [...firstQuestions, ...remainingQuestions];
-        const uniqueById = new Map<string, QuestionnaireQuestionV2DTO>();
-
-        merged.forEach((question) => {
-            if (!uniqueById.has(question.id)) {
-                uniqueById.set(question.id, question);
-            }
-        });
-
-        return Array.from(uniqueById.values()).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        const rawQuestions = await getAllQuestionnaireSessionQuestionsV2(sessionIdToLoad, SESSION_PAGE_SIZE);
+        const questions = normalizeQuestions(rawQuestions);
+        debugQuestionnaire('continue:questions-loaded', { count: questions.length });
+        return questions;
     }, []);
 
     const loadProcessedArtifacts = useCallback(async (sessionIdToLoad: string) => {
@@ -1293,7 +1427,7 @@ export default function Cuestionario() {
             const startedAt = pollingStartedAtRef.current ?? Date.now();
             if (Date.now() - startedAt >= PROCESSING_TIMEOUT_MS) {
                 setCompletionPhase('failed');
-                setCompletionError('La evaluacion sigue en proceso por mas tiempo del esperado. Puedes reintentar la consulta en unos minutos.');
+                setCompletionError('La evaluación sigue en proceso por más tiempo del esperado. Puedes reintentar la consulta en unos minutos.');
                 stopPolling();
                 return;
             }
@@ -1318,9 +1452,9 @@ export default function Cuestionario() {
                     } else {
                         setCompletionPhase('failed');
                         if ((latestStatus ?? '').toLowerCase() === 'archived') {
-                            setCompletionError('La sesion fue archivada antes de obtener un resultado final.');
+                            setCompletionError('La sesión fue archivada antes de obtener un resultado final.');
                         } else {
-                            setCompletionError('El procesamiento de la evaluacion finalizo con error.');
+                            setCompletionError('El procesamiento de la evaluación finalizó con error.');
                         }
                     }
                     return;
@@ -1388,12 +1522,43 @@ export default function Cuestionario() {
             if (allQuestions.length === 0) throw new Error('empty_questions');
             failedStep = 'validate_questions';
 
-            const detailAnswers = (detail as Record<string, unknown>).answers;
-            const initialAnswers = {
-                ...buildAnswersFromQuestions(allQuestions),
-                ...normalizeAnswerDictionary(detailAnswers)
+            const pageAnswers = buildAnswersFromQuestions(allQuestions);
+            const detailAnswers = extractSessionAnswers(detail);
+            const progressPct = typeof detail.progress_pct === 'number'
+                ? detail.progress_pct
+                : (typeof detail.progress_percent === 'number' ? detail.progress_percent : null);
+            const answeredCount = typeof detail.answered_count === 'number' ? detail.answered_count : null;
+            debugQuestionnaire('continue:detail-loaded', {
+                progress_pct: progressPct,
+                answered_count: answeredCount,
+                answersCount: Object.keys(detailAnswers).length
+            });
+            debugQuestionnaire('continue:answers-from-pages', { count: Object.keys(pageAnswers).length });
+            debugQuestionnaire('continue:answers-from-detail', { count: Object.keys(detailAnswers).length });
+
+            const initialAnswersRaw = {
+                ...detailAnswers,
+                ...pageAnswers
             };
-            const nextQuestionIndex = findFirstInvalidQuestionIndex(allQuestions, initialAnswers);
+            const initialAnswers = allQuestions.reduce<Record<string, QuestionnaireResponseValue>>((acc, question) => {
+                const answer = getAnswerForQuestion(initialAnswersRaw, question);
+                if (answer === null || answer === undefined) return acc;
+                return setAnswerForQuestion(acc, question, coerceAnswerForQuestion(question, answer));
+            }, {});
+            debugQuestionnaire('continue:answers-hydrated', { count: Object.keys(initialAnswers).length });
+
+            if (
+                Object.keys(initialAnswers).length === 0 &&
+                ((typeof progressPct === 'number' && progressPct > 0) || (typeof answeredCount === 'number' && answeredCount > 0))
+            ) {
+                setError('Encontramos una sesión en progreso, pero no fue posible recuperar las respuestas guardadas.');
+                return;
+            }
+
+            const nextQuestionIndex = Object.keys(initialAnswers).length > 0
+                ? findFirstInvalidQuestionIndex(allQuestions, initialAnswers)
+                : findFirstLegacyPendingQuestionIndex(allQuestions);
+            debugQuestionnaire('continue:first-pending-index', { index: nextQuestionIndex });
 
             setSessionId(sessionIdToContinue);
             setQuestions(allQuestions);
@@ -1439,13 +1604,22 @@ export default function Cuestionario() {
             if (allQuestions.length === 0) throw new Error('empty_questions');
             failedStep = 'validate_questions';
 
-            const detailAnswers = (detail as Record<string, unknown>).answers;
-            const initialAnswers = normalizeAnswerDictionary(detailAnswers);
+            const pageAnswers = buildAnswersFromQuestions(allQuestions);
+            const detailAnswers = extractSessionAnswers(detail);
+            const initialAnswersRaw = {
+                ...detailAnswers,
+                ...pageAnswers
+            };
+            const initialAnswers = allQuestions.reduce<Record<string, QuestionnaireResponseValue>>((acc, question) => {
+                const answer = getAnswerForQuestion(initialAnswersRaw, question);
+                if (answer === null || answer === undefined) return acc;
+                return setAnswerForQuestion(acc, question, coerceAnswerForQuestion(question, answer));
+            }, {});
 
             setSessionId(id);
             setQuestions(allQuestions);
             setAnswers(initialAnswers);
-            setCurrentIndex(0);
+            setCurrentIndex(Math.max(findFirstInvalidQuestionIndex(allQuestions, initialAnswers), 0));
             setSessionSnapshot(detail);
             setStarted(true);
             setReusableSession(null);
@@ -1638,7 +1812,7 @@ export default function Cuestionario() {
             const normalizedStatus = (submittedStatus ?? '').toLowerCase();
             if (normalizedStatus === 'failed') {
                 setCompletionPhase('failed');
-                setCompletionError('La evaluacion no pudo procesarse correctamente. Puedes intentar consultar el estado de nuevo.');
+                setCompletionError('La evaluación no pudo procesarse correctamente. Puedes intentar el envío nuevamente.');
                 return;
             }
 
@@ -1651,8 +1825,13 @@ export default function Cuestionario() {
             setCompletionPhase('processing');
             startStatusPolling(sessionId);
         } catch (requestError) {
+            const submitError = resolveSubmitErrorState(requestError);
+            debugQuestionnaire('submit:error', {
+                status: requestError instanceof ApiError ? requestError.status : null,
+                code: submitError.code
+            });
             setCompletionPhase('failed');
-            setCompletionError(mapError(requestError, 'No se pudo enviar el cuestionario.'));
+            setCompletionError(submitError.message);
         } finally {
             actionLockRef.current = false;
             setWorking(false);
@@ -1708,12 +1887,43 @@ export default function Cuestionario() {
         loadActive().catch(() => undefined);
     };
 
-    const handleRetryProcessing = () => {
-        if (!sessionId) return;
-        setCompletionPhase('processing');
+    const handleRetryProcessing = async () => {
+        if (!sessionId || actionLockRef.current) return;
+        actionLockRef.current = true;
+        setWorking(true);
         setCompletionError(null);
         setReportNotice(null);
-        startStatusPolling(sessionId);
+
+        try {
+            const submitPayload = await submitQuestionnaireSessionV2(sessionId, { force_reprocess: true });
+            const mergedPayload = mergeCompletionPayload(
+                completionPayloadRef.current,
+                mergeCompletionPayload(submitPayload, { session_id: submitPayload.session_id ?? sessionId })
+            );
+            setCompletionPayload(mergedPayload);
+            const submittedStatus = submitPayload.status ?? null;
+            setBackendStatus(submittedStatus);
+
+            if ((submittedStatus ?? '').toLowerCase() === 'processed') {
+                await loadProcessedArtifacts(sessionId);
+                setCompletionPhase('processed');
+                return;
+            }
+
+            setCompletionPhase('processing');
+            startStatusPolling(sessionId);
+        } catch (requestError) {
+            const submitError = resolveSubmitErrorState(requestError);
+            debugQuestionnaire('submit:error', {
+                status: requestError instanceof ApiError ? requestError.status : null,
+                code: submitError.code
+            });
+            setCompletionPhase('failed');
+            setCompletionError(submitError.message);
+        } finally {
+            actionLockRef.current = false;
+            setWorking(false);
+        }
     };
 
     const handlePrimaryActionClick = () => {
@@ -1755,6 +1965,13 @@ export default function Cuestionario() {
         () => getClinicalComorbiditySummary(clinicalSummary) || getEvaluationComorbiditySummary(evaluationComorbidity),
         [clinicalSummary, evaluationComorbidity]
     );
+    useEffect(() => {
+        if (completionPhase !== 'processed') return;
+        debugQuestionnaire('result:normalization-applied', {
+            clinicalDomains: clinicalDomains.length,
+            evaluationDomains: evaluationDomains.length
+        });
+    }, [clinicalDomains.length, completionPhase, evaluationDomains.length]);
     const resultSessionId = secureResults?.session?.session_id ?? completionPayload?.session_id ?? sessionSnapshot?.session_id ?? sessionId ?? '--';
     const resultQuestionnaireId = secureResults?.session?.questionnaire_id ?? completionPayload?.questionnaire_id ?? sessionSnapshot?.questionnaire_id ?? '--';
     const reportGeneratedAt = formatDateTimeEsCO(clinicalSummary?.generated_at);
@@ -1773,7 +1990,7 @@ export default function Cuestionario() {
                 <div className="questionnaire-resume-copy">
                     <strong>Tienes un cuestionario en progreso</strong>
                     <p>
-                        Puedes retomar tu sesion guardada o iniciar una nueva.
+                        Puedes retomar tu sesión guardada o iniciar una nueva.
                         {reusableUpdatedAt ? ` Ultima actualizacion: ${new Date(reusableUpdatedAt).toLocaleString('es-CO')}.` : ''}
                     </p>
                 </div>
@@ -1846,7 +2063,7 @@ export default function Cuestionario() {
                     <span>{getBackendStatusLabel(backendStatus)}</span>
                 </div>
                 <div>
-                    <strong>ID sesion</strong>
+                    <strong>ID sesión</strong>
                     <span>{resultSessionId}</span>
                 </div>
                 <div>
@@ -1876,7 +2093,7 @@ export default function Cuestionario() {
 
             {completionPhase === 'failed' ? (
                 <div className="questionnaire-processing-error">
-                    <p>{completionError ?? 'No fue posible completar el procesamiento de la evaluacion.'}</p>
+                    <p>{completionError ?? 'No fue posible completar el procesamiento de la evaluación.'}</p>
                     <div className="questionnaire-result-actions">
                         <button type="button" className="questionnaire-btn ghost" onClick={handleSuccessClose}>
                             Volver al inicio
@@ -1957,7 +2174,7 @@ export default function Cuestionario() {
             </div>
             <div className="questionnaire-intro-loader-copy">
                 <strong>Preparando cuestionario</strong>
-                <p>Estamos cargando la sesion y las preguntas iniciales.</p>
+                <p>Estamos cargando la sesión y las preguntas iniciales.</p>
             </div>
         </div>
     );
