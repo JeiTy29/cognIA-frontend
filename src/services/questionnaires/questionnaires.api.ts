@@ -1041,13 +1041,28 @@ export function getQuestionnaireHistoryResultsV2(sessionId: string) {
 }
 
 export function getQuestionnaireClinicalSummaryV2(sessionId: string) {
-    return apiSecurePostNoBody<unknown>(
-        `/api/v2/questionnaires/history/${sessionId}/clinical-summary`,
-        requestOptions
-    ).then(normalizeClinicalSummary);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePostNoBody<unknown>(
+            `/api/v2/questionnaires/history/${sessionId}/clinical-summary`,
+            requestOptions
+        )
+        : apiPostNoBody<unknown>(
+            `/api/v2/questionnaires/history/${sessionId}/clinical-summary`,
+            requestOptions
+        );
+
+    return request.then(normalizeClinicalSummary);
 }
 
 export function addQuestionnaireHistoryTagV2(sessionId: string, payload: AddQuestionnaireTagPayload) {
+    if (sensitiveTransportEnabled) {
+        return apiSecurePost<Record<string, unknown>, AddQuestionnaireTagPayload>(
+            `/api/v2/questionnaires/history/${sessionId}/tags`,
+            payload,
+            requestOptions
+        );
+    }
+
     return apiPost<Record<string, unknown>, AddQuestionnaireTagPayload>(
         `/api/v2/questionnaires/history/${sessionId}/tags`,
         payload,
@@ -1064,20 +1079,42 @@ export function deleteQuestionnaireHistoryTagV2(sessionId: string, tagId: string
 
 export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQuestionnairePayload) {
     if (payload) {
-        return apiPost<unknown, ShareQuestionnairePayload>(
-            `/api/v2/questionnaires/history/${sessionId}/share`,
-            payload,
-            requestOptions
-        ).then(normalizeShareResponse);
+        const request = sensitiveTransportEnabled
+            ? apiSecurePost<unknown, ShareQuestionnairePayload>(
+                `/api/v2/questionnaires/history/${sessionId}/share`,
+                payload,
+                requestOptions
+            )
+            : apiPost<unknown, ShareQuestionnairePayload>(
+                `/api/v2/questionnaires/history/${sessionId}/share`,
+                payload,
+                requestOptions
+            );
+
+        return request.then(normalizeShareResponse);
     }
 
-    return apiPostNoBody<unknown>(
-        `/api/v2/questionnaires/history/${sessionId}/share`,
-        requestOptions
-    ).then(normalizeShareResponse);
+    const request = sensitiveTransportEnabled
+        ? apiSecurePostNoBody<unknown>(
+            `/api/v2/questionnaires/history/${sessionId}/share`,
+            requestOptions
+        )
+        : apiPostNoBody<unknown>(
+            `/api/v2/questionnaires/history/${sessionId}/share`,
+            requestOptions
+        );
+
+    return request.then(normalizeShareResponse);
 }
 
 export function generateQuestionnaireHistoryPdfV2(sessionId: string) {
+    if (sensitiveTransportEnabled) {
+        return apiSecurePostNoBody<Record<string, unknown>>(
+            `/api/v2/questionnaires/history/${sessionId}/pdf/generate`,
+            requestOptions
+        );
+    }
+
     return apiPostNoBody<Record<string, unknown>>(
         `/api/v2/questionnaires/history/${sessionId}/pdf/generate`,
         requestOptions

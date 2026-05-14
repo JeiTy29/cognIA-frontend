@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
+import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
@@ -13,7 +14,13 @@ import {
     getQuestionnaireHistoryResultsV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
+import {
+    getClinicalComorbiditySummary,
+    getRiskLevelPresentation,
+    getSafeClinicalDisclaimer
+} from '../../../services/questionnaires/clinicalSummary';
 import type {
+    QuestionnaireClinicalNarrativeV2DTO,
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
@@ -23,12 +30,6 @@ import type {
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
-import {
-    buildClinicalSummarySections,
-    getClinicalComorbiditySummary,
-    getRiskLevelPresentation,
-    getSafeClinicalDisclaimer
-} from '../../../services/questionnaires/clinicalSummary';
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
@@ -45,8 +46,22 @@ interface HistorialBaseProps {
     role: HistorialRole;
 }
 
-function runHistoryTask(task: () => Promise<void>) {
-    task().catch(() => undefined);
+interface BulletItem {
+    key: string;
+    text: string;
+}
+
+interface CompatibilityItem {
+    key: string;
+    domain: string;
+    probability: string;
+    risk: string;
+}
+
+interface SummaryPresentation {
+    bullets: Array<{ key: string; domain: string; level: string }>;
+    levelText: string | null;
+    paragraphs: string[];
 }
 
 const statusOptions = [
@@ -83,6 +98,13 @@ const tagColorOptions = [
 
 const defaultTagColor = tagColorOptions[0].value;
 
+const DEFAULT_SHARE_PAYLOAD = {
+    expires_in_hours: 168,
+    max_uses: 10,
+    grant_can_tag: false,
+    grant_can_download_pdf: true
+} as const;
+
 const hiddenResultFields = [
     'id',
     'session_id',
@@ -99,31 +121,80 @@ const hiddenResultFields = [
     'mime_type'
 ];
 
-const hiddenShareFields = [
-    'id',
-    'url',
-    'share_url',
-    'public_url',
-    'link',
-    'shared_url',
-    'shared_path',
-    'share_code',
-    'questionnaire_id',
-    'session_id',
-    'mode_key'
+const DOMAIN_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    conduct: 'Conducta',
+    conduct_disorder: 'Conducta',
+    elimination: 'Eliminación',
+    elimination_disorder: 'Eliminación',
+    anxiety: 'Ansiedad',
+    anxiety_disorder: 'Ansiedad',
+    depression: 'Depresión',
+    depressive_disorder: 'Depresión'
+};
+
+const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
+    [/Ã¡/g, 'á'],
+    [/Ã©/g, 'é'],
+    [/Ã­/g, 'í'],
+    [/Ã³/g, 'ó'],
+    [/Ãº/g, 'ú'],
+    [/Ã/g, 'Á'],
+    [/Ã‰/g, 'É'],
+    [/Ã/g, 'Í'],
+    [/Ã“/g, 'Ó'],
+    [/Ãš/g, 'Ú'],
+    [/Ã±/g, 'ñ'],
+    [/Ã‘/g, 'Ñ'],
+    [/Â¿/g, '¿'],
+    [/Â¡/g, '¡'],
+    [/â€“/g, '–'],
+    [/â€”/g, '—'],
+    [/â€¦/g, '…'],
+    [/â€¢/g, '•'],
+    [/â€œ/g, '"'],
+    [/â€/g, '"'],
+    [/â€™/g, "'"],
+    [/Â·/g, '·'],
+    [/sesi\?n/gi, 'sesión'],
+    [/evaluaci\?n/gi, 'evaluación'],
+    [/diagn\?stico/gi, 'diagnóstico'],
+    [/cl\?nico/gi, 'clínico'],
+    [/informaci\?n/gi, 'información'],
+    [/psicol\?gica/gi, 'psicológica'],
+    [/m\?dica/gi, 'médica'],
+    [/orientaci\?n/gi, 'orientación'],
+    [/recomendaci\?n/gi, 'recomendación'],
+    [/s\?ntesis/gi, 'síntesis'],
+    [/aclaraci\?n/gi, 'aclaración'],
+    [/actualizaci\?n/gi, 'actualización'],
+    [/patr\?n/gi, 'patrón'],
+    [/se\?ales/gi, 'señales'],
+    [/tambi\?n/gi, 'también'],
+    [/seg\?n/gi, 'según'],
+    [/respondi\?/gi, 'respondió'],
+    [/\?ltima/gi, 'Última'],
+    [/preparaci\?n/gi, 'preparación'],
+    [/generaci\?n/gi, 'generación'],
+    [/todav\?a/gi, 'todavía'],
+    [/a\?n/gi, 'aún'],
+    [/l\?mite/gi, 'límite'],
+    [/tama\?o/gi, 'tamaño'],
+    [/p\?gina/gi, 'página']
 ];
 
-const hiddenPdfFields = [
-    'id',
-    'download_url',
-    'file_id',
-    'mime_type',
-    'session_id',
-    'questionnaire_id'
-];
+const NON_TEXT_PATTERNS = [/https?:\/\//i, /^[A-Za-z0-9_-]{6,}$/];
+
+function runHistoryTask(task: () => Promise<void>) {
+    task().catch(() => undefined);
+}
 
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function readOptionalString(value: unknown) {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
 function toRecord(payload: unknown): Record<string, unknown> | null {
@@ -137,20 +208,157 @@ function resolveTagId(tag: QuestionnaireTagDTO) {
     return '';
 }
 
+function normalizeTagColor(color: string | null | undefined) {
+    const value = (color ?? '').trim();
+    return value || defaultTagColor;
+}
+
 function getTagVisibilityLabel(visibility: string | null | undefined) {
-    const normalized = (visibility ?? '').toLowerCase();
+    const normalized = (visibility ?? '').trim().toLowerCase();
     if (normalized === 'private') return 'Privado';
     if (normalized === 'shared') return 'Compartido';
     return '--';
 }
 
-function normalizeTagColor(color: string | null | undefined) {
-    const value = (color ?? '').trim();
-    if (!value) return defaultTagColor;
-    return value;
+function shouldPreserveRawText(value: string) {
+    return NON_TEXT_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function formatDomainLabel(domain: unknown): string {
+    const raw = typeof domain === 'string' ? domain.trim() : '';
+    if (!raw) return 'No disponible';
+    const normalized = raw.toLowerCase().replace(/-/g, '_');
+    if (DOMAIN_LABELS[normalized]) return DOMAIN_LABELS[normalized];
+
+    const readable = raw
+        .replace(/[_-]+/g, ' ')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!readable) return 'No disponible';
+    return readable.charAt(0).toUpperCase() + readable.slice(1);
+}
+
+function replaceKnownDomainsInText(text: string) {
+    return Object.entries(DOMAIN_LABELS).sort((left, right) => right[0].length - left[0].length).reduce(
+        (current, [domainKey, label]) =>
+            current.replace(new RegExp(`\\b${domainKey.replace(/_/g, '[_-]')}\\b`, 'gi'), label),
+        text
+    );
+}
+
+function normalizeMojibakeText(value: string) {
+    if (!value.trim() || shouldPreserveRawText(value)) return value;
+
+    let next = value;
+    for (const [pattern, replacement] of TEXT_REPLACEMENTS) {
+        next = next.replace(pattern, replacement);
+    }
+
+    next = replaceKnownDomainsInText(next);
+    return next.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeClinicalTextPresentation(value: unknown, fallback = 'No disponible') {
+    if (typeof value !== 'string' || value.trim().length === 0) return fallback;
+    return normalizeMojibakeText(value);
+}
+
+function toNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim().length > 0) {
+        const normalized = value.replace(',', '.');
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+function formatProbability(value: unknown) {
+    const numeric = toNumber(value);
+    if (numeric === null) return 'No disponible';
+
+    const percentValue = numeric <= 1 ? numeric * 100 : numeric;
+    const rounded = Math.abs(percentValue - Math.round(percentValue)) < 0.05
+        ? Math.round(percentValue)
+        : Number(percentValue.toFixed(1));
+
+    return `${new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
+        maximumFractionDigits: 1
+    }).format(rounded)}%`;
+}
+
+function formatRiskLabel(value: unknown) {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    const labels: Record<string, string> = {
+        low: 'bajo',
+        baja: 'bajo',
+        moderate: 'intermedio',
+        intermedia: 'intermedio',
+        medium: 'intermedio',
+        elevated: 'elevado',
+        elevada: 'elevado',
+        high: 'alto',
+        alta: 'alto',
+        critical_review: 'revisión prioritaria',
+        relevant: 'relevante',
+        relevante: 'relevante',
+        unknown: 'no disponible'
+    };
+
+    if (!normalized) return 'no disponible';
+    return labels[normalized] ?? normalizeClinicalTextPresentation(value, 'no disponible').toLowerCase();
+}
+
+function formatCompatibilityLevel(value: unknown) {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    const labels: Record<string, string> = {
+        baja: 'baja',
+        intermedia: 'intermedia',
+        elevada: 'elevada',
+        alta: 'alta',
+        critical_review: 'revisión prioritaria'
+    };
+
+    if (!normalized) return 'no disponible';
+    return labels[normalized] ?? normalizeClinicalTextPresentation(value, 'no disponible').toLowerCase();
+}
+
+function getApiErrorCode(error: unknown) {
+    if (!(error instanceof ApiError)) return null;
+    const payload = toRecord(error.payload);
+    const codeCandidates = [
+        readOptionalString(payload?.error),
+        readOptionalString(payload?.code),
+        readOptionalString(payload?.msg)
+    ].filter((candidate): candidate is string => Boolean(candidate));
+    if (codeCandidates.length === 0) return null;
+    return codeCandidates[0].trim().toLowerCase();
 }
 
 function buildActionErrorMessage(error: unknown, fallback: string) {
+    const code = getApiErrorCode(error);
+    if (code === 'plaintext_not_allowed' || code === 'encrypted_transport_required_for_sensitive_endpoint') {
+        return 'No se pudo completar la acción porque requiere transporte seguro. Intenta nuevamente.';
+    }
+    if (code === 'transport_key_failed') {
+        return 'No se pudo preparar el canal seguro. Intenta nuevamente.';
+    }
+    if (code === 'forbidden' || (error instanceof ApiError && error.status === 403)) {
+        return 'No tienes permisos para realizar esta acción.';
+    }
+    if (code === 'not_found' || (error instanceof ApiError && error.status === 404)) {
+        return 'No se encontró el recurso solicitado.';
+    }
+    if (code === 'pdf_file_missing') {
+        return 'El PDF todavía no está disponible. Intenta generarlo nuevamente.';
+    }
+    if (code === 'runtime_artifact_unavailable') {
+        return 'El motor de análisis no está disponible. El resultado no puede recalcularse en este momento.';
+    }
+
     return mapApiErrorToUserMessage(error, fallback);
 }
 
@@ -166,11 +374,7 @@ function resolveQuestionnaireId(
     const fromShare = sharePayload?.questionnaire_id;
     if (typeof fromShare === 'string' && fromShare.trim().length > 0) return fromShare.trim();
 
-    const candidates: unknown[] = [
-        detail?.questionnaire_id,
-        detail?.questionnaire_template_id
-    ];
-
+    const candidates: unknown[] = [detail?.questionnaire_id, detail?.questionnaire_template_id];
     for (const candidate of candidates) {
         if (typeof candidate === 'string' && candidate.trim().length > 0) {
             return candidate.trim();
@@ -194,18 +398,223 @@ function getPdfStatusLabel(status: string | undefined) {
     if (!normalized) return 'Sin generar';
     if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
     if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
-    if (['processing', 'running', 'building'].includes(normalized)) return 'Generándose';
+    if (['processing', 'running', 'building'].includes(normalized)) return 'Preparándose';
     if (['failed', 'error'].includes(normalized)) return 'Error en generación';
-    return status ?? '--';
+    return normalizeClinicalTextPresentation(status ?? '', 'Sin generar');
 }
 
 function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number) {
     const named = getString(item.title ?? item.name, '');
-    if (named) return named;
-    const mode = getModeLabel(item.mode, '');
-    const status = getStatusLabel(item.status, '');
+    if (named) return normalizeClinicalTextPresentation(named, '');
+    const mode = normalizeClinicalTextPresentation(getModeLabel(item.mode, ''), '');
+    const status = normalizeClinicalTextPresentation(getStatusLabel(item.status, ''), '');
     if (mode && status) return `${mode} · ${status}`;
     return `Registro ${index + 1}`;
+}
+
+function getClinicalSectionText(
+    summary: QuestionnaireClinicalSummaryV2DTO | null,
+    key: keyof QuestionnaireClinicalNarrativeV2DTO
+) {
+    const narrativeValue = readOptionalString(summary?.simulated_diagnostic_text?.[key]);
+    if (narrativeValue) return narrativeValue;
+
+    const sections = summary?.sections;
+    if (Array.isArray(sections)) {
+        const section = sections.find((item) => readOptionalString(item.key) === key);
+        const sectionContent = readOptionalString(section?.content);
+        if (sectionContent) return sectionContent;
+    } else if (sections && typeof sections === 'object') {
+        const sectionContent = readOptionalString((sections as Record<string, unknown>)[key]);
+        if (sectionContent) return sectionContent;
+    }
+
+    return null;
+}
+
+function collectStructuredDomains(
+    summary: QuestionnaireClinicalSummaryV2DTO | null,
+    results: QuestionnaireSecureResultsV2DTO | null
+) {
+    if (Array.isArray(summary?.domains) && summary.domains.length > 0) {
+        return summary.domains;
+    }
+
+    if (Array.isArray(results?.domains) && results.domains.length > 0) {
+        return results.domains;
+    }
+
+    return [];
+}
+
+function parseCompatibilityFromText(text: string): CompatibilityItem[] {
+    return text
+        .split(/[;|\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item, index) => {
+            const match = /^([^:]+):\s*prob(?:abilidad)?\s*=?\s*([0-9]+(?:[.,][0-9]+)?)\s*,?\s*riesgo\s*=?\s*([A-Za-z_áéíóúüñÁÉÍÓÚÜÑ-]+)\.?$/i.exec(item);
+            if (!match) return null;
+            return {
+                key: `legacy-compatibility-${index}`,
+                domain: formatDomainLabel(match[1]),
+                probability: formatProbability(match[2]),
+                risk: formatRiskLabel(match[3])
+            } satisfies CompatibilityItem;
+        })
+        .filter((item): item is CompatibilityItem => Boolean(item));
+}
+
+function buildCompatibilityItems(
+    summary: QuestionnaireClinicalSummaryV2DTO | null,
+    results: QuestionnaireSecureResultsV2DTO | null
+) {
+    const structuredDomains = collectStructuredDomains(summary, results);
+    if (structuredDomains.length > 0) {
+        return structuredDomains
+            .map((domain, index) => {
+                const domainLabel = formatDomainLabel(domain.domain);
+                const probability = formatProbability(domain.probability);
+                const risk = formatRiskLabel(
+                    'risk_level' in domain
+                        ? domain.risk_level ?? domain.compatibility_level ?? domain.alert_level
+                        : domain.alert_level
+                );
+
+                return {
+                    key: `${String(domain.domain ?? domainLabel)}-${index}`,
+                    domain: domainLabel,
+                    probability,
+                    risk
+                } satisfies CompatibilityItem;
+            })
+            .filter((item) => item.domain !== 'No disponible');
+    }
+
+    const rawText = getClinicalSectionText(summary, 'niveles_de_compatibilidad');
+    if (!rawText) return [];
+    return parseCompatibilityFromText(normalizeClinicalTextPresentation(rawText, ''));
+}
+
+function parseDomainNarrativeItems(sourceText: string) {
+    return sourceText
+        .split(/[|\n;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item, index) => {
+            const match = /^([^:]+):\s*(.+)$/i.exec(item);
+            if (!match) {
+                return {
+                    key: `generic-${index}`,
+                    text: normalizeClinicalTextPresentation(item)
+                } satisfies BulletItem;
+            }
+
+            return {
+                key: `domain-${index}`,
+                text: `${formatDomainLabel(match[1])}: ${normalizeClinicalTextPresentation(match[2])}`
+            } satisfies BulletItem;
+        });
+}
+
+function buildIndicatorItems(
+    summary: QuestionnaireClinicalSummaryV2DTO | null,
+    results: QuestionnaireSecureResultsV2DTO | null
+) {
+    const structuredDomains = collectStructuredDomains(summary, results);
+    const structuredIndicators = structuredDomains
+        .map((domain, index) => {
+            const mainIndicators =
+                'main_indicators' in domain && Array.isArray(domain.main_indicators)
+                    ? domain.main_indicators.map((item) => normalizeClinicalTextPresentation(item, '')).filter(Boolean)
+                    : [];
+
+            if (mainIndicators.length === 0) return null;
+            return {
+                key: `indicator-${index}`,
+                text: `${formatDomainLabel(domain.domain)}: ${mainIndicators.join(' ')}`
+            } satisfies BulletItem;
+        })
+        .filter((item): item is BulletItem => Boolean(item));
+
+    if (structuredIndicators.length > 0) {
+        return structuredIndicators;
+    }
+
+    const rawText = getClinicalSectionText(summary, 'indicadores_principales_observados');
+    if (!rawText) return [];
+    return parseDomainNarrativeItems(normalizeClinicalTextPresentation(rawText, ''));
+}
+
+function splitSentences(text: string) {
+    return text
+        .split(/(?<=[.!?])\s+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function buildSummaryPresentation(summary: QuestionnaireClinicalSummaryV2DTO | null): SummaryPresentation {
+    const rawText = getClinicalSectionText(summary, 'sintesis_general');
+    if (!rawText) {
+        return {
+            bullets: [],
+            levelText: null,
+            paragraphs: []
+        };
+    }
+
+    const normalized = normalizeClinicalTextPresentation(rawText, '');
+    const sentences = splitSentences(normalized);
+    const compatibilitySentence =
+        sentences.find((sentence) => /compatibilidad/i.test(sentence) && /\(.+\)/.test(sentence)) ?? null;
+    const levelSentence =
+        sentences.find((sentence) => /^Nivel global estimado:/i.test(sentence)) ?? null;
+
+    const bullets = compatibilitySentence
+        ? Array.from(compatibilitySentence.matchAll(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_-]+)\s*\(([^)]+)\)/g)).map((match, index) => ({
+            key: `summary-${index}`,
+            domain: formatDomainLabel(match[1]),
+            level: formatCompatibilityLevel(match[2])
+        }))
+        : [];
+
+    const levelText = levelSentence
+        ? normalizeClinicalTextPresentation(levelSentence.replace(/^Nivel global estimado:\s*/i, '').replace(/\.$/, ''))
+        : null;
+
+    const paragraphs = sentences.filter((sentence) => sentence !== compatibilitySentence && sentence !== levelSentence);
+
+    return {
+        bullets,
+        levelText,
+        paragraphs
+    };
+}
+
+function resolveSessionMetadataRows(
+    detail: QuestionnaireHistoryDetailV2DTO | null,
+    detailSessionId: string | null,
+    questionnaireIdForShare: string | null,
+    sharePayload: QuestionnaireShareResponseDTO | null
+) {
+    return buildSafeDisplayRows(
+        {
+            session_id: detail?.id ?? detailSessionId,
+            questionnaire_id: questionnaireIdForShare,
+            mode_key: detail?.mode_key ?? null,
+            share_code: sharePayload?.share_code ?? null
+        },
+        {
+            includeTechnical: true,
+            includeEmpty: false,
+            customLabels: {
+                session_id: 'ID de sesión',
+                questionnaire_id: 'ID de cuestionario',
+                mode_key: 'Clave interna de modo',
+                share_code: 'Código de acceso compartido'
+            }
+        }
+    );
 }
 
 type HistoryDetailLoadResult =
@@ -284,10 +693,35 @@ function KeyValueRows({
         <div className="historial-v2-kv-grid">
             {rows.map((row) => (
                 <div key={row.key}>
-                    <strong>{row.label}</strong>
-                    <span>{row.value}</span>
+                    <strong>{normalizeClinicalTextPresentation(row.label, row.label)}</strong>
+                    <span>{normalizeClinicalTextPresentation(row.value, row.value)}</span>
                 </div>
             ))}
+        </div>
+    );
+}
+
+function BulletList({
+    title,
+    items,
+    emptyText
+}: Readonly<{
+    title: string;
+    items: BulletItem[];
+    emptyText: string;
+}>) {
+    return (
+        <div className="historial-v2-section">
+            <h3>{title}</h3>
+            {items.length === 0 ? (
+                <p>{emptyText}</p>
+            ) : (
+                <ul className="historial-v2-bullet-list">
+                    {items.map((item) => (
+                        <li key={item.key}>{item.text}</li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
@@ -322,10 +756,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
 
-    const [shareExpiresHours, setShareExpiresHours] = useState('24');
-    const [shareMaxUses, setShareMaxUses] = useState('');
-    const [shareGranteeUserId, setShareGranteeUserId] = useState('');
-    const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [tagWorking, setTagWorking] = useState(false);
+    const [shareWorking, setShareWorking] = useState(false);
+    const [pdfWorking, setPdfWorking] = useState(false);
+
+    const [tagError, setTagError] = useState<string | null>(null);
+    const [tagNotice, setTagNotice] = useState<string | null>(null);
+    const [shareError, setShareError] = useState<string | null>(null);
+    const [shareNotice, setShareNotice] = useState<string | null>(null);
+    const [pdfError, setPdfError] = useState<string | null>(null);
+    const [pdfNotice, setPdfNotice] = useState<string | null>(null);
 
     const title = 'Historial de cuestionarios';
     const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';
@@ -341,54 +781,59 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     );
 
     const internalReferenceRows = useMemo(
-        () =>
-            buildSafeDisplayRows(
-                {
-                    session_id: detailPayload?.id ?? detailSessionId,
-                    questionnaire_id: questionnaireIdForShare,
-                    mode_key: detailPayload?.mode_key ?? null,
-                    share_code: sharePayload?.share_code ?? null
-                },
-                {
-                    includeTechnical: true,
-                    includeEmpty: false,
-                    customLabels: {
-                        session_id: 'ID de sesión',
-                        questionnaire_id: 'ID de cuestionario',
-                        mode_key: 'Clave interna de modo',
-                        share_code: 'Código de acceso compartido'
-                    }
-                }
-            ),
-        [detailPayload?.id, detailPayload?.mode_key, detailSessionId, questionnaireIdForShare, sharePayload?.share_code]
+        () => resolveSessionMetadataRows(detailPayload, detailSessionId, questionnaireIdForShare, sharePayload),
+        [detailPayload, detailSessionId, questionnaireIdForShare, sharePayload]
     );
 
-    const isPdfReady = useMemo(() => {
-        if (!pdfPayload) return false;
-        const status = getString(pdfPayload.status, '').toLowerCase();
-        if (!status) return false;
-        return ['ready', 'completed', 'generated', 'available', 'done'].includes(status);
-    }, [pdfPayload]);
+    const shareLink = useMemo(
+        () => sharePayload?.shared_url ?? sharePayload?.shared_path ?? sharePayload?.url ?? null,
+        [sharePayload]
+    );
 
-    const shareLink = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
-    const shareAvailable = useMemo(() => Boolean(shareLink), [shareLink]);
     const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
-    const clinicalSections = useMemo(
-        () => buildClinicalSummarySections(clinicalSummaryPayload),
-        [clinicalSummaryPayload]
-    );
     const clinicalRisk = useMemo(
         () => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null),
         [clinicalSummaryPayload?.overall_risk_level]
     );
     const clinicalDisclaimer = useMemo(
-        () => getSafeClinicalDisclaimer(clinicalSummaryPayload),
+        () => normalizeClinicalTextPresentation(getSafeClinicalDisclaimer(clinicalSummaryPayload)),
         [clinicalSummaryPayload]
     );
     const clinicalComorbiditySummary = useMemo(
-        () => getClinicalComorbiditySummary(clinicalSummaryPayload),
+        () => normalizeClinicalTextPresentation(getClinicalComorbiditySummary(clinicalSummaryPayload), ''),
         [clinicalSummaryPayload]
     );
+
+    const compatibilityItems = useMemo(
+        () => buildCompatibilityItems(clinicalSummaryPayload, resultsPayload),
+        [clinicalSummaryPayload, resultsPayload]
+    );
+    const indicatorItems = useMemo(
+        () => buildIndicatorItems(clinicalSummaryPayload, resultsPayload),
+        [clinicalSummaryPayload, resultsPayload]
+    );
+    const summaryPresentation = useMemo(
+        () => buildSummaryPresentation(clinicalSummaryPayload),
+        [clinicalSummaryPayload]
+    );
+
+    const impactText = useMemo(
+        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'impacto_funcional')),
+        [clinicalSummaryPayload]
+    );
+    const recommendationText = useMemo(
+        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'recomendacion_profesional')),
+        [clinicalSummaryPayload]
+    );
+    const clarificationText = useMemo(
+        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'aclaracion_importante')),
+        [clinicalSummaryPayload]
+    );
+    const compatibilityFallbackText = useMemo(
+        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'niveles_de_compatibilidad'), ''),
+        [clinicalSummaryPayload]
+    );
+
     const historyRowsContent = (() => {
         if (loading) {
             return <div className="historial-v2-empty">Cargando historial...</div>;
@@ -403,9 +848,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             return (
                 <div className="historial-v2-row" key={item.id}>
                     <div title={sessionTitle}>{sessionTitle}</div>
-                    <div>{getStatusLabel(item.status)}</div>
-                    <div>{getModeLabel(item.mode)}</div>
-                    <div>{getRoleLabel(item.role)}</div>
+                    <div>{normalizeClinicalTextPresentation(getStatusLabel(item.status), '--')}</div>
+                    <div>{normalizeClinicalTextPresentation(getModeLabel(item.mode), '--')}</div>
+                    <div>{normalizeClinicalTextPresentation(getRoleLabel(item.role), '--')}</div>
                     <div>{formatDateTimeEsCO(item.created_at)}</div>
                     <div>{formatDateTimeEsCO(item.updated_at)}</div>
                     <div className="historial-v2-actions">
@@ -418,19 +863,29 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         });
     })();
 
+    const resetActionMessages = () => {
+        setTagError(null);
+        setTagNotice(null);
+        setShareError(null);
+        setShareNotice(null);
+        setPdfError(null);
+        setPdfNotice(null);
+    };
+
     const openDetail = async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
             setDetailError('No se encontró una referencia válida para esta sesión.');
             return;
         }
+
         setDetailSessionId(sessionId);
         setDetailLoading(true);
         setDetailError(null);
         setDetailNotice(null);
-        setShareUrl(null);
         setSharePayload(null);
         setPdfPayload(null);
         setClinicalSummaryPayload(null);
+        resetActionMessages();
 
         const detailLoad = await loadHistoryDetail(sessionId);
         if (!detailLoad.ok) {
@@ -462,113 +917,109 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setNewTag('');
         setNewTagColor(defaultTagColor);
         setNewTagVisibility('private');
-        setShareExpiresHours('24');
-        setShareMaxUses('');
-        setShareGranteeUserId('');
-        setShareUrl(null);
+        setTagWorking(false);
+        setShareWorking(false);
+        setPdfWorking(false);
+        resetActionMessages();
     };
 
     const handleOpenDetail = (nextSessionId: string) => {
         runHistoryTask(() => openDetail(nextSessionId));
     };
 
+    const refreshDetailAfterTagChange = async () => {
+        if (!detailSessionId) return;
+        const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
+        setDetailPayload(refreshed);
+        await reload();
+    };
+
     const handleAddTag = async () => {
         if (!detailSessionId || newTag.trim().length === 0) return;
+        setTagWorking(true);
+        setTagError(null);
+        setTagNotice(null);
         try {
             await addQuestionnaireHistoryTagV2(detailSessionId, {
                 tag: newTag.trim(),
                 color: normalizeTagColor(newTagColor),
                 visibility: newTagVisibility
             });
-            const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
-            setDetailPayload(refreshed);
+            await refreshDetailAfterTagChange();
             setNewTag('');
             setNewTagColor(defaultTagColor);
-            setDetailNotice('Etiqueta agregada correctamente.');
-            await reload();
+            setTagNotice('Etiqueta agregada correctamente.');
         } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible agregar la etiqueta.'));
+            setTagError(buildActionErrorMessage(actionError, 'No fue posible agregar la etiqueta.'));
+        } finally {
+            setTagWorking(false);
         }
     };
 
     const handleDeleteTag = async (tagId: string) => {
         if (!detailSessionId) return;
+        setTagWorking(true);
+        setTagError(null);
+        setTagNotice(null);
         try {
             await deleteQuestionnaireHistoryTagV2(detailSessionId, tagId);
-            const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
-            setDetailPayload(refreshed);
-            setDetailNotice('Etiqueta eliminada.');
-            await reload();
+            await refreshDetailAfterTagChange();
+            setTagNotice('Etiqueta eliminada.');
         } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible eliminar la etiqueta.'));
+            setTagError(buildActionErrorMessage(actionError, 'No fue posible eliminar la etiqueta.'));
+        } finally {
+            setTagWorking(false);
         }
     };
 
     const handleGenerateShare = async () => {
         if (!detailSessionId) return;
+        setShareWorking(true);
+        setShareError(null);
+        setShareNotice(null);
         try {
-            const expiresCandidate = Number(shareExpiresHours);
-            const maxUsesCandidate = Number(shareMaxUses);
-            const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
-                expires_in_hours: Number.isFinite(expiresCandidate) && expiresCandidate > 0 ? expiresCandidate : undefined,
-                max_uses: Number.isFinite(maxUsesCandidate) && maxUsesCandidate > 0 ? maxUsesCandidate : undefined,
-                grantee_user_id: shareGranteeUserId.trim() || undefined
-            });
+            const payload = await shareQuestionnaireHistoryV2(detailSessionId, { ...DEFAULT_SHARE_PAYLOAD });
             setSharePayload(payload);
-            const resolvedUrl = payload.shared_url ?? payload.shared_path ?? null;
-            setShareUrl(resolvedUrl);
-            setDetailNotice(
-                resolvedUrl
-                    ? 'Enlace compartido generado.'
-                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL pública.'
-            );
+            setShareNotice('Enlace generado correctamente.');
         } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el enlace compartido.'));
-        }
-    };
-
-    const handleGeneratePdf = async () => {
-        if (!detailSessionId) return;
-        try {
-            await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setDetailNotice('Generación de PDF solicitada correctamente.');
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el PDF.'));
-        }
-    };
-
-    const handleFetchPdfInfo = async () => {
-        if (!detailSessionId) return;
-        try {
-            const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
-            setPdfPayload(payload);
-            setDetailNotice('Información de PDF cargada.');
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible consultar el estado del PDF.'));
+            setShareError(buildActionErrorMessage(actionError, 'No se pudo completar la acción. Intenta nuevamente.'));
+        } finally {
+            setShareWorking(false);
         }
     };
 
     const handleDownloadPdf = async () => {
         if (!detailSessionId) return;
+        setPdfWorking(true);
+        setPdfError(null);
+        setPdfNotice('Preparando PDF...');
         try {
-            const result = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
-            downloadBlob(result.blob, result.filename);
-            setDetailNotice('Descarga iniciada.');
+            await generateQuestionnaireHistoryPdfV2(detailSessionId);
+            const pdfInfo = await getQuestionnaireHistoryPdfV2(detailSessionId);
+            setPdfPayload(pdfInfo);
+            const download = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
+            downloadBlob(download.blob, pdfInfo.filename ?? download.filename);
+            setPdfNotice('Descarga iniciada.');
         } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible descargar el PDF.'));
+            setPdfError(buildActionErrorMessage(actionError, 'No se pudo preparar el PDF. Intenta nuevamente.'));
+            setPdfNotice(null);
+        } finally {
+            setPdfWorking(false);
         }
     };
 
     const handleCopyShareLink = async () => {
         if (!shareLink) {
-            setDetailError('Aún no hay un enlace compartido disponible para copiar.');
+            setShareError('Todavía no hay un enlace disponible para copiar.');
             return;
         }
+
         try {
             await navigator.clipboard.writeText(shareLink);
-            setDetailNotice('Enlace copiado al portapapeles.');
+            setShareError(null);
+            setShareNotice('Enlace copiado.');
         } catch {
-            setDetailError('No fue posible copiar el enlace automáticamente.');
+            setShareError('No fue posible copiar el enlace automáticamente.');
         }
     };
 
@@ -605,9 +1056,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <div>Actualizado</div>
                         <div>Acciones</div>
                     </div>
-                    <div className="historial-v2-body">
-                        {historyRowsContent}
-                    </div>
+                    <div className="historial-v2-body">{historyRowsContent}</div>
                 </div>
 
                 <div className="historial-v2-pagination">
@@ -627,8 +1076,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             className="historial-v2-page-btn"
                             onClick={() => setPage(Math.max(1, currentPage - 1))}
                             disabled={currentPage <= 1}
+                            aria-label="Página anterior"
                         >
-                            ‹
+                            <span className="historial-v2-page-arrow" aria-hidden="true">‹</span>
                         </button>
                         <span>Página {currentPage} de {totalPages}</span>
                         <button
@@ -636,8 +1086,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             className="historial-v2-page-btn"
                             onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage >= totalPages}
+                            aria-label="Página siguiente"
                         >
-                            ›
+                            <span className="historial-v2-page-arrow" aria-hidden="true">›</span>
                         </button>
                     </div>
                 </div>
@@ -645,49 +1096,125 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-v2-modal">
-                    <h2>Detalle de sesi?n</h2>
+                    <h2>Detalle de sesión</h2>
                     {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
 
                     {!detailLoading && detailPayload ? (
                         <>
-                            <div className="historial-v2-modal-grid">
-                                <div><strong>Estado</strong><span>{getStatusLabel(getString(detailPayload.status, ''))}</span></div>
-                                <div><strong>Modo de evaluaci?n</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
-                                <div><strong>Perfil que respondi?</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
-                                <div><strong>?ltima actualizaci?n</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
+                            <div className="historial-v2-detail-list">
+                                <div className="historial-v2-detail-item">
+                                    <strong>Estado</strong>
+                                    <span>{normalizeClinicalTextPresentation(getStatusLabel(getString(detailPayload.status, '')), '--')}</span>
+                                </div>
+                                <div className="historial-v2-detail-item">
+                                    <strong>Modo de evaluación</strong>
+                                    <span>{normalizeClinicalTextPresentation(getModeLabel(getString(detailPayload.mode, '')), '--')}</span>
+                                </div>
+                                <div className="historial-v2-detail-item">
+                                    <strong>Perfil que respondió</strong>
+                                    <span>{normalizeClinicalTextPresentation(getRoleLabel(getString(detailPayload.role, '')), '--')}</span>
+                                </div>
+                                <div className="historial-v2-detail-item">
+                                    <strong>Última actualización</strong>
+                                    <span>{formatDateTimeEsCO(detailPayload.updated_at)}</span>
+                                </div>
                             </div>
 
                             <div className="historial-v2-warning">
-                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagn?stico cl?nico definitivo.
+                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Informe final orientativo</h3>
+                                <h3>Diagnóstico clínico orientativo</h3>
                                 {clinicalSummaryPayload ? (
-                                    <>
-                                        <div className="historial-v2-modal-grid">
-                                            <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
-                                            <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
+                                    <div className="historial-v2-detail-list">
+                                        <div className="historial-v2-detail-item">
+                                            <strong>Nivel de alerta</strong>
+                                            <span>{normalizeClinicalTextPresentation(clinicalRisk.label, 'No disponible')}</span>
                                         </div>
-                                        {clinicalComorbiditySummary ? (
-                                            <div className="historial-v2-warning">
-                                                <strong>Posible coexistencia de se?ales.</strong> {clinicalComorbiditySummary}
-                                            </div>
-                                        ) : null}
-                                        <div className="historial-v2-kv-grid">
-                                            {clinicalSections.map((section) => (
-                                                <div key={section.key}>
-                                                    <strong>{section.title}</strong>
-                                                    <span>{section.content}</span>
-                                                </div>
-                                            ))}
+                                        <div className="historial-v2-detail-item">
+                                            <strong>Generado</strong>
+                                            <span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (
-                                    <p>No fue posible cargar el informe orientativo completo para esta sesi?n.</p>
+                                    <p>No fue posible cargar el informe orientativo completo para esta sesión.</p>
                                 )}
+
+                                {clinicalComorbiditySummary ? (
+                                    <div className="historial-v2-warning">
+                                        <strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Síntesis general</h3>
+                                {summaryPresentation.bullets.length > 0 ? (
+                                    <>
+                                        <p className="historial-v2-section-label">Mayor compatibilidad observada:</p>
+                                        <ul className="historial-v2-bullet-list">
+                                            {summaryPresentation.bullets.map((item) => (
+                                                <li key={item.key}>{item.domain}: {item.level}.</li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                ) : null}
+                                {summaryPresentation.levelText ? (
+                                    <p className="historial-v2-text-block">
+                                        <strong>Nivel global estimado:</strong> {summaryPresentation.levelText}.
+                                    </p>
+                                ) : null}
+                                {summaryPresentation.paragraphs.length > 0 ? (
+                                    summaryPresentation.paragraphs.map((paragraph, index) => (
+                                        <p className="historial-v2-text-block" key={`summary-paragraph-${index}`}>
+                                            {paragraph}
+                                        </p>
+                                    ))
+                                ) : summaryPresentation.bullets.length === 0 ? (
+                                    <p>No se recibió contenido para esta sección en el informe actual.</p>
+                                ) : null}
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Niveles de compatibilidad</h3>
+                                {compatibilityItems.length > 0 ? (
+                                    <ul className="historial-v2-bullet-list">
+                                        {compatibilityItems.map((item) => (
+                                            <li key={item.key}>
+                                                {item.domain}: probabilidad {item.probability}, riesgo {item.risk}.
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : compatibilityFallbackText ? (
+                                    <p className="historial-v2-text-block">{compatibilityFallbackText}</p>
+                                ) : (
+                                    <p>No se recibió información estructurada de compatibilidad.</p>
+                                )}
+                            </div>
+
+                            <BulletList
+                                title="Indicadores principales observados"
+                                items={indicatorItems}
+                                emptyText="No se recibieron indicadores estructurados para esta sesión."
+                            />
+
+                            <div className="historial-v2-section">
+                                <h3>Impacto funcional</h3>
+                                <p className="historial-v2-text-block">{impactText}</p>
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Recomendación profesional</h3>
+                                <p className="historial-v2-text-block">{recommendationText}</p>
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Aclaración importante</h3>
+                                <p className="historial-v2-text-block">{clarificationText}</p>
+                                <p className="historial-v2-helper-text">{clinicalDisclaimer}</p>
                             </div>
 
                             <div className="historial-v2-section">
@@ -697,9 +1224,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     exclude={hiddenResultFields}
                                     emptyText="Sin resultados estructurados adicionales."
                                 />
-                                {clinicalSummaryPayload ? (
-                                    <p className="historial-v2-helper-text">{clinicalDisclaimer}</p>
-                                ) : null}
                             </div>
 
                             {internalReferenceRows.length > 0 ? (
@@ -708,7 +1232,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     <div className="historial-v2-kv-grid">
                                         {internalReferenceRows.map((row) => (
                                             <div key={row.key}>
-                                                <strong>{row.label}</strong>
+                                                <strong>{normalizeClinicalTextPresentation(row.label, row.label)}</strong>
                                                 <span>{row.value}</span>
                                             </div>
                                         ))}
@@ -718,14 +1242,23 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                             <div className="historial-v2-section">
                                 <h3>Etiquetas</h3>
-                                {tags.length === 0 ? <p>Sin etiquetas.</p> : (
+                                {tagError ? <div className="historial-v2-inline-feedback error">{tagError}</div> : null}
+                                {tagNotice ? <div className="historial-v2-inline-feedback success">{tagNotice}</div> : null}
+
+                                {tags.length === 0 ? (
+                                    <p>Sin etiquetas.</p>
+                                ) : (
                                     <div className="historial-v2-tags">
                                         {tags.map((tag) => {
-                                            const tagName = getString(tag.label ?? tag.tag, '--');
+                                            const tagName = normalizeClinicalTextPresentation(tag.label ?? tag.tag, '--');
                                             const tagId = resolveTagId(tag);
                                             const tagColor = normalizeTagColor(tag.color);
-                                            const visibilityLabel = getString(tag.visibility_label, getTagVisibilityLabel(tag.visibility));
+                                            const visibilityLabel = normalizeClinicalTextPresentation(
+                                                tag.visibility_label ?? getTagVisibilityLabel(tag.visibility),
+                                                '--'
+                                            );
                                             const tagKey = tagId || `${tagName}-${visibilityLabel}-${tagColor}`;
+
                                             return (
                                                 <div
                                                     className="historial-v2-tag"
@@ -735,7 +1268,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                     <span className="historial-v2-tag-name">{tagName}</span>
                                                     <span className="historial-v2-tag-meta">{visibilityLabel}</span>
                                                     {tagId.length > 0 ? (
-                                                        <button type="button" onClick={() => { runHistoryTask(() => handleDeleteTag(tagId)); }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { runHistoryTask(() => handleDeleteTag(tagId)); }}
+                                                            disabled={tagWorking}
+                                                        >
                                                             Eliminar
                                                         </button>
                                                     ) : null}
@@ -773,106 +1310,75 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             />
                                         ))}
                                     </div>
-                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleAddTag); }}>
-                                        Agregar
+                                    <button
+                                        type="button"
+                                        className="historial-v2-btn"
+                                        onClick={() => { runHistoryTask(handleAddTag); }}
+                                        disabled={tagWorking || newTag.trim().length === 0}
+                                    >
+                                        {tagWorking ? 'Guardando...' : 'Agregar'}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Compartir y documento PDF</h3>
-
-                                <div className="historial-v2-actions-group">
-                                    <div className="historial-v2-actions-card">
-                                        <h4>Compartir resultado</h4>
-                                        <div className="historial-v2-share-form">
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                placeholder="Expira en horas"
-                                                value={shareExpiresHours}
-                                                onChange={(event) => setShareExpiresHours(event.target.value)}
-                                            />
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                placeholder="L?mite de usos (opcional)"
-                                                value={shareMaxUses}
-                                                onChange={(event) => setShareMaxUses(event.target.value)}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="ID de destinatario (opcional)"
-                                                value={shareGranteeUserId}
-                                                onChange={(event) => setShareGranteeUserId(event.target.value)}
-                                            />
-                                        </div>
-                                        <div className="historial-v2-section-actions">
-                                            {shareAvailable ? (
-                                                <>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
-                                                        Copiar enlace
-                                                    </button>
-                                                    <a
-                                                        className="historial-v2-btn historial-v2-btn-link"
-                                                        href={shareLink ?? undefined}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        Abrir enlace
-                                                    </a>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
-                                                        Generar nuevo enlace
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
-                                                    Generar enlace para compartir
-                                                </button>
-                                            )}
-                                        </div>
-                                        {shareAvailable ? (
-                                            <div className="historial-v2-share">
-                                                <span>Enlace disponible</span>
-                                                <a href={shareLink ?? undefined} target="_blank" rel="noreferrer">
-                                                    {shareLink}
-                                                </a>
-                                            </div>
-                                        ) : (
-                                            <p className="historial-v2-helper-text">A?n no has generado un enlace compartido para esta sesi?n.</p>
-                                        )}
-                                        <KeyValueRows
-                                            data={toRecord(sharePayload)}
-                                            exclude={hiddenShareFields}
-                                            emptyText="Sin informaci?n adicional del enlace."
-                                        />
+                                <h3>Compartir resultados</h3>
+                                <div className="historial-v2-actions-card">
+                                    <p className="historial-v2-helper-text">
+                                        Genera un enlace válido por 7 días para compartir este resultado. El enlace podrá usarse hasta 10 veces.
+                                    </p>
+                                    {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
+                                    {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
+                                    <div className="historial-v2-section-actions">
+                                        <button
+                                            type="button"
+                                            className="historial-v2-btn"
+                                            onClick={() => { runHistoryTask(handleGenerateShare); }}
+                                            disabled={shareWorking}
+                                        >
+                                            {shareWorking ? 'Generando enlace...' : 'Generar enlace para compartir'}
+                                        </button>
+                                        {shareLink ? (
+                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
+                                                Copiar enlace
+                                            </button>
+                                        ) : null}
                                     </div>
 
-                                    <div className="historial-v2-actions-card">
-                                        <h4>Documento PDF</h4>
-                                        <p className="historial-v2-helper-text">Estado actual: <strong>{pdfStatusText}</strong></p>
-                                        <div className="historial-v2-section-actions">
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGeneratePdf); }}>
-                                                Generar PDF
-                                            </button>
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleFetchPdfInfo); }}>
-                                                Consultar estado
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="historial-v2-btn"
-                                                onClick={() => { runHistoryTask(handleDownloadPdf); }}
-                                                disabled={!isPdfReady}
-                                            >
-                                                Descargar PDF
-                                            </button>
+                                    {shareLink ? (
+                                        <div className="historial-v2-share-link-box">
+                                            <strong>Enlace disponible</strong>
+                                            <a href={shareLink} target="_blank" rel="noreferrer">
+                                                {shareLink}
+                                            </a>
                                         </div>
-                                        <KeyValueRows
-                                            data={toRecord(pdfPayload)}
-                                            exclude={hiddenPdfFields}
-                                            emptyText="Todav?a no hay informaci?n del PDF."
-                                        />
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="historial-v2-section">
+                                <h3>Documento PDF</h3>
+                                <div className="historial-v2-actions-card">
+                                    <p className="historial-v2-helper-text">
+                                        Estado actual: <strong>{pdfStatusText}</strong>
+                                    </p>
+                                    {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
+                                    {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}
+                                    <div className="historial-v2-section-actions">
+                                        <button
+                                            type="button"
+                                            className="historial-v2-btn"
+                                            onClick={() => { runHistoryTask(handleDownloadPdf); }}
+                                            disabled={pdfWorking}
+                                        >
+                                            {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
+                                        </button>
                                     </div>
+                                    {pdfPayload?.generated_at ? (
+                                        <p className="historial-v2-helper-text">
+                                            Última generación: {formatDateTimeEsCO(pdfPayload.generated_at)}
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
                         </>
