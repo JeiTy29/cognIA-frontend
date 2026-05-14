@@ -53,9 +53,12 @@ export interface MFAEnrollmentRequiredResponse {
 
 export type LoginResponse = LoginSuccessResponse | MFALoginChallengeResponse | MFAEnrollmentRequiredResponse;
 
+export type LoginErrorCode = 'invalid_credentials' | 'request_failed' | 'colpsic_pending';
+
 export interface LoginErrorResponse {
-    error: 'invalid_credentials' | 'request_failed';
+    error: LoginErrorCode;
     status: number;
+    msg?: string;
 }
 
 export interface MFALoginRequest {

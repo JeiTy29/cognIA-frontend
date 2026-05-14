@@ -49,11 +49,35 @@ export async function login(payload: LoginRequest): Promise<LoginResponse | Logi
             return data as LoginResponse;
         }
 
-        if (response.status === 400 || response.status === 401) {
-            return { error: 'invalid_credentials', status: response.status };
+        if (data && typeof data === 'object' && 'error' in data) {
+            const backendError = (data as { error?: unknown }).error;
+            const backendMessage = (data as { msg?: unknown }).msg;
+            if (backendError === 'colpsic_pending') {
+                return {
+                    error: 'colpsic_pending',
+                    status: response.status,
+                    msg: typeof backendMessage === 'string' ? backendMessage : undefined
+                };
+            }
         }
 
-        return { error: 'request_failed', status: response.status };
+        if (response.status === 400 || response.status === 401) {
+            return {
+                error: 'invalid_credentials',
+                status: response.status,
+                msg: data && typeof data === 'object' && typeof (data as { msg?: unknown }).msg === 'string'
+                    ? (data as { msg: string }).msg
+                    : undefined
+            };
+        }
+
+        return {
+            error: 'request_failed',
+            status: response.status,
+            msg: data && typeof data === 'object' && typeof (data as { msg?: unknown }).msg === 'string'
+                ? (data as { msg: string }).msg
+                : undefined
+        };
     } catch {
         return { error: 'request_failed', status: 0 };
     }

@@ -33,13 +33,21 @@ export function resolvePsychologistReviewState(user: User): PsychologistReviewSt
     const rawStatus = getStringField(record, ['review_status', 'approval_status', 'psychologist_status', 'status']);
     const normalized = rawStatus?.toLowerCase() ?? '';
 
-    if (normalized.includes('pending')) return 'pending';
     if (normalized.includes('reject')) return 'rejected';
     if (normalized.includes('approv')) return 'approved';
+    if (normalized.includes('pending')) return 'pending';
 
     const rejectionReason = getPsychologistRejectionReason(user);
     if (rejectionReason) {
         return 'rejected';
+    }
+
+    if (user.colpsic_verified === false) {
+        return 'pending';
+    }
+
+    if (user.colpsic_verified === true) {
+        return 'approved';
     }
 
     return null;

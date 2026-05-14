@@ -12,6 +12,8 @@ import { ApiError } from '../../../services/api/httpClient';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
+import padreTutorImage from '../../../assets/Registro/Padre-tutor.png';
+import psicologoImage from '../../../assets/Registro/Psicologo.png';
 
 const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 const passwordRules = [
@@ -416,12 +418,16 @@ export default function Registro() {
                     {rolSeleccionado === null ? (
                         <div className="role-selection-horizontal">
                             <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('padre')}>
-                                <div className="role-image-placeholder"></div>
+                                <div className="role-image-placeholder" aria-hidden="true">
+                                    <img className="role-card-image" src={padreTutorImage} alt="" />
+                                </div>
                                 <h3 className="role-text">Soy padre, tutor o guardian</h3>
                             </button>
 
                             <button type="button" className="role-card-vertical" onClick={() => setRolSeleccionado('psicologo')}>
-                                <div className="role-image-placeholder"></div>
+                                <div className="role-image-placeholder" aria-hidden="true">
+                                    <img className="role-card-image" src={psicologoImage} alt="" />
+                                </div>
                                 <h3 className="role-text">Soy psicólogo</h3>
                             </button>
                         </div>

@@ -98,13 +98,20 @@ function isLoginErrorResponse(response: LoginResponse | LoginErrorResponse): res
 
     return (
         typeof candidate.status === 'number' &&
-        (candidate.error === 'invalid_credentials' || candidate.error === 'request_failed')
+        (
+            candidate.error === 'invalid_credentials' ||
+            candidate.error === 'request_failed' ||
+            candidate.error === 'colpsic_pending'
+        )
     );
 }
 
-function resolveLoginErrorMessage(errorCode: LoginErrorResponse['error']) {
-    if (errorCode === 'invalid_credentials') {
+function resolveLoginErrorMessage(response: LoginErrorResponse) {
+    if (response.error === 'invalid_credentials') {
         return 'Usuario o contraseña incorrectos.';
+    }
+    if (response.error === 'colpsic_pending') {
+        return 'Tu cuenta de psicólogo está pendiente de aprobación por un administrador. Debes esperar a que sea verificada para poder ingresar.';
     }
     return 'Ocurrió un error al iniciar sesión. Intenta nuevamente.';
 }
@@ -303,7 +310,7 @@ export default function InicioSesion() {
             const response = await login({ username, password });
 
             if (isLoginErrorResponse(response)) {
-                setErrorMessage(resolveLoginErrorMessage(response.error));
+                setErrorMessage(resolveLoginErrorMessage(response));
                 return;
             }
 
