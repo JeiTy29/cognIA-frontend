@@ -34,6 +34,7 @@ import {
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
 import { buildReportFileName, buildReportTitle } from '../../../utils/presentation/reportFileName';
+import { downloadPdfBlob, renderReportHtmlToPdfBlob } from '../../../utils/presentation/reportPdf';
 import { buildAbsoluteShareUrl } from '../../../utils/presentation/shareUrl';
 import './HistorialBase.css';
 
@@ -667,7 +668,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         if (!detailSessionId) return;
         setPdfWorking(true);
         setPdfError(null);
-        setPdfNotice('Preparando reporte...');
+        setPdfNotice('Preparando PDF...');
         try {
             let nextResults = resultsPayload;
             let nextSummary = clinicalSummaryPayload;
@@ -692,29 +693,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 clinicalSummary: nextSummary
             });
             const reportTitle = buildReportTitle(detailPayload);
-            const fileName = buildReportFileName(detailPayload, 'html');
+            const fileName = buildReportFileName(detailPayload, 'pdf');
             const reportHtml = buildClinicalReportHtml(nextViewModel, {
                 logoUrl: cogniaLogoLight,
                 fileTitle: reportTitle
             });
-
-            const reportWindow = window.open('', '_blank', 'noopener,noreferrer');
-            if (!reportWindow) {
-                throw new Error('report_window_blocked');
-            }
-
-            reportWindow.document.open();
-            reportWindow.document.write(reportHtml);
-            reportWindow.document.close();
-            reportWindow.document.title = reportTitle;
-            reportWindow.focus();
-            setPdfNotice(`Reporte abierto. Título sugerido: ${fileName.replace(/\.html$/i, '')}. Usa "Imprimir o guardar como PDF".`);
+            const pdfBlob = await renderReportHtmlToPdfBlob(reportHtml);
+            downloadPdfBlob(pdfBlob, fileName);
+            setPdfNotice('PDF descargado correctamente.');
         } catch (actionError) {
-            if (actionError instanceof Error && actionError.message === 'report_window_blocked') {
-                setPdfError('El navegador bloqueó la apertura del reporte. Permite ventanas emergentes o intenta nuevamente.');
-            } else {
-                setPdfError(buildActionErrorMessage(actionError, 'No se pudo preparar el reporte. Intenta nuevamente.'));
-            }
+            setPdfError(buildActionErrorMessage(actionError, 'No se pudo generar el PDF. Intenta nuevamente.'));
             setPdfNotice(null);
         } finally {
             setPdfWorking(false);
@@ -1082,7 +1070,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             onClick={() => { runHistoryTask(handleDownloadReport); }}
                                             disabled={pdfWorking}
                                         >
-                                            {pdfWorking ? 'Preparando reporte...' : 'Abrir reporte para imprimir'}
+                                            {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
                                         </button>
                                     </div>
                                 </div>

@@ -15,7 +15,7 @@ export type DbState = {
     latency_ms: number | null;
 };
 
-export type StatusCounts = Record<'200' | '401' | '500', number>;
+export type StatusCounts = Record<string, number>;
 
 export type MetricsSnapshot = {
     uptime_seconds: number;
@@ -58,15 +58,50 @@ function asNumber(value: unknown) {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function normalizeCountKey(value: unknown) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return String(Math.trunc(value));
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim();
+    }
+    return null;
+}
+
 function asStatusCounts(value: unknown): StatusCounts | null {
     const record = asObject(value);
-    if (!record) return null;
+    if (record) {
+        const next: StatusCounts = {};
+        for (const [key, rawValue] of Object.entries(record)) {
+            const normalizedKey = normalizeCountKey(key);
+            const numericValue = asNumber(rawValue);
+            if (!normalizedKey || numericValue === null) continue;
+            next[normalizedKey] = numericValue;
+        }
+        return next;
+    }
 
-    return {
-        '200': asNumber(record['200']) ?? 0,
-        '401': asNumber(record['401']) ?? 0,
-        '500': asNumber(record['500']) ?? 0
-    };
+    if (!Array.isArray(value)) return null;
+
+    const next: StatusCounts = {};
+    for (const entry of value) {
+        const recordEntry = asObject(entry);
+        if (!recordEntry) continue;
+
+        const normalizedKey =
+            normalizeCountKey(recordEntry.status) ??
+            normalizeCountKey(recordEntry.code) ??
+            normalizeCountKey(recordEntry.status_code);
+        const numericValue =
+            asNumber(recordEntry.count) ??
+            asNumber(recordEntry.total) ??
+            asNumber(recordEntry.value);
+
+        if (!normalizedKey || numericValue === null) continue;
+        next[normalizedKey] = numericValue;
+    }
+
+    return next;
 }
 
 function canRunMetricCycle(enabled: boolean, isMounted: boolean, isVisible: boolean) {

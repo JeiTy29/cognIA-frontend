@@ -214,7 +214,7 @@
 .donut-ring {
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
-    stroke-linecap: round;
+    stroke-linecap: butt;
     animation: donut-draw 1s ease forwards;
 }
 
@@ -235,8 +235,10 @@
 }
 
 .legend-green { background: #1f9d55; }
+.legend-blue { background: #3e6ea8; }
 .legend-yellow { background: #f0ad4e; }
 .legend-red { background: #dc3545; }
+.legend-gray { background: #6a6f7d; }
 
 .metricas-note {
     font-size: 13px;
@@ -292,6 +294,7 @@
 .indicator.orange { background: #f0ad4e; }
 .indicator.yellow { background: #f0ad4e; }
 .indicator.red { background: #dc3545; }
+.indicator.gray { background: #6a6f7d; }
 
 .metricas-alert {
     margin-top: 16px;

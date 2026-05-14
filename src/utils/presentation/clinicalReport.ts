@@ -598,28 +598,14 @@ export function buildClinicalReportHtml(
             margin: 0 auto;
             padding: 24px;
         }
-        .report-print-bar {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            display: flex;
-            justify-content: flex-end;
-            padding: 14px 20px 0;
-            background: linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(248, 251, 255, 0));
+        .report-pdf-page {
+            page-break-after: always;
+            break-after: page;
+            min-height: 271mm;
         }
-        .report-print-button {
-            border: 1px solid rgba(33,95,143,0.18);
-            background: #ffffff;
-            color: #12385a;
-            border-radius: 999px;
-            padding: 12px 18px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 10px 24px rgba(21, 58, 90, 0.08);
-        }
-        .report-print-button:hover {
-            background: #eef7ff;
+        .report-pdf-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
         }
         .report-cover {
             position: relative;
@@ -770,17 +756,17 @@ export function buildClinicalReportHtml(
             font-size: 13px;
             color: #48637d;
         }
+        .report-page-group {
+            display: grid;
+            gap: 18px;
+        }
         @media print {
-            .report-print-bar { display: none; }
             .report-page { padding: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="report-print-bar">
-        <button class="report-print-button" type="button" onclick="window.print()">Imprimir o guardar como PDF</button>
-    </div>
-    <section class="report-cover">
+    <section class="report-cover report-pdf-page report-pdf-page--cover">
         <div class="report-cover-orb report-cover-orb--primary"></div>
         <div class="report-cover-orb report-cover-orb--secondary"></div>
         <div class="report-cover-content">
@@ -807,52 +793,72 @@ export function buildClinicalReportHtml(
         </div>
     </section>
     <main class="report-page">
-        <section class="report-section">
-            <h2>Aviso importante</h2>
-            <div class="report-alert">
-                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo. Debe interpretarse junto con entrevista clínica, historia evolutiva, contexto familiar/escolar y criterio profesional.
+        <section class="report-pdf-page">
+            <div class="report-page-group">
+                <section class="report-section">
+                    <h2>Aviso importante</h2>
+                    <div class="report-alert">
+                        Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo. Debe interpretarse junto con entrevista clínica, historia evolutiva, contexto familiar/escolar y criterio profesional.
+                    </div>
+                </section>
+                <section class="report-section">
+                    <h2>Resumen del caso</h2>
+                    ${summaryHtml}
+                </section>
             </div>
         </section>
-        <section class="report-section">
-            <h2>Resumen del caso</h2>
-            ${summaryHtml}
+        <section class="report-pdf-page">
+            <div class="report-page-group">
+                <section class="report-section">
+                    <h2>Resultado por áreas</h2>
+                    <div class="report-domain-grid">${domainCardsHtml}</div>
+                </section>
+                <section class="report-section">
+                    <h2>Niveles de compatibilidad</h2>
+                    ${compatibilityHtml}
+                </section>
+            </div>
         </section>
-        <section class="report-section">
-            <h2>Resultado por áreas</h2>
-            <div class="report-domain-grid">${domainCardsHtml}</div>
+        <section class="report-pdf-page">
+            <div class="report-page-group">
+                <section class="report-section">
+                    <h2>Patrones e indicadores observados</h2>
+                    ${indicatorsHtml}
+                </section>
+                <section class="report-section">
+                    <h2>Impacto funcional</h2>
+                    <p>${escapeHtml(viewModel.functionalImpact)}</p>
+                </section>
+            </div>
         </section>
-        <section class="report-section">
-            <h2>Niveles de compatibilidad</h2>
-            ${compatibilityHtml}
+        <section class="report-pdf-page">
+            <div class="report-page-group">
+                <section class="report-section">
+                    <h2>Recomendación profesional</h2>
+                    <p>${escapeHtml(viewModel.professionalRecommendation)}</p>
+                </section>
+                <section class="report-section">
+                    <h2>Comorbilidad o coexistencia</h2>
+                    <p>${escapeHtml(viewModel.comorbidityText)}</p>
+                </section>
+                <section class="report-section">
+                    <h2>Aclaración importante</h2>
+                    <p>${escapeHtml(viewModel.clarification)}</p>
+                </section>
+            </div>
         </section>
-        <section class="report-section">
-            <h2>Patrones e indicadores observados</h2>
-            ${indicatorsHtml}
-        </section>
-        <section class="report-section">
-            <h2>Impacto funcional</h2>
-            <p>${escapeHtml(viewModel.functionalImpact)}</p>
-        </section>
-        <section class="report-section">
-            <h2>Recomendación profesional</h2>
-            <p>${escapeHtml(viewModel.professionalRecommendation)}</p>
-        </section>
-        <section class="report-section">
-            <h2>Comorbilidad o coexistencia</h2>
-            <p>${escapeHtml(viewModel.comorbidityText)}</p>
-        </section>
-        <section class="report-section">
-            <h2>Aclaración importante</h2>
-            <p>${escapeHtml(viewModel.clarification)}</p>
-        </section>
-        <section class="report-section">
-            <h2>Limitaciones</h2>
-            <p>${escapeHtml(viewModel.disclaimer)}</p>
-            <p class="report-footer-note">Este reporte no reemplaza evaluación clínica, entrevista, historia evolutiva ni juicio profesional.</p>
-        </section>
-        <section class="report-section">
-            <h2>Cuestionario completo respondido</h2>
-            <p>${escapeHtml(viewModel.answersAvailabilityNote)}</p>
+        <section class="report-pdf-page">
+            <div class="report-page-group">
+                <section class="report-section">
+                    <h2>Limitaciones</h2>
+                    <p>${escapeHtml(viewModel.disclaimer)}</p>
+                    <p class="report-footer-note">Este reporte no reemplaza evaluación clínica, entrevista, historia evolutiva ni juicio profesional.</p>
+                </section>
+                <section class="report-section">
+                    <h2>Cuestionario completo respondido</h2>
+                    <p>${escapeHtml(viewModel.answersAvailabilityNote)}</p>
+                </section>
+            </div>
         </section>
     </main>
 </body>
