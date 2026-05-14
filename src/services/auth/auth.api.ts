@@ -123,7 +123,8 @@ export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse>
     try {
         return await apiGet<AuthMeResponse>('/api/auth/me', {
             auth: true,
-            credentials: 'include'
+            credentials: 'include',
+            retryAuth: false
         });
     } catch (error) {
         if (error instanceof Error && 'status' in error) {

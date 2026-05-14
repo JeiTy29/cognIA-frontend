@@ -31,6 +31,7 @@ import {
     markManualLogoutFlag,
     setAuthNotice
 } from '../utils/auth/sessionLifecycle';
+import { getCsrfToken } from '../utils/auth/csrf';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
@@ -335,7 +336,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             if ('error' in meResponse) {
+                debugAuth('verifySession:me:error-state', {
+                    allowRefresh,
+                    manualLogout: hasManualLogoutFlag(),
+                    csrfToken: getCsrfToken(),
+                    isUnauthorized: isUnauthorizedMeResponse(meResponse),
+                    status: meResponse.status
+                });
                 if (isUnauthorizedMeResponse(meResponse) && allowRefresh) {
+                    debugAuth('verifySession:refresh-after-401:start', {
+                        allowRefresh,
+                        manualLogout: hasManualLogoutFlag()
+                    });
                     const refreshed = await refreshSession({ silent: true });
                     if (!refreshed) {
                         debugAuth('verifySession:refresh-after-401:failed', meResponse);
