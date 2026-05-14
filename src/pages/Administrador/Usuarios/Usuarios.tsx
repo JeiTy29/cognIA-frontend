@@ -5,12 +5,10 @@ import { useUsers } from '../../../hooks/useUsers';
 import type { CreateUserRequest, User } from '../../../services/admin/users';
 import './Usuarios.css';
 
-type ManagedUserType = 'guardian' | 'psychologist' | 'admin';
+type ManagedUserType = 'guardian' | 'psychologist';
 
 type EditFormState = {
     id: string;
-    email: string;
-    full_name: string;
     user_type: ManagedUserType;
     professional_card_number: string;
     is_active: boolean;
@@ -23,16 +21,14 @@ type CreateFormState = {
     full_name: string;
     user_type: ManagedUserType;
     professional_card_number: string;
-    is_active: boolean;
 };
 
 type FormErrors = Partial<Record<keyof EditFormState | keyof CreateFormState, string>>;
-type UserConfirmationKind = 'deactivate' | 'password-reset' | 'mfa-reset';
+type UserConfirmationKind = 'deactivate' | 'reactivate' | 'password-reset' | 'mfa-reset';
 type UserActionButtonProps = Readonly<{
     tooltip: string;
     ariaLabel?: string;
     onClick: () => void;
-    disabled?: boolean;
     children: ReactNode;
 }>;
 type UserConfirmationModalProps = Readonly<{
@@ -48,14 +44,17 @@ type UserConfirmationModalProps = Readonly<{
 
 const USER_ROLE_BY_TYPE: Record<ManagedUserType, string> = {
     guardian: 'GUARDIAN',
-    psychologist: 'PSYCHOLOGIST',
-    admin: 'ADMIN'
+    psychologist: 'PSYCHOLOGIST'
 };
 
-const typeOptions: CustomSelectOption[] = [
+const editableUserTypeOptions: CustomSelectOption[] = [
     { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'psychologist', label: 'Psicólogo' },
-    { value: 'admin', label: 'Administrador' }
+    { value: 'psychologist', label: 'Psicólogo' }
+];
+
+const createUserTypeOptions: CustomSelectOption[] = [
+    { value: 'guardian', label: 'Padre/Tutor' },
+    { value: 'psychologist', label: 'Psicólogo' }
 ];
 
 const roleFilterOptions: CustomSelectOption[] = [
@@ -63,11 +62,6 @@ const roleFilterOptions: CustomSelectOption[] = [
     { value: 'GUARDIAN', label: 'Padre/Tutor' },
     { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
     { value: 'ADMIN', label: 'Administrador' }
-];
-
-const typeFilterOptions: CustomSelectOption[] = [
-    { value: 'all', label: 'Todos los tipos' },
-    ...typeOptions
 ];
 
 const statusOptions: CustomSelectOption[] = [
@@ -84,8 +78,6 @@ const pageSizeOptions: CustomSelectOption[] = [
 
 const emptyEditForm = (): EditFormState => ({
     id: '',
-    email: '',
-    full_name: '',
     user_type: 'guardian',
     professional_card_number: '',
     is_active: true
@@ -97,8 +89,7 @@ const emptyCreateForm = (): CreateFormState => ({
     password: '',
     full_name: '',
     user_type: 'guardian',
-    professional_card_number: '',
-    is_active: true
+    professional_card_number: ''
 });
 
 function runUserTask(task: () => Promise<void>) {
@@ -109,20 +100,14 @@ function deriveRoles(userType: ManagedUserType) {
     return [USER_ROLE_BY_TYPE[userType]];
 }
 
-function normalizeUserType(value: User['user_type']): ManagedUserType {
-    const normalized = String(value).trim().toLowerCase();
-    if (normalized === 'admin') return 'admin';
+function normalizeEditableUserType(user: User): ManagedUserType {
+    const normalized = String(user.user_type).trim().toLowerCase();
     if (normalized === 'psychologist') return 'psychologist';
     return 'guardian';
 }
 
-function mapUserTypeLabel(userType: User['user_type']) {
-    const normalized = String(userType).trim().toLowerCase();
-    if (normalized === 'guardian') return 'Padre/Tutor';
-    if (normalized === 'psychologist') return 'Psicólogo';
-    if (normalized === 'admin') return 'Administrador';
-    if (normalized === 'teacher') return 'Docente (legacy)';
-    return 'No contemplado';
+function hasAdminRole(user: User) {
+    return user.roles.some((role) => role.trim().toUpperCase() === 'ADMIN');
 }
 
 function mapRoleLabel(role: string) {
@@ -136,7 +121,7 @@ function mapRoleLabel(role: string) {
 
 function getVisibleRoles(user: User) {
     if (user.roles.length === 0) {
-        return [mapRoleLabel(USER_ROLE_BY_TYPE[normalizeUserType(user.user_type)])];
+        return ['Sin rol asignado'];
     }
     return user.roles.map(mapRoleLabel);
 }
@@ -147,12 +132,6 @@ function validateEmail(value: string) {
 
 function validateEditForm(values: EditFormState) {
     const errors: FormErrors = {};
-
-    if (!values.email.trim()) {
-        errors.email = 'El correo es obligatorio.';
-    } else if (!validateEmail(values.email)) {
-        errors.email = 'Ingresa un correo válido.';
-    }
 
     if (!values.user_type) {
         errors.user_type = 'Selecciona un tipo de usuario.';
@@ -188,8 +167,13 @@ function validateCreateForm(values: CreateFormState) {
         errors.user_type = 'Selecciona un tipo de usuario.';
     }
 
-    if (values.user_type === 'psychologist' && !values.professional_card_number.trim()) {
-        errors.professional_card_number = 'La tarjeta profesional es obligatoria para psicólogos.';
+    if (values.user_type === 'psychologist') {
+        if (!values.full_name.trim()) {
+            errors.full_name = 'El nombre completo es obligatorio para psicólogos.';
+        }
+        if (!values.professional_card_number.trim()) {
+            errors.professional_card_number = 'La tarjeta profesional es obligatoria para psicólogos.';
+        }
     }
 
     return errors;
@@ -227,6 +211,14 @@ function LockUserIcon() {
     );
 }
 
+function UnlockUserIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2a5 5 0 0 1 5 5h-2a3 3 0 0 0-6 0v2h7a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-7a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm-4 9v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-7H8Z" />
+        </svg>
+    );
+}
+
 function KeyIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -259,43 +251,10 @@ function EmptyIcon() {
     );
 }
 
-function ArrowLeftIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M15 6 9 12l6 6" />
-        </svg>
-    );
-}
-
-function ArrowRightIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="m9 6 6 6-6 6" />
-        </svg>
-    );
-}
-
 function UserActionButton({
     tooltip,
     ariaLabel,
     onClick,
-    disabled = false,
     children
 }: UserActionButtonProps) {
     return (
@@ -305,7 +264,6 @@ function UserActionButton({
             data-tooltip={tooltip}
             aria-label={ariaLabel}
             onClick={onClick}
-            disabled={disabled}
         >
             {children}
         </button>
@@ -316,6 +274,13 @@ function buildConfirmationMessage(user: User | null, kind: UserConfirmationKind)
     if (!user) return '';
     if (kind === 'deactivate') {
         return `Se desactivará a ${user.full_name || user.username}.`;
+    }
+    if (kind === 'reactivate') {
+        const note =
+            String(user.user_type).trim().toLowerCase() === 'psychologist' && user.colpsic_verified === false
+                ? ' Si es psicólogo, también debe estar aprobado para poder iniciar sesión.'
+                : '';
+        return `Se reactivará a ${user.full_name || user.username}. Podrá volver a iniciar sesión si cumple los demás requisitos de acceso.${note}`;
     }
     if (kind === 'password-reset') {
         return `Se enviará el restablecimiento a ${user.email}.`;
@@ -370,31 +335,34 @@ export default function Usuarios() {
         submittingCreate,
         submittingUpdate,
         submittingDeactivate,
+        submittingReactivate,
         submittingPasswordReset,
         submittingMfaReset,
         goToPage,
         changePageSize,
         setSearchQuery,
         setRoleFilter,
-        setTypeFilter,
         setStatusFilter,
         createUser,
         updateUser,
         deactivateUser,
+        reactivateUser,
         resetUserPassword,
         resetUserMfa,
         clearMessages
     } = useUsers();
 
     const [searchDraft, setSearchDraft] = useState(filters.q);
-    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [creatingUser, setCreatingUser] = useState(false);
     const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+    const [userToReactivate, setUserToReactivate] = useState<User | null>(null);
     const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
     const [userToResetMfa, setUserToResetMfa] = useState<User | null>(null);
     const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
     const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
     const [formErrors, setFormErrors] = useState<FormErrors>({});
+    const [createModalError, setCreateModalError] = useState<string | null>(null);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -412,18 +380,17 @@ export default function Usuarios() {
         username: createForm.username.trim(),
         email: createForm.email.trim(),
         password: createForm.password,
-        full_name: createForm.full_name.trim() || null,
+        full_name: createForm.user_type === 'psychologist' ? createForm.full_name.trim() || null : null,
         user_type: createForm.user_type,
         roles: deriveRoles(createForm.user_type),
         professional_card_number:
             createForm.user_type === 'psychologist'
                 ? createForm.professional_card_number.trim() || null
-                : null,
-        is_active: createForm.is_active
+                : null
     }), [createForm]);
 
     const closeEditModal = () => {
-        setEditingUserId(null);
+        setEditingUser(null);
         setEditForm(emptyEditForm());
         setFormErrors({});
     };
@@ -432,17 +399,16 @@ export default function Usuarios() {
         setCreatingUser(false);
         setCreateForm(emptyCreateForm());
         setFormErrors({});
+        setCreateModalError(null);
     };
 
     const openEditModal = (user: User) => {
         clearMessages();
         setFormErrors({});
-        setEditingUserId(user.id);
+        setEditingUser(user);
         setEditForm({
             id: user.id,
-            email: user.email ?? '',
-            full_name: user.full_name ?? '',
-            user_type: normalizeUserType(user.user_type),
+            user_type: normalizeEditableUserType(user),
             professional_card_number: user.professional_card_number ?? '',
             is_active: user.is_active
         });
@@ -465,21 +431,24 @@ export default function Usuarios() {
         const errors = validateEditForm(editForm);
         setFormErrors(errors);
 
-        if (Object.keys(errors).length > 0 || !editForm.id) {
+        if (Object.keys(errors).length > 0 || !editForm.id || !editingUser) {
             return;
         }
 
-        const success = await updateUser(editForm.id, {
-            email: editForm.email.trim(),
-            full_name: editForm.full_name.trim() || null,
-            user_type: editForm.user_type,
-            roles: deriveRoles(editForm.user_type),
-            is_active: editForm.is_active,
-            professional_card_number:
-                editForm.user_type === 'psychologist'
-                    ? editForm.professional_card_number.trim()
-                    : null
-        });
+        const payload =
+            hasAdminRole(editingUser)
+                ? { is_active: editForm.is_active }
+                : {
+                      user_type: editForm.user_type,
+                      roles: deriveRoles(editForm.user_type),
+                      is_active: editForm.is_active,
+                      professional_card_number:
+                          editForm.user_type === 'psychologist'
+                              ? editForm.professional_card_number.trim()
+                              : null
+                  };
+
+        const success = await updateUser(editForm.id, payload);
 
         if (success) {
             closeEditModal();
@@ -490,15 +459,19 @@ export default function Usuarios() {
         event.preventDefault();
         const errors = validateCreateForm(createForm);
         setFormErrors(errors);
+        setCreateModalError(null);
 
         if (Object.keys(errors).length > 0) {
             return;
         }
 
-        const success = await createUser(createPayload);
-        if (success) {
+        const result = await createUser(createPayload);
+        if (result.success) {
             closeCreateModal();
+            return;
         }
+
+        setCreateModalError(result.error ?? 'No se pudo crear el usuario.');
     };
 
     const confirmDeactivate = async () => {
@@ -506,6 +479,14 @@ export default function Usuarios() {
         const success = await deactivateUser(userToDeactivate.id);
         if (success) {
             setUserToDeactivate(null);
+        }
+    };
+
+    const confirmReactivate = async () => {
+        if (!userToReactivate) return;
+        const success = await reactivateUser(userToReactivate.id);
+        if (success) {
+            setUserToReactivate(null);
         }
     };
 
@@ -536,14 +517,23 @@ export default function Usuarios() {
             <UserActionButton tooltip="Resetear MFA" onClick={() => setUserToResetMfa(user)}>
                 <ShieldIcon />
             </UserActionButton>
-            <UserActionButton
-                tooltip="Desactivar"
-                ariaLabel="Desactivar usuario"
-                onClick={() => setUserToDeactivate(user)}
-                disabled={!user.is_active}
-            >
-                <LockUserIcon />
-            </UserActionButton>
+            {user.is_active ? (
+                <UserActionButton
+                    tooltip="Desactivar"
+                    ariaLabel="Desactivar usuario"
+                    onClick={() => setUserToDeactivate(user)}
+                >
+                    <LockUserIcon />
+                </UserActionButton>
+            ) : (
+                <UserActionButton
+                    tooltip="Reactivar"
+                    ariaLabel="Reactivar usuario"
+                    onClick={() => setUserToReactivate(user)}
+                >
+                    <UnlockUserIcon />
+                </UserActionButton>
+            )}
         </div>
     );
 
@@ -575,7 +565,6 @@ export default function Usuarios() {
 
         return items.map((user) => {
             const visibleRoles = getVisibleRoles(user);
-            const profileLabel = mapUserTypeLabel(user.user_type);
 
             return (
                 <div className="usuarios-row" key={user.id}>
@@ -606,9 +595,9 @@ export default function Usuarios() {
                     </div>
 
                     <div className="usuarios-cell">
-                        <div className="usuarios-profile-main">{profileLabel}</div>
-                        <div className="usuarios-sub">{visibleRoles.join(', ')}</div>
-                        {String(user.user_type).toLowerCase() === 'psychologist' && user.professional_card_number ? (
+                        <div className="usuarios-profile-main">{visibleRoles.join(', ')}</div>
+                        {user.roles.length === 0 ? <div className="usuarios-sub">Sin rol asignado</div> : null}
+                        {visibleRoles.includes('Psicólogo') && user.professional_card_number ? (
                             <div className="usuarios-sub">Tarjeta: {user.professional_card_number}</div>
                         ) : null}
                     </div>
@@ -639,6 +628,7 @@ export default function Usuarios() {
                         onClick={() => {
                             clearMessages();
                             setFormErrors({});
+                            setCreateModalError(null);
                             setCreatingUser(true);
                         }}
                     >
@@ -679,7 +669,7 @@ export default function Usuarios() {
                         type="search"
                         value={searchDraft}
                         onChange={(event) => setSearchDraft(event.target.value)}
-                        placeholder="Buscar por nombre, usuario o correo"
+                        placeholder="Buscar por usuario o correo"
                         aria-label="Buscar usuarios"
                     />
                 </div>
@@ -692,16 +682,6 @@ export default function Usuarios() {
                             options={roleFilterOptions}
                             onChange={setRoleFilter}
                             ariaLabel="Filtrar por rol"
-                        />
-                    </label>
-
-                    <label>
-                        Tipo
-                        <CustomSelect
-                            value={filters.user_type}
-                            options={typeFilterOptions}
-                            onChange={setTypeFilter}
-                            ariaLabel="Filtrar por tipo"
                         />
                     </label>
 
@@ -722,7 +702,7 @@ export default function Usuarios() {
                     <div>Nombre</div>
                     <div>Usuario</div>
                     <div>Correo</div>
-                    <div>Perfil</div>
+                    <div>Rol</div>
                     <div>Estado</div>
                     <div>Acciones</div>
                 </div>
@@ -759,7 +739,7 @@ export default function Usuarios() {
                         disabled={page <= 1 || loading}
                         aria-label="Página anterior"
                     >
-                        <ArrowLeftIcon />
+                        <span className="usuarios-page-arrow" aria-hidden="true">‹</span>
                     </button>
 
                     <span className="usuarios-page">
@@ -775,7 +755,7 @@ export default function Usuarios() {
                         disabled={page >= totalPages || loading}
                         aria-label="Página siguiente"
                     >
-                        <ArrowRightIcon />
+                        <span className="usuarios-page-arrow" aria-hidden="true">›</span>
                     </button>
                 </div>
             </div>
@@ -783,6 +763,12 @@ export default function Usuarios() {
             <Modal isOpen={creatingUser} onClose={closeCreateModal}>
                 <form className="usuarios-modal" onSubmit={handleCreateSubmit}>
                     <h2>Crear usuario</h2>
+
+                    {createModalError ? (
+                        <div className="usuarios-alert error usuarios-modal-alert">
+                            <span>{createModalError}</span>
+                        </div>
+                    ) : null}
 
                     <label>
                         <span>Usuario</span>
@@ -821,25 +807,15 @@ export default function Usuarios() {
                     </label>
 
                     <label>
-                        <span>Nombre completo</span>
-                        <input
-                            type="text"
-                            value={createForm.full_name}
-                            onChange={(event) =>
-                                setCreateForm((prev) => ({ ...prev, full_name: event.target.value }))
-                            }
-                        />
-                    </label>
-
-                    <label>
                         Tipo de usuario
                         <CustomSelect
                             value={createForm.user_type}
-                            options={typeOptions}
+                            options={createUserTypeOptions}
                             onChange={(value) =>
                                 setCreateForm((prev) => ({
                                     ...prev,
                                     user_type: value as ManagedUserType,
+                                    full_name: value === 'psychologist' ? prev.full_name : '',
                                     professional_card_number:
                                         value === 'psychologist' ? prev.professional_card_number : ''
                                 }))
@@ -850,34 +826,37 @@ export default function Usuarios() {
                     </label>
 
                     {createForm.user_type === 'psychologist' ? (
-                        <label>
-                            <span>Tarjeta profesional</span>
-                            <input
-                                type="text"
-                                value={createForm.professional_card_number}
-                                onChange={(event) =>
-                                    setCreateForm((prev) => ({
-                                        ...prev,
-                                        professional_card_number: event.target.value
-                                    }))
-                                }
-                            />
-                            {formErrors.professional_card_number ? (
-                                <span className="usuarios-sub">{formErrors.professional_card_number}</span>
-                            ) : null}
-                        </label>
-                    ) : null}
+                        <>
+                            <label>
+                                <span>Nombre completo</span>
+                                <input
+                                    type="text"
+                                    value={createForm.full_name}
+                                    onChange={(event) =>
+                                        setCreateForm((prev) => ({ ...prev, full_name: event.target.value }))
+                                    }
+                                />
+                                {formErrors.full_name ? <span className="usuarios-sub">{formErrors.full_name}</span> : null}
+                            </label>
 
-                    <label className="usuarios-switch">
-                        <input
-                            type="checkbox"
-                            checked={createForm.is_active}
-                            onChange={(event) =>
-                                setCreateForm((prev) => ({ ...prev, is_active: event.target.checked }))
-                            }
-                        />
-                        <span>Usuario activo</span>
-                    </label>
+                            <label>
+                                <span>Tarjeta profesional</span>
+                                <input
+                                    type="text"
+                                    value={createForm.professional_card_number}
+                                    onChange={(event) =>
+                                        setCreateForm((prev) => ({
+                                            ...prev,
+                                            professional_card_number: event.target.value
+                                        }))
+                                    }
+                                />
+                                {formErrors.professional_card_number ? (
+                                    <span className="usuarios-sub">{formErrors.professional_card_number}</span>
+                                ) : null}
+                            </label>
+                        </>
+                    ) : null}
 
                     <div className="usuarios-modal-actions">
                         <button type="button" className="usuarios-btn secondary" onClick={closeCreateModal}>
@@ -890,48 +869,49 @@ export default function Usuarios() {
                 </form>
             </Modal>
 
-            <Modal isOpen={Boolean(editingUserId)} onClose={closeEditModal}>
+            <Modal isOpen={Boolean(editingUser)} onClose={closeEditModal}>
                 <form className="usuarios-modal" onSubmit={handleEditSubmit}>
                     <h2>Editar usuario</h2>
 
-                    <label>
-                        <span>Correo</span>
-                        <input
-                            type="email"
-                            value={editForm.email}
-                            onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
-                        />
-                        {formErrors.email ? <span className="usuarios-sub">{formErrors.email}</span> : null}
-                    </label>
+                    {editingUser ? (
+                        <div className="usuarios-edit-summary">
+                            <div><strong>Usuario:</strong> {editingUser.username}</div>
+                            <div><strong>Correo:</strong> {editingUser.email}</div>
+                            {editingUser.full_name ? <div><strong>Nombre completo:</strong> {editingUser.full_name}</div> : null}
+                            {hasAdminRole(editingUser) ? (
+                                <div><strong>Rol actual:</strong> Administrador</div>
+                            ) : null}
+                        </div>
+                    ) : null}
 
-                    <label>
-                        <span>Nombre completo</span>
-                        <input
-                            type="text"
-                            value={editForm.full_name}
-                            onChange={(event) => setEditForm((prev) => ({ ...prev, full_name: event.target.value }))}
-                        />
-                    </label>
+                    {!editingUser || !hasAdminRole(editingUser) ? (
+                        <label>
+                            Tipo de usuario
+                            <CustomSelect
+                                value={editForm.user_type}
+                                options={editableUserTypeOptions}
+                                onChange={(value) =>
+                                    setEditForm((prev) => ({
+                                        ...prev,
+                                        user_type: value as ManagedUserType,
+                                        professional_card_number:
+                                            value === 'psychologist' ? prev.professional_card_number : ''
+                                    }))
+                                }
+                                ariaLabel="Seleccionar tipo de usuario para edición"
+                            />
+                            {formErrors.user_type ? <span className="usuarios-sub">{formErrors.user_type}</span> : null}
+                        </label>
+                    ) : null}
 
-                    <label>
-                        Tipo de usuario
-                        <CustomSelect
-                            value={editForm.user_type}
-                            options={typeOptions}
-                            onChange={(value) =>
-                                setEditForm((prev) => ({
-                                    ...prev,
-                                    user_type: value as ManagedUserType,
-                                    professional_card_number:
-                                        value === 'psychologist' ? prev.professional_card_number : ''
-                                }))
-                            }
-                            ariaLabel="Seleccionar tipo de usuario para edición"
-                        />
-                        {formErrors.user_type ? <span className="usuarios-sub">{formErrors.user_type}</span> : null}
-                    </label>
+                    {!editingUser || !hasAdminRole(editingUser) ? (
+                        <label>
+                            <span>Rol derivado</span>
+                            <input type="text" value={mapRoleLabel(USER_ROLE_BY_TYPE[editForm.user_type])} readOnly />
+                        </label>
+                    ) : null}
 
-                    {editForm.user_type === 'psychologist' ? (
+                    {(!editingUser || !hasAdminRole(editingUser)) && editForm.user_type === 'psychologist' ? (
                         <label>
                             <span>Tarjeta profesional</span>
                             <input
@@ -982,6 +962,19 @@ export default function Usuarios() {
                 onClose={() => setUserToDeactivate(null)}
                 onConfirm={() => {
                     runUserTask(confirmDeactivate);
+                }}
+            />
+
+            <UserConfirmationModal
+                isOpen={Boolean(userToReactivate)}
+                title="Reactivar usuario"
+                description={buildConfirmationMessage(userToReactivate, 'reactivate')}
+                confirmLabel="Reactivar"
+                loadingLabel="Procesando..."
+                isSubmitting={submittingReactivate}
+                onClose={() => setUserToReactivate(null)}
+                onConfirm={() => {
+                    runUserTask(confirmReactivate);
                 }}
             />
 

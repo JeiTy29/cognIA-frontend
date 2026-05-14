@@ -30,9 +30,6 @@ export interface PaginatedUsersResponse {
 }
 
 export interface UpdateUserRequest {
-    email?: string;
-    password?: string | null;
-    full_name?: string | null;
     is_active?: boolean;
     roles?: string[];
     user_type?: 'guardian' | 'psychologist' | 'admin';
@@ -58,7 +55,7 @@ export interface CreateUserRequest {
     email: string;
     password: string;
     full_name?: string | null;
-    user_type: 'guardian' | 'psychologist' | 'admin';
+    user_type: 'guardian' | 'psychologist';
     professional_card_number?: string | null;
     roles?: string[];
     is_active?: boolean;
@@ -150,6 +147,14 @@ export function deactivateUser(userId: string) {
     return apiPatch<User, UpdateUserRequest>(
         `/api/admin/users/${userId}`,
         { is_active: false },
+        requestOptions
+    );
+}
+
+export function reactivateUser(userId: string) {
+    return apiPatch<User, UpdateUserRequest>(
+        `/api/admin/users/${userId}`,
+        { is_active: true },
         requestOptions
     );
 }

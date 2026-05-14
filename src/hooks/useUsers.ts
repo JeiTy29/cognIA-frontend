@@ -6,6 +6,7 @@ import {
     createUser,
     deactivateUser,
     getUsers,
+    reactivateUser,
     updateUser,
     type CreateUserRequest,
     type PaginatedUsersResponse,
@@ -16,18 +17,16 @@ import {
 import { ApiError } from '../services/api/httpClient';
 import { useAuth } from './auth/useAuth';
 
-type ActionType = 'list' | 'create' | 'update' | 'delete' | 'passwordReset' | 'mfaReset';
+type ActionType = 'list' | 'create' | 'update' | 'delete' | 'reactivate' | 'passwordReset' | 'mfaReset';
 type UserFilters = Readonly<{
     q: string;
     role: string;
-    user_type: string;
     is_active: 'all' | 'active' | 'inactive';
 }>;
 
 const DEFAULT_FILTERS: UserFilters = {
     q: '',
     role: 'all',
-    user_type: 'all',
     is_active: 'all'
 };
 
@@ -103,10 +102,6 @@ function normalizeRoleFilter(value: string) {
     return value === 'all' ? undefined : value;
 }
 
-function normalizeTypeFilter(value: string) {
-    return value === 'all' ? undefined : value;
-}
-
 function normalizeStatusFilter(value: UserFilters['is_active']) {
     if (value === 'active') return true;
     if (value === 'inactive') return false;
@@ -119,7 +114,6 @@ function buildListParams(page: number, pageSize: number, filters: UserFilters): 
         page_size: pageSize,
         q: filters.q || undefined,
         role: normalizeRoleFilter(filters.role),
-        user_type: normalizeTypeFilter(filters.user_type),
         is_active: normalizeStatusFilter(filters.is_active)
     };
 }
@@ -141,6 +135,7 @@ export function useUsers() {
     const [submittingCreate, setSubmittingCreate] = useState(false);
     const [submittingUpdate, setSubmittingUpdate] = useState(false);
     const [submittingDeactivate, setSubmittingDeactivate] = useState(false);
+    const [submittingReactivate, setSubmittingReactivate] = useState(false);
     const [submittingPasswordReset, setSubmittingPasswordReset] = useState(false);
     const [submittingMfaReset, setSubmittingMfaReset] = useState(false);
 
@@ -206,11 +201,6 @@ export function useUsers() {
         setPage(1);
     }, []);
 
-    const setTypeFilter = useCallback((value: string) => {
-        setFilters((prev) => ({ ...prev, user_type: value }));
-        setPage(1);
-    }, []);
-
     const setStatusFilter = useCallback((value: UserFilters['is_active']) => {
         setFilters((prev) => ({ ...prev, is_active: value }));
         setPage(1);
@@ -219,22 +209,21 @@ export function useUsers() {
     const createUserAction = useCallback(
         async (payload: CreateUserRequest) => {
             setSubmittingCreate(true);
-            setError(null);
             setNotice(null);
             try {
                 await createUser(payload);
                 setNotice('Usuario creado correctamente.');
                 await loadUsers(1, pageSize, filters);
                 setPage(1);
-                return true;
+                return { success: true as const };
             } catch (createError) {
                 const status = extractStatus(createError);
                 const businessCode = extractBusinessCode(createError);
-                setError(mapErrorMessage(status, 'create', businessCode));
+                const message = mapErrorMessage(status, 'create', businessCode);
                 if (status === 401) {
                     handleUnauthorized();
                 }
-                return false;
+                return { success: false as const, error: message };
             } finally {
                 setSubmittingCreate(false);
             }
@@ -287,6 +276,31 @@ export function useUsers() {
                 return false;
             } finally {
                 setSubmittingDeactivate(false);
+            }
+        },
+        [handleUnauthorized, refreshUsers]
+    );
+
+    const reactivateUserAction = useCallback(
+        async (userId: string) => {
+            setSubmittingReactivate(true);
+            setError(null);
+            setNotice(null);
+            try {
+                await reactivateUser(userId);
+                setNotice('Usuario reactivado correctamente.');
+                await refreshUsers();
+                return true;
+            } catch (actionError) {
+                const status = extractStatus(actionError);
+                const businessCode = extractBusinessCode(actionError);
+                setError(mapErrorMessage(status, 'reactivate', businessCode));
+                if (status === 401) {
+                    handleUnauthorized();
+                }
+                return false;
+            } finally {
+                setSubmittingReactivate(false);
             }
         },
         [handleUnauthorized, refreshUsers]
@@ -364,6 +378,7 @@ export function useUsers() {
         submittingCreate,
         submittingUpdate,
         submittingDeactivate,
+        submittingReactivate,
         submittingPasswordReset,
         submittingMfaReset,
         refreshUsers,
@@ -371,11 +386,11 @@ export function useUsers() {
         changePageSize,
         setSearchQuery,
         setRoleFilter,
-        setTypeFilter,
         setStatusFilter,
         createUser: createUserAction,
         updateUser: updateUserAction,
         deactivateUser: deactivateUserAction,
+        reactivateUser: reactivateUserAction,
         resetUserPassword: resetPasswordAction,
         resetUserMfa: resetMfaAction,
         clearMessages

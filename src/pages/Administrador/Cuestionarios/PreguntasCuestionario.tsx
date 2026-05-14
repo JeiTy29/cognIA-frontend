@@ -25,7 +25,6 @@ interface QuestionDraft {
 }
 
 interface QuestionFormState {
-    code: string;
     text: string;
     responseType: QuestionnaireQuestionResponseType;
     position: string;
@@ -33,10 +32,14 @@ interface QuestionFormState {
     optionsText: string;
 }
 
+type FixedResponsePreviewItem = Readonly<{
+    value: string;
+    label?: string;
+}>;
+
 type QuestionTypeConfig = Readonly<{
     label: string;
     helper: string;
-    exampleCode: string;
     exampleQuestion: string;
     exampleHint: string;
     fixedRange?: Readonly<{
@@ -46,78 +49,108 @@ type QuestionTypeConfig = Readonly<{
     }>;
     showLikertInfo?: boolean;
     showOptions?: boolean;
-    requiresOptions?: boolean;
     showOptionalMax?: boolean;
     fixedChoiceHint?: string;
+    fixedResponses?: FixedResponsePreviewItem[];
+    fixedResponsesDescription?: string;
 }>;
+
+const QUESTION_CODE_PREFIX: Record<QuestionnaireQuestionResponseType, string> = {
+    likert_0_4: 'LIKERT04',
+    likert_1_5: 'LIKERT15',
+    boolean: 'SI_NO',
+    frequency_0_3: 'FREC03',
+    intensity_0_10: 'INT10',
+    count: 'CONTEO',
+    ordinal: 'ORDINAL',
+    text_context: 'TEXTO'
+};
 
 const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTypeConfig> = {
     likert_0_4: {
         label: 'Likert 0–4',
         helper: 'Escala Likert de 0 a 4. Útil para medir frecuencia, acuerdo o intensidad en valores ordenados.',
-        exampleCode: 'ATENCION_01',
         exampleQuestion: '¿Con qué frecuencia mantiene la atención durante una actividad?',
         exampleHint: '0 = Nunca, 4 = Siempre',
         fixedRange: { min: 0, max: 4, step: 1 },
-        showLikertInfo: true
+        showLikertInfo: true,
+        fixedResponses: [
+            { value: '0', label: 'Nunca' },
+            { value: '1', label: 'Casi nunca' },
+            { value: '2', label: 'A veces' },
+            { value: '3', label: 'Frecuentemente' },
+            { value: '4', label: 'Siempre' }
+        ]
     },
     likert_1_5: {
         label: 'Likert 1–5',
         helper: 'Escala Likert de 1 a 5. Útil para medir acuerdo o frecuencia de menor a mayor.',
-        exampleCode: 'ACUERDO_01',
         exampleQuestion: '¿Qué tan de acuerdo estás con la afirmación?',
         exampleHint: '1 = Muy en desacuerdo, 5 = Muy de acuerdo',
         fixedRange: { min: 1, max: 5, step: 1 },
-        showLikertInfo: true
+        showLikertInfo: true,
+        fixedResponses: [
+            { value: '1', label: 'Nunca' },
+            { value: '2', label: 'Rara vez' },
+            { value: '3', label: 'A veces' },
+            { value: '4', label: 'Frecuentemente' },
+            { value: '5', label: 'Casi siempre' }
+        ]
     },
     boolean: {
         label: 'Sí / No',
         helper: 'Respuesta cerrada con opciones fijas.',
-        exampleCode: 'DIAGNOSTICO_PREVIO',
         exampleQuestion: '¿Cuenta con diagnóstico previo?',
-        exampleHint: 'Respuesta fija Sí / No',
-        fixedChoiceHint: 'Opciones fijas: Sí / No'
+        exampleHint: 'Respuesta fija Sí/No',
+        fixedChoiceHint: 'Opciones fijas: Sí / No',
+        fixedResponses: [
+            { value: 'Sí' },
+            { value: 'No' }
+        ]
     },
     frequency_0_3: {
         label: 'Frecuencia 0–3',
         helper: 'Frecuencia de 0 a 3. Ejemplo: 0 = Nunca, 3 = Muy frecuente.',
-        exampleCode: 'FRECUENCIA_01',
         exampleQuestion: '¿Con qué frecuencia ocurre esta conducta?',
         exampleHint: '0 = Nunca, 3 = Muy frecuente',
-        fixedRange: { min: 0, max: 3, step: 1 }
+        fixedRange: { min: 0, max: 3, step: 1 },
+        fixedResponses: [
+            { value: '0', label: 'Nunca' },
+            { value: '1', label: 'Ocasionalmente' },
+            { value: '2', label: 'Frecuentemente' },
+            { value: '3', label: 'Muy frecuente' }
+        ]
     },
     intensity_0_10: {
         label: 'Intensidad 0–10',
         helper: 'Intensidad de 0 a 10.',
-        exampleCode: 'INTENSIDAD_01',
         exampleQuestion: '¿Qué tan intensa fue la conducta observada?',
         exampleHint: '0 = Nada intenso, 10 = Muy intenso',
-        fixedRange: { min: 0, max: 10, step: 1 }
+        fixedRange: { min: 0, max: 10, step: 1 },
+        fixedResponses: Array.from({ length: 11 }, (_, index) => ({ value: String(index) }))
     },
     count: {
         label: 'Conteo',
         helper: 'Conteo entero. Ejemplo: número de veces por semana.',
-        exampleCode: 'REPETICIONES_SEMANA',
         exampleQuestion: '¿Cuántas veces ocurrió en la última semana?',
         exampleHint: 'Número entero',
         fixedRange: { min: 0, step: 1 },
-        showOptionalMax: true
+        showOptionalMax: true,
+        fixedResponsesDescription: 'Respuesta numérica entera. No tiene opciones predefinidas.'
     },
     ordinal: {
         label: 'Opciones ordenadas',
         helper: 'Usa opciones ordenadas cuando necesites categorías definidas con un orden lógico.',
-        exampleCode: 'NIVEL_APOYO',
         exampleQuestion: '¿Qué nivel de apoyo requiere?',
         exampleHint: 'Formato recomendado: valor|texto visible',
-        showOptions: true,
-        requiresOptions: true
+        showOptions: true
     },
     text_context: {
         label: 'Texto contextual',
         helper: 'Respuesta abierta de texto contextual.',
-        exampleCode: 'OBSERVACIONES',
         exampleQuestion: 'Describe el contexto observado.',
-        exampleHint: 'Respuesta abierta de texto'
+        exampleHint: 'Respuesta abierta de texto',
+        fixedResponsesDescription: 'Respuesta abierta de texto. No tiene opciones predefinidas.'
     }
 };
 
@@ -135,7 +168,6 @@ const RESPONSE_TYPE_OPTIONS = [
 const QUESTION_CODE_PATTERN = /^[A-Za-z0-9_-]{2,64}$/;
 
 const initialForm: QuestionFormState = {
-    code: '',
     text: '',
     responseType: 'likert_0_4',
     position: '1',
@@ -155,25 +187,54 @@ function extractBusinessCode(error: ApiError) {
     return null;
 }
 
-function extractDetail(error: ApiError) {
-    if (!error.payload || typeof error.payload !== 'object') return null;
-    const payload = error.payload as Record<string, unknown>;
-    if (typeof payload.detail === 'string' && payload.detail.trim().length > 0) {
-        return payload.detail.trim();
+function translateDetailValue(code: string, detailCode: string) {
+    if (detailCode === 'text_context_no_constraints') {
+        return `La pregunta ${code} es de texto contextual y no debe tener mínimo, máximo, paso ni opciones.`;
     }
-    if (Array.isArray(payload.details) && payload.details.length > 0) {
+    if (detailCode === 'response_options_required_for_ordinal') {
+        return `La pregunta ${code} requiere al menos dos opciones ordenadas.`;
+    }
+    if (detailCode === 'response_min_gt_max') {
+        return `La pregunta ${code} tiene un mínimo mayor que el máximo.`;
+    }
+    if (detailCode === 'response_step_invalid') {
+        return `La pregunta ${code} tiene un paso inválido.`;
+    }
+    if (detailCode === 'response_options_empty') {
+        return `La pregunta ${code} tiene una lista de opciones vacía.`;
+    }
+    return `${code}: ${detailCode}`;
+}
+
+function extractDetailMessages(error: ApiError) {
+    if (!error.payload || typeof error.payload !== 'object') return [];
+
+    const payload = error.payload as Record<string, unknown>;
+
+    if (typeof payload.detail === 'string' && payload.detail.trim().length > 0) {
+        return [payload.detail.trim()];
+    }
+
+    if (Array.isArray(payload.details)) {
         return payload.details
             .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-            .join(' ');
+            .map((item) => item.trim());
     }
-    return null;
+
+    if (payload.details && typeof payload.details === 'object' && !Array.isArray(payload.details)) {
+        return Object.entries(payload.details as Record<string, unknown>)
+            .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+            .map(([code, value]) => translateDetailValue(code, String(value).trim().toLowerCase()));
+    }
+
+    return [];
 }
 
 function mapError(error: unknown) {
     if (!(error instanceof ApiError)) return 'No se pudo agregar la pregunta.';
 
     const businessCode = extractBusinessCode(error);
-    const detail = extractDetail(error);
+    const details = extractDetailMessages(error);
 
     let message = 'No se pudo agregar la pregunta.';
     if (businessCode === 'validation_error') {
@@ -191,7 +252,7 @@ function mapError(error: unknown) {
     } else if (businessCode === 'response_options_empty') {
         message = 'Debes agregar opciones o cambiar a un tipo que no las requiera.';
     } else if (businessCode === 'code_exists') {
-        message = 'Ya existe una pregunta con ese código en la plantilla.';
+        message = 'Ya existe una pregunta con ese código. Cambia la posición o vuelve a intentar para generar uno nuevo.';
     } else if (businessCode === 'template_active') {
         message = 'No puedes modificar una plantilla activa. Clónala o desactívala antes de editarla.';
     } else if (businessCode === 'template_archived') {
@@ -210,8 +271,8 @@ function mapError(error: unknown) {
         message = 'Error del servidor al guardar la pregunta.';
     }
 
-    if (detail && !message.includes(detail)) {
-        return `${message} ${detail}`;
+    if (details.length > 0) {
+        return `${message} ${details.join(' ')}`;
     }
 
     return message;
@@ -277,14 +338,30 @@ function resolveTemplateName(locationTemplate: AdminQuestionnaireItem | undefine
     return locationTemplate.name;
 }
 
-function buildQuestionPayload(form: QuestionFormState) {
-    const code = form.code.trim();
+function buildGeneratedQuestionCode(
+    responseType: QuestionnaireQuestionResponseType,
+    positionValue: number,
+    takenCodes: Set<string>
+) {
+    const prefix = QUESTION_CODE_PREFIX[responseType];
+    let candidate = Number.isInteger(positionValue) && positionValue > 0 ? positionValue : 1;
+
+    while (true) {
+        const code = `${prefix}_${String(candidate).padStart(3, '0')}`;
+        if (!takenCodes.has(code)) {
+            return code;
+        }
+        candidate += 1;
+    }
+}
+
+function buildQuestionPayload(form: QuestionFormState, generatedCode: string) {
     const text = form.text.trim();
     const parsedPosition = Number(form.position);
     const config = QUESTION_TYPE_CONFIG[form.responseType];
 
-    if (!QUESTION_CODE_PATTERN.test(code)) {
-        return { error: 'El código debe tener entre 2 y 64 caracteres y usar solo letras, números, guion y guion bajo.', payload: null };
+    if (!QUESTION_CODE_PATTERN.test(generatedCode)) {
+        return { error: 'No se pudo generar un código válido para la pregunta.', payload: null };
     }
 
     if (text.length < 3 || text.length > 500) {
@@ -296,7 +373,7 @@ function buildQuestionPayload(form: QuestionFormState) {
     }
 
     const payload: CreateQuestionnaireQuestionPayload = {
-        code,
+        code: generatedCode,
         text,
         response_type: form.responseType,
         position: parsedPosition
@@ -346,12 +423,25 @@ export default function PreguntasCuestionario() {
     const [notice, setNotice] = useState<string | null>(null);
     const [createdQuestions, setCreatedQuestions] = useState<QuestionDraft[]>([]);
 
+    const takenCodes = useMemo(() => new Set(createdQuestions.map((question) => question.code)), [createdQuestions]);
+    const currentTypeConfig = QUESTION_TYPE_CONFIG[form.responseType];
+    const parsedPosition = Number(form.position);
+
+    const generatedCode = useMemo(
+        () => buildGeneratedQuestionCode(form.responseType, parsedPosition, takenCodes),
+        [form.responseType, parsedPosition, takenCodes]
+    );
+
     const nextPosition = useMemo(() => {
         if (createdQuestions.length === 0) return 1;
         return Math.max(...createdQuestions.map((question) => question.position)) + 1;
     }, [createdQuestions]);
 
-    const currentTypeConfig = QUESTION_TYPE_CONFIG[form.responseType];
+    const parsedOrdinalPreview = useMemo(() => {
+        if (form.responseType !== 'ordinal') return [];
+        const parsed = parseOrdinalOptions(form.optionsText);
+        return parsed.options ?? [];
+    }, [form.optionsText, form.responseType]);
 
     const resetForm = () => {
         setForm({
@@ -359,6 +449,7 @@ export default function PreguntasCuestionario() {
             responseType: form.responseType,
             position: String(nextPosition)
         });
+        setError(null);
     };
 
     const handleTypeChange = (nextType: QuestionnaireQuestionResponseType) => {
@@ -380,7 +471,7 @@ export default function PreguntasCuestionario() {
             return;
         }
 
-        const { error: validationError, payload } = buildQuestionPayload(form);
+        const { error: validationError, payload } = buildQuestionPayload(form, generatedCode);
         if (validationError || !payload) {
             setError(validationError ?? 'Revisa los datos de la pregunta.');
             return;
@@ -404,6 +495,7 @@ export default function PreguntasCuestionario() {
                 response_step: payload.response_step ?? null,
                 response_options: payload.response_options
             };
+
             setCreatedQuestions((prev) =>
                 [...prev, draft].sort((left, right) => left.position - right.position)
             );
@@ -454,13 +546,8 @@ export default function PreguntasCuestionario() {
                     <h2>Agregar pregunta</h2>
 
                     <label>
-                        <span>Código</span>
-                        <input
-                            type="text"
-                            value={form.code}
-                            onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
-                            placeholder={currentTypeConfig.exampleCode}
-                        />
+                        <span>Código generado automáticamente</span>
+                        <input type="text" value={generatedCode} readOnly />
                     </label>
 
                     <label>
@@ -499,7 +586,7 @@ export default function PreguntasCuestionario() {
                         ) : null}
                         <div className="preguntas-help-example">
                             <strong>Ejemplo</strong>
-                            <span>Código: {currentTypeConfig.exampleCode}</span>
+                            <span>Código: {generatedCode}</span>
                             <span>Pregunta: {currentTypeConfig.exampleQuestion}</span>
                             <span>Ayuda: {currentTypeConfig.exampleHint}</span>
                         </div>
@@ -539,20 +626,53 @@ export default function PreguntasCuestionario() {
                         ) : null}
                     </div>
 
-                    {currentTypeConfig.showOptions ? (
-                        <label>
-                            <span>Opciones ordenadas</span>
-                            <textarea
-                                value={form.optionsText}
-                                onChange={(event) => setForm((prev) => ({ ...prev, optionsText: event.target.value }))}
-                                aria-label="Opciones de respuesta"
-                                placeholder={'leve|Leve\nmoderado|Moderado\nalto|Alto'}
-                            />
-                            <small>
-                                Escribe una opción por línea usando <code>valor|texto visible</code>.
-                            </small>
-                        </label>
-                    ) : null}
+                    <div className="preguntas-preview">
+                        <h3>Respuestas disponibles</h3>
+                        {currentTypeConfig.fixedResponses ? (
+                            <div className="preguntas-preview-list">
+                                {currentTypeConfig.fixedResponses.map((item) => (
+                                    <span key={`${item.value}-${item.label ?? 'value'}`} className="preguntas-preview-chip">
+                                        {item.label ? `${item.value} — ${item.label}` : item.value}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+
+                        {currentTypeConfig.fixedResponsesDescription ? (
+                            <p className="preguntas-preview-text">{currentTypeConfig.fixedResponsesDescription}</p>
+                        ) : null}
+
+                        {form.responseType === 'ordinal' ? (
+                            <>
+                                <label>
+                                    <span>Opciones ordenadas</span>
+                                    <textarea
+                                        value={form.optionsText}
+                                        onChange={(event) => setForm((prev) => ({ ...prev, optionsText: event.target.value }))}
+                                        aria-label="Opciones de respuesta"
+                                        placeholder={'leve|Leve\nmoderado|Moderado\nalto|Alto'}
+                                    />
+                                    <small>
+                                        Escribe una opción por línea usando <code>valor|texto visible</code>.
+                                    </small>
+                                </label>
+
+                                {parsedOrdinalPreview.length > 0 ? (
+                                    <div className="preguntas-preview-list">
+                                        {parsedOrdinalPreview.map((option) => (
+                                            <span key={`${option.value}-${option.label}`} className="preguntas-preview-chip">
+                                                {option.value} — {option.label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="preguntas-preview-text">
+                                        Agrega al menos dos opciones usando valor|texto visible.
+                                    </p>
+                                )}
+                            </>
+                        ) : null}
+                    </div>
 
                     <div className="admin-modal-actions">
                         <button type="button" className="admin-btn ghost" onClick={resetForm} disabled={submitting}>
