@@ -251,6 +251,7 @@ async function runEncryptedJsonRequest<T>(
             method,
             body,
             headers: buildHeaders(options, false),
+            getHeaders: () => buildHeaders(options, false),
             credentials: getRequestCredentials(options),
             requireEncryptedResponse,
             onUnauthorized: options?.retryAuth === false ? undefined : attemptRefresh

@@ -59,6 +59,7 @@ export interface EncryptedFetchOptions {
     method?: 'POST' | 'PATCH' | 'PUT';
     body?: unknown;
     headers?: Record<string, string>;
+    getHeaders?: () => Record<string, string>;
     credentials?: RequestCredentials;
     requireEncryptedResponse?: boolean;
     onUnauthorized?: () => Promise<boolean>;
@@ -244,6 +245,7 @@ export function clearTransportKeyCache() {
 
 type TransportKeyRequestContext = Readonly<{
     headers?: Record<string, string>;
+    getHeaders?: () => Record<string, string>;
     credentials?: RequestCredentials;
     onUnauthorized?: () => Promise<boolean>;
 }>;
@@ -263,12 +265,13 @@ export async function fetchTransportKey(
     }
 
     debugApiClient('request GET /api/v2/security/transport-key');
+    const dynamicHeaders = requestContext?.getHeaders?.() ?? requestContext?.headers ?? {};
 
     const response = await fetch(joinApiUrl('/api/v2/security/transport-key'), {
         method: 'GET',
         headers: {
             Accept: 'application/json',
-            ...(requestContext?.headers ?? {})
+            ...dynamicHeaders
         },
         credentials: requestContext?.credentials ?? 'include'
     });
@@ -380,15 +383,17 @@ async function executeEncryptedJsonFetch<T>(
 ): Promise<EncryptedFetchResult<T>> {
     const { envelope, aesKey } = await buildEncryptedEnvelope(options.body ?? {}, {
         headers: options.headers,
+        getHeaders: options.getHeaders,
         credentials: options.credentials,
         onUnauthorized: options.onUnauthorized
     });
     debugApiClient(`request ${options.method ?? 'POST'} ${url}`);
     debugApiClient(`encrypted request enabled=true cryptoVersion=${envelope.version}`);
+    const dynamicHeaders = options.getHeaders?.() ?? options.headers;
 
     const response = await fetch(url, {
         method: options.method ?? 'POST',
-        headers: getEnvelopeHeaders(envelope.version, options.headers),
+        headers: getEnvelopeHeaders(envelope.version, dynamicHeaders),
         credentials: options.credentials ?? 'include',
         body: JSON.stringify(envelope)
     });
