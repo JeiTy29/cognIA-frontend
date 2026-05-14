@@ -27,7 +27,7 @@ export interface AuthContextValue {
     logoutAsync: (reason?: LogoutReason) => Promise<void>;
     devLogout: () => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
-    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean }) => Promise<boolean>;
+    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean; force?: boolean }) => Promise<boolean>;
     reloadProfile: () => Promise<void>;
 }
 

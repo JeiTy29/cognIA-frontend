@@ -119,6 +119,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const verificationPromiseRef = useRef<Promise<boolean> | null>(null);
     const authEpochRef = useRef(0);
     const isMountedRef = useRef(true);
+    const authSnapshotRef = useRef({
+        authStatus,
+        sessionVerified,
+        profileStatus
+    });
 
     const updateDevAuthActive = useCallback((active: boolean) => {
         if (!devAuthBypassEnabled) return;
@@ -262,21 +267,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }, [applyAnonymousState, devAuthActive, setSession]);
 
-    const verifySession = useCallback(async (options?: { silent?: boolean; allowRefresh?: boolean }): Promise<boolean> => {
+    const verifySession = useCallback(async (options?: { silent?: boolean; allowRefresh?: boolean; force?: boolean }): Promise<boolean> => {
         if (verificationPromiseRef.current) {
             debugAuth('verifySession:reuse-promise', options);
             return verificationPromiseRef.current;
         }
 
         const verificationTask: Promise<boolean> = (async () => {
+            const snapshot = authSnapshotRef.current;
             debugAuth('verifySession:start', {
                 options,
-                authStatus,
-                sessionVerified,
-                profileStatus,
+                authStatus: snapshot.authStatus,
+                sessionVerified: snapshot.sessionVerified,
+                profileStatus: snapshot.profileStatus,
                 epoch: authEpochRef.current,
                 manualLogout: hasManualLogoutFlag()
             });
+
+            if (
+                !options?.force &&
+                snapshot.authStatus === 'authenticated' &&
+                snapshot.sessionVerified &&
+                snapshot.profileStatus === 'success' &&
+                !hasManualLogoutFlag()
+            ) {
+                debugAuth('verifySession:already-authenticated');
+                return true;
+            }
+
             if (devAuthActive) {
                 if (devProfile) {
                     setProfile(devProfile);
@@ -365,7 +383,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } finally {
             verificationPromiseRef.current = null;
         }
-    }, [applyAnonymousState, applyAuthenticatedProfile, authStatus, devAuthActive, devProfile, profileStatus, refreshSession, sessionVerified]);
+    }, [applyAnonymousState, applyAuthenticatedProfile, devAuthActive, devProfile, refreshSession]);
 
     const reloadProfile = useCallback(async () => {
         await verifySession({ silent: true, allowRefresh: true });
@@ -429,6 +447,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     useEffect(() => {
+        authSnapshotRef.current = {
+            authStatus,
+            sessionVerified,
+            profileStatus
+        };
+    }, [authStatus, profileStatus, sessionVerified]);
+
+    useEffect(() => {
         if (devAuthActive) {
             if (devProfile) {
                 setProfile(devProfile);
@@ -441,8 +467,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return;
         }
 
+        const alreadyVerified =
+            authStatus === 'authenticated' &&
+            sessionVerified &&
+            profileStatus === 'success';
+
+        if (alreadyVerified) {
+            return;
+        }
+
         void verifySession({ allowRefresh: true }).catch(() => false);
-    }, [devAuthActive, devProfile, verifySession]);
+    }, [authStatus, devAuthActive, devProfile, profileStatus, sessionVerified, verifySession]);
 
     useEffect(() => {
         if (devAuthActive) return undefined;
@@ -471,7 +506,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             debugAuth('onAuthRefresh', { expiresIn: detail.expiresIn, epoch: startedEpoch });
             setSession(detail.accessToken, detail.expiresIn);
         });
-    }, [setSession, verifySession, devAuthActive]);
+    }, [setSession, devAuthActive]);
 
     useEffect(() => {
         if (devAuthActive) return;
