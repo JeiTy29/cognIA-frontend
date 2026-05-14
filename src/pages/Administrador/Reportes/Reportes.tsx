@@ -16,7 +16,8 @@ import {
     formatDateTimeEsCO,
     formatFileSizeEs,
     getMimeTypeLabel,
-    getSourceModuleLabel
+    getSourceModuleLabel,
+    normalizeMojibakeText
 } from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './Reportes.css';
@@ -40,7 +41,7 @@ const issueTypeOptions = [
 const reporterRoleOptions = [
     { value: '', label: 'Todos' },
     { value: 'ADMIN', label: 'Administrador' },
-    { value: 'PSYCHOLOGIST', label: 'Psic?logo' },
+    { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
     { value: 'GUARDIAN', label: 'Padre/Tutor' }
 ];
 
@@ -154,7 +155,7 @@ function ReportDetailContent({
         <>
             <div className="admin-detail-list">
                 <div className="admin-detail-row">
-                    <strong>C?digo</strong>
+                    <strong>Código</strong>
                     <span>{detailItem.report_code}</span>
                 </div>
                 <div className="admin-detail-row">
@@ -170,12 +171,12 @@ function ReportDetailContent({
                     <span>{getProblemReportReporterRoleLabel(detailItem.reporter_role)}</span>
                 </div>
                 <div className="admin-detail-row">
-                    <strong>M?dulo</strong>
+                    <strong>Módulo</strong>
                     <span>{getSourceModuleLabel(detailItem.source_module)}</span>
                 </div>
                 <div className="admin-detail-row">
                     <strong>Pantalla o ruta de origen</strong>
-                    <span>{detailItem.source_path ?? '--'}</span>
+                    <span>{detailItem.source_path ? normalizeMojibakeText(detailItem.source_path) : '--'}</span>
                 </div>
                 <div className="admin-detail-row">
                     <strong>Creado</strong>
@@ -192,8 +193,8 @@ function ReportDetailContent({
             </div>
 
             <label>
-                <span>Descripci?n</span>
-                <textarea value={detailItem.description} readOnly />
+                <span>Descripción</span>
+                <textarea value={normalizeMojibakeText(detailItem.description)} readOnly />
             </label>
 
             {detailItem.attachments.length > 0 ? (
@@ -392,7 +393,7 @@ export default function ReportesAdmin() {
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por c?digo, m?dulo o descripci?n"
+                        placeholder="Buscar por código, módulo o descripción"
                         aria-label="Buscar reportes"
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -464,11 +465,11 @@ export default function ReportesAdmin() {
 
             <section className="admin-table" aria-label="Listado de reportes">
                 <div className="admin-table-head reportes-admin-grid">
-                    <span>C?digo</span>
+                    <span>Código</span>
                     <span>Tipo</span>
                     <span>Estado</span>
                     <span>Reportante</span>
-                    <span>M?dulo</span>
+                    <span>Módulo</span>
                     <span>Fecha</span>
                     <span>Acciones</span>
                 </div>
@@ -476,7 +477,7 @@ export default function ReportesAdmin() {
                 {renderTableContent()}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginaci?n de reportes">
+            <footer className="admin-pagination" aria-label="Paginación de reportes">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -484,17 +485,17 @@ export default function ReportesAdmin() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="P?gina anterior"
+                        aria-label="Página anterior"
                         onClick={() => setPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">P?gina {currentPage}</span>
+                    <span className="admin-page-current">Página {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="P?gina siguiente"
+                        aria-label="Página siguiente"
                         onClick={() => setPage(Math.min(pages, currentPage + 1))}
                         disabled={currentPage >= pages}
                     >
@@ -503,9 +504,9 @@ export default function ReportesAdmin() {
                 </div>
                 <div className="admin-page-size">
                     <label>
-                        <span>Tama?o</span>
+                        <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tama?o de p?gina"
+                            ariaLabel="Tamaño de página"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => changePageSize(Number(value))}

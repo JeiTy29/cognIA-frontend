@@ -22,12 +22,6 @@ const IconHistory = (
     </svg>
 );
 
-const IconLightbulb = (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 21h6v-1H9v1Zm3-20a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.26A7 7 0 0 0 12 1Zm2 11.1-1 1V16h-2v-2.9l-1-1A5 5 0 1 1 14 12.1Z" />
-    </svg>
-);
-
 const IconUser = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z" />
@@ -101,15 +95,6 @@ export const sidebarItems: SidebarItem[] = [
         paths: {
             padre: '/padre/historial',
             psicologo: '/psicologo/historial'
-        }
-    },
-    {
-        id: 'sugerencias',
-        label: 'Sugerencias',
-        icon: IconLightbulb,
-        roles: ['psicologo'],
-        paths: {
-            psicologo: '/psicologo/sugerencias'
         }
     },
     {

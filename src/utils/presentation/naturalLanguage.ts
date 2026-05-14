@@ -233,6 +233,41 @@ const PERCENT_KEYS = [
     'score'
 ];
 
+const MOJIBAKE_REPLACEMENTS: Array<[RegExp, string]> = [
+    [/sesi\?n/gi, 'sesión'],
+    [/acci\?n/gi, 'acción'],
+    [/evaluaci\?n/gi, 'evaluación'],
+    [/auditor\?a/gi, 'auditoría'],
+    [/psic\?logo/gi, 'psicólogo'],
+    [/contrase\?a/gi, 'contraseña'],
+    [/c\?digo/gi, 'código'],
+    [/m\?dulo/gi, 'módulo'],
+    [/descripci\?n/gi, 'descripción'],
+    [/direcci\?n/gi, 'dirección'],
+    [/paginaci\?n/gi, 'paginación'],
+    [/p\?gina/gi, 'página'],
+    [/tama\?o/gi, 'tamaño'],
+    [/pol\?tica/gi, 'política'],
+    [/t\?rminos/gi, 'términos'],
+    [/opci\?n/gi, 'opción'],
+    [/v\?lida/gi, 'válida'],
+    [/est\? /gi, 'está '],
+    [/vac\?o/gi, 'vacío'],
+    [/m\?ximo/gi, 'máximo'],
+    [/m\?s/gi, 'más'],
+    [/cl\?nica/gi, 'clínica'],
+    [/diagn\?stico/gi, 'diagnóstico'],
+    [/informaci\?n/gi, 'información'],
+    [/secci\?n/gi, 'sección'],
+    [/\bQu\?/g, 'Qué'],
+    [/\bC\?mo/g, 'Cómo'],
+    [/\bD\?nde/g, 'Dónde'],
+    [/seg\?n/gi, 'según'],
+    [/an\?lisis/gi, 'análisis'],
+    [/m\?ltiples/gi, 'múltiples'],
+    [/\bS\?/g, 'Sí']
+];
+
 function normalizeKey(value: string) {
     return value.trim().toLowerCase();
 }
@@ -245,6 +280,17 @@ function normalizeText(value: string) {
         .replaceAll('.', ' ')
         .replaceAll(/\s+/g, ' ')
         .trim();
+}
+
+export function normalizeMojibakeText(value: string) {
+    if (!value.trim()) return value;
+
+    let next = value;
+    for (const [pattern, replacement] of MOJIBAKE_REPLACEMENTS) {
+        next = next.replace(pattern, replacement);
+    }
+
+    return next;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -511,7 +557,7 @@ function resolveStringValueByKnownKey(normalizedKey: string, trimmed: string, fa
 }
 
 function formatNaturalStringValue(normalizedKey: string, value: string, fallback: string) {
-    const trimmed = value.trim();
+    const trimmed = normalizeMojibakeText(value).trim();
     if (!trimmed) return fallback;
 
     if (isDateLikeKey(normalizedKey) || isDateString(trimmed)) {

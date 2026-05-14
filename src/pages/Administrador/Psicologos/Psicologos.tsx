@@ -31,6 +31,11 @@ function getDisplayName(item: PsychologistAdminItem) {
     return item.full_name && item.full_name.trim().length > 0 ? item.full_name : 'Sin nombre';
 }
 
+function formatProfessionalCard(value: string | null | undefined) {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    return normalized.length > 0 ? normalized : 'Sin registrar';
+}
+
 export default function Psicologos() {
     const {
         items,
@@ -61,6 +66,7 @@ export default function Psicologos() {
                 item.username.toLowerCase().includes(normalizedSearch) ||
                 item.email.toLowerCase().includes(normalizedSearch) ||
                 item.id.toLowerCase().includes(normalizedSearch) ||
+                item.professional_card_number?.toLowerCase().includes(normalizedSearch) ||
                 getDisplayName(item).toLowerCase().includes(normalizedSearch);
 
             const matchesReview =
@@ -131,7 +137,7 @@ export default function Psicologos() {
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por ID, usuario o correo..."
+                        placeholder="Buscar por ID, usuario, correo o tarjeta..."
                         aria-label="Buscar psicólogos"
                         value={searchTerm}
                         onChange={(event) => {
@@ -160,6 +166,7 @@ export default function Psicologos() {
                 <div className="admin-table-head psicologos-grid">
                     <span>Usuario</span>
                     <span>Correo</span>
+                    <span>Tarjeta profesional</span>
                     <span>Estado</span>
                     <span>Motivo</span>
                     <span>Creado</span>
@@ -187,6 +194,7 @@ export default function Psicologos() {
                                     <div className="admin-muted">{item.username}</div>
                                 </div>
                                 <div>{item.email}</div>
+                                <div>{formatProfessionalCard(item.professional_card_number)}</div>
                                 <div>
                                     <span className={`admin-status-badge ${item.reviewState}`}>
                                         {item.reviewState === 'pending' ? 'Pendiente' : 'Rechazado'}
@@ -265,6 +273,9 @@ export default function Psicologos() {
                     <h2>Rechazar psicólogo</h2>
                     <p>
                         Indica la razón del rechazo para <strong>{selectedPsychologist?.username ?? ''}</strong>.
+                    </p>
+                    <p className="admin-muted">
+                        Tarjeta profesional: {formatProfessionalCard(selectedPsychologist?.professional_card_number)}
                     </p>
                     <label>
                         <span>Razón</span>
