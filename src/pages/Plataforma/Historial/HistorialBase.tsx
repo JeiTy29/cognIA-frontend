@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import cogniaLogoLight from '../../../assets/branding/cognia-logo-light.png';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
@@ -14,13 +15,7 @@ import {
     getQuestionnaireHistoryResultsV2,
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
-import {
-    getClinicalComorbiditySummary,
-    getRiskLevelPresentation,
-    getSafeClinicalDisclaimer
-} from '../../../services/questionnaires/clinicalSummary';
 import type {
-    QuestionnaireClinicalNarrativeV2DTO,
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
@@ -31,6 +26,10 @@ import type {
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
 import {
+    buildClinicalReportHtml,
+    buildReportViewModel
+} from '../../../utils/presentation/clinicalReport';
+import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
     getModeLabel,
@@ -38,6 +37,8 @@ import {
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
+import { buildReportFileName } from '../../../utils/presentation/reportFileName';
+import { buildAbsoluteShareUrl } from '../../../utils/presentation/shareUrl';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -49,19 +50,6 @@ interface HistorialBaseProps {
 interface BulletItem {
     key: string;
     text: string;
-}
-
-interface CompatibilityItem {
-    key: string;
-    domain: string;
-    probability: string;
-    risk: string;
-}
-
-interface SummaryPresentation {
-    bullets: Array<{ key: string; domain: string; level: string }>;
-    levelText: string | null;
-    paragraphs: string[];
 }
 
 const statusOptions = [
@@ -224,22 +212,6 @@ function shouldPreserveRawText(value: string) {
     return NON_TEXT_PATTERNS.some((pattern) => pattern.test(value));
 }
 
-function formatDomainLabel(domain: unknown): string {
-    const raw = typeof domain === 'string' ? domain.trim() : '';
-    if (!raw) return 'No disponible';
-    const normalized = raw.toLowerCase().replace(/-/g, '_');
-    if (DOMAIN_LABELS[normalized]) return DOMAIN_LABELS[normalized];
-
-    const readable = raw
-        .replace(/[_-]+/g, ' ')
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    if (!readable) return 'No disponible';
-    return readable.charAt(0).toUpperCase() + readable.slice(1);
-}
-
 function replaceKnownDomainsInText(text: string) {
     return Object.entries(DOMAIN_LABELS).sort((left, right) => right[0].length - left[0].length).reduce(
         (current, [domainKey, label]) =>
@@ -263,67 +235,6 @@ function normalizeMojibakeText(value: string) {
 function normalizeClinicalTextPresentation(value: unknown, fallback = 'No disponible') {
     if (typeof value !== 'string' || value.trim().length === 0) return fallback;
     return normalizeMojibakeText(value);
-}
-
-function toNumber(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string' && value.trim().length > 0) {
-        const normalized = value.replace(',', '.');
-        const parsed = Number(normalized);
-        return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
-}
-
-function formatProbability(value: unknown) {
-    const numeric = toNumber(value);
-    if (numeric === null) return 'No disponible';
-
-    const percentValue = numeric <= 1 ? numeric * 100 : numeric;
-    const rounded = Math.abs(percentValue - Math.round(percentValue)) < 0.05
-        ? Math.round(percentValue)
-        : Number(percentValue.toFixed(1));
-
-    return `${new Intl.NumberFormat('es-CO', {
-        minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
-        maximumFractionDigits: 1
-    }).format(rounded)}%`;
-}
-
-function formatRiskLabel(value: unknown) {
-    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
-    const labels: Record<string, string> = {
-        low: 'bajo',
-        baja: 'bajo',
-        moderate: 'intermedio',
-        intermedia: 'intermedio',
-        medium: 'intermedio',
-        elevated: 'elevado',
-        elevada: 'elevado',
-        high: 'alto',
-        alta: 'alto',
-        critical_review: 'revisión prioritaria',
-        relevant: 'relevante',
-        relevante: 'relevante',
-        unknown: 'no disponible'
-    };
-
-    if (!normalized) return 'no disponible';
-    return labels[normalized] ?? normalizeClinicalTextPresentation(value, 'no disponible').toLowerCase();
-}
-
-function formatCompatibilityLevel(value: unknown) {
-    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
-    const labels: Record<string, string> = {
-        baja: 'baja',
-        intermedia: 'intermedia',
-        elevada: 'elevada',
-        alta: 'alta',
-        critical_review: 'revisión prioritaria'
-    };
-
-    if (!normalized) return 'no disponible';
-    return labels[normalized] ?? normalizeClinicalTextPresentation(value, 'no disponible').toLowerCase();
 }
 
 function getApiErrorCode(error: unknown) {
@@ -393,16 +304,6 @@ function downloadBlob(blob: Blob, filename: string) {
     URL.revokeObjectURL(href);
 }
 
-function getPdfStatusLabel(status: string | undefined) {
-    const normalized = (status ?? '').trim().toLowerCase();
-    if (!normalized) return 'Sin generar';
-    if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
-    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparación';
-    if (['processing', 'running', 'building'].includes(normalized)) return 'Preparándose';
-    if (['failed', 'error'].includes(normalized)) return 'Error en generación';
-    return normalizeClinicalTextPresentation(status ?? '', 'Sin generar');
-}
-
 function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number) {
     const named = getString(item.title ?? item.name, '');
     if (named) return normalizeClinicalTextPresentation(named, '');
@@ -410,185 +311,6 @@ function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number)
     const status = normalizeClinicalTextPresentation(getStatusLabel(item.status, ''), '');
     if (mode && status) return `${mode} · ${status}`;
     return `Registro ${index + 1}`;
-}
-
-function getClinicalSectionText(
-    summary: QuestionnaireClinicalSummaryV2DTO | null,
-    key: keyof QuestionnaireClinicalNarrativeV2DTO
-) {
-    const narrativeValue = readOptionalString(summary?.simulated_diagnostic_text?.[key]);
-    if (narrativeValue) return narrativeValue;
-
-    const sections = summary?.sections;
-    if (Array.isArray(sections)) {
-        const section = sections.find((item) => readOptionalString(item.key) === key);
-        const sectionContent = readOptionalString(section?.content);
-        if (sectionContent) return sectionContent;
-    } else if (sections && typeof sections === 'object') {
-        const sectionContent = readOptionalString((sections as Record<string, unknown>)[key]);
-        if (sectionContent) return sectionContent;
-    }
-
-    return null;
-}
-
-function collectStructuredDomains(
-    summary: QuestionnaireClinicalSummaryV2DTO | null,
-    results: QuestionnaireSecureResultsV2DTO | null
-) {
-    if (Array.isArray(summary?.domains) && summary.domains.length > 0) {
-        return summary.domains;
-    }
-
-    if (Array.isArray(results?.domains) && results.domains.length > 0) {
-        return results.domains;
-    }
-
-    return [];
-}
-
-function parseCompatibilityFromText(text: string): CompatibilityItem[] {
-    return text
-        .split(/[;|\n]+/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .map((item, index) => {
-            const match = /^([^:]+):\s*prob(?:abilidad)?\s*=?\s*([0-9]+(?:[.,][0-9]+)?)\s*,?\s*riesgo\s*=?\s*([A-Za-z_áéíóúüñÁÉÍÓÚÜÑ-]+)\.?$/i.exec(item);
-            if (!match) return null;
-            return {
-                key: `legacy-compatibility-${index}`,
-                domain: formatDomainLabel(match[1]),
-                probability: formatProbability(match[2]),
-                risk: formatRiskLabel(match[3])
-            } satisfies CompatibilityItem;
-        })
-        .filter((item): item is CompatibilityItem => Boolean(item));
-}
-
-function buildCompatibilityItems(
-    summary: QuestionnaireClinicalSummaryV2DTO | null,
-    results: QuestionnaireSecureResultsV2DTO | null
-) {
-    const structuredDomains = collectStructuredDomains(summary, results);
-    if (structuredDomains.length > 0) {
-        return structuredDomains
-            .map((domain, index) => {
-                const domainLabel = formatDomainLabel(domain.domain);
-                const probability = formatProbability(domain.probability);
-                const risk = formatRiskLabel(
-                    'risk_level' in domain
-                        ? domain.risk_level ?? domain.compatibility_level ?? domain.alert_level
-                        : domain.alert_level
-                );
-
-                return {
-                    key: `${String(domain.domain ?? domainLabel)}-${index}`,
-                    domain: domainLabel,
-                    probability,
-                    risk
-                } satisfies CompatibilityItem;
-            })
-            .filter((item) => item.domain !== 'No disponible');
-    }
-
-    const rawText = getClinicalSectionText(summary, 'niveles_de_compatibilidad');
-    if (!rawText) return [];
-    return parseCompatibilityFromText(normalizeClinicalTextPresentation(rawText, ''));
-}
-
-function parseDomainNarrativeItems(sourceText: string) {
-    return sourceText
-        .split(/[|\n;]+/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .map((item, index) => {
-            const match = /^([^:]+):\s*(.+)$/i.exec(item);
-            if (!match) {
-                return {
-                    key: `generic-${index}`,
-                    text: normalizeClinicalTextPresentation(item)
-                } satisfies BulletItem;
-            }
-
-            return {
-                key: `domain-${index}`,
-                text: `${formatDomainLabel(match[1])}: ${normalizeClinicalTextPresentation(match[2])}`
-            } satisfies BulletItem;
-        });
-}
-
-function buildIndicatorItems(
-    summary: QuestionnaireClinicalSummaryV2DTO | null,
-    results: QuestionnaireSecureResultsV2DTO | null
-) {
-    const structuredDomains = collectStructuredDomains(summary, results);
-    const structuredIndicators = structuredDomains
-        .map((domain, index) => {
-            const mainIndicators =
-                'main_indicators' in domain && Array.isArray(domain.main_indicators)
-                    ? domain.main_indicators.map((item) => normalizeClinicalTextPresentation(item, '')).filter(Boolean)
-                    : [];
-
-            if (mainIndicators.length === 0) return null;
-            return {
-                key: `indicator-${index}`,
-                text: `${formatDomainLabel(domain.domain)}: ${mainIndicators.join(' ')}`
-            } satisfies BulletItem;
-        })
-        .filter((item): item is BulletItem => Boolean(item));
-
-    if (structuredIndicators.length > 0) {
-        return structuredIndicators;
-    }
-
-    const rawText = getClinicalSectionText(summary, 'indicadores_principales_observados');
-    if (!rawText) return [];
-    return parseDomainNarrativeItems(normalizeClinicalTextPresentation(rawText, ''));
-}
-
-function splitSentences(text: string) {
-    return text
-        .split(/(?<=[.!?])\s+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
-}
-
-function buildSummaryPresentation(summary: QuestionnaireClinicalSummaryV2DTO | null): SummaryPresentation {
-    const rawText = getClinicalSectionText(summary, 'sintesis_general');
-    if (!rawText) {
-        return {
-            bullets: [],
-            levelText: null,
-            paragraphs: []
-        };
-    }
-
-    const normalized = normalizeClinicalTextPresentation(rawText, '');
-    const sentences = splitSentences(normalized);
-    const compatibilitySentence =
-        sentences.find((sentence) => /compatibilidad/i.test(sentence) && /\(.+\)/.test(sentence)) ?? null;
-    const levelSentence =
-        sentences.find((sentence) => /^Nivel global estimado:/i.test(sentence)) ?? null;
-
-    const bullets = compatibilitySentence
-        ? Array.from(compatibilitySentence.matchAll(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_-]+)\s*\(([^)]+)\)/g)).map((match, index) => ({
-            key: `summary-${index}`,
-            domain: formatDomainLabel(match[1]),
-            level: formatCompatibilityLevel(match[2])
-        }))
-        : [];
-
-    const levelText = levelSentence
-        ? normalizeClinicalTextPresentation(levelSentence.replace(/^Nivel global estimado:\s*/i, '').replace(/\.$/, ''))
-        : null;
-
-    const paragraphs = sentences.filter((sentence) => sentence !== compatibilitySentence && sentence !== levelSentence);
-
-    return {
-        bullets,
-        levelText,
-        paragraphs
-    };
 }
 
 function resolveSessionMetadataRows(
@@ -786,52 +508,21 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     );
 
     const shareLink = useMemo(
-        () => sharePayload?.shared_url ?? sharePayload?.shared_path ?? sharePayload?.url ?? null,
+        () => {
+            const rawLink = sharePayload?.shared_url ?? sharePayload?.shared_path ?? sharePayload?.url ?? null;
+            return rawLink ? buildAbsoluteShareUrl(rawLink) : null;
+        },
         [sharePayload]
     );
 
-    const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
-    const clinicalRisk = useMemo(
-        () => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null),
-        [clinicalSummaryPayload?.overall_risk_level]
-    );
-    const clinicalDisclaimer = useMemo(
-        () => normalizeClinicalTextPresentation(getSafeClinicalDisclaimer(clinicalSummaryPayload)),
-        [clinicalSummaryPayload]
-    );
-    const clinicalComorbiditySummary = useMemo(
-        () => normalizeClinicalTextPresentation(getClinicalComorbiditySummary(clinicalSummaryPayload), ''),
-        [clinicalSummaryPayload]
-    );
-
-    const compatibilityItems = useMemo(
-        () => buildCompatibilityItems(clinicalSummaryPayload, resultsPayload),
-        [clinicalSummaryPayload, resultsPayload]
-    );
-    const indicatorItems = useMemo(
-        () => buildIndicatorItems(clinicalSummaryPayload, resultsPayload),
-        [clinicalSummaryPayload, resultsPayload]
-    );
-    const summaryPresentation = useMemo(
-        () => buildSummaryPresentation(clinicalSummaryPayload),
-        [clinicalSummaryPayload]
-    );
-
-    const impactText = useMemo(
-        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'impacto_funcional')),
-        [clinicalSummaryPayload]
-    );
-    const recommendationText = useMemo(
-        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'recomendacion_profesional')),
-        [clinicalSummaryPayload]
-    );
-    const clarificationText = useMemo(
-        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'aclaracion_importante')),
-        [clinicalSummaryPayload]
-    );
-    const compatibilityFallbackText = useMemo(
-        () => normalizeClinicalTextPresentation(getClinicalSectionText(clinicalSummaryPayload, 'niveles_de_compatibilidad'), ''),
-        [clinicalSummaryPayload]
+    const reportViewModel = useMemo(
+        () =>
+            buildReportViewModel({
+                session: detailPayload,
+                results: resultsPayload,
+                clinicalSummary: clinicalSummaryPayload
+            }),
+        [clinicalSummaryPayload, detailPayload, resultsPayload]
     );
 
     const historyRowsContent = (() => {
@@ -988,21 +679,76 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         }
     };
 
-    const handleDownloadPdf = async () => {
+    const handleDownloadReport = async () => {
         if (!detailSessionId) return;
         setPdfWorking(true);
         setPdfError(null);
-        setPdfNotice('Preparando PDF...');
+        setPdfNotice('Preparando reporte...');
         try {
-            await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            const pdfInfo = await getQuestionnaireHistoryPdfV2(detailSessionId);
-            setPdfPayload(pdfInfo);
-            const download = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
-            downloadBlob(download.blob, pdfInfo.filename ?? download.filename);
-            setPdfNotice('Descarga iniciada.');
-        } catch (actionError) {
-            setPdfError(buildActionErrorMessage(actionError, 'No se pudo preparar el PDF. Intenta nuevamente.'));
-            setPdfNotice(null);
+            let nextResults = resultsPayload;
+            let nextSummary = clinicalSummaryPayload;
+
+            if (!nextResults && canLoadClinicalArtifacts(detailPayload?.status)) {
+                nextResults = await getQuestionnaireHistoryResultsV2(detailSessionId);
+                setResultsPayload(nextResults);
+            }
+
+            if (!nextSummary && canLoadClinicalArtifacts(detailPayload?.status)) {
+                try {
+                    nextSummary = await getQuestionnaireClinicalSummaryV2(detailSessionId);
+                    setClinicalSummaryPayload(nextSummary);
+                } catch (summaryError) {
+                    setDetailNotice(buildActionErrorMessage(summaryError, 'No fue posible cargar el resumen clínico orientativo.'));
+                }
+            }
+
+            const nextViewModel = buildReportViewModel({
+                session: detailPayload,
+                results: nextResults,
+                clinicalSummary: nextSummary
+            });
+            const fileName = buildReportFileName(
+                {
+                    questionnaire_id: detailPayload?.questionnaire_id
+                },
+                'pdf'
+            );
+            const reportHtml = buildClinicalReportHtml(nextViewModel, {
+                logoUrl: cogniaLogoLight,
+                fileTitle: fileName
+            });
+
+            const reportWindow = window.open('', '_blank', 'noopener,noreferrer');
+            if (!reportWindow) {
+                throw new Error('report_window_blocked');
+            }
+
+            reportWindow.document.open();
+            reportWindow.document.write(reportHtml);
+            reportWindow.document.close();
+            reportWindow.focus();
+            setPdfNotice('Reporte abierto. Usa Guardar como PDF para descargarlo.');
+        } catch {
+            try {
+                await generateQuestionnaireHistoryPdfV2(detailSessionId);
+                const pdfInfo = await getQuestionnaireHistoryPdfV2(detailSessionId);
+                setPdfPayload(pdfInfo);
+                const download = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
+                downloadBlob(
+                    download.blob,
+                    buildReportFileName(
+                        {
+                            questionnaire_id: detailPayload?.questionnaire_id
+                        },
+                        'pdf'
+                    )
+                );
+                setPdfNotice('Se descargó una versión resumida del reporte.');
+                setPdfError(null);
+            } catch (fallbackError) {
+                setPdfError(buildActionErrorMessage(fallbackError, 'No se pudo preparar el reporte. Intenta nuevamente.'));
+                setPdfNotice(null);
+            }
         } finally {
             setPdfWorking(false);
         }
@@ -1106,15 +852,15 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             <div className="historial-v2-detail-list">
                                 <div className="historial-v2-detail-item">
                                     <strong>Estado</strong>
-                                    <span>{normalizeClinicalTextPresentation(getStatusLabel(getString(detailPayload.status, '')), '--')}</span>
+                                    <span>{reportViewModel.statusLabel}</span>
                                 </div>
                                 <div className="historial-v2-detail-item">
                                     <strong>Modo de evaluación</strong>
-                                    <span>{normalizeClinicalTextPresentation(getModeLabel(getString(detailPayload.mode, '')), '--')}</span>
+                                    <span>{reportViewModel.modeLabel}</span>
                                 </div>
                                 <div className="historial-v2-detail-item">
                                     <strong>Perfil que respondió</strong>
-                                    <span>{normalizeClinicalTextPresentation(getRoleLabel(getString(detailPayload.role, '')), '--')}</span>
+                                    <span>{reportViewModel.roleLabel}</span>
                                 </div>
                                 <div className="historial-v2-detail-item">
                                     <strong>Última actualización</strong>
@@ -1132,7 +878,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     <div className="historial-v2-detail-list">
                                         <div className="historial-v2-detail-item">
                                             <strong>Nivel de alerta</strong>
-                                            <span>{normalizeClinicalTextPresentation(clinicalRisk.label, 'No disponible')}</span>
+                                            <span>{reportViewModel.overallRiskLabel}</span>
                                         </div>
                                         <div className="historial-v2-detail-item">
                                             <strong>Generado</strong>
@@ -1143,53 +889,51 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     <p>No fue posible cargar el informe orientativo completo para esta sesión.</p>
                                 )}
 
-                                {clinicalComorbiditySummary ? (
+                                {reportViewModel.comorbidityText ? (
                                     <div className="historial-v2-warning">
-                                        <strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}
+                                        <strong>Posible coexistencia de señales.</strong> {reportViewModel.comorbidityText}
                                     </div>
                                 ) : null}
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Síntesis general</h3>
-                                {summaryPresentation.bullets.length > 0 ? (
+                                {reportViewModel.summaryBlocks.bullets.length > 0 ? (
                                     <>
                                         <p className="historial-v2-section-label">Mayor compatibilidad observada:</p>
                                         <ul className="historial-v2-bullet-list">
-                                            {summaryPresentation.bullets.map((item) => (
+                                            {reportViewModel.summaryBlocks.bullets.map((item) => (
                                                 <li key={item.key}>{item.domain}: {item.level}.</li>
                                             ))}
                                         </ul>
                                     </>
                                 ) : null}
-                                {summaryPresentation.levelText ? (
+                                {reportViewModel.summaryBlocks.levelText ? (
                                     <p className="historial-v2-text-block">
-                                        <strong>Nivel global estimado:</strong> {summaryPresentation.levelText}.
+                                        <strong>Nivel global estimado:</strong> {reportViewModel.summaryBlocks.levelText}.
                                     </p>
                                 ) : null}
-                                {summaryPresentation.paragraphs.length > 0 ? (
-                                    summaryPresentation.paragraphs.map((paragraph, index) => (
+                                {reportViewModel.summaryBlocks.paragraphs.length > 0 ? (
+                                    reportViewModel.summaryBlocks.paragraphs.map((paragraph, index) => (
                                         <p className="historial-v2-text-block" key={`summary-paragraph-${index}`}>
                                             {paragraph}
                                         </p>
                                     ))
-                                ) : summaryPresentation.bullets.length === 0 ? (
+                                ) : reportViewModel.summaryBlocks.bullets.length === 0 ? (
                                     <p>No se recibió contenido para esta sección en el informe actual.</p>
                                 ) : null}
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Niveles de compatibilidad</h3>
-                                {compatibilityItems.length > 0 ? (
+                                {reportViewModel.compatibilityItems.length > 0 ? (
                                     <ul className="historial-v2-bullet-list">
-                                        {compatibilityItems.map((item) => (
+                                        {reportViewModel.compatibilityItems.map((item) => (
                                             <li key={item.key}>
-                                                {item.domain}: probabilidad {item.probability}, riesgo {item.risk}.
+                                                {item.text}
                                             </li>
                                         ))}
                                     </ul>
-                                ) : compatibilityFallbackText ? (
-                                    <p className="historial-v2-text-block">{compatibilityFallbackText}</p>
                                 ) : (
                                     <p>No se recibió información estructurada de compatibilidad.</p>
                                 )}
@@ -1197,24 +941,24 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                             <BulletList
                                 title="Indicadores principales observados"
-                                items={indicatorItems}
+                                items={reportViewModel.indicators}
                                 emptyText="No se recibieron indicadores estructurados para esta sesión."
                             />
 
                             <div className="historial-v2-section">
                                 <h3>Impacto funcional</h3>
-                                <p className="historial-v2-text-block">{impactText}</p>
+                                <p className="historial-v2-text-block">{reportViewModel.functionalImpact}</p>
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Recomendación profesional</h3>
-                                <p className="historial-v2-text-block">{recommendationText}</p>
+                                <p className="historial-v2-text-block">{reportViewModel.professionalRecommendation}</p>
                             </div>
 
                             <div className="historial-v2-section">
                                 <h3>Aclaración importante</h3>
-                                <p className="historial-v2-text-block">{clarificationText}</p>
-                                <p className="historial-v2-helper-text">{clinicalDisclaimer}</p>
+                                <p className="historial-v2-text-block">{reportViewModel.clarification}</p>
+                                <p className="historial-v2-helper-text">{reportViewModel.disclaimer}</p>
                             </div>
 
                             <div className="historial-v2-section">
@@ -1357,10 +1101,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Documento PDF</h3>
+                                <h3>Reporte orientativo</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Estado actual: <strong>{pdfStatusText}</strong>
+                                        Prepara un reporte ampliado con portada visual, resultados por áreas y recomendaciones usando la información disponible del historial.
                                     </p>
                                     {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                     {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}
@@ -1368,10 +1112,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         <button
                                             type="button"
                                             className="historial-v2-btn"
-                                            onClick={() => { runHistoryTask(handleDownloadPdf); }}
+                                            onClick={() => { runHistoryTask(handleDownloadReport); }}
                                             disabled={pdfWorking}
                                         >
-                                            {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
+                                            {pdfWorking ? 'Preparando reporte...' : 'Descargar reporte'}
                                         </button>
                                     </div>
                                     {pdfPayload?.generated_at ? (
