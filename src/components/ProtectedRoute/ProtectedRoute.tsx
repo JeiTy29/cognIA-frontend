@@ -3,8 +3,8 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
 import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
-import './ProtectedRoute.css';
 import SupportContact from '../SupportContact/SupportContact';
+import './ProtectedRoute.css';
 
 type ProtectedRouteProps = Readonly<{
     allowedRoles?: string[];
@@ -64,7 +64,7 @@ function ProtectedRouteLoader({ onResetSession }: ProtectedRouteLoaderProps) {
     return (
         <div className="auth-guard-content-loading" aria-live="polite">
             <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
-            <p>{loaderTimedOut ? 'La validación de la sesión está tardando más de lo esperado.' : 'Cargando vista...'}</p>
+            <p>{loaderTimedOut ? 'No se pudo completar la validación de sesión.' : 'Cargando vista...'}</p>
             {loaderTimedOut ? (
                 <button
                     type="button"

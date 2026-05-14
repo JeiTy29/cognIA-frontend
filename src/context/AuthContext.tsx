@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { decodeJwtPayload, isJwtExpired, type JwtPayload } from '../utils/auth/jwt';
+import { decodeJwtPayload, type JwtPayload } from '../utils/auth/jwt';
 import { getPrimaryRole } from '../utils/auth/roles';
 import { refreshAccessToken } from '../services/auth/auth.refresh';
 import { getAuthMe, logout as requestLogout } from '../services/auth/auth.api';
@@ -57,24 +57,6 @@ function computeExpiresAt(payload: JwtPayload | null, expiresIn?: number) {
         return Date.now() + expiresIn * 1000;
     }
     return null;
-}
-
-function isTokenExpired(
-    storedToken: string | null,
-    storedPayload: JwtPayload | null,
-    storedExpiresAt: number | null
-) {
-    const invalidToken = Boolean(storedToken) && !storedPayload;
-    if (invalidToken) {
-        return true;
-    }
-    if (storedPayload?.exp) {
-        return isJwtExpired(storedPayload.exp);
-    }
-    if (storedExpiresAt) {
-        return Date.now() >= storedExpiresAt;
-    }
-    return true;
 }
 
 function resolvePageShowRevalidation(event: PageTransitionEvent) {
@@ -323,25 +305,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setProfileStatus('loading');
             setProfileErrorStatus(null);
 
-            const currentToken = getStoredToken();
-            const currentPayload = currentToken ? decodeJwtPayload(currentToken) : null;
-            const currentExpiresAt = getStoredExpiresAt() ?? computeExpiresAt(currentPayload);
-
-            if (!currentToken || isTokenExpired(currentToken, currentPayload, currentExpiresAt)) {
-                clearAuthClientState();
-                if (!allowRefresh) {
-                    applyAnonymousState(currentToken ? 'expired' : undefined);
-                    return false;
-                }
-
-                const refreshed = await refreshSession({ silent: true });
-                if (!refreshed) {
-                    debugAuth('verifySession:refresh-pre-me:failed');
-                    return false;
-                }
-                startedEpoch = authEpochRef.current;
-            }
-
+            debugAuth('verifySession:me:first');
             let meResponse = await timeoutPromise(getAuthMe(), SESSION_TIMEOUT_MS);
             debugAuth('verifySession:me:first', meResponse);
             if (hasManualLogoutFlag()) {
@@ -506,7 +470,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (!isMountedRef.current || authEpochRef.current !== startedEpoch) return;
             debugAuth('onAuthRefresh', { expiresIn: detail.expiresIn, epoch: startedEpoch });
             setSession(detail.accessToken, detail.expiresIn);
-            void verifySession({ silent: true, allowRefresh: false }).catch(() => false);
         });
     }, [setSession, verifySession, devAuthActive]);
 
