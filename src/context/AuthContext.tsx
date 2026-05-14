@@ -407,6 +407,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const logoutAsync = useCallback(async (reason: LogoutReason = 'manual') => {
         authEpochRef.current += 1;
         debugAuth('logout:start', { reason, epoch: authEpochRef.current });
+        const accessTokenSnapshot = getStoredToken() ?? accessToken;
 
         if (reason === 'manual') {
             markManualLogoutFlag();
@@ -419,7 +420,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         try {
-            const response = await requestLogout();
+            const response = await requestLogout(accessTokenSnapshot ?? undefined);
             debugAuth('logout:request:status', response);
         } catch (error) {
             if (import.meta.env.DEV) {
@@ -433,7 +434,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 console.warn('No fue posible completar /api/auth/logout en frontend.', { status, payload });
             }
         }
-    }, [applyAnonymousState, devAuthActive]);
+    }, [accessToken, applyAnonymousState, devAuthActive]);
 
     const logout = useCallback((reason: LogoutReason = 'manual') => {
         void logoutAsync(reason);

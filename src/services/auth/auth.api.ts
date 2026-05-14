@@ -134,18 +134,29 @@ export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse>
     }
 }
 
-export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {
+export async function logout(accessTokenSnapshot?: string): Promise<LogoutResponse | LogoutErrorResponse> {
     const csrfToken = getCsrfToken();
     if (import.meta.env.DEV && !csrfToken) {
         console.warn('[auth] logout:csrf-missing', {
             csrfCookieName: 'csrf_refresh_token'
         });
     }
+    const headers: Record<string, string> = {};
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+    const authorization = accessTokenSnapshot
+        ? buildAuthorizationHeader(accessTokenSnapshot)
+        : null;
+    if (authorization) {
+        headers.Authorization = authorization;
+    }
     try {
         const response = await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
-            headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+            headers: Object.keys(headers).length > 0 ? headers : undefined,
             credentials: 'include',
-            retryAuth: false
+            retryAuth: false,
+            auth: !accessTokenSnapshot
         });
         if (import.meta.env.DEV) {
             console.debug('[auth] logout:api:ok', response);
