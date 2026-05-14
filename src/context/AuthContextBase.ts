@@ -12,6 +12,7 @@ export interface AuthContextValue {
     sessionVerified: boolean;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
+    isSessionRefreshing: boolean;
     primaryRole: AppRole | null;
     profile: AuthMeResponse | null;
     profileStatus: 'idle' | 'loading' | 'success' | 'error';

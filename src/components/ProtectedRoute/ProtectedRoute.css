@@ -16,6 +16,14 @@
     text-align: center;
 }
 
+.auth-guard-shell {
+    background: #ffffff;
+}
+
+.auth-guard-shell-content {
+    min-height: calc(100vh - 48px);
+}
+
 .auth-guard-content-loading p {
     margin: 0;
     font-size: 14px;

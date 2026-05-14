@@ -40,6 +40,7 @@ type AuthProviderProps = Readonly<{
 }>;
 
 const SESSION_TIMEOUT_MS = 10000;
+const REFRESH_SKEW_MS = 60_000;
 
 function debugAuth(label: string, payload?: unknown) {
     if (!import.meta.env.DEV) return;
@@ -113,6 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [authStatus, setAuthStatus] = useState<AuthStatus>(devAuthActive ? 'authenticated' : (manualLogoutActive ? 'anonymous' : 'checking'));
     const [sessionVerified, setSessionVerified] = useState<boolean>(devAuthActive);
     const [isAuthLoading, setIsAuthLoading] = useState<boolean>(!manualLogoutActive && !devAuthActive);
+    const [isSessionRefreshing, setIsSessionRefreshing] = useState(false);
     const [profile, setProfile] = useState<AuthMeResponse | null>(devAuthActive ? devProfile : null);
     const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(devAuthActive ? 'success' : 'idle');
     const [profileErrorStatus, setProfileErrorStatus] = useState<number | null>(null);
@@ -155,6 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAuthStatus('anonymous');
         setSessionVerified(false);
         setIsAuthLoading(false);
+        setIsSessionRefreshing(false);
         verificationPromiseRef.current = null;
         clearAuthClientState();
 
@@ -184,12 +187,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAuthStatus('checking');
         setSessionVerified(false);
         setIsAuthLoading(true);
+        setIsSessionRefreshing(false);
         setProfileStatus('loading');
         setProfileErrorStatus(null);
         setStoredToken(token);
         setStoredExpiresAt(nextExpiresAt);
         clearManualLogoutFlag();
         clearAuthNotice();
+    }, []);
+
+    const applyRefreshedToken = useCallback((token: string, expiresIn?: number) => {
+        const payload = decodeJwtPayload(token);
+        const nextExpiresAt = computeExpiresAt(payload, expiresIn);
+        debugAuth('token:apply-refreshed', { expiresIn, expiresAt: nextExpiresAt });
+        setAccessToken(token);
+        setExpiresAt(nextExpiresAt);
+        if (Array.isArray(payload?.roles) && payload.roles.length > 0) {
+            setRoles(payload.roles);
+        }
+        if (typeof payload?.sub === 'string' && payload.sub.trim().length > 0) {
+            setUserId(payload.sub.trim());
+        }
+        setStoredToken(token);
+        setStoredExpiresAt(nextExpiresAt);
+        clearManualLogoutFlag();
+        clearAuthNotice();
+        setAuthStatus('authenticated');
+        setSessionVerified(true);
+        setIsAuthLoading(false);
+        setIsSessionRefreshing(false);
+        setProfileStatus((current) => (current === 'success' ? 'success' : current));
     }, []);
 
     const applyAuthenticatedProfile = useCallback((meResponse: AuthMeResponse, startedEpoch: number) => {
@@ -213,6 +240,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAuthStatus('authenticated');
         setSessionVerified(true);
         setIsAuthLoading(false);
+        setIsSessionRefreshing(false);
         clearManualLogoutFlag();
         return true;
     }, [applyAnonymousState]);
@@ -232,8 +260,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         const startedEpoch = authEpochRef.current;
-        if (!options?.silent) {
+        const snapshot = authSnapshotRef.current;
+        const preserveAuthenticatedSession =
+            snapshot.authStatus === 'authenticated' &&
+            snapshot.sessionVerified;
+
+        if (!options?.silent && !preserveAuthenticatedSession) {
             setIsAuthLoading(true);
+        }
+        if (preserveAuthenticatedSession) {
+            setIsSessionRefreshing(true);
         }
 
         try {
@@ -251,6 +287,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return false;
             }
 
+            if (preserveAuthenticatedSession) {
+                applyRefreshedToken(response.access_token, response.expires_in);
+                return true;
+            }
+
             setSession(response.access_token, response.expires_in);
             return true;
         } catch {
@@ -262,11 +303,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             applyAnonymousState('expired');
             return false;
         } finally {
+            setIsSessionRefreshing(false);
             if (!options?.silent && hasManualLogoutFlag()) {
                 setIsAuthLoading(false);
             }
         }
-    }, [applyAnonymousState, devAuthActive, setSession]);
+    }, [applyAnonymousState, applyRefreshedToken, devAuthActive, setSession]);
 
     const verifySession = useCallback(async (options?: { silent?: boolean; allowRefresh?: boolean; force?: boolean }): Promise<boolean> => {
         if (verificationPromiseRef.current) {
@@ -305,6 +347,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 setAuthStatus('authenticated');
                 setSessionVerified(true);
                 setIsAuthLoading(false);
+                setIsSessionRefreshing(false);
                 return true;
             }
 
@@ -414,6 +457,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAuthStatus('anonymous');
         setSessionVerified(false);
         setIsAuthLoading(false);
+        setIsSessionRefreshing(false);
     }, [updateDevAuthActive]);
 
     const logoutAsync = useCallback(async (reason: LogoutReason = 'manual') => {
@@ -477,6 +521,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setAuthStatus('authenticated');
             setSessionVerified(true);
             setIsAuthLoading(false);
+            setIsSessionRefreshing(false);
             return;
         }
 
@@ -517,26 +562,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const startedEpoch = authEpochRef.current;
             if (!isMountedRef.current || authEpochRef.current !== startedEpoch) return;
             debugAuth('onAuthRefresh', { expiresIn: detail.expiresIn, epoch: startedEpoch });
-            setSession(detail.accessToken, detail.expiresIn);
+            applyRefreshedToken(detail.accessToken, detail.expiresIn);
         });
-    }, [setSession, devAuthActive]);
+    }, [applyRefreshedToken, devAuthActive]);
 
     useEffect(() => {
         if (devAuthActive) return;
-        if (!expiresAt || authStatus !== 'authenticated' || hasManualLogoutFlag()) return;
+        if (!expiresAt || authStatus !== 'authenticated' || !sessionVerified || hasManualLogoutFlag()) return;
+        if (isSessionRefreshing) return;
 
-        const timeLeft = expiresAt - Date.now();
-        if (timeLeft <= 0) {
-            void refreshSession({ silent: true }).catch(() => false);
+        const timeUntilRefresh = expiresAt - Date.now() - REFRESH_SKEW_MS;
+        debugAuth('refresh:schedule', { expiresAt, timeUntilRefresh });
+
+        if (timeUntilRefresh <= 0) {
+            debugAuth('refresh:proactive:start');
+            void refreshSession({ silent: true })
+                .then((ok) => {
+                    debugAuth(ok ? 'refresh:proactive:ok' : 'refresh:proactive:failed');
+                })
+                .catch(() => {
+                    debugAuth('refresh:proactive:failed');
+                });
             return;
         }
 
         const timeoutId = globalThis.setTimeout(() => {
-            void refreshSession({ silent: true }).catch(() => false);
-        }, timeLeft);
+            debugAuth('refresh:proactive:start');
+            void refreshSession({ silent: true })
+                .then((ok) => {
+                    debugAuth(ok ? 'refresh:proactive:ok' : 'refresh:proactive:failed');
+                })
+                .catch(() => {
+                    debugAuth('refresh:proactive:failed');
+                });
+        }, timeUntilRefresh);
 
         return () => globalThis.clearTimeout(timeoutId);
-    }, [authStatus, expiresAt, refreshSession, devAuthActive]);
+    }, [authStatus, devAuthActive, expiresAt, isSessionRefreshing, refreshSession, sessionVerified]);
 
     const effectiveRoles = devAuthActive && devProfile?.roles ? devProfile.roles : roles;
     const isAuthenticated = devAuthActive ? true : authStatus === 'authenticated' && sessionVerified;
@@ -553,6 +615,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionVerified,
         isAuthenticated,
         isAuthLoading,
+        isSessionRefreshing,
         primaryRole,
         profile: effectiveProfile,
         profileStatus,
@@ -579,6 +642,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionVerified,
         isAuthenticated,
         isAuthLoading,
+        isSessionRefreshing,
         primaryRole,
         effectiveProfile,
         profileStatus,

@@ -61,6 +61,7 @@ export interface EncryptedFetchOptions {
     headers?: Record<string, string>;
     credentials?: RequestCredentials;
     requireEncryptedResponse?: boolean;
+    onUnauthorized?: () => Promise<boolean>;
 }
 
 export interface EncryptedFetchResult<T> {
@@ -69,6 +70,17 @@ export interface EncryptedFetchResult<T> {
 }
 
 let cachedTransportKey: CachedTransportKey | null = null;
+
+class TransportRequestError extends Error {
+    status: number;
+    payload?: unknown;
+
+    constructor(message: string, status: number, payload?: unknown) {
+        super(message);
+        this.status = status;
+        this.payload = payload;
+    }
+}
 
 function getWebCrypto() {
     if (!globalThis.crypto?.subtle) {
@@ -230,7 +242,17 @@ export function clearTransportKeyCache() {
     cachedTransportKey = null;
 }
 
-export async function fetchTransportKey(forceRefresh = false): Promise<CachedTransportKey> {
+type TransportKeyRequestContext = Readonly<{
+    headers?: Record<string, string>;
+    credentials?: RequestCredentials;
+    onUnauthorized?: () => Promise<boolean>;
+}>;
+
+export async function fetchTransportKey(
+    forceRefresh = false,
+    requestContext?: TransportKeyRequestContext,
+    hasRetriedUnauthorized = false
+): Promise<CachedTransportKey> {
     if (!forceRefresh && cachedTransportKey && !isTransportKeyExpired(cachedTransportKey)) {
         return cachedTransportKey;
     }
@@ -245,14 +267,32 @@ export async function fetchTransportKey(forceRefresh = false): Promise<CachedTra
     const response = await fetch(joinApiUrl('/api/v2/security/transport-key'), {
         method: 'GET',
         headers: {
-            Accept: 'application/json'
+            Accept: 'application/json',
+            ...(requestContext?.headers ?? {})
         },
-        credentials: 'include'
+        credentials: requestContext?.credentials ?? 'include'
     });
 
     const payload = await parseResponseJson(response);
     if (!response.ok) {
-        throw new Error('transport_key_failed');
+        if (
+            response.status === 401 &&
+            requestContext?.onUnauthorized &&
+            !hasRetriedUnauthorized
+        ) {
+            if (import.meta.env.DEV) {
+                console.debug('[auth] transport-key:401');
+            }
+            const refreshed = await requestContext.onUnauthorized();
+            if (refreshed) {
+                clearTransportKeyCache();
+                if (import.meta.env.DEV) {
+                    console.debug('[auth] transport-key:retry-after-refresh');
+                }
+                return fetchTransportKey(true, requestContext, true);
+            }
+        }
+        throw new TransportRequestError('transport_key_failed', response.status, payload ?? undefined);
     }
 
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -284,8 +324,11 @@ export async function fetchTransportKey(forceRefresh = false): Promise<CachedTra
     return cachedTransportKey;
 }
 
-export async function buildEncryptedEnvelope(body: unknown): Promise<BuiltEncryptedEnvelope> {
-    const transportKey = await fetchTransportKey();
+export async function buildEncryptedEnvelope(
+    body: unknown,
+    requestContext?: TransportKeyRequestContext
+): Promise<BuiltEncryptedEnvelope> {
+    const transportKey = await fetchTransportKey(false, requestContext);
     const aesKey = await generateAesKey();
     const rawAesKey = await exportAesRawKey(aesKey);
     const encryptedAesKey = await encryptAesKeyWithRsa(rawAesKey, transportKey.cryptoKey);
@@ -335,7 +378,11 @@ async function executeEncryptedJsonFetch<T>(
     options: EncryptedFetchOptions,
     hasRetried = false
 ): Promise<EncryptedFetchResult<T>> {
-    const { envelope, aesKey } = await buildEncryptedEnvelope(options.body ?? {});
+    const { envelope, aesKey } = await buildEncryptedEnvelope(options.body ?? {}, {
+        headers: options.headers,
+        credentials: options.credentials,
+        onUnauthorized: options.onUnauthorized
+    });
     debugApiClient(`request ${options.method ?? 'POST'} ${url}`);
     debugApiClient(`encrypted request enabled=true cryptoVersion=${envelope.version}`);
 

@@ -1,7 +1,7 @@
 import { refreshAccessToken } from '../auth/auth.refresh';
 import type { RefreshResponse } from '../auth/auth.types';
 import { emitAuthRefresh } from '../../utils/auth/events';
-import { getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
+import { getStoredExpiresAt, getStoredToken, setStoredExpiresAt, setStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
 import {
@@ -33,6 +33,7 @@ type ApiRequestOptions = {
 };
 
 let refreshPromise: Promise<RefreshResponse | { error: string }> | null = null;
+const REFRESH_SKEW_MS = 60_000;
 
 function ensureApiClientConfig() {
     const assertion = assertApiClientConfig();
@@ -105,8 +106,27 @@ async function attemptRefresh() {
     return false;
 }
 
+function shouldRefreshBeforeSecureRequest(options?: ApiRequestOptions) {
+    if (!options?.auth || options.retryAuth === false || hasManualLogoutFlag()) {
+        return false;
+    }
+
+    const expiresAt = getStoredExpiresAt();
+    if (!expiresAt) {
+        return false;
+    }
+
+    return expiresAt - Date.now() <= REFRESH_SKEW_MS;
+}
+
 function toTransportApiError(error: unknown) {
     if (error instanceof ApiError) return error;
+
+    if (error instanceof Error && 'status' in error) {
+        const status = (error as { status?: number }).status ?? 500;
+        const payload = 'payload' in error ? (error as { payload?: unknown }).payload : undefined;
+        return new ApiError(`Request failed with status ${status}`, status, payload);
+    }
 
     if (error instanceof Error) {
         if (error.message === 'plaintext_not_allowed') {
@@ -220,12 +240,20 @@ async function runEncryptedJsonRequest<T>(
     ensureApiClientConfig();
 
     try {
+        if (shouldRefreshBeforeSecureRequest(options)) {
+            const refreshed = await attemptRefresh();
+            if (!refreshed && options?.retryAuth !== false) {
+                throw new ApiError('Request failed with status 401', 401);
+            }
+        }
+
         const result = await encryptedJsonFetch<T>(joinApiUrl(path), {
             method,
             body,
             headers: buildHeaders(options, false),
             credentials: getRequestCredentials(options),
-            requireEncryptedResponse
+            requireEncryptedResponse,
+            onUnauthorized: options?.retryAuth === false ? undefined : attemptRefresh
         });
 
         if (!result.response.ok) {

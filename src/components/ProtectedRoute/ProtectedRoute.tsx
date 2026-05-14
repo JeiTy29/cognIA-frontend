@@ -3,11 +3,14 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
 import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
+import Sidebar from '../Sidebar/Sidebar';
+import type { Role } from '../Sidebar/SidebarConfig';
 import SupportContact from '../SupportContact/SupportContact';
 import './ProtectedRoute.css';
 
 type ProtectedRouteProps = Readonly<{
     allowedRoles?: string[];
+    preserveShell?: boolean;
 }>;
 
 const roleMap: Record<string, string[]> = {
@@ -28,6 +31,7 @@ function hasAnyRole(userRoles: string[] | undefined, allowedRoles: string[] | un
     if (!allowedRoles || allowedRoles.length === 0) return true;
     if (allowedRoles.includes('*')) return true;
     if (!userRoles || userRoles.length === 0) return false;
+
     const normalizedUser = new Set(userRoles.map((role) => normalizeRole(role)));
     return allowedRoles.some((role) => {
         const normalized = normalizeRole(role);
@@ -44,11 +48,22 @@ function getRoleLabel(roles: string[] | undefined) {
     return 'Usuario';
 }
 
+function resolveShellRole(primaryRole: string | null, pathname: string): Role {
+    if (primaryRole === 'admin') return 'admin';
+    if (primaryRole === 'psicologo') return 'psicologo';
+    if (primaryRole === 'padre') return 'padre';
+    if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/psicologo')) return 'psicologo';
+    return 'padre';
+}
+
 type ProtectedRouteLoaderProps = Readonly<{
     onResetSession: () => void;
+    preserveShell?: boolean;
+    shellRole: Role;
 }>;
 
-function ProtectedRouteLoader({ onResetSession }: ProtectedRouteLoaderProps) {
+function ProtectedRouteLoader({ onResetSession, preserveShell = false, shellRole }: ProtectedRouteLoaderProps) {
     const [loaderTimedOut, setLoaderTimedOut] = useState(false);
 
     useEffect(() => {
@@ -61,7 +76,7 @@ function ProtectedRouteLoader({ onResetSession }: ProtectedRouteLoaderProps) {
         };
     }, []);
 
-    return (
+    const loaderContent = (
         <div className="auth-guard-content-loading" aria-live="polite">
             <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
             <p>{loaderTimedOut ? 'No se pudo completar la validación de sesión.' : 'Cargando vista...'}</p>
@@ -76,12 +91,38 @@ function ProtectedRouteLoader({ onResetSession }: ProtectedRouteLoaderProps) {
             ) : null}
         </div>
     );
+
+    if (!preserveShell) {
+        return loaderContent;
+    }
+
+    return (
+        <div className="app-shell auth-guard-shell">
+            <Sidebar role={shellRole} />
+            <div className="app-main">
+                <div className="app-content auth-guard-shell-content">
+                    {loaderContent}
+                </div>
+            </div>
+        </div>
+    );
 }
 
-export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { authStatus, sessionVerified, roles, isAuthLoading, profileStatus, verifySession, logoutAsync } = useAuth();
+export default function ProtectedRoute({ allowedRoles, preserveShell = false }: ProtectedRouteProps) {
+    const {
+        authStatus,
+        sessionVerified,
+        roles,
+        isAuthLoading,
+        isSessionRefreshing,
+        profileStatus,
+        verifySession,
+        logoutAsync,
+        primaryRole
+    } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
+    const shellRole = resolveShellRole(primaryRole, location.pathname);
 
     useEffect(() => {
         const alreadyVerified =
@@ -98,15 +139,15 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     }, [authStatus, location.key, profileStatus, sessionVerified, verifySession]);
 
     const shouldShowLoader =
-        isAuthLoading ||
-        authStatus === 'checking' ||
-        (authStatus === 'authenticated' && !sessionVerified) ||
-        (authStatus === 'authenticated' && profileStatus === 'loading');
+        (isAuthLoading || authStatus === 'checking') &&
+        !(authStatus === 'authenticated' && sessionVerified && isSessionRefreshing);
 
     if (shouldShowLoader) {
         return (
             <ProtectedRouteLoader
                 key={location.key}
+                preserveShell={preserveShell}
+                shellRole={shellRole}
                 onResetSession={() => {
                     void logoutAsync('manual').finally(() => {
                         navigate('/inicio-sesion', { replace: true });

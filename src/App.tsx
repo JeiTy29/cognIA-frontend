@@ -116,7 +116,7 @@ export default function App() {
                     <Route path="/mfa" element={<MfaPage />} />
                     <Route path="/cuestionario/compartido/:questionnaireId/:shareCode" element={<CuestionarioCompartido />} />
 
-                    <Route element={<ProtectedRoute />}>
+                    <Route element={<ProtectedRoute preserveShell />}>
                         <Route element={<SidebarLayout />}>
                             <Route path="/padre" element={<ProtectedRoute allowedRoles={['padre']} />}>
                                 <Route index element={<Navigate to="/padre/cuestionario" replace />} />
