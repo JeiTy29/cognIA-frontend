@@ -4,7 +4,20 @@ type FlexibleString<T extends string> = T | (string & {});
 export type QuestionnaireRiskLevel = FlexibleString<'baja' | 'intermedia' | 'relevante' | 'alta'>;
 export type QuestionnaireV2Status =
     FlexibleString<'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'>;
-export type QuestionnaireResponseType = FlexibleString<'likert' | 'boolean' | 'integer' | 'number' | 'text'>;
+export type QuestionnaireResponseType = FlexibleString<
+    | 'likert'
+    | 'boolean'
+    | 'integer'
+    | 'number'
+    | 'text'
+    | 'likert_0_4'
+    | 'likert_1_5'
+    | 'frequency_0_3'
+    | 'intensity_0_10'
+    | 'count'
+    | 'ordinal'
+    | 'text_context'
+>;
 export type QuestionnaireResponseValue = string | number | boolean | null;
 export type QuestionnaireTagVisibility = 'private' | 'shared';
 export type QuestionnairePrimitive = string | number | boolean | null;

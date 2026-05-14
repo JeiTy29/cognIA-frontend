@@ -183,6 +183,8 @@ function normalizeAnswerDictionary(value: unknown): Record<string, Questionnaire
 
 function normalizeQuestionType(value: unknown): QuestionnaireResponseType {
     const normalized = toText(value, 'text').trim().toLowerCase();
+    if (normalized === 'count') return 'integer';
+    if (normalized === 'text_context') return 'text';
     if (normalized === 'numeric' || normalized === 'float' || normalized === 'decimal') return 'number';
     return normalized;
 }
@@ -245,8 +247,32 @@ function normalizeQuestionOptions(question: QuestionnaireQuestionV2DTO) {
     if (fromContract.length > 0) return fromContract;
 
     if (question.response_type === 'likert') return LIKERT;
+    if (question.response_type === 'likert_0_4') {
+        return [
+            { value: 0, label: 'Nunca' },
+            { value: 1, label: 'Casi nunca' },
+            { value: 2, label: 'A veces' },
+            { value: 3, label: 'Frecuentemente' },
+            { value: 4, label: 'Siempre' }
+        ];
+    }
+    if (question.response_type === 'likert_1_5') return LIKERT;
+    if (question.response_type === 'frequency_0_3') {
+        return [
+            { value: 0, label: 'Nunca' },
+            { value: 1, label: 'Ocasionalmente' },
+            { value: 2, label: 'Frecuentemente' },
+            { value: 3, label: 'Muy frecuente' }
+        ];
+    }
+    if (question.response_type === 'intensity_0_10') {
+        return Array.from({ length: 11 }, (_, index) => ({
+            value: index,
+            label: String(index)
+        }));
+    }
     if (question.response_type === 'boolean') {
-        return [{ value: true, label: 'Si' }, { value: false, label: 'No' }];
+        return [{ value: true, label: 'Sí' }, { value: false, label: 'No' }];
     }
 
     return [];

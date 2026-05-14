@@ -3,7 +3,8 @@
     background: #51C2F4;
     border-right: 1px solid rgba(33, 95, 143, 0.2);
     box-shadow: 2px 0 12px rgba(33, 95, 143, 0.12);
-    position: sticky;
+    position: fixed;
+    left: 0;
     top: 0;
     height: 100vh;
     display: flex;

@@ -373,7 +373,16 @@ export function getStatusLabel(value: unknown, fallback = FALLBACK_VALUE) {
 export function getResponseTypeLabel(value: unknown, fallback = FALLBACK_VALUE) {
     if (typeof value !== 'string') return fallback;
     const normalized = normalizeKey(value);
-    return RESPONSE_TYPE_LABELS[normalized] ?? value;
+    const extendedLabels: Record<string, string> = {
+        likert_0_4: 'Likert 0–4',
+        likert_1_5: 'Likert 1–5',
+        frequency_0_3: 'Frecuencia 0–3',
+        intensity_0_10: 'Intensidad 0–10',
+        count: 'Conteo',
+        ordinal: 'Opciones ordenadas',
+        text_context: 'Texto contextual'
+    };
+    return RESPONSE_TYPE_LABELS[normalized] ?? extendedLabels[normalized] ?? value;
 }
 
 export function getDomainLabel(value: unknown, fallback = FALLBACK_VALUE) {
