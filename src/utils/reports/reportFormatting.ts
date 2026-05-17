@@ -79,6 +79,17 @@ const HIDDEN_TECHNICAL_FIELDS = new Set([
     'query'
 ]);
 
+const SENSITIVE_SEGMENT_PATTERNS = [
+    /access[_-]?token/i,
+    /refresh[_-]?token/i,
+    /password/i,
+    /secret/i,
+    /mfa/i,
+    /recovery[_-]?code/i,
+    /authorization/i,
+    /bearer\s+[a-z0-9._-]+/i
+];
+
 function normalizeKey(value: string) {
     return value.trim().toLowerCase();
 }
@@ -212,6 +223,58 @@ export function sanitizeTechnicalValue(value: unknown, fallback = 'No disponible
 
 export function shouldHideTechnicalField(key: string) {
     return HIDDEN_TECHNICAL_FIELDS.has(normalizeKey(key));
+}
+
+function sanitizeTextSegment(value: string) {
+    if (SENSITIVE_SEGMENT_PATTERNS.some((pattern) => pattern.test(value))) {
+        return '';
+    }
+    return value.trim();
+}
+
+export function sanitizeAuditDetails(value: unknown): string {
+    if (value === null || value === undefined) return 'Sin detalle adicional';
+
+    if (typeof value === 'string') {
+        const segments = value
+            .split(/[|\n;]/)
+            .map((segment) => sanitizeTextSegment(segment))
+            .filter((segment) => {
+                if (!segment) return false;
+                const [key] = segment.split(':');
+                return key ? !shouldHideTechnicalField(key.trim()) : true;
+            })
+            .slice(0, 4);
+
+        return segments.join(' · ') || 'Sin detalle adicional';
+    }
+
+    if (Array.isArray(value)) {
+        const normalized: string[] = value
+            .map((entry) => sanitizeAuditDetails(entry))
+            .filter((entry) => entry !== 'Sin detalle adicional')
+            .slice(0, 4);
+        return normalized.join(' · ') || 'Sin detalle adicional';
+    }
+
+    if (typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const parts = Object.entries(record)
+            .filter(([key]) => !shouldHideTechnicalField(key))
+            .map(([key, entry]) => {
+                const normalizedValue = sanitizeTechnicalValue(entry, '');
+                if (!normalizedValue) return '';
+                const sanitizedValue = sanitizeTextSegment(normalizedValue);
+                if (!sanitizedValue) return '';
+                return `${humanizeDashboardLabel(key)}: ${sanitizedValue}`;
+            })
+            .filter(Boolean)
+            .slice(0, 4);
+
+        return parts.join(' · ') || 'Sin detalle adicional';
+    }
+
+    return sanitizeTechnicalValue(value, 'Sin detalle adicional');
 }
 
 export function buildAppliedFilters(filters: Array<[string, string | null | undefined]>) {

@@ -3,13 +3,18 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
 import type { PsychologistAdminItem } from '../../../hooks/usePsychologists';
-import { getPsychologistRejectionReason, isPsychologistUser, resolvePsychologistReviewState } from '../../../services/admin/psychologists';
-import { getAllUsers } from '../../../services/admin/users';
+import { fetchPsychologistsForReport } from '../../../services/admin/adminReportData';
 import { downloadPsychologistsReportPdf } from '../../../utils/reports/admin/psychologistsReport';
 import '../AdminShared.css';
 import './Psicologos.css';
 
 type ReviewFilter = 'Todos' | 'Pendientes' | 'Rechazados';
+type PsychologistsReportModalState = {
+    verification: 'all' | 'pending' | 'approved' | 'rejected';
+    accountStatus: 'all' | 'active' | 'inactive';
+    limit: '10' | '20' | '50' | '100' | 'all';
+    includeProfessionalCard: true;
+};
 
 const reviewOptions = [
     { value: 'Todos', label: 'Todos' },
@@ -22,6 +27,34 @@ const pageSizeOptions = [
     { value: '25', label: '25' },
     { value: '50', label: '50' }
 ];
+
+const psychologistsReportLimitOptions = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: 'all', label: 'Todos' }
+];
+
+const psychologistsVerificationOptions = [
+    { value: 'all', label: 'Todos' },
+    { value: 'pending', label: 'Pendientes' },
+    { value: 'approved', label: 'Aprobados' },
+    { value: 'rejected', label: 'Rechazados' }
+];
+
+const psychologistsAccountStatusOptions = [
+    { value: 'all', label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' }
+];
+
+const defaultPsychologistsReportModal = (): PsychologistsReportModalState => ({
+    verification: 'all',
+    accountStatus: 'all',
+    limit: '20',
+    includeProfessionalCard: true
+});
 
 function formatDate(value: string | null) {
     if (!value) return '--';
@@ -63,6 +96,8 @@ export default function Psicologos() {
     const [reportWorking, setReportWorking] = useState(false);
     const [reportNotice, setReportNotice] = useState<string | null>(null);
     const [reportError, setReportError] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<PsychologistsReportModalState>(defaultPsychologistsReportModal);
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -123,41 +158,30 @@ export default function Psicologos() {
         setReportError(null);
 
         try {
-            const users = await getAllUsers();
-            const allPsychologists = users
-                .filter(isPsychologistUser)
-                .map((user) => ({
-                    ...user,
-                    reviewState: resolvePsychologistReviewState(user) ?? (user.colpsic_verified ? 'approved' : 'pending'),
-                    reviewReason: getPsychologistRejectionReason(user)
-                }));
-
-            const normalizedSearch = searchTerm.trim().toLowerCase();
-            const filteredReportRows = allPsychologists.filter((item) => {
-                const matchesSearch =
-                    normalizedSearch.length === 0 ||
-                    item.username.toLowerCase().includes(normalizedSearch) ||
-                    item.email.toLowerCase().includes(normalizedSearch) ||
-                    item.id.toLowerCase().includes(normalizedSearch) ||
-                    getDisplayName(item).toLowerCase().includes(normalizedSearch);
-
-                const matchesReview =
-                    reviewFilter === 'Todos' ||
-                    (reviewFilter === 'Pendientes' && item.reviewState === 'pending') ||
-                    (reviewFilter === 'Rechazados' && item.reviewState === 'rejected');
-
-                return matchesSearch && matchesReview;
+            const result = await fetchPsychologistsForReport({
+                limit: reportForm.limit === 'all' ? 'all' : Number(reportForm.limit),
+                verification: reportForm.verification,
+                isActive:
+                    reportForm.accountStatus === 'all'
+                        ? undefined
+                        : reportForm.accountStatus === 'active'
             });
 
             await downloadPsychologistsReportPdf({
-                items: filteredReportRows,
-                summaryItems: allPsychologists,
-                searchTerm,
-                reviewFilter,
-                currentPage,
-                pageSize,
-                total: filteredReportRows.length
+                items: result.items,
+                totalIncluded: result.items.length,
+                totalAvailable: result.totalAvailable,
+                filters: [
+                    `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
+                    `VerificaciÃ³n: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
+                    `Estado de cuenta: ${reportForm.accountStatus === 'all' ? 'Todos' : reportForm.accountStatus}`
+                ],
+                options: {
+                    includeDashboardSummary: true,
+                    quantityLabel: reportForm.limit === 'all' ? 'Todos' : reportForm.limit
+                }
             });
+            setIsReportModalOpen(false);
             setReportNotice('Reporte descargado correctamente.');
         } catch {
             setReportError('No se pudo generar el reporte. Intenta nuevamente.');
@@ -176,9 +200,7 @@ export default function Psicologos() {
                     <button
                         type="button"
                         className="admin-btn ghost"
-                        onClick={() => {
-                            handleDownloadReport().catch(() => undefined);
-                        }}
+                        onClick={() => setIsReportModalOpen(true)}
                         disabled={reportWorking}
                     >
                         {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
@@ -335,6 +357,86 @@ export default function Psicologos() {
                     </label>
                 </div>
             </footer>
+
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de psicólogos</h2>
+                    <p>Selecciona el alcance del reporte sin alterar el listado visible en pantalla.</p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Estado de verificación</span>
+                            <CustomSelect
+                                ariaLabel="Estado de verificación del reporte"
+                                value={reportForm.verification}
+                                options={psychologistsVerificationOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, verification: value as PsychologistsReportModalState['verification'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Estado de cuenta</span>
+                            <CustomSelect
+                                ariaLabel="Estado de cuenta del reporte"
+                                value={reportForm.accountStatus}
+                                options={psychologistsAccountStatusOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, accountStatus: value as PsychologistsReportModalState['accountStatus'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Cantidad</span>
+                            <CustomSelect
+                                ariaLabel="Cantidad de psicólogos para el reporte"
+                                value={reportForm.limit}
+                                options={psychologistsReportLimitOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, limit: value as PsychologistsReportModalState['limit'] }))
+                                }
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input id="psych-report-card" type="checkbox" checked readOnly />
+                        <label htmlFor="psych-report-card">
+                            <strong>Incluir tarjeta profesional</strong>
+                            <span>La tarjeta profesional se mantiene como dato obligatorio del reporte.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="admin-btn ghost"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="admin-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={isRejectOpen} onClose={closeRejectModal}>
                 <div className="admin-modal">

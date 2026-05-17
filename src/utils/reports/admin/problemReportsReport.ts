@@ -1,39 +1,50 @@
 import type { ProblemReportItem } from '../../../services/problemReports/problemReports.types';
-import { getProblemReportIssueTypeLabel, getProblemReportReporterRoleLabel, getProblemReportStatusLabel } from '../../../services/problemReports/problemReports.types';
+import {
+    getProblemReportIssueTypeLabel,
+    getProblemReportReporterRoleLabel,
+    getProblemReportStatusLabel
+} from '../../../services/problemReports/problemReports.types';
+import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import {
+    addBulletList,
+    addDataTable,
+    addNoticeBox,
+    addParagraph,
+    addReportCover,
+    addSectionTitle,
+    createReportContext,
+    saveReport
+} from '../pdfBase';
+import {
+    buildAdminReportFileName,
+    formatReportDateTime,
+    formatReportNumber,
+    sanitizeTechnicalValue
+} from '../reportFormatting';
 import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
-import { addBulletList, addDataTable, addNoticeBox, addReportCover, addSectionTitle, createReportContext, saveReport } from '../pdfBase';
-import { buildAdminReportFileName, buildAppliedFilters, formatReportDateTime, formatReportNumber, sanitizeTechnicalValue } from '../reportFormatting';
 
-type ProblemReportsReportPayload = {
+export type ProblemReportsReportPayload = {
     items: ProblemReportItem[];
-    total: number;
-    page: number;
-    pageSize: number;
-    filters: {
-        query: string;
-        status: string;
-        issueType: string;
-        reporterRole: string;
-        fromDate: string;
-        toDate: string;
+    totalIncluded: number;
+    totalAvailable: number;
+    filters: string[];
+    options: {
+        quantityLabel: string;
+        orderLabel: string;
+        includeDashboardSummary: boolean;
     };
 };
 
 export async function downloadProblemReportsReportPdf(payload: ProblemReportsReportPayload) {
     const context = createReportContext('Reporte CognIA - Reportes de problemas');
-    const { data, failedKeys } = await loadDashboardBlocksForReport(['apiHealth', 'dataQuality'], 12);
+    const { data, failedKeys } = payload.options.includeDashboardSummary
+        ? await loadDashboardBlocksForReport(['apiHealth', 'dataQuality'], 12)
+        : { data: {}, failedKeys: [] as string[] };
+
     const statusCounts = payload.items.reduce<Record<string, number>>((acc, item) => {
         acc[item.status] = (acc[item.status] ?? 0) + 1;
         return acc;
     }, {});
-    const filters = buildAppliedFilters([
-        ['Búsqueda', payload.filters.query],
-        ['Estado', payload.filters.status],
-        ['Tipo', payload.filters.issueType],
-        ['Reportante', payload.filters.reporterRole],
-        ['Desde', payload.filters.fromDate],
-        ['Hasta', payload.filters.toDate]
-    ]);
 
     addReportCover(context, {
         title: 'Reporte CognIA - Reportes de problemas',
@@ -42,23 +53,27 @@ export async function downloadProblemReportsReportPdf(payload: ProblemReportsRep
         generatedAt: formatReportDateTime(new Date()),
         metaItems: [
             { label: 'Generado', value: formatReportDateTime(new Date()) },
-            { label: 'Total filtrado', value: formatReportNumber(payload.total) },
-            { label: 'Página visible', value: String(payload.page) },
-            { label: 'Tamaño de página', value: String(payload.pageSize) }
+            { label: 'Total incluido', value: formatReportNumber(payload.totalIncluded) },
+            { label: 'Total disponible', value: formatReportNumber(payload.totalAvailable) },
+            { label: 'Orden', value: payload.options.orderLabel }
         ]
     });
 
-    if (filters.length > 0) addNoticeBox(context, 'Filtros aplicados', filters.join(' · '), 'info');
+    if (payload.filters.length > 0) {
+        addNoticeBox(context, 'Filtros aplicados', payload.filters.join(' · '), 'info');
+    }
 
     addSectionTitle(context, 'Resumen de estado');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.problemReportsStatus);
     addBulletList(
         context,
         Object.entries(statusCounts).map(([status, count]) => `${getProblemReportStatusLabel(status)}: ${formatReportNumber(count)}.`)
     );
 
+    addSectionTitle(context, 'Tabla de reportes');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.problemReportsTable);
     addDataTable(context, {
-        title: 'Tabla de reportes',
-        note: payload.total > payload.items.length ? 'La tabla corresponde a los registros visibles en la página actual.' : undefined,
+        title: 'Reportes incluidos',
         head: ['Fecha', 'Usuario', 'Módulo', 'Descripción resumida', 'Estado', 'Prioridad o tipo'],
         body: payload.items.map((item) => [
             formatReportDateTime(item.created_at),
@@ -70,23 +85,29 @@ export async function downloadProblemReportsReportPdf(payload: ProblemReportsRep
         ])
     });
 
-    for (const [title, key] of [
-        ['Salud de API', 'apiHealth'],
-        ['Calidad de datos', 'dataQuality']
-    ] as const) {
-        const block = data[key];
-        if (!block) continue;
-        addDataTable(context, {
-            title,
-            head: ['Indicador', 'Valor'],
-            body: summarizeDashboardBlock(title, block)
-        });
+    if (payload.options.includeDashboardSummary) {
+        for (const [title, key] of [
+            ['Salud de API', 'apiHealth'],
+            ['Calidad de datos', 'dataQuality']
+        ] as const) {
+            const block = data[key];
+            if (!block) continue;
+            addDataTable(context, {
+                title,
+                head: ['Indicador', 'Valor'],
+                body: summarizeDashboardBlock(title, block)
+            });
+        }
     }
 
     if (failedKeys.length > 0) {
-        addNoticeBox(context, 'Información complementaria incompleta', 'No fue posible cargar información complementaria de dashboard para esta sección.', 'warning');
+        addNoticeBox(
+            context,
+            'Información complementaria incompleta',
+            REPORT_SECTION_DESCRIPTIONS.dashboardUnavailable,
+            'warning'
+        );
     }
 
     saveReport(context, buildAdminReportFileName('Reportes de problemas'));
 }
-

@@ -1,39 +1,46 @@
 import type { AdminQuestionnaireItem } from '../../../services/admin/questionnaires';
+import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import {
+    addBulletList,
+    addDataTable,
+    addNoticeBox,
+    addParagraph,
+    addReportCover,
+    addSectionTitle,
+    createReportContext,
+    saveReport
+} from '../pdfBase';
+import {
+    buildAdminReportFileName,
+    formatReportDateTime,
+    formatReportNumber,
+    formatUserStatus
+} from '../reportFormatting';
 import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
-import { addBulletList, addDataTable, addNoticeBox, addParagraph, addReportCover, addSectionTitle, createReportContext, saveReport } from '../pdfBase';
-import { buildAdminReportFileName, buildAppliedFilters, formatReportDateTime, formatReportNumber, formatUserStatus } from '../reportFormatting';
 
-type QuestionnairesReportPayload = {
+export type QuestionnairesReportPayload = {
     items: AdminQuestionnaireItem[];
-    total: number;
-    page: number;
-    pageSize: number;
-    filters: {
-        nameFilter: string;
-        versionFilter: string;
-        activeFilter: string;
-        archivedFilter: string;
-        sort: string;
-        order: string;
+    totalIncluded: number;
+    totalAvailable: number;
+    filters: string[];
+    options: {
+        includeDashboardSummary: boolean;
+        includeQuestionDetail: boolean;
+        visibleOnly: boolean;
     };
 };
 
 export async function downloadQuestionnairesReportPdf(payload: QuestionnairesReportPayload) {
     const context = createReportContext('Reporte CognIA - Cuestionarios');
-    const { data, failedKeys } = await loadDashboardBlocksForReport(
-        ['questionnaireVolume', 'questionnaireQuality', 'funnel', 'adoptionHistory'],
-        12
-    );
+    const { data, failedKeys } = payload.options.includeDashboardSummary
+        ? await loadDashboardBlocksForReport(
+            ['questionnaireVolume', 'questionnaireQuality', 'funnel', 'adoptionHistory'],
+            12
+        )
+        : { data: {}, failedKeys: [] as string[] };
 
     const activeCount = payload.items.filter((item) => item.is_active).length;
     const archivedCount = payload.items.filter((item) => item.is_archived).length;
-    const filters = buildAppliedFilters([
-        ['Nombre', payload.filters.nameFilter],
-        ['Versión', payload.filters.versionFilter],
-        ['Estado', payload.filters.activeFilter === 'all' ? '' : payload.filters.activeFilter === 'true' ? 'Activos' : 'Inactivos'],
-        ['Archivado', payload.filters.archivedFilter === 'all' ? '' : payload.filters.archivedFilter === 'true' ? 'Archivados' : 'No archivados'],
-        ['Orden', `${payload.filters.sort} ${payload.filters.order}`]
-    ]);
 
     addReportCover(context, {
         title: 'Reporte CognIA - Cuestionarios',
@@ -42,26 +49,28 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
         generatedAt: formatReportDateTime(new Date()),
         metaItems: [
             { label: 'Generado', value: formatReportDateTime(new Date()) },
-            { label: 'Total visible', value: formatReportNumber(payload.total) },
-            { label: 'Plantillas activas en página', value: formatReportNumber(activeCount) },
-            { label: 'Plantillas archivadas en página', value: formatReportNumber(archivedCount) }
+            { label: 'Total incluido', value: formatReportNumber(payload.totalIncluded) },
+            { label: 'Total disponible', value: formatReportNumber(payload.totalAvailable) },
+            { label: 'Origen de plantillas', value: payload.options.visibleOnly ? 'Solo visibles en la vista' : 'Todas las disponibles' }
         ]
     });
 
-    if (filters.length > 0) {
-        addNoticeBox(context, 'Filtros aplicados', filters.join(' · '), 'info');
+    if (payload.filters.length > 0) {
+        addNoticeBox(context, 'Filtros aplicados', payload.filters.join(' · '), 'info');
     }
 
     addSectionTitle(context, 'Resumen de plantillas');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.questionnairesSummary);
     addBulletList(context, [
-        `Total de registros visibles: ${formatReportNumber(payload.total)}.`,
-        `Activas en la página actual: ${formatReportNumber(activeCount)}.`,
-        `Archivadas en la página actual: ${formatReportNumber(archivedCount)}.`
+        `Total de registros incluidos: ${formatReportNumber(payload.totalIncluded)}.`,
+        `Plantillas activas: ${formatReportNumber(activeCount)}.`,
+        `Plantillas archivadas: ${formatReportNumber(archivedCount)}.`
     ]);
 
+    addSectionTitle(context, 'Tabla de cuestionarios');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.questionnairesTable);
     addDataTable(context, {
-        title: 'Tabla de cuestionarios',
-        note: payload.total > payload.items.length ? 'La tabla corresponde a los registros visibles en la página actual.' : undefined,
+        title: 'Plantillas incluidas',
         head: ['Nombre', 'Versión', 'Estado', 'Archivado', 'Última actualización'],
         body: payload.items.map((item) => [
             item.name,
@@ -72,27 +81,47 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
         ])
     });
 
-    addParagraph(context, 'Los endpoints agregados del dashboard se usan únicamente para complementar este PDF y no alteran la vista visible de administración.');
+    if (payload.options.includeQuestionDetail) {
+        addNoticeBox(
+            context,
+            'Detalle de preguntas',
+            'El detalle completo de preguntas por plantilla no está disponible con el contrato actual del listado administrativo.',
+            'info'
+        );
+    }
 
-    for (const [title, key] of [
-        ['Volumen de cuestionarios', 'questionnaireVolume'],
-        ['Calidad de cuestionarios', 'questionnaireQuality'],
-        ['Embudo de cuestionarios', 'funnel'],
-        ['Adopción histórica', 'adoptionHistory']
-    ] as const) {
-        const block = data[key];
-        if (!block) continue;
-        addDataTable(context, {
-            title,
-            head: ['Indicador', 'Valor'],
-            body: summarizeDashboardBlock(title, block)
-        });
+    if (payload.options.includeDashboardSummary) {
+        addParagraph(
+            context,
+            'Los endpoints agregados del dashboard se usan únicamente para complementar este PDF y no alteran la vista visible de administración.'
+        );
+
+        for (const [title, key, description] of [
+            ['Volumen de cuestionarios', 'questionnaireVolume', REPORT_SECTION_DESCRIPTIONS.questionnaireQuality],
+            ['Calidad de cuestionarios', 'questionnaireQuality', REPORT_SECTION_DESCRIPTIONS.questionnaireQuality],
+            ['Embudo de cuestionarios', 'funnel', REPORT_SECTION_DESCRIPTIONS.questionnaireFunnel],
+            ['Adopción histórica', 'adoptionHistory', REPORT_SECTION_DESCRIPTIONS.userGrowth]
+        ] as const) {
+            const block = data[key];
+            if (!block) continue;
+            addSectionTitle(context, title);
+            addParagraph(context, description);
+            addDataTable(context, {
+                title,
+                head: ['Indicador', 'Valor'],
+                body: summarizeDashboardBlock(title, block)
+            });
+        }
     }
 
     if (failedKeys.length > 0) {
-        addNoticeBox(context, 'Información complementaria incompleta', 'No fue posible cargar información complementaria de dashboard para esta sección.', 'warning');
+        addNoticeBox(
+            context,
+            'Información complementaria incompleta',
+            REPORT_SECTION_DESCRIPTIONS.dashboardUnavailable,
+            'warning'
+        );
     }
 
     saveReport(context, buildAdminReportFileName('Cuestionarios'));
 }
-

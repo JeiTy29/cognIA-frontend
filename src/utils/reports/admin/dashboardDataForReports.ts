@@ -19,6 +19,7 @@ import type {
     DashboardSeriesResponse
 } from '../../../services/dashboard/dashboard.types';
 import { formatReportNumber, formatReportPercent, humanizeDashboardLabel, sanitizeTechnicalValue } from '../reportFormatting';
+import { extractDashboardSeries } from '../dashboardSeries';
 
 export type ReportDashboardBlockKey =
     | 'executiveSummary'
@@ -108,6 +109,13 @@ function flattenNode(prefix: string, value: unknown, rows: Array<[string, string
 }
 
 export function summarizeDashboardBlock(title: string, payload: DashboardBlockValue): Array<[string, string]> {
+    const seriesRows: Array<[string, string]> = extractDashboardSeries(payload)
+        .slice(-6)
+        .map((point) => [`${title} - ${point.periodLabel}`, formatReportNumber(point.value)]);
+    if (seriesRows.length > 0) {
+        return seriesRows;
+    }
+
     if (isSeriesBlock(payload)) {
         return payload.series.slice(-6).map((point) => [
             `${title} - ${point.period}`,

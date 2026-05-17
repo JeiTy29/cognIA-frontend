@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
+import { Modal } from '../../../components/Modal/Modal';
 import { useMetrics, type StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
 import { downloadMetricsReportPdf } from '../../../utils/reports/admin/metricsReport';
+import '../AdminShared.css';
 import './Metricas.css';
 
 type ServiceState = 'ok' | 'loading' | 'error';
@@ -20,6 +23,14 @@ type StatusDonutProps = Readonly<{
     counts: Record<string, number>;
 }>;
 
+type MetricsReportModalState = {
+    months: '3' | '6' | '12';
+    includeEmailHealth: boolean;
+    includeHttpDistribution: boolean;
+    includeModelMonitoring: boolean;
+    includeDataQuality: boolean;
+};
+
 const DONUT_GROUPS = [
     { key: 'success', label: '2xx exitosas', color: '#1f9d55', legendClass: 'legend-green', indicatorClass: 'green' },
     { key: 'redirect', label: '3xx redirecciones', color: '#3e6ea8', legendClass: 'legend-blue', indicatorClass: 'blue' },
@@ -27,6 +38,20 @@ const DONUT_GROUPS = [
     { key: 'serverError', label: '5xx servidor', color: '#dc3545', legendClass: 'legend-red', indicatorClass: 'red' },
     { key: 'other', label: 'Otros', color: '#6a6f7d', legendClass: 'legend-gray', indicatorClass: 'gray' }
 ] as const;
+
+const metricsReportMonthOptions = [
+    { value: '3', label: '3 meses' },
+    { value: '6', label: '6 meses' },
+    { value: '12', label: '12 meses' }
+];
+
+const defaultMetricsReportModal = (): MetricsReportModalState => ({
+    months: '6',
+    includeEmailHealth: true,
+    includeHttpDistribution: true,
+    includeModelMonitoring: true,
+    includeDataQuality: true
+});
 
 function formatUptime(seconds: number | null | undefined) {
     if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) return '--';
@@ -286,6 +311,8 @@ export function Metricas() {
     const [reportWorking, setReportWorking] = useState(false);
     const [reportNotice, setReportNotice] = useState<string | null>(null);
     const [reportError, setReportError] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<MetricsReportModalState>(defaultMetricsReportModal);
 
     const statusCounts = useMemo(() => snapshot?.status_counts ?? {}, [snapshot]);
     const groupedStatus = useMemo(() => groupStatusCounts(statusCounts), [statusCounts]);
@@ -309,8 +336,16 @@ export function Metricas() {
                 dbState,
                 emailState,
                 snapshot,
-                lastUpdated
+                lastUpdated,
+                options: {
+                    months: Number(reportForm.months),
+                    includeEmailHealth: reportForm.includeEmailHealth,
+                    includeHttpDistribution: reportForm.includeHttpDistribution,
+                    includeModelMonitoring: reportForm.includeModelMonitoring,
+                    includeDataQuality: reportForm.includeDataQuality
+                }
             });
+            setIsReportModalOpen(false);
             setReportNotice('Reporte descargado correctamente.');
         } catch {
             setReportError('No se pudo generar el reporte. Intenta nuevamente.');
@@ -332,9 +367,7 @@ export function Metricas() {
                     <button
                         type="button"
                         className="metricas-refresh metricas-report-btn"
-                        onClick={() => {
-                            handleDownloadReport().catch(() => undefined);
-                        }}
+                        onClick={() => setIsReportModalOpen(true)}
                         disabled={reportWorking}
                     >
                         {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
@@ -494,6 +527,114 @@ export function Metricas() {
                     </section>
                 </>
             ) : null}
+
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de métricas</h2>
+                    <p>Selecciona el periodo y los bloques complementarios que deseas incluir dentro del PDF.</p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Periodo dashboard</span>
+                            <CustomSelect
+                                ariaLabel="Periodo dashboard para el reporte"
+                                value={reportForm.months}
+                                options={metricsReportMonthOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, months: value as MetricsReportModalState['months'] }))
+                                }
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="metrics-report-email"
+                            type="checkbox"
+                            checked={reportForm.includeEmailHealth}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeEmailHealth: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="metrics-report-email">
+                            <strong>Incluir salud del correo</strong>
+                            <span>Agrega el estado actual del servicio de correo dentro del PDF.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="metrics-report-http"
+                            type="checkbox"
+                            checked={reportForm.includeHttpDistribution}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeHttpDistribution: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="metrics-report-http">
+                            <strong>Incluir distribución HTTP</strong>
+                            <span>Resume las familias 2xx, 3xx, 4xx, 5xx y otros.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="metrics-report-models"
+                            type="checkbox"
+                            checked={reportForm.includeModelMonitoring}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeModelMonitoring: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="metrics-report-models">
+                            <strong>Incluir monitoreo de modelos</strong>
+                            <span>Agrega seguimiento de modelos, drift y equidad si están disponibles.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="metrics-report-quality"
+                            type="checkbox"
+                            checked={reportForm.includeDataQuality}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeDataQuality: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="metrics-report-quality">
+                            <strong>Incluir calidad de datos</strong>
+                            <span>Usa información agregada de dashboard solo dentro del reporte.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="admin-btn ghost"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="admin-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </main>
     );
 }

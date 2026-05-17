@@ -2,8 +2,10 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 're
 import { Modal } from '../../../components/Modal/Modal';
 import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
+import { fetchUsersForReport } from '../../../services/admin/adminReportData';
 import type { CreateUserRequest, User } from '../../../services/admin/users';
 import { downloadUsersReportPdf } from '../../../utils/reports/admin/usersReport';
+import '../AdminShared.css';
 import './Usuarios.css';
 
 type ManagedUserType = 'guardian' | 'psychologist';
@@ -22,6 +24,17 @@ type CreateFormState = {
     full_name: string;
     user_type: ManagedUserType;
     professional_card_number: string;
+};
+
+type UsersReportLimit = '10' | '20' | '50' | '100' | 'all';
+type UsersReportOrder = 'recent' | 'oldest' | 'username' | 'email';
+type UsersReportModalState = {
+    limit: UsersReportLimit;
+    order: UsersReportOrder;
+    role: 'all' | 'ADMIN' | 'GUARDIAN' | 'PSYCHOLOGIST';
+    status: 'all' | 'active' | 'inactive';
+    includeGrowthSummary: boolean;
+    includeDetailedTable: boolean;
 };
 
 type FormErrors = Partial<Record<keyof EditFormState | keyof CreateFormState, string>>;
@@ -77,6 +90,21 @@ const pageSizeOptions: CustomSelectOption[] = [
     { value: '50', label: '50 por página' }
 ];
 
+const usersReportLimitOptions: CustomSelectOption[] = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: 'all', label: 'Todos' }
+];
+
+const usersReportOrderOptions: CustomSelectOption[] = [
+    { value: 'recent', label: 'MÃ¡s recientes primero' },
+    { value: 'oldest', label: 'MÃ¡s antiguos primero' },
+    { value: 'username', label: 'Nombre de usuario A-Z' },
+    { value: 'email', label: 'Correo A-Z' }
+];
+
 const emptyEditForm = (): EditFormState => ({
     id: '',
     user_type: 'guardian',
@@ -92,6 +120,35 @@ const emptyCreateForm = (): CreateFormState => ({
     user_type: 'guardian',
     professional_card_number: ''
 });
+
+const defaultUsersReportModal = (): UsersReportModalState => ({
+    limit: '20',
+    order: 'recent',
+    role: 'all',
+    status: 'all',
+    includeGrowthSummary: true,
+    includeDetailedTable: true
+});
+
+function getUsersReportOrderLabel(value: UsersReportOrder) {
+    if (value === 'oldest') return 'MÃ¡s antiguos primero';
+    if (value === 'username') return 'Nombre de usuario A-Z';
+    if (value === 'email') return 'Correo A-Z';
+    return 'MÃ¡s recientes primero';
+}
+
+function getUsersReportRoleLabel(value: UsersReportModalState['role']) {
+    if (value === 'ADMIN') return 'Administrador';
+    if (value === 'GUARDIAN') return 'Padre o tutor';
+    if (value === 'PSYCHOLOGIST') return 'PsicÃ³logo';
+    return 'Todos';
+}
+
+function getUsersReportStatusLabel(value: UsersReportModalState['status']) {
+    if (value === 'active') return 'Activos';
+    if (value === 'inactive') return 'Inactivos';
+    return 'Todos';
+}
 
 function runUserTask(task: () => Promise<void>) {
     task().catch(() => undefined);
@@ -367,6 +424,8 @@ export default function Usuarios() {
     const [reportWorking, setReportWorking] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
     const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<UsersReportModalState>(defaultUsersReportModal);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -376,13 +435,35 @@ export default function Usuarios() {
         setCreateModalError(null);
         setReportNotice(null);
         try {
-            await downloadUsersReportPdf({
-                items,
-                total,
-                page,
-                pageSize,
-                filters
+            const result = await fetchUsersForReport({
+                limit: reportForm.limit === 'all' ? 'all' : Number(reportForm.limit),
+                role: reportForm.role === 'all' ? undefined : reportForm.role,
+                isActive:
+                    reportForm.status === 'all'
+                        ? undefined
+                        : reportForm.status === 'active',
+                orderBy: reportForm.order
             });
+
+            await downloadUsersReportPdf({
+                items: result.items,
+                totalIncluded: result.items.length,
+                totalAvailable: result.totalAvailable,
+                truncated: result.truncated,
+                filters: [
+                    `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
+                    `Orden: ${getUsersReportOrderLabel(reportForm.order)}`,
+                    `Rol: ${getUsersReportRoleLabel(reportForm.role)}`,
+                    `Estado: ${getUsersReportStatusLabel(reportForm.status)}`
+                ],
+                options: {
+                    includeGrowthSummary: reportForm.includeGrowthSummary,
+                    includeDetailedTable: reportForm.includeDetailedTable,
+                    limitLabel: reportForm.limit === 'all' ? 'Todos' : reportForm.limit,
+                    orderLabel: getUsersReportOrderLabel(reportForm.order)
+                }
+            });
+            setIsReportModalOpen(false);
             setReportNotice('Reporte descargado correctamente.');
         } catch {
             setReportError('No se pudo generar el reporte. Intenta nuevamente.');
@@ -650,9 +731,7 @@ export default function Usuarios() {
                     <button
                         type="button"
                         className="usuarios-btn ghost"
-                        onClick={() => {
-                            handleDownloadReport().catch(() => undefined);
-                        }}
+                        onClick={() => setIsReportModalOpen(true)}
                         disabled={reportWorking || loading}
                     >
                         {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
@@ -810,6 +889,122 @@ export default function Usuarios() {
                     </button>
                 </div>
             </div>
+
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de usuarios</h2>
+                    <p>
+                        Configura la cantidad, el orden y los filtros del reporte sin modificar la tabla visible del frontend.
+                    </p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Cantidad de usuarios</span>
+                            <CustomSelect
+                                value={reportForm.limit}
+                                options={usersReportLimitOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, limit: value as UsersReportLimit }))
+                                }
+                                ariaLabel="Cantidad de usuarios para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Orden</span>
+                            <CustomSelect
+                                value={reportForm.order}
+                                options={usersReportOrderOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, order: value as UsersReportOrder }))
+                                }
+                                ariaLabel="Orden de usuarios para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Rol</span>
+                            <CustomSelect
+                                value={reportForm.role}
+                                options={roleFilterOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, role: value as UsersReportModalState['role'] }))
+                                }
+                                ariaLabel="Rol para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Estado</span>
+                            <CustomSelect
+                                value={reportForm.status}
+                                options={statusOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, status: value as UsersReportModalState['status'] }))
+                                }
+                                ariaLabel="Estado para el reporte"
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="users-report-growth"
+                            type="checkbox"
+                            checked={reportForm.includeGrowthSummary}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeGrowthSummary: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="users-report-growth">
+                            <strong>Incluir resumen de crecimiento</strong>
+                            <span>Usa datos agregados de dashboard solo dentro del PDF.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="users-report-table"
+                            type="checkbox"
+                            checked={reportForm.includeDetailedTable}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeDetailedTable: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="users-report-table">
+                            <strong>Incluir tabla detallada</strong>
+                            <span>Agrega usuario, correo, rol, estado y fecha de creación.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="usuarios-btn secondary"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="usuarios-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={creatingUser} onClose={closeCreateModal}>
                 <form className="usuarios-modal" onSubmit={handleCreateSubmit}>

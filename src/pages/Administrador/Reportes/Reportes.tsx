@@ -2,6 +2,7 @@
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminProblemReports } from '../../../hooks/useAdminProblemReports';
+import { fetchProblemReportsForReport } from '../../../services/admin/adminReportData';
 import {
     PROBLEM_REPORT_ISSUE_TYPES,
     PROBLEM_REPORT_STATUSES,
@@ -22,6 +23,13 @@ import {
 } from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './Reportes.css';
+
+type ProblemReportsReportModalState = {
+    status: string;
+    module: string;
+    limit: '10' | '20' | '50' | '100' | 'all';
+    order: 'recent' | 'oldest';
+};
 
 const statusOptions = [
     { value: '', label: 'Todos' },
@@ -56,6 +64,19 @@ const pageSizeOptions = [
     { value: '10', label: '10' },
     { value: '20', label: '20' },
     { value: '50', label: '50' }
+];
+
+const problemReportReportLimitOptions = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: 'all', label: 'Todos' }
+];
+
+const problemReportOrderOptions = [
+    { value: 'recent', label: 'MÃ¡s recientes primero' },
+    { value: 'oldest', label: 'MÃ¡s antiguos primero' }
 ];
 
 function formatDateTime(value: string | null) {
@@ -130,6 +151,13 @@ function ReportRows({ items, onOpenDetail }: ReportRowsProps) {
 function swallowReportActionError() {
     return undefined;
 }
+
+const defaultProblemReportsReportModal = (): ProblemReportsReportModalState => ({
+    status: '',
+    module: '',
+    limit: '20',
+    order: 'recent'
+});
 
 function LoadingDetail() {
     return <div className="admin-loading">Cargando detalle...</div>;
@@ -292,31 +320,60 @@ export default function ReportesAdmin() {
     const [reportWorking, setReportWorking] = useState(false);
     const [reportNotice, setReportNotice] = useState<string | null>(null);
     const [reportError, setReportError] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<ProblemReportsReportModalState>(defaultProblemReportsReportModal);
 
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
     const orderValue = useMemo(() => `${sort}:${order}`, [sort, order]);
+    const sourceModuleOptions = useMemo(() => {
+        const modules = Array.from(
+            new Set(items.map((item) => item.source_module).filter((value): value is string => Boolean(value)))
+        );
+
+        return [
+            { value: '', label: 'Todos' },
+            ...modules.map((module) => ({ value: module, label: getSourceModuleLabel(module) }))
+        ];
+    }, [items]);
 
     const handleDownloadReport = async () => {
         setReportWorking(true);
         setReportNotice(null);
         setReportError(null);
         try {
+            const result = await fetchProblemReportsForReport({
+                limit: reportForm.limit === 'all' ? 'all' : Number(reportForm.limit),
+                status: reportForm.status || undefined,
+                q: query || undefined,
+                fromDate: fromDateFilter || undefined,
+                toDate: toDateFilter || undefined,
+                sort: 'created_at',
+                order: reportForm.order === 'oldest' ? 'asc' : 'desc'
+            });
+
+            const filteredByModule = result.items.filter((item) =>
+                !reportForm.module || item.source_module === reportForm.module
+            );
+
             await downloadProblemReportsReportPdf({
-                items,
-                total,
-                page: currentPage,
-                pageSize,
-                filters: {
-                    query,
-                    status: statusFilter,
-                    issueType: issueTypeFilter,
-                    reporterRole: reporterRoleFilter,
-                    fromDate: fromDateFilter,
-                    toDate: toDateFilter
+                items: filteredByModule,
+                totalIncluded: filteredByModule.length,
+                totalAvailable: result.totalAvailable,
+                filters: [
+                    `Estado: ${reportForm.status ? getProblemReportStatusLabel(reportForm.status) : 'Todos'}`,
+                    `Módulo: ${reportForm.module ? getSourceModuleLabel(reportForm.module) : 'Todos'}`,
+                    `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
+                    `Orden: ${reportForm.order === 'oldest' ? 'Más antiguos primero' : 'Más recientes primero'}`
+                ],
+                options: {
+                    quantityLabel: reportForm.limit === 'all' ? 'Todos' : reportForm.limit,
+                    orderLabel: reportForm.order === 'oldest' ? 'Más antiguos primero' : 'Más recientes primero',
+                    includeDashboardSummary: true
                 }
             });
+            setIsReportModalOpen(false);
             setReportNotice('Reporte descargado correctamente.');
         } catch {
             setReportError('No se pudo generar el reporte. Intenta nuevamente.');
@@ -414,9 +471,7 @@ export default function ReportesAdmin() {
                     <button
                         type="button"
                         className="admin-btn ghost"
-                        onClick={() => {
-                            handleDownloadReport().catch(swallowReportActionError);
-                        }}
+                        onClick={() => setIsReportModalOpen(true)}
                         disabled={reportWorking || loading}
                     >
                         {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
@@ -559,6 +614,86 @@ export default function ReportesAdmin() {
                     </label>
                 </div>
             </footer>
+
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de problemas</h2>
+                    <p>Selecciona el estado, módulo, cantidad y orden del reporte sin alterar la tabla visible.</p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Estado</span>
+                            <CustomSelect
+                                ariaLabel="Estado del reporte"
+                                value={reportForm.status}
+                                options={statusOptions}
+                                onChange={(value) => setReportForm((prev) => ({ ...prev, status: value }))}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Módulo</span>
+                            <CustomSelect
+                                ariaLabel="Módulo del reporte"
+                                value={reportForm.module}
+                                options={sourceModuleOptions}
+                                onChange={(value) => setReportForm((prev) => ({ ...prev, module: value }))}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Cantidad</span>
+                            <CustomSelect
+                                ariaLabel="Cantidad del reporte"
+                                value={reportForm.limit}
+                                options={problemReportReportLimitOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, limit: value as ProblemReportsReportModalState['limit'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Orden</span>
+                            <CustomSelect
+                                ariaLabel="Orden del reporte"
+                                value={reportForm.order}
+                                options={problemReportOrderOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, order: value as ProblemReportsReportModalState['order'] }))
+                                }
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="admin-btn ghost"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="admin-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(swallowReportActionError);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={detailItem !== null || loadingDetail} onClose={closeDetail}>
                 <div className="admin-modal reportes-admin-detail">

@@ -1,8 +1,18 @@
 import type { DbState, ServerState, StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
-import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
-import { createReportContext, addReportCover, addSectionTitle, addParagraph, addBulletList, addDataTable, addNoticeBox, saveReport } from '../pdfBase';
+import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import {
+    addBulletList,
+    addDataTable,
+    addNoticeBox,
+    addParagraph,
+    addReportCover,
+    addSectionTitle,
+    createReportContext,
+    saveReport
+} from '../pdfBase';
 import { buildAdminReportFileName, formatReportDateTime, formatReportNumber } from '../reportFormatting';
+import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
 
 function groupStatusCounts(counts: Record<string, number>) {
     const grouped = { success: 0, redirect: 0, clientError: 0, serverError: 0, other: 0 };
@@ -27,7 +37,7 @@ function groupStatusCounts(counts: Record<string, number>) {
     return grouped;
 }
 
-type MetricsReportPayload = {
+export type MetricsReportPayload = {
     serverState: ServerState;
     dbState: DbState;
     emailState: EmailHealthBlockState;
@@ -39,6 +49,13 @@ type MetricsReportPayload = {
         status_counts: StatusCounts;
     } | null;
     lastUpdated: Date | null;
+    options: {
+        months: number;
+        includeEmailHealth: boolean;
+        includeHttpDistribution: boolean;
+        includeModelMonitoring: boolean;
+        includeDataQuality: boolean;
+    };
 };
 
 export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
@@ -46,50 +63,58 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
         throw new Error('No fue posible cargar los datos principales de métricas.');
     }
 
+    const dashboardKeys: Array<'apiHealth' | 'dataQuality' | 'modelMonitoring' | 'drift' | 'equity'> = ['apiHealth'];
+    if (payload.options.includeDataQuality) dashboardKeys.push('dataQuality');
+    if (payload.options.includeModelMonitoring) {
+        dashboardKeys.push('modelMonitoring', 'drift', 'equity');
+    }
+
     const context = createReportContext('Reporte CognIA - Métricas');
-    const { data, failedKeys } = await loadDashboardBlocksForReport(
-        ['apiHealth', 'dataQuality', 'modelMonitoring', 'drift', 'equity'],
-        12
-    );
+    const { data, failedKeys } = await loadDashboardBlocksForReport(dashboardKeys, payload.options.months);
 
     addReportCover(context, {
         title: 'Reporte CognIA - Métricas',
-        subtitle: 'Resumen operativo de la plataforma y señales complementarias del dashboard.',
+        subtitle: 'Resumen operativo de la plataforma y señales complementarias de dashboard para el periodo seleccionado.',
         sectionLabel: 'Sección: Métricas',
         generatedAt: formatReportDateTime(new Date()),
         metaItems: [
             { label: 'Generado', value: formatReportDateTime(new Date()) },
             { label: 'Última actualización', value: formatReportDateTime(payload.lastUpdated) },
             { label: 'Servicio de correo', value: payload.emailState.label },
-            { label: 'Estado del servidor', value: payload.serverState.message }
+            { label: 'Periodo dashboard', value: `${payload.options.months} meses` }
         ]
     });
 
     addSectionTitle(context, 'Resumen ejecutivo');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.metricsSummary);
     addBulletList(context, [
         `Servidor: ${payload.serverState.message}. ${payload.serverState.detail}`,
         `Base de datos: ${payload.dbState.status === 'ready' ? 'Lista' : payload.dbState.status === 'not_ready' ? 'En espera' : payload.dbState.status === 'loading' ? 'Cargando' : 'Con error'}.`,
-        `Servicio de correo: ${payload.emailState.label}. ${payload.emailState.detail}`,
+        ...(payload.options.includeEmailHealth ? [`Servicio de correo: ${payload.emailState.label}. ${payload.emailState.detail}`] : []),
         `Solicitudes acumuladas: ${formatReportNumber(payload.snapshot.requests_total)}.`,
         `Latencia promedio: ${formatReportNumber(payload.snapshot.latency_ms_avg)} ms.`,
         `Latencia máxima: ${formatReportNumber(payload.snapshot.latency_ms_max)} ms.`
     ]);
 
-    const grouped = groupStatusCounts(payload.snapshot.status_counts);
-    addDataTable(context, {
-        title: 'Distribución de requests por familia HTTP',
-        head: ['Familia', 'Total'],
-        body: [
-            ['2xx exitosas', formatReportNumber(grouped.success)],
-            ['3xx redirecciones', formatReportNumber(grouped.redirect)],
-            ['4xx cliente/autorización', formatReportNumber(grouped.clientError)],
-            ['5xx servidor', formatReportNumber(grouped.serverError)],
-            ['Otros', formatReportNumber(grouped.other)]
-        ]
-    });
+    if (payload.options.includeHttpDistribution) {
+        const grouped = groupStatusCounts(payload.snapshot.status_counts);
+        addSectionTitle(context, 'Distribución HTTP');
+        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.metricsHttpDistribution);
+        addDataTable(context, {
+            title: 'Distribución de requests por familia HTTP',
+            head: ['Familia', 'Total'],
+            body: [
+                ['2xx exitosas', formatReportNumber(grouped.success)],
+                ['3xx redirecciones', formatReportNumber(grouped.redirect)],
+                ['4xx cliente/autorización', formatReportNumber(grouped.clientError)],
+                ['5xx servidor', formatReportNumber(grouped.serverError)],
+                ['Otros', formatReportNumber(grouped.other)]
+            ]
+        });
+    }
 
     addSectionTitle(context, 'Señales complementarias de dashboard');
-    addParagraph(context, 'Estas lecturas se usan únicamente para enriquecer el PDF y no se muestran como dashboard visible dentro del administrador.');
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.metricsDashboard);
 
     for (const [title, key] of [
         ['Salud de API', 'apiHealth'],
@@ -98,6 +123,11 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
         ['Drift', 'drift'],
         ['Equidad', 'equity']
     ] as const) {
+        if ((key === 'dataQuality' && !payload.options.includeDataQuality) ||
+            ((key === 'modelMonitoring' || key === 'drift' || key === 'equity') && !payload.options.includeModelMonitoring)) {
+            continue;
+        }
+
         const block = data[key];
         if (!block) continue;
         addDataTable(context, {
@@ -111,7 +141,7 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
         addNoticeBox(
             context,
             'Información complementaria incompleta',
-            'No fue posible cargar información complementaria de dashboard para esta sección.',
+            REPORT_SECTION_DESCRIPTIONS.dashboardUnavailable,
             'warning'
         );
     }
