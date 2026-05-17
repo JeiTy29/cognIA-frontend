@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMetrics, type StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
+import { downloadMetricsReportPdf } from '../../../utils/reports/admin/metricsReport';
 import './Metricas.css';
 
 type ServiceState = 'ok' | 'loading' | 'error';
@@ -282,6 +283,9 @@ export function Metricas() {
         reload,
         isRefreshing
     } = useMetrics({ enabled: metricsViewEnabled });
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
 
     const statusCounts = useMemo(() => snapshot?.status_counts ?? {}, [snapshot]);
     const groupedStatus = useMemo(() => groupStatusCounts(statusCounts), [statusCounts]);
@@ -289,6 +293,31 @@ export function Metricas() {
         () => Object.values(groupedStatus).reduce((sum, value) => sum + value, 0),
         [groupedStatus]
     );
+
+    const handleDownloadReport = async () => {
+        if (!snapshot) {
+            setReportError('No se pudo generar el reporte porque no fue posible cargar los datos principales.');
+            return;
+        }
+
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+        try {
+            await downloadMetricsReportPdf({
+                serverState,
+                dbState,
+                emailState,
+                snapshot,
+                lastUpdated
+            });
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
 
     return (
         <main className="metricas">
@@ -299,17 +328,31 @@ export function Metricas() {
                         Estado operativo del backend, latencia, distribución de solicitudes y disponibilidad de servicios.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    className="metricas-refresh"
-                    onClick={reload}
-                    disabled={isRefreshing}
-                >
-                    {isRefreshing ? 'Actualizando...' : 'Actualizar'}
-                </button>
+                <div className="metricas-actions">
+                    <button
+                        type="button"
+                        className="metricas-refresh metricas-report-btn"
+                        onClick={() => {
+                            handleDownloadReport().catch(() => undefined);
+                        }}
+                        disabled={reportWorking}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
+                    <button
+                        type="button"
+                        className="metricas-refresh"
+                        onClick={reload}
+                        disabled={isRefreshing}
+                    >
+                        {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+                    </button>
+                </div>
             </header>
 
             <div className="metricas-divider" />
+            {reportNotice ? <div className="metricas-alert metricas-alert-success">{reportNotice}</div> : null}
+            {reportError ? <div className="metricas-alert">{reportError}</div> : null}
 
             {metricsDisabled ? (
                 <section className="metricas-disabled">

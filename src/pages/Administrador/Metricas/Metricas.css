@@ -12,6 +12,12 @@
     gap: 24px;
 }
 
+.metricas-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .metricas-header h1 {
     font-size: 30px;
     margin: 0;
@@ -303,6 +309,10 @@
     background: #fee2e2;
     color: #111827;
     font-size: 13px;
+}
+
+.metricas-alert-success {
+    background: #dcfce7;
 }
 
 .metricas-loading {

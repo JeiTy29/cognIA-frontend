@@ -3,6 +3,9 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
 import type { PsychologistAdminItem } from '../../../hooks/usePsychologists';
+import { getPsychologistRejectionReason, isPsychologistUser, resolvePsychologistReviewState } from '../../../services/admin/psychologists';
+import { getAllUsers } from '../../../services/admin/users';
+import { downloadPsychologistsReportPdf } from '../../../utils/reports/admin/psychologistsReport';
 import '../AdminShared.css';
 import './Psicologos.css';
 
@@ -27,7 +30,7 @@ function formatDate(value: string | null) {
     return date.toLocaleDateString('es-CO');
 }
 
-function getDisplayName(item: PsychologistAdminItem) {
+function getDisplayName(item: Pick<PsychologistAdminItem, 'full_name'> & { username?: string }) {
     return item.full_name && item.full_name.trim().length > 0 ? item.full_name : 'Sin nombre';
 }
 
@@ -57,6 +60,9 @@ export default function Psicologos() {
     const [rejectReason, setRejectReason] = useState('');
     const [selectedPsychologist, setSelectedPsychologist] = useState<PsychologistAdminItem | null>(null);
     const [isRejectOpen, setIsRejectOpen] = useState(false);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -111,11 +117,72 @@ export default function Psicologos() {
         }
     };
 
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+
+        try {
+            const users = await getAllUsers();
+            const allPsychologists = users
+                .filter(isPsychologistUser)
+                .map((user) => ({
+                    ...user,
+                    reviewState: resolvePsychologistReviewState(user) ?? (user.colpsic_verified ? 'approved' : 'pending'),
+                    reviewReason: getPsychologistRejectionReason(user)
+                }));
+
+            const normalizedSearch = searchTerm.trim().toLowerCase();
+            const filteredReportRows = allPsychologists.filter((item) => {
+                const matchesSearch =
+                    normalizedSearch.length === 0 ||
+                    item.username.toLowerCase().includes(normalizedSearch) ||
+                    item.email.toLowerCase().includes(normalizedSearch) ||
+                    item.id.toLowerCase().includes(normalizedSearch) ||
+                    getDisplayName(item).toLowerCase().includes(normalizedSearch);
+
+                const matchesReview =
+                    reviewFilter === 'Todos' ||
+                    (reviewFilter === 'Pendientes' && item.reviewState === 'pending') ||
+                    (reviewFilter === 'Rechazados' && item.reviewState === 'rejected');
+
+                return matchesSearch && matchesReview;
+            });
+
+            await downloadPsychologistsReportPdf({
+                items: filteredReportRows,
+                summaryItems: allPsychologists,
+                searchTerm,
+                reviewFilter,
+                currentPage,
+                pageSize,
+                total: filteredReportRows.length
+            });
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
+
     return (
         <div className="admin-page psicologos-page">
             <header className="admin-header">
                 <div className="admin-title">
                     <h1>Psicólogos</h1>
+                </div>
+                <div className="admin-actions">
+                    <button
+                        type="button"
+                        className="admin-btn ghost"
+                        onClick={() => {
+                            handleDownloadReport().catch(() => undefined);
+                        }}
+                        disabled={reportWorking}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
                 </div>
             </header>
 
@@ -123,10 +190,11 @@ export default function Psicologos() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
+            {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
+            {reportError ? <div className="admin-alert error">{reportError}</div> : null}
             {statusUnavailable ? (
                 <div className="admin-alert warning">
-                    Se encontraron psicólogos, pero ninguno tenía un estado de revisión visible. Se mostraron como pendientes o rechazados
-                    cuando el backend entregó señales compatibles.
+                    Se encontraron psicólogos, pero ninguno tenía un estado de revisión visible. Se mostraron como pendientes o rechazados cuando el backend entregó señales compatibles.
                 </div>
             ) : null}
 

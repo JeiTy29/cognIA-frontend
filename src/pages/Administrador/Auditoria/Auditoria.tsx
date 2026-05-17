@@ -3,6 +3,7 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
 import type { AuditLogItem } from '../../../services/admin/audit';
+import { downloadAuditReportPdf } from '../../../utils/reports/admin/auditReport';
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
@@ -169,6 +170,9 @@ export default function Auditoria() {
     const [pageSize, setPageSize] = useState(10);
     const [dateOrder, setDateOrder] = useState<DateOrder>('desc');
     const [selectedItem, setSelectedItem] = useState<AuditLogItem | null>(null);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
 
     const actionOptions = useMemo(() => {
         const uniqueActions = Array.from(new Set(items.map((item) => item.action))).sort((left, right) =>
@@ -232,17 +236,50 @@ export default function Auditoria() {
         }));
     }, [selectedItem]);
 
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+        try {
+            await downloadAuditReportPdf({
+                items: filteredRows,
+                searchTerm,
+                actionFilter,
+                dateOrder
+            });
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
+
     return (
         <div className="admin-page auditoria-page">
             <header className="admin-header">
                 <div className="admin-title">
                     <h1>Auditoría</h1>
                 </div>
+                <div className="admin-actions">
+                    <button
+                        type="button"
+                        className="admin-btn ghost"
+                        onClick={() => {
+                            handleDownloadReport().catch(() => undefined);
+                        }}
+                        disabled={reportWorking || loading}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
+                </div>
             </header>
 
             <div className="admin-divider" aria-hidden="true" />
 
             {error ? <div className="admin-alert error">{error}</div> : null}
+            {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
+            {reportError ? <div className="admin-alert error">{reportError}</div> : null}
 
             <section className="admin-controls" aria-label="Controles de auditoría">
                 <div className="admin-search">

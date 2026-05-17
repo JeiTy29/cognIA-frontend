@@ -25,7 +25,6 @@ const AyudaBase = lazy(() => import('./pages/Plataforma/Ayuda/AyudaBase'));
 const HistorialPsicologo = lazy(() => import('./pages/Plataforma/HistorialPsicologo/HistorialPsicologo'));
 const SugerenciasPsicologo = lazy(() => import('./pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo'));
 const Metricas = lazy(() => import('./pages/Administrador/Metricas/Metricas'));
-const Dashboard = lazy(() => import('./pages/Administrador/Dashboard/Dashboard'));
 const Cuestionarios = lazy(() => import('./pages/Administrador/Cuestionarios/Cuestionarios'));
 const PreguntasCuestionario = lazy(() => import('./pages/Administrador/Cuestionarios/PreguntasCuestionario'));
 const Usuarios = lazy(() => import('./pages/Administrador/Usuarios/Usuarios'));
@@ -135,7 +134,7 @@ export default function App() {
                             <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
                                 <Route index element={<Navigate to="/admin/metricas" replace />} />
                                 <Route path="metricas" element={<Metricas />} />
-                                <Route path="dashboard" element={<Dashboard />} />
+                                <Route path="dashboard" element={<Navigate to="/admin/metricas" replace />} />
                                 <Route path="cuestionarios" element={<Cuestionarios />} />
                                 <Route path="cuestionarios/:templateId/preguntas" element={<PreguntasCuestionario />} />
                                 <Route path="evaluaciones" element={<Navigate to="/admin/dashboard" replace />} />

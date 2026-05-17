@@ -11,6 +11,7 @@ import {
     type ProblemReportItem,
     type ProblemReportStatus
 } from '../../../services/problemReports/problemReports.types';
+import { downloadProblemReportsReportPdf } from '../../../utils/reports/admin/problemReportsReport';
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
@@ -288,11 +289,41 @@ export default function ReportesAdmin() {
     const [statusForm, setStatusForm] = useState<string>(PROBLEM_REPORT_STATUSES[0]);
     const [adminNotesForm, setAdminNotesForm] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
 
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
     const orderValue = useMemo(() => `${sort}:${order}`, [sort, order]);
+
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+        try {
+            await downloadProblemReportsReportPdf({
+                items,
+                total,
+                page: currentPage,
+                pageSize,
+                filters: {
+                    query,
+                    status: statusFilter,
+                    issueType: issueTypeFilter,
+                    reporterRole: reporterRoleFilter,
+                    fromDate: fromDateFilter,
+                    toDate: toDateFilter
+                }
+            });
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
 
     const openDetail = async (reportId: string) => {
         clearMessages();
@@ -379,12 +410,26 @@ export default function ReportesAdmin() {
                 <div className="admin-title">
                     <h1>Reportes</h1>
                 </div>
+                <div className="admin-actions">
+                    <button
+                        type="button"
+                        className="admin-btn ghost"
+                        onClick={() => {
+                            handleDownloadReport().catch(swallowReportActionError);
+                        }}
+                        disabled={reportWorking || loading}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
+                </div>
             </header>
 
             <div className="admin-divider" aria-hidden="true" />
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
+            {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
+            {reportError ? <div className="admin-alert error">{reportError}</div> : null}
 
             <section className="admin-controls" aria-label="Controles de reportes">
                 <div className="admin-search">

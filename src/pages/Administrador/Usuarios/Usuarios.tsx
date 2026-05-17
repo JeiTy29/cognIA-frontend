@@ -3,6 +3,7 @@ import { Modal } from '../../../components/Modal/Modal';
 import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
 import type { CreateUserRequest, User } from '../../../services/admin/users';
+import { downloadUsersReportPdf } from '../../../utils/reports/admin/usersReport';
 import './Usuarios.css';
 
 type ManagedUserType = 'guardian' | 'psychologist';
@@ -363,8 +364,32 @@ export default function Usuarios() {
     const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
     const [formErrors, setFormErrors] = useState<FormErrors>({});
     const [createModalError, setCreateModalError] = useState<string | null>(null);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportError(null);
+        setCreateModalError(null);
+        setReportNotice(null);
+        try {
+            await downloadUsersReportPdf({
+                items,
+                total,
+                page,
+                pageSize,
+                filters
+            });
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
 
     useEffect(() => {
         const timeoutId = globalThis.setTimeout(() => {
@@ -624,6 +649,16 @@ export default function Usuarios() {
                 <div className="usuarios-actions">
                     <button
                         type="button"
+                        className="usuarios-btn ghost"
+                        onClick={() => {
+                            handleDownloadReport().catch(() => undefined);
+                        }}
+                        disabled={reportWorking || loading}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
+                    <button
+                        type="button"
                         className="usuarios-btn primary usuarios-btn-create"
                         onClick={() => {
                             clearMessages();
@@ -655,6 +690,22 @@ export default function Usuarios() {
                 <div className="usuarios-alert success">
                     <span>{notice}</span>
                     <button type="button" className="usuarios-btn ghost" onClick={clearMessages}>
+                        Cerrar
+                    </button>
+                </div>
+            ) : null}
+            {reportNotice ? (
+                <div className="usuarios-alert success">
+                    <span>{reportNotice}</span>
+                    <button type="button" className="usuarios-btn ghost" onClick={() => setReportNotice(null)}>
+                        Cerrar
+                    </button>
+                </div>
+            ) : null}
+            {reportError ? (
+                <div className="usuarios-alert error">
+                    <span>{reportError}</span>
+                    <button type="button" className="usuarios-btn ghost" onClick={() => setReportError(null)}>
                         Cerrar
                     </button>
                 </div>
