@@ -96,12 +96,24 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
         `Latencia máxima: ${formatReportNumber(payload.snapshot.latency_ms_max)} ms.`
     ]);
 
+    if (payload.options.includeEmailHealth) {
+        addDataTable(context, {
+            title: 'Estado del servicio de correo',
+            description: REPORT_SECTION_DESCRIPTIONS.metricsEmailHealth,
+            head: ['Campo', 'Valor'],
+            body: [
+                ['Estado', payload.emailState.label],
+                ['Detalle', payload.emailState.detail],
+                ['Motivo', payload.emailState.reason ?? 'Servicio operativo']
+            ]
+        });
+    }
+
     if (payload.options.includeHttpDistribution) {
         const grouped = groupStatusCounts(payload.snapshot.status_counts);
-        addSectionTitle(context, 'Distribución HTTP');
-        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.metricsHttpDistribution);
         addDataTable(context, {
             title: 'Distribución de requests por familia HTTP',
+            description: REPORT_SECTION_DESCRIPTIONS.metricsHttpDistribution,
             head: ['Familia', 'Total'],
             body: [
                 ['2xx exitosas', formatReportNumber(grouped.success)],
@@ -114,14 +126,14 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
     }
 
     addSectionTitle(context, 'Señales complementarias de dashboard');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.metricsDashboard);
+    addParagraph(context, 'Los siguientes bloques se consultan únicamente para complementar el PDF y no se muestran dentro de la pantalla administrativa.');
 
-    for (const [title, key] of [
-        ['Salud de API', 'apiHealth'],
-        ['Calidad de datos', 'dataQuality'],
-        ['Monitoreo de modelos', 'modelMonitoring'],
-        ['Drift', 'drift'],
-        ['Equidad', 'equity']
+    for (const [title, key, description] of [
+        ['Salud de API', 'apiHealth', REPORT_SECTION_DESCRIPTIONS.metricsApiHealth],
+        ['Calidad de datos', 'dataQuality', REPORT_SECTION_DESCRIPTIONS.metricsDataQuality],
+        ['Monitoreo de modelos', 'modelMonitoring', REPORT_SECTION_DESCRIPTIONS.metricsModelMonitoring],
+        ['Drift', 'drift', REPORT_SECTION_DESCRIPTIONS.metricsDrift],
+        ['Equidad', 'equity', REPORT_SECTION_DESCRIPTIONS.metricsEquity]
     ] as const) {
         if ((key === 'dataQuality' && !payload.options.includeDataQuality) ||
             ((key === 'modelMonitoring' || key === 'drift' || key === 'equity') && !payload.options.includeModelMonitoring)) {
@@ -132,6 +144,7 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
         if (!block) continue;
         addDataTable(context, {
             title,
+            description,
             head: ['Indicador', 'Valor'],
             body: summarizeDashboardBlock(title, block)
         });

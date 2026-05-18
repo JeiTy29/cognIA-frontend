@@ -61,7 +61,7 @@ export async function downloadPsychologistsReportPdf(payload: PsychologistsRepor
     }
 
     addSectionTitle(context, 'Resumen de verificación');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.psychologistsVerification);
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.psychologistsSummary);
     addBulletList(context, [
         `Aprobados: ${formatReportNumber(approvedCount)}.`,
         `Pendientes: ${formatReportNumber(pendingCount)}.`,
@@ -70,10 +70,22 @@ export async function downloadPsychologistsReportPdf(payload: PsychologistsRepor
         `Inactivos: ${formatReportNumber(inactiveCount)}.`
     ]);
 
-    addSectionTitle(context, 'Tabla de psicólogos');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.psychologistsTable);
+    addDataTable(context, {
+        title: 'Distribución por verificación',
+        description: REPORT_SECTION_DESCRIPTIONS.psychologistsVerificationDistribution,
+        head: ['Estado', 'Cantidad'],
+        body: [
+            ['Aprobados', formatReportNumber(approvedCount)],
+            ['Pendientes', formatReportNumber(pendingCount)],
+            ['Rechazados', formatReportNumber(rejectedCount)],
+            ['Activos', formatReportNumber(activeCount)],
+            ['Inactivos', formatReportNumber(inactiveCount)]
+        ]
+    });
+
     addDataTable(context, {
         title: 'Psicólogos incluidos',
+        description: REPORT_SECTION_DESCRIPTIONS.psychologistsDetailedList,
         head: ['Usuario', 'Correo', 'Nombre completo', 'Tarjeta profesional', 'Verificación', 'Estado', 'Motivo de rechazo', 'Creación'],
         body: payload.items.map((item) => [
             item.username,
@@ -101,6 +113,10 @@ export async function downloadPsychologistsReportPdf(payload: PsychologistsRepor
             if (!block) continue;
             addDataTable(context, {
                 title,
+                description:
+                    key === 'humanReview'
+                        ? REPORT_SECTION_DESCRIPTIONS.psychologistsHumanReview
+                        : REPORT_SECTION_DESCRIPTIONS.psychologistsGrowth,
                 head: ['Indicador', 'Valor'],
                 body: summarizeDashboardBlock(title, block)
             });

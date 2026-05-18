@@ -216,7 +216,7 @@ export default function Cuestionarios() {
                     `Estado: ${reportForm.state}`,
                     `Origen: ${reportForm.source === 'visible' ? 'Solo visibles' : 'Todas las plantillas'}`,
                     ...(nameFilter.trim() ? [`Nombre: ${nameFilter.trim()}`] : []),
-                    ...(versionFilter.trim() ? [`VersiÃ³n: ${versionFilter.trim()}`] : [])
+                    ...(versionFilter.trim() ? [`Versi?n: ${versionFilter.trim()}`] : [])
                 ],
                 options: {
                     includeDashboardSummary: reportForm.includeDashboardSummary,
@@ -482,7 +482,7 @@ export default function Cuestionarios() {
                             <div key={item.id} className="admin-row cuestionarios-grid">
                                 <div>
                                     <div className="cuestionarios-name">{item.name}</div>
-                                    <div className="admin-muted" title={item.description ?? undefined}>
+                                    <div className="admin-muted" title={item.description?.trim() ? item.description : undefined}>
                                         {item.description?.trim() ? item.description : '--'}
                                     </div>
                                 </div>
@@ -669,7 +669,7 @@ export default function Cuestionarios() {
                         />
                         <label htmlFor="questionnaires-report-detail">
                             <strong>Incluir detalle de preguntas</strong>
-                            <span>Si el contrato actual no lo permite, el PDF lo indicarÃ¡ claramente.</span>
+                            <span>Si el contrato actual no lo permite, el PDF lo indicará claramente.</span>
                         </label>
                     </div>
 
@@ -690,7 +690,7 @@ export default function Cuestionarios() {
                             }}
                             disabled={reportWorking}
                         >
-                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
                         </button>
                     </div>
                 </div>

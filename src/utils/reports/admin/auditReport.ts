@@ -159,8 +159,7 @@ export async function downloadAuditReportPdf(payload: AuditReportPayload) {
     }, {});
     const topActions = Object.entries(actionCounts)
         .sort((left, right) => right[1] - left[1])
-        .slice(0, 5)
-        .map(([action, count]) => `${action}: ${formatReportNumber(count)}.`);
+        .slice(0, 5);
 
     const categoryCounts = payload.items.reduce<Record<string, number>>((acc, item) => {
         const label = resolveAuditCategoryLabel(resolveAuditCategoryValue(item));
@@ -169,6 +168,11 @@ export async function downloadAuditReportPdf(payload: AuditReportPayload) {
     }, {});
     const resultCounts = payload.items.reduce<Record<string, number>>((acc, item) => {
         const label = resolveAuditResultLabel(resolveAuditResultValue(item));
+        acc[label] = (acc[label] ?? 0) + 1;
+        return acc;
+    }, {});
+    const sectionCounts = payload.items.reduce<Record<string, number>>((acc, item) => {
+        const label = item.section?.trim() ? humanizeDashboardLabel(item.section) : 'Sin sección';
         acc[label] = (acc[label] ?? 0) + 1;
         return acc;
     }, {});
@@ -205,17 +209,16 @@ export async function downloadAuditReportPdf(payload: AuditReportPayload) {
     }
 
     addSectionTitle(context, 'Resumen de actividad');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.auditEvents);
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.auditSummary);
     addBulletList(context, [
         `Total de eventos incluidos: ${formatReportNumber(payload.items.length)}.`,
-        ...topActions
+        ...topActions.map(([action, count]) => `${action}: ${formatReportNumber(count)}.`)
     ]);
 
     if (payload.options.includeCategorySummary) {
-        addSectionTitle(context, 'Distribución por categoría');
-        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.auditActionDistribution);
         addDataTable(context, {
-            title: 'Categorías frecuentes',
+            title: 'Distribución por categoría',
+            description: REPORT_SECTION_DESCRIPTIONS.auditByCategory,
             head: ['Categoría', 'Total'],
             body: Object.entries(categoryCounts)
                 .sort((left, right) => right[1] - left[1])
@@ -224,18 +227,35 @@ export async function downloadAuditReportPdf(payload: AuditReportPayload) {
 
         addDataTable(context, {
             title: 'Resultado de eventos',
+            description: REPORT_SECTION_DESCRIPTIONS.auditByResult,
             head: ['Resultado', 'Total'],
             body: Object.entries(resultCounts)
                 .sort((left, right) => right[1] - left[1])
                 .map(([label, count]) => [label, formatReportNumber(count)])
         });
+
+        addDataTable(context, {
+            title: 'Acciones más frecuentes',
+            description: REPORT_SECTION_DESCRIPTIONS.auditFrequentActions,
+            head: ['Acción', 'Total'],
+            body: topActions.map(([label, count]) => [label, formatReportNumber(count)])
+        });
+
+        addDataTable(context, {
+            title: 'Secciones más frecuentes',
+            description: REPORT_SECTION_DESCRIPTIONS.auditFrequentSections,
+            head: ['Sección', 'Total'],
+            body: Object.entries(sectionCounts)
+                .sort((left, right) => right[1] - left[1])
+                .slice(0, 8)
+                .map(([label, count]) => [label, formatReportNumber(count)])
+        });
     }
 
     if (payload.options.includeDetailedTable) {
-        addSectionTitle(context, 'Tabla de auditoría');
-        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.auditTable);
         addDataTable(context, {
             title: 'Eventos incluidos',
+            description: REPORT_SECTION_DESCRIPTIONS.auditEventsTable,
             head: ['Fecha', 'Actor', 'Acción', 'Categoría', 'Resultado', 'Dirección IP', 'Resumen del detalle'],
             body: payload.items.map((item) => {
                 const ipField =
@@ -258,14 +278,15 @@ export async function downloadAuditReportPdf(payload: AuditReportPayload) {
         });
     }
 
-    for (const [title, key] of [
-        ['Salud de API', 'apiHealth'],
-        ['Resumen ejecutivo', 'executiveSummary']
+    for (const [title, key, description] of [
+        ['Salud de API', 'apiHealth', REPORT_SECTION_DESCRIPTIONS.auditApiHealth],
+        ['Resumen ejecutivo', 'executiveSummary', REPORT_SECTION_DESCRIPTIONS.auditExecutiveSummary]
     ] as const) {
         const block = data[key];
         if (!block) continue;
         addDataTable(context, {
             title,
+            description,
             head: ['Indicador', 'Valor'],
             body: summarizeDashboardBlock(title, block)
         });

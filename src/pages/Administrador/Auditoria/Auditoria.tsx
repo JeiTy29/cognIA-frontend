@@ -761,7 +761,7 @@ export default function Auditoria() {
                             }}
                             disabled={reportWorking || (reportForm.scope === 'all' && !reportForm.confirmedFullReport)}
                         >
-                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
                         </button>
                     </div>
                 </div>
@@ -823,4 +823,3 @@ export default function Auditoria() {
         </div>
     );
 }
-

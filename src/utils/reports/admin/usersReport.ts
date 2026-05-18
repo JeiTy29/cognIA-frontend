@@ -95,15 +95,32 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
     addBulletList(context, [
         `Total de registros incluidos en el PDF: ${formatReportNumber(payload.totalIncluded)}.`,
         `Usuarios activos: ${formatReportNumber(activeCount)}.`,
-        `Usuarios inactivos: ${formatReportNumber(inactiveCount)}.`,
-        ...Object.entries(roleCounts).map(([label, count]) => `${label}: ${formatReportNumber(count)}.`)
+        `Usuarios inactivos: ${formatReportNumber(inactiveCount)}.`
     ]);
 
+    addDataTable(context, {
+        title: 'Distribución por rol',
+        description: REPORT_SECTION_DESCRIPTIONS.usersRoleDistribution,
+        head: ['Rol', 'Cantidad'],
+        body: Object.entries(roleCounts)
+            .sort((left, right) => right[1] - left[1])
+            .map(([label, count]) => [label, formatReportNumber(count)])
+    });
+
+    addDataTable(context, {
+        title: 'Distribución por estado',
+        description: REPORT_SECTION_DESCRIPTIONS.usersStatusDistribution,
+        head: ['Estado', 'Cantidad'],
+        body: [
+            ['Activos', formatReportNumber(activeCount)],
+            ['Inactivos', formatReportNumber(inactiveCount)]
+        ]
+    });
+
     if (payload.options.includeDetailedTable) {
-        addSectionTitle(context, 'Tabla de usuarios');
-        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.usersTable);
         addDataTable(context, {
             title: 'Usuarios incluidos',
+            description: REPORT_SECTION_DESCRIPTIONS.usersDetailedList,
             head: ['Usuario', 'Correo', 'Rol', 'Estado', 'Fecha de creación'],
             body: payload.items.map((item) => [
                 item.username,
@@ -117,7 +134,7 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
 
     if (payload.options.includeGrowthSummary) {
         addSectionTitle(context, 'Contexto agregado');
-        addParagraph(context, REPORT_SECTION_DESCRIPTIONS.userGrowth);
+        addParagraph(context, 'Los siguientes bloques provienen de endpoints agregados de dashboard y solo enriquecen el contenido del PDF.');
 
         for (const [title, key] of [
             ['Crecimiento de usuarios', 'userGrowth'],
@@ -128,6 +145,12 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
             if (!block) continue;
             addDataTable(context, {
                 title,
+                description:
+                    key === 'userGrowth'
+                        ? REPORT_SECTION_DESCRIPTIONS.usersGrowthSeries
+                        : key === 'adoptionHistory'
+                            ? REPORT_SECTION_DESCRIPTIONS.usersAdoptionHistory
+                            : REPORT_SECTION_DESCRIPTIONS.usersRetention,
                 head: ['Indicador', 'Valor'],
                 body: summarizeDashboardBlock(title, block)
             });

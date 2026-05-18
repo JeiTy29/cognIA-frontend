@@ -630,7 +630,7 @@ export function Metricas() {
                             }}
                             disabled={reportWorking}
                         >
-                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
                         </button>
                     </div>
                 </div>

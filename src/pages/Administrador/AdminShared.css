@@ -372,8 +372,19 @@
     background: #f8fbff;
 }
 
-.admin-report-checkbox input {
-    margin-top: 2px;
+.admin-report-checkbox input[type='checkbox'] {
+    flex: 0 0 auto;
+    margin: 2px 0 0;
+    transform: none;
+}
+
+.admin-report-checkbox label {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    cursor: pointer;
 }
 
 .admin-report-checkbox strong {

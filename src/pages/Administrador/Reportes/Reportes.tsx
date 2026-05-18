@@ -75,8 +75,8 @@ const problemReportReportLimitOptions = [
 ];
 
 const problemReportOrderOptions = [
-    { value: 'recent', label: 'MÃ¡s recientes primero' },
-    { value: 'oldest', label: 'MÃ¡s antiguos primero' }
+    { value: 'recent', label: 'M?s recientes primero' },
+    { value: 'oldest', label: 'M?s antiguos primero' }
 ];
 
 function formatDateTime(value: string | null) {
@@ -689,7 +689,7 @@ export default function ReportesAdmin() {
                             }}
                             disabled={reportWorking}
                         >
-                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
                         </button>
                     </div>
                 </div>
@@ -721,4 +721,3 @@ export default function ReportesAdmin() {
         </div>
     );
 }
-

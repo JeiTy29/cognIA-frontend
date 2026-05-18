@@ -67,10 +67,9 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
         `Plantillas archivadas: ${formatReportNumber(archivedCount)}.`
     ]);
 
-    addSectionTitle(context, 'Tabla de cuestionarios');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.questionnairesTable);
     addDataTable(context, {
         title: 'Plantillas incluidas',
+        description: REPORT_SECTION_DESCRIPTIONS.questionnairesTemplatesTable,
         head: ['Nombre', 'Versión', 'Estado', 'Archivado', 'Última actualización'],
         body: payload.items.map((item) => [
             item.name,
@@ -97,17 +96,16 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
         );
 
         for (const [title, key, description] of [
-            ['Volumen de cuestionarios', 'questionnaireVolume', REPORT_SECTION_DESCRIPTIONS.questionnaireQuality],
-            ['Calidad de cuestionarios', 'questionnaireQuality', REPORT_SECTION_DESCRIPTIONS.questionnaireQuality],
-            ['Embudo de cuestionarios', 'funnel', REPORT_SECTION_DESCRIPTIONS.questionnaireFunnel],
-            ['Adopción histórica', 'adoptionHistory', REPORT_SECTION_DESCRIPTIONS.userGrowth]
+            ['Volumen de cuestionarios', 'questionnaireVolume', REPORT_SECTION_DESCRIPTIONS.questionnairesVolumeSeries],
+            ['Calidad de cuestionarios', 'questionnaireQuality', REPORT_SECTION_DESCRIPTIONS.questionnairesQualitySeries],
+            ['Embudo de cuestionarios', 'funnel', REPORT_SECTION_DESCRIPTIONS.questionnairesFunnel],
+            ['Adopción histórica', 'adoptionHistory', REPORT_SECTION_DESCRIPTIONS.questionnairesAdoptionHistory]
         ] as const) {
             const block = data[key];
             if (!block) continue;
-            addSectionTitle(context, title);
-            addParagraph(context, description);
             addDataTable(context, {
                 title,
+                description,
                 head: ['Indicador', 'Valor'],
                 body: summarizeDashboardBlock(title, block)
             });

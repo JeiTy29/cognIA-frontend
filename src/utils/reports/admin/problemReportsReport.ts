@@ -45,6 +45,11 @@ export async function downloadProblemReportsReportPdf(payload: ProblemReportsRep
         acc[item.status] = (acc[item.status] ?? 0) + 1;
         return acc;
     }, {});
+    const moduleCounts = payload.items.reduce<Record<string, number>>((acc, item) => {
+        const module = sanitizeTechnicalValue(item.source_module, 'No disponible');
+        acc[module] = (acc[module] ?? 0) + 1;
+        return acc;
+    }, {});
 
     addReportCover(context, {
         title: 'Reporte CognIA - Reportes de problemas',
@@ -64,16 +69,33 @@ export async function downloadProblemReportsReportPdf(payload: ProblemReportsRep
     }
 
     addSectionTitle(context, 'Resumen de estado');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.problemReportsStatus);
+    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.problemReportsSummary);
     addBulletList(
         context,
         Object.entries(statusCounts).map(([status, count]) => `${getProblemReportStatusLabel(status)}: ${formatReportNumber(count)}.`)
     );
 
-    addSectionTitle(context, 'Tabla de reportes');
-    addParagraph(context, REPORT_SECTION_DESCRIPTIONS.problemReportsTable);
+    addDataTable(context, {
+        title: 'Distribución por estado',
+        description: REPORT_SECTION_DESCRIPTIONS.problemReportsByStatus,
+        head: ['Estado', 'Cantidad'],
+        body: Object.entries(statusCounts)
+            .sort((left, right) => right[1] - left[1])
+            .map(([status, count]) => [getProblemReportStatusLabel(status), formatReportNumber(count)])
+    });
+
+    addDataTable(context, {
+        title: 'Distribución por módulo',
+        description: REPORT_SECTION_DESCRIPTIONS.problemReportsByModule,
+        head: ['Módulo', 'Cantidad'],
+        body: Object.entries(moduleCounts)
+            .sort((left, right) => right[1] - left[1])
+            .map(([module, count]) => [module, formatReportNumber(count)])
+    });
+
     addDataTable(context, {
         title: 'Reportes incluidos',
+        description: REPORT_SECTION_DESCRIPTIONS.problemReportsDetailedList,
         head: ['Fecha', 'Usuario', 'Módulo', 'Descripción resumida', 'Estado', 'Prioridad o tipo'],
         body: payload.items.map((item) => [
             formatReportDateTime(item.created_at),
@@ -86,14 +108,15 @@ export async function downloadProblemReportsReportPdf(payload: ProblemReportsRep
     });
 
     if (payload.options.includeDashboardSummary) {
-        for (const [title, key] of [
-            ['Salud de API', 'apiHealth'],
-            ['Calidad de datos', 'dataQuality']
+        for (const [title, key, description] of [
+            ['Salud de API', 'apiHealth', REPORT_SECTION_DESCRIPTIONS.problemReportsApiHealth],
+            ['Calidad de datos', 'dataQuality', REPORT_SECTION_DESCRIPTIONS.problemReportsDataQuality]
         ] as const) {
             const block = data[key];
             if (!block) continue;
             addDataTable(context, {
                 title,
+                description,
                 head: ['Indicador', 'Valor'],
                 body: summarizeDashboardBlock(title, block)
             });

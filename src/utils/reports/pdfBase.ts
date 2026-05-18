@@ -4,6 +4,7 @@ import { ADMIN_REPORT_THEME } from './adminReportTheme';
 
 export interface ReportSectionTable {
     title: string;
+    description?: string;
     head: string[];
     body: RowInput[];
     note?: string;
@@ -179,7 +180,12 @@ export function addBulletList(context: ReportContext, items: string[]) {
     context.cursorY += 2;
 }
 
-export function addNoticeBox(context: ReportContext, title: string, text: string, tone: 'info' | 'success' | 'warning' = 'info') {
+export function addNoticeBox(
+    context: ReportContext,
+    title: string,
+    text: string,
+    tone: 'info' | 'success' | 'warning' = 'info'
+) {
     const fillColor =
         tone === 'success'
             ? ADMIN_REPORT_THEME.colors.accentSoft
@@ -232,11 +238,19 @@ export function addKeyValueTable(context: ReportContext, rows: Array<[string, st
         }
     });
 
-    context.cursorY = ((context.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? context.cursorY) + 5;
+    context.cursorY =
+        ((context.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? context.cursorY) + 5;
 }
 
 export function addDataTable(context: ReportContext, table: ReportSectionTable) {
-    addSectionTitle(context, table.title, table.note);
+    addSectionTitle(context, table.title);
+    if (table.description) {
+        addParagraph(context, table.description);
+    }
+    if (table.note) {
+        addNoticeBox(context, 'Nota', table.note, 'info');
+    }
+
     autoTable(context.doc, {
         startY: context.cursorY,
         margin: { left: context.marginX, right: context.marginX, bottom: 20 },
@@ -256,7 +270,8 @@ export function addDataTable(context: ReportContext, table: ReportSectionTable) 
             textColor: ADMIN_REPORT_THEME.colors.ink
         }
     });
-    context.cursorY = ((context.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? context.cursorY) + 5;
+    context.cursorY =
+        ((context.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? context.cursorY) + 5;
 }
 
 export function addFooterToAllPages(context: ReportContext) {
@@ -280,4 +295,3 @@ export function saveReport(context: ReportContext, filename: string) {
     addFooterToAllPages(context);
     context.doc.save(filename);
 }
-

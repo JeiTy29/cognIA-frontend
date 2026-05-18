@@ -173,7 +173,7 @@ export default function Psicologos() {
                 totalAvailable: result.totalAvailable,
                 filters: [
                     `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
-                    `VerificaciÃ³n: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
+                    `Verificaci?n: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
                     `Estado de cuenta: ${reportForm.accountStatus === 'all' ? 'Todos' : reportForm.accountStatus}`
                 ],
                 options: {
@@ -366,7 +366,7 @@ export default function Psicologos() {
                 }}
             >
                 <div className="admin-report-modal">
-                    <h2>Configurar reporte de psicólogos</h2>
+                    <h2>{'Rechazar psic\u00f3logo'}</h2>
                     <p>Selecciona el alcance del reporte sin alterar el listado visible en pantalla.</p>
 
                     <div className="admin-report-grid">
@@ -432,7 +432,7 @@ export default function Psicologos() {
                             }}
                             disabled={reportWorking}
                         >
-                            {reportWorking ? 'Generando PDF...' : 'Generar PDF'}
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
                         </button>
                     </div>
                 </div>
@@ -440,15 +440,15 @@ export default function Psicologos() {
 
             <Modal isOpen={isRejectOpen} onClose={closeRejectModal}>
                 <div className="admin-modal">
-                    <h2>Rechazar psicólogo</h2>
+                    <h2>{'Rechazar psic\u00f3logo'}</h2>
                     <p>
-                        Indica la razón del rechazo para <strong>{selectedPsychologist?.username ?? ''}</strong>.
+                        {'Indica la raz\u00f3n del rechazo para '}<strong>{selectedPsychologist?.username ?? ''}</strong>.
                     </p>
                     <p className="admin-muted">
                         Tarjeta profesional: {formatProfessionalCard(selectedPsychologist?.professional_card_number)}
                     </p>
                     <label>
-                        <span>Razón</span>
+                        <span>{'Raz\u00f3n'}</span>
                         <textarea
                             value={rejectReason}
                             onChange={(event) => setRejectReason(event.target.value)}
