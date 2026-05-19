@@ -992,17 +992,22 @@ export async function getAllQuestionnaireSessionQuestionsV2(sessionId: string, p
 }
 
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
+    const requestBody: PatchSessionAnswersV2Payload = {
+        include_answers: false,
+        ...payload
+    };
+
     if (sensitiveTransportEnabled) {
         return apiSecurePatch<unknown, PatchSessionAnswersV2Payload>(
             `/api/v2/questionnaires/sessions/${sessionId}/answers`,
-            payload,
+            requestBody,
             requestOptions
         );
     }
 
     return apiPatch<unknown, PatchSessionAnswersV2Payload>(
         `/api/v2/questionnaires/sessions/${sessionId}/answers`,
-        payload,
+        requestBody,
         requestOptions
     );
 }

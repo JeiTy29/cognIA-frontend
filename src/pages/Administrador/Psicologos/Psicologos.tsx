@@ -173,7 +173,7 @@ export default function Psicologos() {
                 totalAvailable: result.totalAvailable,
                 filters: [
                     `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
-                    `Verificaci?n: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
+                    `Verificación: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
                     `Estado de cuenta: ${reportForm.accountStatus === 'all' ? 'Todos' : reportForm.accountStatus}`
                 ],
                 options: {
@@ -366,7 +366,7 @@ export default function Psicologos() {
                 }}
             >
                 <div className="admin-report-modal">
-                    <h2>{'Rechazar psic\u00f3logo'}</h2>
+                    <h2>Configurar reporte de psicólogos</h2>
                     <p>Selecciona el alcance del reporte sin alterar el listado visible en pantalla.</p>
 
                     <div className="admin-report-grid">

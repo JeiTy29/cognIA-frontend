@@ -75,7 +75,8 @@ describe('questionnaires.api secure endpoints', () => {
         const module = await import('./questionnaires.api');
         await module.createQuestionnaireSessionV2({ mode: 'complete', role: 'guardian' });
         await module.patchQuestionnaireSessionAnswersV2('sess-1', {
-            answers: [{ question_id: 'q-1', answer: 'valor' }]
+            answers: [{ question_id: 'q-1', answer: 'valor' }],
+            include_answers: false
         });
 
         expect(apiSecurePost).toHaveBeenCalledWith(
@@ -85,7 +86,10 @@ describe('questionnaires.api secure endpoints', () => {
         );
         expect(apiSecurePatch).toHaveBeenCalledWith(
             '/api/v2/questionnaires/sessions/sess-1/answers',
-            { answers: [{ question_id: 'q-1', answer: 'valor' }] },
+            {
+                answers: [{ question_id: 'q-1', answer: 'valor' }],
+                include_answers: false
+            },
             expect.objectContaining({ auth: true, credentials: 'include' })
         );
     });

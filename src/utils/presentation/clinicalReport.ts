@@ -140,7 +140,10 @@ const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
     [/tambi\?n/gi, 'también'],
     [/seg\?n/gi, 'según'],
     [/ni\?o/gi, 'niño'],
-    [/ni\?a/gi, 'niña']
+    [/ni\?a/gi, 'niña'],
+    [/\bprobabilidad\s*=\s*/gi, 'probabilidad '],
+    [/\bprob\s*=\s*/gi, 'probabilidad '],
+    [/\briesgo\s*=\s*/gi, 'riesgo ']
 ];
 
 function escapeHtml(value: string) {

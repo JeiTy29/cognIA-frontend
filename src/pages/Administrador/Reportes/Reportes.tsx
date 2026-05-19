@@ -75,8 +75,8 @@ const problemReportReportLimitOptions = [
 ];
 
 const problemReportOrderOptions = [
-    { value: 'recent', label: 'M?s recientes primero' },
-    { value: 'oldest', label: 'M?s antiguos primero' }
+    { value: 'recent', label: 'Más recientes primero' },
+    { value: 'oldest', label: 'Más antiguos primero' }
 ];
 
 function formatDateTime(value: string | null) {

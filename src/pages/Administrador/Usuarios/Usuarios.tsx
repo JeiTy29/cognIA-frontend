@@ -99,8 +99,8 @@ const usersReportLimitOptions: CustomSelectOption[] = [
 ];
 
 const usersReportOrderOptions: CustomSelectOption[] = [
-    { value: 'recent', label: 'M?s recientes primero' },
-    { value: 'oldest', label: 'M?s antiguos primero' },
+    { value: 'recent', label: 'Más recientes primero' },
+    { value: 'oldest', label: 'Más antiguos primero' },
     { value: 'username', label: 'Nombre de usuario A-Z' },
     { value: 'email', label: 'Correo A-Z' }
 ];
@@ -131,16 +131,16 @@ const defaultUsersReportModal = (): UsersReportModalState => ({
 });
 
 function getUsersReportOrderLabel(value: UsersReportOrder) {
-    if (value === 'oldest') return 'M?s antiguos primero';
+    if (value === 'oldest') return 'Más antiguos primero';
     if (value === 'username') return 'Nombre de usuario A-Z';
     if (value === 'email') return 'Correo A-Z';
-    return 'M?s recientes primero';
+    return 'Más recientes primero';
 }
 
 function getUsersReportRoleLabel(value: UsersReportModalState['role']) {
     if (value === 'ADMIN') return 'Administrador';
     if (value === 'GUARDIAN') return 'Padre o tutor';
-    if (value === 'PSYCHOLOGIST') return 'Psic?logo';
+    if (value === 'PSYCHOLOGIST') return 'Psicólogo';
     return 'Todos';
 }
 

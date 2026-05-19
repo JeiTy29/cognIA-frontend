@@ -41,7 +41,6 @@ import {
 } from '../../../services/questionnaires/clinicalSummary';
 import {
     formatDomainLabel,
-    formatProbability,
     normalizeClinicalTextPresentation,
     sanitizeClinicalIndicatorText,
     sanitizeClinicalIndicatorsList
@@ -769,9 +768,26 @@ function buildProcessingSteps(phase: CompletionPhase, status: QuestionnaireV2Sta
     ];
 }
 
-function formatPercent(value: number | null | undefined) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
-    return `${Math.round(value * 100) / 100}%`;
+function formatResultPercent(value: unknown) {
+    const numeric =
+        typeof value === 'number'
+            ? value
+            : typeof value === 'string' && value.trim().length > 0
+                ? Number(value.replace(',', '.'))
+                : Number.NaN;
+
+    if (!Number.isFinite(numeric)) return '--';
+
+    const normalizedPercent = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric;
+    const rounded =
+        Math.abs(normalizedPercent - Math.round(normalizedPercent)) < 0.05
+            ? Math.round(normalizedPercent)
+            : Number(normalizedPercent.toFixed(1));
+
+    return `${new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
+        maximumFractionDigits: 1
+    }).format(rounded)} %`;
 }
 
 function getQuestionnaireReportNotice(error: unknown, target: 'results' | 'clinical-summary') {
@@ -924,7 +940,7 @@ function getProcessingChipClass(phase: CompletionPhase) {
 }
 
 function getSubmitActionLabel(working: boolean, isLastQuestion: boolean) {
-    if (working) return isLastQuestion ? 'Enviando...' : 'Guardando...';
+    if (working) return isLastQuestion ? 'Guardando y enviando...' : 'Guardando y avanzando...';
     return isLastQuestion ? 'Enviar' : 'Siguiente';
 }
 
@@ -1028,8 +1044,8 @@ function QuestionnaireProcessedView({
                                     </header>
                                     <p>{indicators.join(' ')}</p>
                                     <div className="questionnaire-result-item-meta">
-                                        <span>Probabilidad: {formatProbability(domain.probability)}</span>
-                                        <span>Confianza: {formatProbability(domain.confidence_pct)}</span>
+                                        <span>Probabilidad: {formatResultPercent(domain.probability)}</span>
+                                        <span>Confianza: {formatResultPercent(domain.confidence_pct)}</span>
                                         <span>Banda: {normalizeClinicalTextPresentation(getConfidenceBandLabel(domain.confidence_band), '--')}</span>
                                     </div>
                                 </article>
@@ -1053,8 +1069,8 @@ function QuestionnaireProcessedView({
                                 </header>
                                 <p>{sanitizeClinicalIndicatorText(String(domain.result_summary ?? '')) ?? normalizeClinicalTextPresentation(domain.result_summary, 'Sin resumen operativo para esta área.')}</p>
                                 <div className="questionnaire-result-item-meta">
-                                    <span>Probabilidad: {formatProbability(domain.probability)}</span>
-                                    <span>Confianza: {formatProbability(domain.confidence_pct)}</span>
+                                    <span>Probabilidad: {formatResultPercent(domain.probability)}</span>
+                                    <span>Confianza: {formatResultPercent(domain.confidence_pct)}</span>
                                     <span>Banda: {normalizeClinicalTextPresentation(getConfidenceBandLabel(domain.confidence_band), '--')}</span>
                                 </div>
                             </article>
@@ -1077,11 +1093,11 @@ function QuestionnaireProcessedView({
                         </div>
                         <div>
                             <strong>Calidad de completitud</strong>
-                            <p>{formatProbability(resultBlock?.completion_quality_score)}</p>
+                            <p>{formatResultPercent(resultBlock?.completion_quality_score)}</p>
                         </div>
                         <div>
                             <strong>Datos faltantes</strong>
-                            <p>{formatProbability(resultBlock?.missingness_score)}</p>
+                            <p>{formatResultPercent(resultBlock?.missingness_score)}</p>
                         </div>
                         <div>
                             <strong>Valoración profesional</strong>
@@ -1299,6 +1315,7 @@ export default function Cuestionario() {
     const [error, setError] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<AnswerPersistenceState>('idle');
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [questionTransitionDirection, setQuestionTransitionDirection] = useState<'from-next' | 'from-prev'>('from-next');
     const [completionPhase, setCompletionPhase] = useState<CompletionPhase>('idle');
     const [backendStatus, setBackendStatus] = useState<QuestionnaireV2Status | null>(null);
     const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -1638,6 +1655,13 @@ export default function Cuestionario() {
         setSaveError(null);
     }, []);
 
+    const cancelPendingAutoSave = useCallback(() => {
+        if (autoSaveTimerRef.current !== null) {
+            globalThis.clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+    }, []);
+
     const buildPendingAnswerPayload = useCallback(() => {
         if (dirtyQuestionIdsRef.current.size === 0) {
             return [];
@@ -1673,7 +1697,8 @@ export default function Cuestionario() {
             setSaveError(null);
             try {
                 await patchQuestionnaireSessionAnswersV2(sessionId, {
-                    answers: pendingAnswers
+                    answers: pendingAnswers,
+                    include_answers: false
                 });
                 dirtyQuestionIdsRef.current.clear();
                 setSaveState('saved');
@@ -1692,12 +1717,20 @@ export default function Cuestionario() {
         return saveTask;
     }, [buildPendingAnswerPayload, saveState, sessionId]);
 
+    const saveCurrentAnswerBeforeNavigation = useCallback(async () => {
+        cancelPendingAutoSave();
+
+        const hasDraftChanges = dirtyQuestionIdsRef.current.size > 0 || saveState === 'dirty';
+        if (!hasDraftChanges && !savePromiseRef.current && saveState !== 'saving') {
+            return true;
+        }
+
+        return flushPendingAnswers();
+    }, [cancelPendingAutoSave, flushPendingAnswers, saveState]);
+
     useEffect(() => {
         if (!started || completionPhase !== 'idle' || saveState !== 'dirty') {
-            if (autoSaveTimerRef.current !== null) {
-                globalThis.clearTimeout(autoSaveTimerRef.current);
-                autoSaveTimerRef.current = null;
-            }
+            cancelPendingAutoSave();
             return undefined;
         }
 
@@ -1706,12 +1739,9 @@ export default function Cuestionario() {
         }, 700);
 
         return () => {
-            if (autoSaveTimerRef.current !== null) {
-                globalThis.clearTimeout(autoSaveTimerRef.current);
-                autoSaveTimerRef.current = null;
-            }
+            cancelPendingAutoSave();
         };
-    }, [completionPhase, flushPendingAnswers, saveState, started]);
+    }, [cancelPendingAutoSave, completionPhase, flushPendingAnswers, saveState, started]);
 
     useEffect(() => {
         const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1735,7 +1765,6 @@ export default function Cuestionario() {
             : null;
     const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
     const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
-    const hasPendingChanges = dirtyQuestionIdsRef.current.size > 0 || saveState === 'dirty';
     const hasSaveError = saveState === 'error';
     const hasRequiredAnswersPending = findFirstInvalidQuestionIndex(questions, answers) >= 0;
     const canSubmitQuestionnaire =
@@ -1743,26 +1772,25 @@ export default function Cuestionario() {
         Boolean(currentQuestion) &&
         canContinue &&
         !working &&
-        saveState !== 'saving' &&
-        !hasPendingChanges &&
         !hasSaveError &&
         !hasRequiredAnswersPending &&
         completionPhase === 'idle';
 
     const handleNext = async () => {
         if (!currentQuestion || !canContinue || actionLockRef.current) return;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= questions.length) return;
         actionLockRef.current = true;
         setWorking(true);
         setError(null);
         try {
-            const saved = await flushPendingAnswers();
+            const saved = await saveCurrentAnswerBeforeNavigation();
             if (!saved) {
                 setError('No se pudieron guardar las respuestas antes de avanzar.');
                 return;
             }
-            if (currentIndex < questions.length - 1) {
-                setCurrentIndex((prev) => prev + 1);
-            }
+            setQuestionTransitionDirection('from-next');
+            setCurrentIndex(nextIndex);
         } catch (requestError) {
             setError(mapError(requestError, 'No se pudo guardar la respuesta.'));
         } finally {
@@ -1793,7 +1821,7 @@ export default function Cuestionario() {
             }
 
             setCompletionPhase('submitting');
-            const saved = await flushPendingAnswers();
+            const saved = await saveCurrentAnswerBeforeNavigation();
             if (!saved) {
                 setCompletionPhase('idle');
                 setCompletionError('No se pudieron guardar las respuestas antes de enviar el cuestionario.');
@@ -1848,18 +1876,18 @@ export default function Cuestionario() {
 
     const handlePrevious = async () => {
         if (currentIndex <= 0 || actionLockRef.current) return;
+        const previousIndex = currentIndex - 1;
         actionLockRef.current = true;
         setWorking(true);
         setError(null);
         try {
-            if (hasPendingChanges) {
-                const saved = await flushPendingAnswers();
-                if (!saved) {
-                    setError('No se pudieron guardar las respuestas antes de volver.');
-                    return;
-                }
+            const saved = await saveCurrentAnswerBeforeNavigation();
+            if (!saved) {
+                setError('No se pudieron guardar las respuestas antes de volver.');
+                return;
             }
-            setCurrentIndex((prev) => prev - 1);
+            setQuestionTransitionDirection('from-prev');
+            setCurrentIndex(previousIndex);
         } finally {
             actionLockRef.current = false;
             setWorking(false);
@@ -2072,7 +2100,7 @@ export default function Cuestionario() {
                 </div>
                 <div>
                     <strong>Progreso backend</strong>
-                    <span>{formatPercent(sessionSnapshot?.progress_pct)}</span>
+                    <span>{formatResultPercent(sessionSnapshot?.progress_pct)}</span>
                 </div>
             </div>
 
@@ -2110,16 +2138,20 @@ export default function Cuestionario() {
     );
 
     const activeQuestionContent = currentQuestion ? (
-            <div className="stack-active">
-                <div className="stack-item is-active" ref={activeRef}>
-                    <h2 className="question-text">{currentQuestion.text}</h2>
-                    <AnswerControl
-                        currentQuestion={currentQuestion}
-                        currentAnswer={currentAnswer}
-                        currentOptions={currentOptions}
-                        currentNumericConstraints={currentNumericConstraints}
-                        onAnswerChange={onAnswerChange}
-                    />
+        <div className="stack-active">
+            <div
+                key={currentQuestion.id || `${currentIndex}`}
+                className={`stack-item is-active questionnaire-question-card ${questionTransitionDirection}`}
+                ref={activeRef}
+            >
+                <h2 className="question-text">{currentQuestion.text}</h2>
+                <AnswerControl
+                    currentQuestion={currentQuestion}
+                    currentAnswer={currentAnswer}
+                    currentOptions={currentOptions}
+                    currentNumericConstraints={currentNumericConstraints}
+                    onAnswerChange={onAnswerChange}
+                />
 
                 <div className={`questionnaire-save-state is-${saveState}`} aria-live="polite">
                     {saveState === 'dirty' ? 'Cambios pendientes por guardar.' : null}
@@ -2147,7 +2179,7 @@ export default function Cuestionario() {
                     onClick={() => {
                         handlePrevious().catch(swallowQuestionnaireAsyncError);
                     }}
-                    disabled={currentIndex <= 0 || working || saveState === 'saving'}
+                    disabled={currentIndex <= 0 || working}
                 >
                     Anterior
                 </button>
@@ -2155,7 +2187,7 @@ export default function Cuestionario() {
                     type="button"
                     className="questionnaire-btn primary"
                     onClick={handlePrimaryActionClick}
-                    disabled={isLastQuestion ? !canSubmitQuestionnaire : (!canContinue || working || saveState === 'saving' || hasSaveError)}
+                    disabled={isLastQuestion ? !canSubmitQuestionnaire : (!canContinue || working || hasSaveError)}
                 >
                     {submitActionLabel}
                 </button>

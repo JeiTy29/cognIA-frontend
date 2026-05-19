@@ -509,11 +509,11 @@
 }
 
 .stack-item.is-active.from-next {
-    animation: stackInNext 0.35s ease;
+    animation: stackInNext 0.2s ease-out;
 }
 
 .stack-item.is-active.from-prev {
-    animation: stackInPrev 0.35s ease;
+    animation: stackInPrev 0.2s ease-out;
 }
 
 .stack-question {
@@ -1374,7 +1374,7 @@
 @keyframes stackInNext {
     from {
         opacity: 0;
-        transform: translateY(14px) scale(0.98);
+        transform: translateY(8px) scale(0.985);
     }
     to {
         opacity: 1;
@@ -1385,7 +1385,7 @@
 @keyframes stackInPrev {
     from {
         opacity: 0;
-        transform: translateY(-14px) scale(0.98);
+        transform: translateY(-8px) scale(0.985);
     }
     to {
         opacity: 1;

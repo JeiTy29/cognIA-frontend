@@ -234,6 +234,7 @@ export interface QuestionnaireSessionPageV2Response {
 
 export interface PatchSessionAnswersV2Payload {
     answers: QuestionnaireAnswerV2DTO[];
+    include_answers?: boolean;
 }
 
 export interface QuestionnaireHistoryItemV2DTO {

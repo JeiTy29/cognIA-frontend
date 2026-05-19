@@ -216,7 +216,7 @@ export default function Cuestionarios() {
                     `Estado: ${reportForm.state}`,
                     `Origen: ${reportForm.source === 'visible' ? 'Solo visibles' : 'Todas las plantillas'}`,
                     ...(nameFilter.trim() ? [`Nombre: ${nameFilter.trim()}`] : []),
-                    ...(versionFilter.trim() ? [`Versi?n: ${versionFilter.trim()}`] : [])
+                    ...(versionFilter.trim() ? [`Versión: ${versionFilter.trim()}`] : [])
                 ],
                 options: {
                     includeDashboardSummary: reportForm.includeDashboardSummary,
