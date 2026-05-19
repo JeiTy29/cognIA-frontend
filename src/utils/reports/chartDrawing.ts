@@ -21,9 +21,45 @@ export type ReportChartConfig = {
     valueLabel?: string;
     unit?: string;
     percent?: boolean;
+    maxXAxisLabels?: number;
+    compactLabels?: boolean;
+    rotateXAxisLabels?: boolean;
+};
+
+type NormalizedChartPoint = {
+    label: string;
+    axisLabel: string;
+    rawValue: number;
+    value: number;
+};
+
+type XAxisLabelOptions = {
+    points: NormalizedChartPoint[];
+    left: number;
+    bottom: number;
+    plotWidth: number;
+    doc: jsPDF;
+    maxXAxisLabels?: number;
+    compactLabels?: boolean;
+    rotateXAxisLabels?: boolean;
 };
 
 const CHART_COLORS = ['#0b6fb8', '#1f9d55', '#f0ad4e', '#dc3545', '#6a6f7d', '#7c3aed', '#0ea5e9', '#14b8a6'];
+const LONG_MONTH_LABEL_PATTERN = /^(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})$/i;
+const MONTH_ABBREVIATIONS: Record<string, string> = {
+    enero: 'ene',
+    febrero: 'feb',
+    marzo: 'mar',
+    abril: 'abr',
+    mayo: 'may',
+    junio: 'jun',
+    julio: 'jul',
+    agosto: 'ago',
+    septiembre: 'sep',
+    octubre: 'oct',
+    noviembre: 'nov',
+    diciembre: 'dic'
+};
 
 function hexToRgb(hex: string) {
     const normalized = hex.replace('#', '');
@@ -70,13 +106,14 @@ function formatChartValue(value: number, config: ReportChartConfig) {
     return config.unit ? `${base} ${config.unit}` : base;
 }
 
-function normalizePoints(points: ReportChartPoint[], percent = false) {
+function normalizePoints(points: ReportChartPoint[], config: ReportChartConfig): NormalizedChartPoint[] {
     return points
         .filter((point) => point.label.trim().length > 0 && Number.isFinite(point.value))
         .map((point) => ({
             label: point.label.trim(),
+            axisLabel: formatAxisLabel(point.label.trim(), config.compactLabels !== false),
             rawValue: point.value,
-            value: normalizeChartValue(point.value, percent)
+            value: normalizeChartValue(point.value, config.percent)
         }));
 }
 
@@ -109,8 +146,72 @@ function finalizeChart(context: ReportContext, chartHeight: number) {
     context.cursorY += chartHeight + 6;
 }
 
+export function estimateTextWidth(doc: jsPDF, text: string, fontSize: number) {
+    const unitWidth = doc.getStringUnitWidth(text);
+    return (unitWidth * fontSize) / doc.internal.scaleFactor;
+}
+
+export function formatAxisLabel(label: string, compact = true) {
+    const normalized = label.trim();
+    if (!compact) return normalized;
+
+    const match = normalized.match(LONG_MONTH_LABEL_PATTERN);
+    if (match) {
+        const month = MONTH_ABBREVIATIONS[match[1].toLowerCase()] ?? match[1].slice(0, 3).toLowerCase();
+        return `${month} ${match[2]}`;
+    }
+
+    return truncateLabel(normalized, 12);
+}
+
+export function getXAxisLabelStep(points: Array<{ label: string }>, plotWidth: number, maxLabelWidth: number, maxXAxisLabels = 6) {
+    if (points.length <= 1) return 1;
+    const desiredCount = Math.min(points.length, Math.max(2, maxXAxisLabels));
+    const widthLimitedCount = Math.max(2, Math.floor(plotWidth / Math.max(1, maxLabelWidth)));
+    const visibleCount = Math.max(2, Math.min(desiredCount, widthLimitedCount || desiredCount));
+    return Math.max(1, Math.ceil(points.length / visibleCount));
+}
+
+function shouldRotateLabels(stepX: number, maxLabelWidth: number, rotateXAxisLabels?: boolean) {
+    if (rotateXAxisLabels === true) return true;
+    if (rotateXAxisLabels === false) return false;
+    return stepX < maxLabelWidth + 2;
+}
+
+export function drawXAxisLabels(options: XAxisLabelOptions) {
+    const { points, left, bottom, plotWidth, doc } = options;
+    if (points.length === 0) return { rotation: 0, extraBottomSpace: 0 };
+
+    const fontSize = 7.5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontSize);
+    setTextHex(doc, ADMIN_REPORT_THEME.colors.ink);
+
+    const labels = points.map((point) => formatAxisLabel(point.axisLabel, options.compactLabels !== false));
+    const maxLabelWidth = Math.max(...labels.map((label) => estimateTextWidth(doc, label, fontSize)), 16);
+    const stepX = points.length > 1 ? plotWidth / (points.length - 1) : plotWidth;
+    const labelStep = points.length > 6
+        ? getXAxisLabelStep(labels.map((label) => ({ label })), plotWidth, maxLabelWidth, options.maxXAxisLabels ?? 6)
+        : 1;
+    const rotate = shouldRotateLabels(stepX * labelStep, maxLabelWidth, options.rotateXAxisLabels);
+    const rotation = rotate ? 40 : 0;
+    const extraBottomSpace = rotate ? 12 : 6;
+
+    points.forEach((_, index) => {
+        if (index !== 0 && index !== points.length - 1 && index % labelStep !== 0) return;
+        const x = left + (points.length > 1 ? (plotWidth / (points.length - 1)) * index : plotWidth / 2);
+        const label = labels[index];
+        doc.text(label, x, bottom + (rotate ? 3 : 5), {
+            align: rotate ? 'right' : 'center',
+            angle: rotation
+        });
+    });
+
+    return { rotation, extraBottomSpace };
+}
+
 export function drawBarChart(context: ReportContext, config: ReportChartConfig) {
-    const points = normalizePoints(config.points, config.percent);
+    const points = normalizePoints(config.points, config);
     if (points.length === 0) {
         renderNoDataState(context, config, 'No hay datos suficientes para generar esta gráfica.');
         return;
@@ -123,13 +224,13 @@ export function drawBarChart(context: ReportContext, config: ReportChartConfig) 
     addSectionTitle(context, config.title);
     addParagraph(context, config.description);
 
-    const chartHeight = 78;
+    const chartHeight = 84;
     const chart = drawChartContainer(context, chartHeight);
     const { doc } = context;
     const left = chart.x + 12;
     const right = chart.x + chart.width - 8;
     const top = chart.y + 8;
-    const bottom = chart.y + chart.height - 16;
+    const bottom = chart.y + chart.height - 24;
     const plotHeight = bottom - top;
     const plotWidth = right - left;
     const maxValue = Math.max(...points.map((point) => point.value), 1);
@@ -151,17 +252,24 @@ export function drawBarChart(context: ReportContext, config: ReportChartConfig) 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.text(formatChartValue(point.rawValue, config), x + barWidth / 2, Math.max(top + 4, y - 2), { align: 'center' });
+    });
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(truncateLabel(point.label, 14), x + barWidth / 2, bottom + 5, { align: 'center' });
+    drawXAxisLabels({
+        points,
+        left: left + barWidth / 2,
+        bottom,
+        plotWidth: Math.max(0, plotWidth - barWidth),
+        doc,
+        maxXAxisLabels: config.maxXAxisLabels,
+        compactLabels: config.compactLabels,
+        rotateXAxisLabels: config.rotateXAxisLabels
     });
 
     finalizeChart(context, chartHeight);
 }
 
 export function drawHorizontalBarChart(context: ReportContext, config: ReportChartConfig) {
-    const points = normalizePoints(config.points, config.percent)
+    const points = normalizePoints(config.points, config)
         .filter((point) => point.label.trim().length > 0)
         .sort((left, right) => right.value - left.value);
 
@@ -209,7 +317,7 @@ export function drawHorizontalBarChart(context: ReportContext, config: ReportCha
 }
 
 export function drawLineChart(context: ReportContext, config: ReportChartConfig) {
-    const points = normalizePoints(config.points, config.percent);
+    const points = normalizePoints(config.points, config);
     if (points.length < 2) {
         renderNoDataState(context, config, 'No hay suficientes datos históricos para generar esta gráfica.');
         return;
@@ -222,13 +330,13 @@ export function drawLineChart(context: ReportContext, config: ReportChartConfig)
     addSectionTitle(context, config.title);
     addParagraph(context, config.description);
 
-    const chartHeight = 72;
+    const chartHeight = 82;
     const chart = drawChartContainer(context, chartHeight);
     const { doc } = context;
     const left = chart.x + 18;
     const right = chart.x + chart.width - 8;
     const top = chart.y + 8;
-    const bottom = chart.y + chart.height - 14;
+    const bottom = chart.y + chart.height - 24;
     const plotWidth = right - left;
     const plotHeight = bottom - top;
     const maxValue = Math.max(...points.map((point) => point.value), 1);
@@ -275,14 +383,15 @@ export function drawLineChart(context: ReportContext, config: ReportChartConfig)
         }
     });
 
-    const labelStep = points.length > 6 ? Math.ceil(points.length / 6) : 1;
-    points.forEach((point, index) => {
-        if (index % labelStep !== 0 && index !== points.length - 1) return;
-        const x = left + index * stepX;
-        setTextHex(doc, ADMIN_REPORT_THEME.colors.ink);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.text(truncateLabel(point.label, 16), x, bottom + 5, { align: 'center' });
+    drawXAxisLabels({
+        points,
+        left,
+        bottom,
+        plotWidth,
+        doc,
+        maxXAxisLabels: config.maxXAxisLabels,
+        compactLabels: config.compactLabels,
+        rotateXAxisLabels: config.rotateXAxisLabels
     });
 
     finalizeChart(context, chartHeight);

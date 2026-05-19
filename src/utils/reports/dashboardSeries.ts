@@ -1,3 +1,11 @@
+type SeriesAggregationMode = 'sum' | 'max' | 'latest';
+
+type ExtractDashboardSeriesOptions = {
+    preferredPath?: string;
+    aggregateDuplicatePeriods?: boolean;
+    aggregator?: SeriesAggregationMode;
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     return value as Record<string, unknown>;
@@ -34,15 +42,24 @@ function isLikelyNumericString(value: string) {
     return /^[0-9]+(?:\.[0-9]+)?$/.test(value.trim());
 }
 
-function formatMonthLabel(rawPeriod: string) {
-    if (!rawPeriod || isLikelyNumericString(rawPeriod)) return null;
-    const date = new Date(rawPeriod);
-    if (Number.isNaN(date.getTime())) return null;
+function isValidDateYear(date: Date) {
+    const year = date.getUTCFullYear();
+    const currentYear = new Date().getUTCFullYear();
+    return year >= 2020 && year <= currentYear + 1;
+}
 
-    const year = date.getFullYear();
-    const currentYear = new Date().getFullYear();
-    if (year < 2020 || year > currentYear + 1) return null;
+function looksLikeIsoDate(value: string) {
+    return /^\d{4}-\d{2}(?:-\d{2})?(?:T.*)?$/.test(value.trim());
+}
 
+function tryParseDate(rawPeriod: string | null) {
+    if (!rawPeriod || isLikelyNumericString(rawPeriod) || !looksLikeIsoDate(rawPeriod)) return null;
+    const parsed = new Date(rawPeriod);
+    if (Number.isNaN(parsed.getTime()) || !isValidDateYear(parsed)) return null;
+    return parsed;
+}
+
+function formatLongMonth(date: Date) {
     return new Intl.DateTimeFormat('es-CO', {
         month: 'long',
         year: 'numeric',
@@ -50,19 +67,58 @@ function formatMonthLabel(rawPeriod: string) {
     }).format(date);
 }
 
-function formatPeriodLabel(rawPeriod: string | null, index: number) {
-    if (rawPeriod) {
-        const monthLabel = formatMonthLabel(rawPeriod);
-        if (monthLabel) return monthLabel;
+const SHORT_MONTH_LABELS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-        const normalized = rawPeriod.trim();
-        if (normalized.length > 0 && !isLikelyNumericString(normalized)) {
-            return normalized;
-        }
-        return 'Periodo no válido';
+function formatShortMonth(date: Date) {
+    return `${SHORT_MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+function resolvePeriodMeta(rawPeriod: string | null, index: number) {
+    if (!rawPeriod) {
+        return {
+            periodKey: `period-${index + 1}`,
+            periodLabel: `Periodo ${index + 1}`,
+            axisLabel: `P${index + 1}`,
+            sortableDateKey: null as number | null
+        };
     }
 
-    return `Periodo ${index + 1}`;
+    const parsedDate = tryParseDate(rawPeriod);
+    if (parsedDate) {
+        const monthKey = `${parsedDate.getUTCFullYear()}-${String(parsedDate.getUTCMonth() + 1).padStart(2, '0')}`;
+        return {
+            periodKey: monthKey,
+            periodLabel: formatLongMonth(parsedDate),
+            axisLabel: formatShortMonth(parsedDate),
+            sortableDateKey: parsedDate.getTime()
+        };
+    }
+
+    if (looksLikeIsoDate(rawPeriod)) {
+        return {
+            periodKey: `invalid-${index + 1}`,
+            periodLabel: 'Periodo no válido',
+            axisLabel: 'Periodo',
+            sortableDateKey: null as number | null
+        };
+    }
+
+    const normalized = rawPeriod.trim();
+    if (!normalized || isLikelyNumericString(normalized)) {
+        return {
+            periodKey: `invalid-${index + 1}`,
+            periodLabel: 'Periodo no válido',
+            axisLabel: 'Periodo',
+            sortableDateKey: null as number | null
+        };
+    }
+
+    return {
+        periodKey: normalized.toLowerCase(),
+        periodLabel: normalized,
+        axisLabel: normalized,
+        sortableDateKey: null as number | null
+    };
 }
 
 function isSeriesItem(value: unknown) {
@@ -81,25 +137,7 @@ function findSeriesArrayInRecord(record: Record<string, unknown>, depth: number)
         return directSeries;
     }
 
-    for (const key of [
-        'adoption_history',
-        'volume_and_growth',
-        'user_growth',
-        'volume',
-        'data',
-        'result'
-    ]) {
-        const nested = asRecord(record[key]);
-        if (!nested) continue;
-        const found = findSeriesArrayInRecord(nested, depth + 1);
-        if (found) return found;
-    }
-
     for (const value of Object.values(record)) {
-        if (Array.isArray(value) && value.length > 0 && value.some(isSeriesItem)) {
-            return value;
-        }
-
         const nested = asRecord(value);
         if (!nested) continue;
         const found = findSeriesArrayInRecord(nested, depth + 1);
@@ -109,28 +147,101 @@ function findSeriesArrayInRecord(record: Record<string, unknown>, depth: number)
     return null;
 }
 
+function resolvePreferredSeries(payload: unknown, preferredPath?: string) {
+    if (!preferredPath) return null;
+    const parts = preferredPath.split('.').filter(Boolean);
+    let cursor: unknown = payload;
+
+    for (const part of parts) {
+        const record = asRecord(cursor);
+        if (!record) return null;
+        cursor = record[part];
+    }
+
+    const preferredArray = asArray(cursor);
+    if (preferredArray.length > 0 && preferredArray.some(isSeriesItem)) {
+        return preferredArray;
+    }
+    return null;
+}
+
+function aggregateValues(existing: number, next: number, mode: SeriesAggregationMode) {
+    if (mode === 'max') return Math.max(existing, next);
+    if (mode === 'latest') return next;
+    return existing + next;
+}
+
 export type DashboardSeriesPoint = {
-    periodLabel: string;
+    periodKey: string;
     rawPeriod: string | null;
+    periodLabel: string;
+    axisLabel: string;
     value: number;
 };
 
-export function extractDashboardSeries(payload: unknown): DashboardSeriesPoint[] {
+export function extractDashboardSeries(payload: unknown, options: ExtractDashboardSeriesOptions = {}): DashboardSeriesPoint[] {
     const rootArray = asArray(payload);
-    const seriesSource = rootArray.some(isSeriesItem)
-        ? rootArray
-        : findSeriesArrayInRecord(asRecord(payload) ?? {}, 0) ?? [];
+    const seriesSource =
+        resolvePreferredSeries(payload, options.preferredPath) ??
+        (rootArray.some(isSeriesItem)
+            ? rootArray
+            : findSeriesArrayInRecord(asRecord(payload) ?? {}, 0) ?? []);
 
-    return seriesSource
+    const points = seriesSource
         .map((item, index) => {
             const record = asRecord(item);
             if (!record) return null;
             const rawPeriod = getRawPeriod(record);
+            const meta = resolvePeriodMeta(rawPeriod, index);
             return {
                 rawPeriod,
-                periodLabel: formatPeriodLabel(rawPeriod, index),
-                value: getSeriesValue(record)
-            } satisfies DashboardSeriesPoint;
+                periodKey: meta.periodKey,
+                periodLabel: meta.periodLabel,
+                axisLabel: meta.axisLabel,
+                value: getSeriesValue(record),
+                sortableDateKey: meta.sortableDateKey,
+                originalIndex: index
+            };
         })
-        .filter((item): item is DashboardSeriesPoint => item !== null);
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+        .filter((item) => item.periodLabel !== 'Periodo no válido' && item.axisLabel !== 'Periodo');
+
+    const shouldAggregate = options.aggregateDuplicatePeriods ?? true;
+    const aggregator = options.aggregator ?? 'sum';
+
+    const normalized = shouldAggregate
+        ? Array.from(
+            points.reduce((acc, point) => {
+                const existing = acc.get(point.periodKey);
+                if (!existing) {
+                    acc.set(point.periodKey, point);
+                    return acc;
+                }
+                acc.set(point.periodKey, {
+                    ...existing,
+                    value: aggregateValues(existing.value, point.value, aggregator),
+                    rawPeriod: existing.rawPeriod ?? point.rawPeriod,
+                    sortableDateKey: existing.sortableDateKey ?? point.sortableDateKey
+                });
+                return acc;
+            }, new Map<string, (typeof points)[number]>()).values()
+        )
+        : points;
+
+    return normalized
+        .sort((left, right) => {
+            if (left.sortableDateKey !== null && right.sortableDateKey !== null) {
+                return left.sortableDateKey - right.sortableDateKey;
+            }
+            if (left.sortableDateKey !== null) return -1;
+            if (right.sortableDateKey !== null) return 1;
+            return left.originalIndex - right.originalIndex;
+        })
+        .map((point) => ({
+            periodKey: point.periodKey,
+            rawPeriod: point.rawPeriod,
+            periodLabel: point.periodLabel,
+            axisLabel: point.axisLabel,
+            value: point.value
+        }));
 }

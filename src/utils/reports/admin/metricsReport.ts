@@ -49,7 +49,7 @@ function buildDashboardSeriesPoints(payload: unknown): ReportChartPoint[] {
     return extractDashboardSeries(payload)
         .filter((point) => point.periodLabel !== 'Periodo no válido')
         .map((point) => ({
-            label: point.periodLabel,
+            label: point.axisLabel,
             value: point.value
         }));
 }
