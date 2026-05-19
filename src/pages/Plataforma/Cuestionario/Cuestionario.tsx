@@ -940,7 +940,7 @@ function getProcessingChipClass(phase: CompletionPhase) {
 }
 
 function getSubmitActionLabel(working: boolean, isLastQuestion: boolean) {
-    if (working) return isLastQuestion ? 'Guardando y enviando...' : 'Guardando y avanzando...';
+    if (working) return isLastQuestion ? 'Guardando...' : 'Guardando...';
     return isLastQuestion ? 'Enviar' : 'Siguiente';
 }
 
