@@ -1,5 +1,7 @@
 import type { ReportPsychologistRecord } from '../../../services/admin/adminReportData';
 import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import { drawBarChart, drawLineChart, type ReportChartPoint } from '../chartDrawing';
+import { extractDashboardSeries } from '../dashboardSeries';
 import {
     addBulletList,
     addDataTable,
@@ -19,6 +21,21 @@ import {
     formatVerificationStatus
 } from '../reportFormatting';
 import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
+
+function buildDistributionPoints(entries: Array<[string, number]>): ReportChartPoint[] {
+    return entries
+        .filter(([, value]) => Number.isFinite(value) && value >= 0)
+        .map(([label, value]) => ({ label, value }));
+}
+
+function buildDashboardSeriesPoints(payload: unknown): ReportChartPoint[] {
+    return extractDashboardSeries(payload)
+        .filter((point) => point.periodLabel !== 'Periodo no válido')
+        .map((point) => ({
+            label: point.periodLabel,
+            value: point.value
+        }));
+}
 
 export type PsychologistsReportPayload = {
     items: ReportPsychologistRecord[];
@@ -70,6 +87,27 @@ export async function downloadPsychologistsReportPdf(payload: PsychologistsRepor
         `Inactivos: ${formatReportNumber(inactiveCount)}.`
     ]);
 
+    drawBarChart(context, {
+        title: 'Gráfica de verificación profesional',
+        description:
+            'Esta gráfica compara la cantidad de perfiles aprobados, pendientes y rechazados. Permite identificar rápidamente el estado general del proceso de validación profesional.',
+        points: buildDistributionPoints([
+            ['Aprobados', approvedCount],
+            ['Pendientes', pendingCount],
+            ['Rechazados', rejectedCount]
+        ])
+    });
+
+    drawBarChart(context, {
+        title: 'Gráfica de estado de cuenta',
+        description:
+            'Esta gráfica muestra la proporción entre psicólogos con cuenta activa e inactiva. Es útil para contrastar disponibilidad administrativa frente al estado de verificación.',
+        points: buildDistributionPoints([
+            ['Activos', activeCount],
+            ['Inactivos', inactiveCount]
+        ])
+    });
+
     addDataTable(context, {
         title: 'Distribución por verificación',
         description: REPORT_SECTION_DESCRIPTIONS.psychologistsVerificationDistribution,
@@ -104,6 +142,16 @@ export async function downloadPsychologistsReportPdf(payload: PsychologistsRepor
             context,
             'Si un perfil está inactivo, la reactivación administrativa no reemplaza el proceso de aprobación profesional cuando todavía está pendiente.'
         );
+
+        const growthPoints = data.userGrowth ? buildDashboardSeriesPoints(data.userGrowth) : [];
+        if (growthPoints.length >= 3) {
+            drawLineChart(context, {
+                title: 'Crecimiento de usuarios profesionales',
+                description:
+                    'Esta gráfica muestra la evolución mensual de usuarios profesionales cuando la información agregada de dashboard está disponible. Cada punto representa nuevas cuentas registradas en el mes indicado.',
+                points: growthPoints
+            });
+        }
 
         for (const [title, key] of [
             ['Revisión humana', 'humanReview'],

@@ -21,7 +21,7 @@ function getSeriesValue(record: Record<string, unknown>) {
 }
 
 function getRawPeriod(record: Record<string, unknown>) {
-    for (const key of ['month', 'period', 'date', 'label']) {
+    for (const key of ['month', 'bucket', 'period', 'date', 'label']) {
         const value = record[key];
         if (typeof value === 'string' && value.trim().length > 0) {
             return value.trim();
@@ -61,13 +61,14 @@ function formatPeriodLabel(rawPeriod: string | null, index: number) {
         }
         return 'Periodo no válido';
     }
+
     return `Periodo ${index + 1}`;
 }
 
 function isSeriesItem(value: unknown) {
     const record = asRecord(value);
     if (!record) return false;
-    const hasPeriodKey = ['month', 'period', 'date', 'label'].some((key) => typeof record[key] === 'string');
+    const hasPeriodKey = ['month', 'bucket', 'period', 'date', 'label'].some((key) => typeof record[key] === 'string');
     const hasValueKey = ['count', 'value', 'total', 'amount'].some((key) => toNumber(record[key]) !== null);
     return hasPeriodKey || hasValueKey;
 }

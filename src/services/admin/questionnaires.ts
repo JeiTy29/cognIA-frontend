@@ -177,8 +177,14 @@ export function createQuestionnaireTemplate(payload: CreateQuestionnaireTemplate
     );
 }
 
-export function createQuestionnaireQuestion(templateId: string, payload: CreateQuestionnaireQuestionPayload) {
-    return apiPost<CreateQuestionnaireQuestionResponse, CreateQuestionnaireQuestionPayload>(
+export function createQuestionnaireQuestion(
+    templateId: string,
+    payload: CreateQuestionnaireQuestionPayload | CreateQuestionnaireQuestionPayload[]
+) {
+    return apiPost<
+        CreateQuestionnaireQuestionResponse | CreateQuestionnaireQuestionResponse[],
+        CreateQuestionnaireQuestionPayload | CreateQuestionnaireQuestionPayload[]
+    >(
         `/api/v1/questionnaires/${templateId}/questions`,
         payload,
         requestOptions

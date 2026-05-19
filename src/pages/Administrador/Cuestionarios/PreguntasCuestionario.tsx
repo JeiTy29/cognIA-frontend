@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../../services/api/httpClient';
 import {
@@ -8,12 +8,11 @@ import {
     type QuestionnaireQuestionOptionPayload,
     type QuestionnaireQuestionResponseType
 } from '../../../services/admin/questionnaires';
-import { getResponseTypeLabel } from '../../../utils/presentation/naturalLanguage';
 import '../AdminShared.css';
 import './PreguntasCuestionario.css';
 
 interface QuestionDraft {
-    id: string;
+    localId: string;
     code: string;
     text: string;
     response_type: QuestionnaireQuestionResponseType;
@@ -27,7 +26,6 @@ interface QuestionDraft {
 interface QuestionFormState {
     text: string;
     responseType: QuestionnaireQuestionResponseType;
-    position: string;
     max: string;
     optionsText: string;
 }
@@ -103,10 +101,7 @@ const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTy
         exampleQuestion: '¿Cuenta con diagnóstico previo?',
         exampleHint: 'Respuesta fija Sí/No',
         fixedChoiceHint: 'Opciones fijas: Sí / No',
-        fixedResponses: [
-            { value: 'Sí' },
-            { value: 'No' }
-        ]
+        fixedResponses: [{ value: 'Sí' }, { value: 'No' }]
     },
     frequency_0_3: {
         label: 'Frecuencia 0–3',
@@ -170,7 +165,6 @@ const QUESTION_CODE_PATTERN = /^[A-Za-z0-9_-]{2,64}$/;
 const initialForm: QuestionFormState = {
     text: '',
     responseType: 'likert_0_4',
-    position: '1',
     max: '',
     optionsText: ''
 };
@@ -230,13 +224,13 @@ function extractDetailMessages(error: ApiError) {
     return [];
 }
 
-function mapError(error: unknown) {
-    if (!(error instanceof ApiError)) return 'No se pudo agregar la pregunta.';
+function mapError(error: unknown, context: 'save' | 'general' = 'general') {
+    if (!(error instanceof ApiError)) return 'No se pudo guardar el borrador de preguntas.';
 
     const businessCode = extractBusinessCode(error);
     const details = extractDetailMessages(error);
 
-    let message = 'No se pudo agregar la pregunta.';
+    let message = 'No se pudo guardar el borrador de preguntas.';
     if (businessCode === 'validation_error') {
         message = 'Revisa los campos de la pregunta. El código, texto, tipo y posición deben cumplir el formato requerido.';
     } else if (businessCode === 'invalid_question_constraints') {
@@ -252,7 +246,10 @@ function mapError(error: unknown) {
     } else if (businessCode === 'response_options_empty') {
         message = 'Debes agregar opciones o cambiar a un tipo que no las requiera.';
     } else if (businessCode === 'code_exists') {
-        message = 'Ya existe una pregunta con ese código. Cambia la posición o vuelve a intentar para generar uno nuevo.';
+        message =
+            context === 'save'
+                ? 'Una o más preguntas tienen códigos que ya existen en la plantilla. Cambia el tipo o vuelve a crear el borrador.'
+                : 'Ya existe una pregunta con ese código en el borrador actual.';
     } else if (businessCode === 'template_active') {
         message = 'No puedes modificar una plantilla activa. Clónala o desactívala antes de editarla.';
     } else if (businessCode === 'template_archived') {
@@ -355,9 +352,12 @@ function buildGeneratedQuestionCode(
     }
 }
 
-function buildQuestionPayload(form: QuestionFormState, generatedCode: string) {
+function buildQuestionPayload(
+    form: QuestionFormState,
+    generatedCode: string,
+    position: number
+) {
     const text = form.text.trim();
-    const parsedPosition = Number(form.position);
     const config = QUESTION_TYPE_CONFIG[form.responseType];
 
     if (!QUESTION_CODE_PATTERN.test(generatedCode)) {
@@ -368,15 +368,15 @@ function buildQuestionPayload(form: QuestionFormState, generatedCode: string) {
         return { error: 'El texto debe tener entre 3 y 500 caracteres.', payload: null };
     }
 
-    if (!Number.isInteger(parsedPosition) || parsedPosition < 1) {
-        return { error: 'La posición debe ser un entero mayor o igual a 1.', payload: null };
+    if (!Number.isInteger(position) || position < 1) {
+        return { error: 'La posición calculada del borrador no es válida.', payload: null };
     }
 
     const payload: CreateQuestionnaireQuestionPayload = {
         code: generatedCode,
         text,
         response_type: form.responseType,
-        position: parsedPosition
+        position
     };
 
     if (config.fixedRange) {
@@ -408,6 +408,57 @@ function buildQuestionPayload(form: QuestionFormState, generatedCode: string) {
     return { error: null, payload };
 }
 
+function compactDraftQuestions(drafts: QuestionDraft[]) {
+    return drafts.map((draft, index) => ({
+        ...draft,
+        position: index + 1
+    }));
+}
+
+function normalizeDraftText(value: string) {
+    return value.trim().toLowerCase().replaceAll(/\s+/g, ' ');
+}
+
+function buildDraftStorageKey(templateId: string) {
+    return `cognia_admin_question_drafts_${templateId}`;
+}
+
+function getDraftResponseSummary(draft: QuestionDraft) {
+    if (draft.response_options && draft.response_options.length > 0) {
+        return draft.response_options
+            .map((option) => `${option.value} — ${option.label}`)
+            .join(' · ');
+    }
+
+    if (draft.response_type === 'text_context') {
+        return 'Respuesta abierta de texto.';
+    }
+
+    if (draft.response_type === 'count') {
+        return draft.response_max != null
+            ? `Conteo entero desde ${draft.response_min ?? 0} hasta ${draft.response_max}.`
+            : 'Conteo entero sin opciones predefinidas.';
+    }
+
+    if (draft.response_type === 'boolean') {
+        return 'Opciones fijas: Sí / No.';
+    }
+
+    if (draft.response_min != null && draft.response_max != null) {
+        return `Rango fijo ${draft.response_min} a ${draft.response_max} con paso ${draft.response_step ?? 1}.`;
+    }
+
+    if (draft.response_min != null) {
+        return `Mínimo ${draft.response_min} con paso ${draft.response_step ?? 1}.`;
+    }
+
+    return 'Configuración válida para el tipo seleccionado.';
+}
+
+function getQuestionTypeLabel(responseType: QuestionnaireQuestionResponseType) {
+    return QUESTION_TYPE_CONFIG[responseType].label;
+}
+
 export default function PreguntasCuestionario() {
     const navigate = useNavigate();
     const { templateId: templateIdFromParams } = useParams();
@@ -418,24 +469,61 @@ export default function PreguntasCuestionario() {
     const templateName = resolveTemplateName(template);
 
     const [form, setForm] = useState<QuestionFormState>(initialForm);
-    const [submitting, setSubmitting] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
-    const [createdQuestions, setCreatedQuestions] = useState<QuestionDraft[]>([]);
+    const [draftQuestions, setDraftQuestions] = useState<QuestionDraft[]>([]);
+    const [draftInitialized, setDraftInitialized] = useState(false);
 
-    const takenCodes = useMemo(() => new Set(createdQuestions.map((question) => question.code)), [createdQuestions]);
+    useEffect(() => {
+        if (!templateId) {
+            setDraftQuestions([]);
+            setDraftInitialized(true);
+            return;
+        }
+
+        try {
+            const storedDraft = sessionStorage.getItem(buildDraftStorageKey(templateId));
+            if (!storedDraft) {
+                setDraftQuestions([]);
+                setDraftInitialized(true);
+                return;
+            }
+
+            const parsed = JSON.parse(storedDraft);
+            if (Array.isArray(parsed)) {
+                const restoredDrafts = compactDraftQuestions(
+                    parsed.filter((item): item is QuestionDraft => Boolean(item && typeof item === 'object'))
+                );
+                setDraftQuestions(restoredDrafts);
+                if (restoredDrafts.length > 0) {
+                    setNotice('Se restauró un borrador local de preguntas no guardadas.');
+                }
+            }
+        } catch {
+            sessionStorage.removeItem(buildDraftStorageKey(templateId));
+        } finally {
+            setDraftInitialized(true);
+        }
+    }, [templateId]);
+
+    useEffect(() => {
+        if (!draftInitialized || !templateId) return;
+        if (draftQuestions.length === 0) {
+            sessionStorage.removeItem(buildDraftStorageKey(templateId));
+            return;
+        }
+        sessionStorage.setItem(buildDraftStorageKey(templateId), JSON.stringify(draftQuestions));
+    }, [draftInitialized, draftQuestions, templateId]);
+
     const currentTypeConfig = QUESTION_TYPE_CONFIG[form.responseType];
-    const parsedPosition = Number(form.position);
+    const takenCodes = useMemo(() => new Set(draftQuestions.map((question) => question.code)), [draftQuestions]);
+    const nextPosition = draftQuestions.length + 1;
 
     const generatedCode = useMemo(
-        () => buildGeneratedQuestionCode(form.responseType, parsedPosition, takenCodes),
-        [form.responseType, parsedPosition, takenCodes]
+        () => buildGeneratedQuestionCode(form.responseType, nextPosition, takenCodes),
+        [form.responseType, nextPosition, takenCodes]
     );
-
-    const nextPosition = useMemo(() => {
-        if (createdQuestions.length === 0) return 1;
-        return Math.max(...createdQuestions.map((question) => question.position)) + 1;
-    }, [createdQuestions]);
 
     const parsedOrdinalPreview = useMemo(() => {
         if (form.responseType !== 'ordinal') return [];
@@ -444,11 +532,10 @@ export default function PreguntasCuestionario() {
     }, [form.optionsText, form.responseType]);
 
     const resetForm = () => {
-        setForm({
+        setForm((prev) => ({
             ...initialForm,
-            responseType: form.responseType,
-            position: String(nextPosition)
-        });
+            responseType: prev.responseType
+        }));
         setError(null);
     };
 
@@ -462,7 +549,7 @@ export default function PreguntasCuestionario() {
         setError(null);
     };
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    const handleAddToDraft = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setNotice(null);
 
@@ -471,44 +558,127 @@ export default function PreguntasCuestionario() {
             return;
         }
 
-        const { error: validationError, payload } = buildQuestionPayload(form, generatedCode);
+        const normalizedText = normalizeDraftText(form.text);
+        if (draftQuestions.some((question) => normalizeDraftText(question.text) === normalizedText)) {
+            setError('Ya existe una pregunta similar en el borrador.');
+            return;
+        }
+
+        if (draftQuestions.some((question) => question.code === generatedCode)) {
+            setError('Ya existe una pregunta con ese código en el borrador.');
+            return;
+        }
+
+        const { error: validationError, payload } = buildQuestionPayload(form, generatedCode, nextPosition);
         if (validationError || !payload) {
             setError(validationError ?? 'Revisa los datos de la pregunta.');
             return;
         }
 
-        setError(null);
-        setSubmitting(true);
-        try {
-            const response = await createQuestionnaireQuestion(templateId, payload);
-            const draft: QuestionDraft = {
-                id:
-                    (typeof response.id === 'string' && response.id) ||
-                    (typeof response.question_id === 'string' && response.question_id) ||
-                    `local-${Date.now()}`,
-                code: payload.code,
-                text: payload.text,
-                response_type: payload.response_type,
-                position: payload.position,
-                response_min: payload.response_min ?? null,
-                response_max: payload.response_max ?? null,
-                response_step: payload.response_step ?? null,
-                response_options: payload.response_options
-            };
+        const draft: QuestionDraft = {
+            localId: `draft-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            code: payload.code,
+            text: payload.text,
+            response_type: payload.response_type,
+            position: payload.position,
+            response_min: payload.response_min ?? null,
+            response_max: payload.response_max ?? null,
+            response_step: payload.response_step ?? null,
+            response_options: payload.response_options
+        };
 
-            setCreatedQuestions((prev) =>
-                [...prev, draft].sort((left, right) => left.position - right.position)
+        setDraftQuestions((prev) => compactDraftQuestions([...prev, draft]));
+        setNotice(
+            'Pregunta agregada al borrador. Esta validación evita duplicados en el borrador actual; la validación definitiva contra el servidor se realizará al guardar.'
+        );
+        resetForm();
+    };
+
+    const moveDraftQuestion = (localId: string, direction: 'up' | 'down') => {
+        setDraftQuestions((prev) => {
+            const currentIndex = prev.findIndex((question) => question.localId === localId);
+            if (currentIndex < 0) return prev;
+
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+
+            const nextDrafts = [...prev];
+            const [movedQuestion] = nextDrafts.splice(currentIndex, 1);
+            nextDrafts.splice(targetIndex, 0, movedQuestion);
+            return compactDraftQuestions(nextDrafts);
+        });
+        setNotice('Se actualizó el orden del borrador. El código identifica la pregunta; la posición define el orden.');
+        setError(null);
+    };
+
+    const removeDraftQuestion = (localId: string) => {
+        const targetQuestion = draftQuestions.find((question) => question.localId === localId);
+        if (!targetQuestion) return;
+
+        const confirmed = window.confirm(
+            `Se eliminará del borrador la pregunta "${targetQuestion.code}". Esto no afecta preguntas ya guardadas en el servidor.`
+        );
+        if (!confirmed) return;
+
+        setDraftQuestions((prev) =>
+            compactDraftQuestions(prev.filter((question) => question.localId !== localId))
+        );
+        setNotice('La pregunta se eliminó del borrador local.');
+        setError(null);
+    };
+
+    const discardDraft = () => {
+        if (draftQuestions.length === 0) return;
+        const confirmed = window.confirm(
+            'Esto eliminará las preguntas no guardadas de este dispositivo. No afectará preguntas ya guardadas en el servidor.'
+        );
+        if (!confirmed) return;
+
+        setDraftQuestions([]);
+        if (templateId) {
+            sessionStorage.removeItem(buildDraftStorageKey(templateId));
+        }
+        setNotice('Se descartó el borrador local.');
+        setError(null);
+    };
+
+    const handleSaveDraftQuestions = async () => {
+        setNotice(null);
+
+        if (!templateId) {
+            setError('No se encontró el identificador de la plantilla.');
+            return;
+        }
+
+        if (draftQuestions.length === 0) {
+            setError('No hay preguntas en borrador para guardar.');
+            return;
+        }
+
+        const payloadArray = compactDraftQuestions(draftQuestions).map<CreateQuestionnaireQuestionPayload>((question) => ({
+            code: question.code,
+            text: question.text,
+            response_type: question.response_type,
+            position: question.position,
+            response_min: question.response_min ?? undefined,
+            response_max: question.response_max ?? undefined,
+            response_step: question.response_step ?? undefined,
+            response_options: question.response_options
+        }));
+
+        setSavingDraft(true);
+        setError(null);
+        try {
+            await createQuestionnaireQuestion(templateId, payloadArray);
+            setDraftQuestions([]);
+            sessionStorage.removeItem(buildDraftStorageKey(templateId));
+            setNotice(
+                'Preguntas guardadas correctamente. Las preguntas guardadas ya fueron enviadas al servidor. Para visualizarlas como listado persistido se requiere endpoint de consulta por plantilla.'
             );
-            setNotice('Pregunta agregada correctamente.');
-            setForm({
-                ...initialForm,
-                responseType: form.responseType,
-                position: String(draft.position + 1)
-            });
         } catch (requestError) {
-            setError(mapError(requestError));
+            setError(mapError(requestError, 'save'));
         } finally {
-            setSubmitting(false);
+            setSavingDraft(false);
         }
     };
 
@@ -538,17 +708,42 @@ export default function PreguntasCuestionario() {
                 {template?.description ? <div><strong>Descripción:</strong> {template.description}</div> : null}
             </section>
 
+            <div className="admin-alert info preguntas-info-banner">
+                <span>
+                    Puedes preparar y ordenar preguntas antes de guardarlas. Las preguntas ya guardadas en el servidor
+                    requieren un endpoint de consulta para mostrarse aquí.
+                </span>
+            </div>
+
+            <div className="admin-alert info preguntas-info-banner">
+                <span>
+                    Actualmente solo puedes reorganizar o eliminar preguntas antes de guardarlas. Para editar preguntas
+                    ya guardadas, el backend debe exponer endpoints de listado, eliminación y reordenamiento.
+                </span>
+            </div>
+
+            <div className="admin-alert info preguntas-info-banner">
+                <span>
+                    No hay un endpoint disponible en frontend para cargar preguntas guardadas de esta plantilla. Las
+                    preguntas nuevas se preparan en borrador y se guardan en lote.
+                </span>
+            </div>
+
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
 
             <section className="preguntas-cuestionario-grid">
-                <form className="admin-modal preguntas-form" onSubmit={handleSubmit}>
-                    <h2>Agregar pregunta</h2>
+                <form className="admin-modal preguntas-form" onSubmit={handleAddToDraft}>
+                    <h2>Agregar pregunta al borrador</h2>
 
                     <label>
                         <span>Código generado automáticamente</span>
                         <input type="text" value={generatedCode} readOnly />
                     </label>
+
+                    <p className="preguntas-inline-note">
+                        Esta pregunta se agregará en la posición {nextPosition} del borrador.
+                    </p>
 
                     <label>
                         <span>Texto</span>
@@ -577,8 +772,9 @@ export default function PreguntasCuestionario() {
                         <p className="preguntas-help-main">{currentTypeConfig.helper}</p>
                         {currentTypeConfig.showLikertInfo ? (
                             <p className="preguntas-help-secondary">
-                                Una escala Likert permite responder con valores ordenados para medir acuerdo, frecuencia o intensidad.
-                                En CognIA se usa como una escala cerrada con valores numéricos predefinidos.
+                                Una escala Likert permite responder con valores ordenados para medir acuerdo, frecuencia
+                                o intensidad. En CognIA se usa como una escala cerrada con valores numéricos
+                                predefinidos.
                             </p>
                         ) : null}
                         {currentTypeConfig.fixedChoiceHint ? (
@@ -593,17 +789,6 @@ export default function PreguntasCuestionario() {
                     </div>
 
                     <div className="preguntas-inline-fields">
-                        <label>
-                            <span>Posición</span>
-                            <input
-                                type="number"
-                                min={1}
-                                step={1}
-                                value={form.position}
-                                onChange={(event) => setForm((prev) => ({ ...prev, position: event.target.value }))}
-                            />
-                        </label>
-
                         {currentTypeConfig.showOptionalMax ? (
                             <label>
                                 <span>Máximo opcional</span>
@@ -623,7 +808,11 @@ export default function PreguntasCuestionario() {
                                 ) : null}
                                 <span>Paso: {currentTypeConfig.fixedRange.step}</span>
                             </div>
-                        ) : null}
+                        ) : (
+                            <div className="preguntas-fixed-constraints preguntas-fixed-constraints-muted">
+                                <span>Este tipo no requiere restricciones adicionales editables.</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="preguntas-preview">
@@ -674,43 +863,111 @@ export default function PreguntasCuestionario() {
                         ) : null}
                     </div>
 
+                    <div className="admin-alert info preguntas-duplicate-note">
+                        <span>
+                            Esta validación evita duplicados en el borrador actual. La validación definitiva contra el
+                            servidor se realizará al guardar.
+                        </span>
+                    </div>
+
+                    <div className="preguntas-code-note">
+                        El código identifica la pregunta; la posición define el orden.
+                    </div>
+
                     <div className="admin-modal-actions">
-                        <button type="button" className="admin-btn ghost" onClick={resetForm} disabled={submitting}>
+                        <button type="button" className="admin-btn ghost" onClick={resetForm} disabled={savingDraft}>
                             Limpiar
                         </button>
-                        <button type="submit" className="admin-btn primary" disabled={submitting}>
-                            {submitting ? 'Agregando...' : 'Agregar pregunta'}
+                        <button type="submit" className="admin-btn primary" disabled={savingDraft || !templateId}>
+                            Agregar al borrador
                         </button>
                     </div>
                 </form>
 
-                <section className="preguntas-listado" aria-label="Preguntas agregadas en la sesión actual">
-                    <h2>Preguntas agregadas</h2>
-                    {createdQuestions.length === 0 ? (
-                        <div className="admin-empty">
-                            <h3>Sin preguntas cargadas</h3>
-                            <p>Agrega la primera pregunta para esta plantilla.</p>
+                <section className="preguntas-listado" aria-label="Preguntas en borrador">
+                    <div className="preguntas-listado-header">
+                        <div>
+                            <h2>Preguntas en borrador</h2>
+                            <p>{draftQuestions.length} preguntas pendientes por guardar</p>
+                        </div>
+                        <div className="preguntas-listado-actions">
+                            <button
+                                type="button"
+                                className="admin-btn ghost"
+                                onClick={discardDraft}
+                                disabled={savingDraft || draftQuestions.length === 0}
+                            >
+                                Descartar borrador
+                            </button>
+                            <button
+                                type="button"
+                                className="admin-btn primary"
+                                onClick={() => {
+                                    handleSaveDraftQuestions().catch(() => undefined);
+                                }}
+                                disabled={savingDraft || draftQuestions.length === 0 || !templateId}
+                            >
+                                {savingDraft ? 'Guardando...' : 'Guardar preguntas'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {draftQuestions.length === 0 ? (
+                        <div className="admin-empty preguntas-empty-state">
+                            <h3>Sin preguntas en borrador</h3>
+                            <p>
+                                Agrega una pregunta para preparar el listado antes de guardarlo.
+                            </p>
                         </div>
                     ) : (
                         <div className="preguntas-list">
-                            {createdQuestions.map((question) => (
-                                <article key={question.id} className="preguntas-item">
-                                    <header>
-                                        <strong>{question.code}</strong>
-                                        <span>Posición {question.position}</span>
+                            {draftQuestions.map((question, index) => (
+                                <article key={question.localId} className="preguntas-item">
+                                    <header className="preguntas-item-header">
+                                        <div>
+                                            <strong>{question.code}</strong>
+                                            <span>Posición {question.position}</span>
+                                        </div>
+                                        <div className="preguntas-item-actions">
+                                            <button
+                                                type="button"
+                                                className="admin-btn ghost preguntas-action-btn"
+                                                onClick={() => moveDraftQuestion(question.localId, 'up')}
+                                                disabled={index === 0 || savingDraft}
+                                            >
+                                                Subir
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="admin-btn ghost preguntas-action-btn"
+                                                onClick={() => moveDraftQuestion(question.localId, 'down')}
+                                                disabled={index === draftQuestions.length - 1 || savingDraft}
+                                            >
+                                                Bajar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="admin-btn ghost preguntas-action-btn preguntas-action-danger"
+                                                onClick={() => removeDraftQuestion(question.localId)}
+                                                disabled={savingDraft}
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </div>
                                     </header>
+
                                     <p>{question.text}</p>
+
                                     <div className="preguntas-item-meta">
-                                        <span>Tipo: {getResponseTypeLabel(question.response_type, question.response_type)}</span>
-                                        <span>Mínimo: {question.response_min ?? '--'}</span>
-                                        <span>Máximo: {question.response_max ?? '--'}</span>
-                                        <span>Paso: {question.response_step ?? '--'}</span>
+                                        <span>Tipo: {getQuestionTypeLabel(question.response_type)}</span>
+                                        <span>Resumen: {getDraftResponseSummary(question)}</span>
                                     </div>
+
                                     {question.response_options && question.response_options.length > 0 ? (
                                         <div className="preguntas-item-options">
                                             {question.response_options.map((option) => (
                                                 <span key={`${option.value}-${option.label}`}>
-                                                    {option.value} - {option.label}
+                                                    {option.value} — {option.label}
                                                 </span>
                                             ))}
                                         </div>

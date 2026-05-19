@@ -155,7 +155,7 @@ export function formatDomainLabel(value: unknown, fallback = 'No disponible') {
 export function formatRoleLabel(value: unknown, fallback = 'No disponible') {
     if (typeof value !== 'string' || value.trim().length === 0) return fallback;
     const normalized = normalizeKey(value);
-    return ROLE_LABELS[normalized] ?? ROLE_LABELS[normalized.toLowerCase()] ?? capitalizeSentence(normalized);
+    return ROLE_LABELS[normalized] ?? capitalizeSentence(normalized);
 }
 
 export function formatUserStatus(value: unknown, fallback = 'No disponible') {
@@ -297,4 +297,3 @@ export function buildAdminReportFileName(sectionLabel: string, extension = 'pdf'
         .replace(/\s+\./g, '.')
         .trim();
 }
-

@@ -1,5 +1,7 @@
 import type { AdminQuestionnaireItem } from '../../../services/admin/questionnaires';
 import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import { drawBarChart, drawHorizontalBarChart, drawLineChart, type ReportChartPoint } from '../chartDrawing';
+import { extractDashboardSeries } from '../dashboardSeries';
 import {
     addBulletList,
     addDataTable,
@@ -17,6 +19,29 @@ import {
     formatUserStatus
 } from '../reportFormatting';
 import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboardDataForReports';
+
+function buildDashboardSeriesPoints(payload: unknown): ReportChartPoint[] {
+    return extractDashboardSeries(payload)
+        .filter((point) => point.periodLabel !== 'Periodo no válido')
+        .map((point) => ({
+            label: point.periodLabel,
+            value: point.value
+        }));
+}
+
+function buildFunnelPoints(payload: unknown): ReportChartPoint[] {
+    if (!payload || typeof payload !== 'object') return [];
+    const record = payload as Record<string, unknown>;
+    const created = typeof record.created === 'number' ? record.created : Number(record.created ?? 0);
+    const submitted = typeof record.submitted === 'number' ? record.submitted : Number(record.submitted ?? 0);
+    const processed = typeof record.processed === 'number' ? record.processed : Number(record.processed ?? 0);
+
+    return [
+        { label: 'Creados', value: Number.isFinite(created) ? created : 0 },
+        { label: 'Enviados', value: Number.isFinite(submitted) ? submitted : 0 },
+        { label: 'Procesados', value: Number.isFinite(processed) ? processed : 0 }
+    ];
+}
 
 export type QuestionnairesReportPayload = {
     items: AdminQuestionnaireItem[];
@@ -67,6 +92,16 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
         `Plantillas archivadas: ${formatReportNumber(archivedCount)}.`
     ]);
 
+    drawBarChart(context, {
+        title: 'Gráfica de estado de plantillas',
+        description:
+            'Esta gráfica compara la cantidad de plantillas activas y archivadas dentro del reporte. Ayuda a visualizar el balance entre cuestionarios vigentes y registros fuera de circulación.',
+        points: [
+            { label: 'Activas', value: activeCount },
+            { label: 'Archivadas', value: archivedCount }
+        ]
+    });
+
     addDataTable(context, {
         title: 'Plantillas incluidas',
         description: REPORT_SECTION_DESCRIPTIONS.questionnairesTemplatesTable,
@@ -94,6 +129,50 @@ export async function downloadQuestionnairesReportPdf(payload: QuestionnairesRep
             context,
             'Los endpoints agregados del dashboard se usan únicamente para complementar este PDF y no alteran la vista visible de administración.'
         );
+
+        const volumePoints = data.questionnaireVolume ? buildDashboardSeriesPoints(data.questionnaireVolume) : [];
+        if (volumePoints.length >= 3) {
+            drawLineChart(context, {
+                title: 'Volumen mensual de cuestionarios',
+                description:
+                    'Esta gráfica muestra la evolución del volumen mensual de cuestionarios a partir de datos agregados de dashboard. Cada punto corresponde a un mes calendario del periodo consultado.',
+                points: volumePoints
+            });
+        } else if (volumePoints.length >= 2) {
+            drawBarChart(context, {
+                title: 'Comparativo de volumen de cuestionarios',
+                description:
+                    'Esta gráfica compara los periodos disponibles de volumen de cuestionarios cuando la serie histórica es corta. Permite observar diferencias rápidas entre meses consecutivos.',
+                points: volumePoints
+            });
+        }
+
+        const qualityPoints = data.questionnaireQuality ? buildDashboardSeriesPoints(data.questionnaireQuality) : [];
+        if (qualityPoints.length >= 3) {
+            drawLineChart(context, {
+                title: 'Calidad de respuestas por periodo',
+                description:
+                    'Esta gráfica muestra la evolución de los indicadores de calidad de respuestas cuando el backend entrega una serie histórica válida. Los valores deben interpretarse como contexto complementario del reporte.',
+                points: qualityPoints
+            });
+        } else if (qualityPoints.length >= 2) {
+            drawBarChart(context, {
+                title: 'Comparativo de calidad de respuestas',
+                description:
+                    'Esta gráfica compara los periodos disponibles de calidad de respuestas cuando la serie histórica es breve. Cada barra representa el valor agregado del periodo correspondiente.',
+                points: qualityPoints
+            });
+        }
+
+        const funnelPoints = data.funnel ? buildFunnelPoints(data.funnel) : [];
+        if (funnelPoints.length > 0) {
+            drawHorizontalBarChart(context, {
+                title: 'Embudo de cuestionarios',
+                description:
+                    'Esta gráfica resume el flujo de cuestionarios creados, enviados y procesados. Ayuda a interpretar la conversión operativa entre cada etapa del proceso.',
+                points: funnelPoints
+            });
+        }
 
         for (const [title, key, description] of [
             ['Volumen de cuestionarios', 'questionnaireVolume', REPORT_SECTION_DESCRIPTIONS.questionnairesVolumeSeries],

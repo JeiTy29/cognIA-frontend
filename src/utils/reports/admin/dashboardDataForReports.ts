@@ -18,8 +18,8 @@ import type {
     DashboardFunnelResponse,
     DashboardSeriesResponse
 } from '../../../services/dashboard/dashboard.types';
-import { formatReportNumber, formatReportPercent, humanizeDashboardLabel, sanitizeTechnicalValue } from '../reportFormatting';
 import { extractDashboardSeries } from '../dashboardSeries';
+import { formatReportNumber, formatReportPercent, humanizeDashboardLabel, sanitizeTechnicalValue } from '../reportFormatting';
 
 export type ReportDashboardBlockKey =
     | 'executiveSummary'
@@ -140,4 +140,3 @@ export function summarizeDashboardBlock(title: string, payload: DashboardBlockVa
     flattenNode(`${title} / Capacidad operativa`, adoption.operational_capacity, rows);
     return rows.slice(0, 18);
 }
-

@@ -30,6 +30,10 @@ function ensurePageSpace(context: ReportContext, requiredHeight: number) {
     context.cursorY = 20;
 }
 
+export function ensureReportPageSpace(context: ReportContext, requiredHeight: number) {
+    ensurePageSpace(context, requiredHeight);
+}
+
 export function createReportContext(sectionTitle: string) {
     const doc = new jsPDF({
         orientation: 'portrait',

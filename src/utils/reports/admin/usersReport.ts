@@ -1,5 +1,7 @@
 import type { User } from '../../../services/admin/users';
 import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import { drawBarChart, drawLineChart, type ReportChartPoint } from '../chartDrawing';
+import { extractDashboardSeries } from '../dashboardSeries';
 import {
     addBulletList,
     addDataTable,
@@ -23,6 +25,21 @@ import { loadDashboardBlocksForReport, summarizeDashboardBlock } from './dashboa
 function getUserRoleLabel(user: User) {
     const role = user.roles.find((entry) => entry.trim().length > 0) ?? user.user_type;
     return formatRoleLabel(role);
+}
+
+function buildDistributionPoints(entries: Array<[string, number]>): ReportChartPoint[] {
+    return entries
+        .filter(([, value]) => Number.isFinite(value) && value >= 0)
+        .map(([label, value]) => ({ label, value }));
+}
+
+function buildDashboardSeriesPoints(payload: unknown): ReportChartPoint[] {
+    return extractDashboardSeries(payload)
+        .filter((point) => point.periodLabel !== 'Periodo no válido')
+        .map((point) => ({
+            label: point.periodLabel,
+            value: point.value
+        }));
 }
 
 export type UsersReportPayload = {
@@ -98,6 +115,15 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
         `Usuarios inactivos: ${formatReportNumber(inactiveCount)}.`
     ]);
 
+    drawBarChart(context, {
+        title: 'Gráfica de distribución por rol',
+        description:
+            'Esta gráfica compara la cantidad de usuarios agrupados por rol dentro del conjunto incluido en el reporte. Ayuda a identificar de forma rápida qué perfiles predominan en la plataforma.',
+        points: buildDistributionPoints(
+            Object.entries(roleCounts).sort((left, right) => right[1] - left[1])
+        )
+    });
+
     addDataTable(context, {
         title: 'Distribución por rol',
         description: REPORT_SECTION_DESCRIPTIONS.usersRoleDistribution,
@@ -105,6 +131,16 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
         body: Object.entries(roleCounts)
             .sort((left, right) => right[1] - left[1])
             .map(([label, count]) => [label, formatReportNumber(count)])
+    });
+
+    drawBarChart(context, {
+        title: 'Gráfica de distribución por estado',
+        description:
+            'Esta gráfica muestra la relación entre usuarios activos e inactivos en el conjunto descargado. Permite interpretar de manera visual qué proporción de cuentas permanece habilitada.',
+        points: buildDistributionPoints([
+            ['Activos', activeCount],
+            ['Inactivos', inactiveCount]
+        ])
     });
 
     addDataTable(context, {
@@ -116,6 +152,28 @@ export async function downloadUsersReportPdf(payload: UsersReportPayload) {
             ['Inactivos', formatReportNumber(inactiveCount)]
         ]
     });
+
+    if (payload.options.includeGrowthSummary) {
+        const userGrowthBlock = data.userGrowth;
+        if (userGrowthBlock) {
+            const growthPoints = buildDashboardSeriesPoints(userGrowthBlock);
+            if (growthPoints.length >= 3) {
+                drawLineChart(context, {
+                    title: 'Crecimiento mensual de usuarios',
+                    description:
+                        'Esta gráfica muestra la cantidad de usuarios registrados por mes a partir de información complementaria de dashboard. Permite observar si la adopción aumenta, disminuye o se mantiene estable durante el periodo consultado.',
+                    points: growthPoints
+                });
+            } else if (growthPoints.length >= 2) {
+                drawBarChart(context, {
+                    title: 'Comparativo mensual de usuarios',
+                    description:
+                        'Esta gráfica compara los periodos disponibles de crecimiento de usuarios cuando la serie histórica es corta. Cada barra representa nuevas cuentas registradas en el mes indicado.',
+                    points: growthPoints
+                });
+            }
+        }
+    }
 
     if (payload.options.includeDetailedTable) {
         addDataTable(context, {

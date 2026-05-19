@@ -1,6 +1,8 @@
 import type { DbState, ServerState, StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
 import { REPORT_SECTION_DESCRIPTIONS } from '../adminReportDescriptions';
+import { drawBarChart, drawHorizontalBarChart, drawLineChart, type ReportChartPoint } from '../chartDrawing';
+import { extractDashboardSeries } from '../dashboardSeries';
 import {
     addBulletList,
     addDataTable,
@@ -35,6 +37,46 @@ function groupStatusCounts(counts: Record<string, number>) {
         }
     }
     return grouped;
+}
+
+function buildDistributionPoints(items: Array<[string, number]>): ReportChartPoint[] {
+    return items
+        .filter(([, value]) => Number.isFinite(value) && value >= 0)
+        .map(([label, value]) => ({ label, value }));
+}
+
+function buildDashboardSeriesPoints(payload: unknown): ReportChartPoint[] {
+    return extractDashboardSeries(payload)
+        .filter((point) => point.periodLabel !== 'Periodo no válido')
+        .map((point) => ({
+            label: point.periodLabel,
+            value: point.value
+        }));
+}
+
+function drawDashboardSeriesChart(
+    context: ReturnType<typeof createReportContext>,
+    title: string,
+    description: string,
+    payload: unknown
+) {
+    const chartDescription = description.replace(/^Esta tabla/i, 'Esta gráfica');
+    const points = buildDashboardSeriesPoints(payload);
+    if (points.length >= 3) {
+        drawLineChart(context, {
+            title: `Tendencia de ${title.toLowerCase()}`,
+            description: chartDescription,
+            points
+        });
+        return;
+    }
+    if (points.length >= 2) {
+        drawBarChart(context, {
+            title: `Comparativo de ${title.toLowerCase()}`,
+            description: chartDescription,
+            points
+        });
+    }
 }
 
 export type MetricsReportPayload = {
@@ -111,8 +153,23 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
 
     if (payload.options.includeHttpDistribution) {
         const grouped = groupStatusCounts(payload.snapshot.status_counts);
-        addDataTable(context, {
+        const points = buildDistributionPoints([
+            ['2xx exitosas', grouped.success],
+            ['3xx redirecciones', grouped.redirect],
+            ['4xx cliente/autorización', grouped.clientError],
+            ['5xx servidor', grouped.serverError],
+            ['Otros', grouped.other]
+        ]);
+
+        drawHorizontalBarChart(context, {
             title: 'Distribución de requests por familia HTTP',
+            description:
+                'Esta gráfica compara la cantidad de solicitudes por familia HTTP. Permite verificar si predominan respuestas exitosas o si existe una concentración relevante de errores del cliente o del servidor.',
+            points
+        });
+
+        addDataTable(context, {
+            title: 'Detalle de requests por familia HTTP',
             description: REPORT_SECTION_DESCRIPTIONS.metricsHttpDistribution,
             head: ['Familia', 'Total'],
             body: [
@@ -142,6 +199,8 @@ export async function downloadMetricsReportPdf(payload: MetricsReportPayload) {
 
         const block = data[key];
         if (!block) continue;
+
+        drawDashboardSeriesChart(context, title, description, block);
         addDataTable(context, {
             title,
             description,

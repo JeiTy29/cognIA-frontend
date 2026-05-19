@@ -1,4 +1,5 @@
-﻿.preguntas-cuestionario-page .admin-modal {
+.preguntas-cuestionario-page .admin-modal,
+.preguntas-cuestionario-page .preguntas-listado {
     background: #ffffff;
     border: 1px solid rgba(11, 37, 64, 0.08);
     border-radius: 14px;
@@ -12,6 +13,10 @@
     padding: 14px 0 18px;
     color: #526476;
     font-size: 13px;
+}
+
+.preguntas-info-banner {
+    justify-content: flex-start;
 }
 
 .preguntas-cuestionario-grid {
@@ -29,6 +34,14 @@
     color: #0b2540;
     font-family: inherit;
     background: #ffffff;
+}
+
+.preguntas-inline-note,
+.preguntas-code-note {
+    margin: 0;
+    color: #526476;
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .preguntas-inline-fields {
@@ -78,6 +91,10 @@
     font-size: 12px;
 }
 
+.preguntas-fixed-constraints-muted {
+    justify-content: flex-start;
+}
+
 .preguntas-preview {
     display: grid;
     gap: 10px;
@@ -116,18 +133,40 @@
     line-height: 1.5;
 }
 
+.preguntas-duplicate-note {
+    justify-content: flex-start;
+    margin-bottom: 0;
+}
+
 .preguntas-listado {
-    border: 1px solid rgba(11, 37, 64, 0.08);
-    border-radius: 14px;
-    padding: 18px;
-    background: #ffffff;
     min-height: 100%;
 }
 
-.preguntas-listado h2 {
-    margin: 0 0 12px;
+.preguntas-listado-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.preguntas-listado-header h2 {
+    margin: 0;
     color: #0b2540;
     font-size: 20px;
+}
+
+.preguntas-listado-header p {
+    margin: 4px 0 0;
+    color: #526476;
+    font-size: 13px;
+}
+
+.preguntas-listado-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
 }
 
 .preguntas-list {
@@ -139,27 +178,39 @@
 .preguntas-item {
     border: 1px solid rgba(11, 37, 64, 0.08);
     border-radius: 12px;
-    padding: 12px;
+    padding: 14px;
     background: #f8fbff;
 }
 
-.preguntas-item header {
+.preguntas-item-header {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 8px;
 }
 
+.preguntas-item-header strong,
+.preguntas-item-header span {
+    display: block;
+}
+
+.preguntas-item-header span {
+    margin-top: 4px;
+    color: #526476;
+    font-size: 12px;
+}
+
 .preguntas-item p {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     color: #1e3952;
     font-size: 14px;
+    line-height: 1.45;
 }
 
 .preguntas-item-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 16px;
+    display: grid;
+    gap: 6px;
     color: #526476;
     font-size: 12px;
 }
@@ -168,7 +219,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .preguntas-item-options span {
@@ -181,6 +232,27 @@
     font-size: 12px;
 }
 
+.preguntas-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.preguntas-action-btn {
+    min-width: 88px;
+    padding: 9px 12px;
+}
+
+.preguntas-action-danger {
+    border-color: rgba(220, 53, 69, 0.22);
+    color: #b42318;
+}
+
+.preguntas-empty-state {
+    padding: 36px 0;
+}
+
 @media (max-width: 1040px) {
     .preguntas-cuestionario-grid {
         grid-template-columns: 1fr;
@@ -191,6 +263,15 @@
     .preguntas-inline-fields {
         grid-template-columns: 1fr;
     }
+
+    .preguntas-listado-header,
+    .preguntas-item-header {
+        flex-direction: column;
+    }
+
+    .preguntas-listado-actions,
+    .preguntas-item-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
 }
-
-
