@@ -98,6 +98,14 @@ function toNumberOrNull(value: unknown) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function pickFiniteNumber(candidates: unknown[]) {
+    for (const candidate of candidates) {
+        const parsed = toNumberOrNull(candidate);
+        if (parsed !== null) return parsed;
+    }
+    return null;
+}
+
 function toBooleanOrNull(value: unknown) {
     if (typeof value === 'boolean') return value;
     return null;
@@ -260,13 +268,35 @@ function normalizeQuestion(value: unknown): QuestionnaireQuestionV2DTO | null {
 
     const responseType = resolveQuestionResponseType(record);
     const responseOptions = resolveQuestionResponseOptions(record);
+    const responseMin = pickFiniteNumber([record.response_min, record.min_value, record.min, record.minimum]);
+    const responseMax = pickFiniteNumber([record.response_max, record.max_value, record.max, record.maximum]);
+    const responseStep = pickFiniteNumber([record.response_step, record.step, record.increment]);
 
     return {
         ...record,
         id,
         text,
         response_type: responseType,
-        response_options: responseOptions
+        response_options: responseOptions,
+        response_min: responseMin,
+        response_max: responseMax,
+        response_step: responseStep,
+        help_text: firstNonEmptyString([
+            record.help_text,
+            record.context,
+            record.description,
+            record.guidance,
+            record.hint,
+            record.instructions,
+            record.explanation
+        ]),
+        context: firstNonEmptyString([record.context, record.help_text]),
+        description: firstNonEmptyString([record.description]),
+        guidance: firstNonEmptyString([record.guidance]),
+        hint: firstNonEmptyString([record.hint]),
+        instructions: firstNonEmptyString([record.instructions]),
+        explanation: firstNonEmptyString([record.explanation]),
+        section_title: firstNonEmptyString([record.section_title, record.section])
     } as QuestionnaireQuestionV2DTO;
 }
 

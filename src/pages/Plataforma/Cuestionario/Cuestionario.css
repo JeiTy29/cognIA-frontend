@@ -556,6 +556,24 @@
     overflow-wrap: anywhere;
 }
 
+.question-context {
+    margin: -6px 0 16px;
+    color: #52677a;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.question-context::before {
+    content: "";
+    display: inline-block;
+    width: 0.35rem;
+    height: 0.35rem;
+    margin-right: 0.45rem;
+    border-radius: 999px;
+    background: #4da3d8;
+    vertical-align: middle;
+}
+
 .question-options {
     display: flex;
     flex-direction: column;
@@ -687,6 +705,13 @@
 .question-input-note {
     font-size: 12px;
     color: #3d5a73;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.question-input-error {
+    font-size: 12px;
+    color: #b45309;
+    font-weight: 600;
     font-family: 'Segoe UI', sans-serif;
 }
 

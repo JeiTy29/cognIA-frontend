@@ -49,6 +49,7 @@ import {
     formatDateTimeEsCO,
     getAlertLevelLabel,
     getConfidenceBandLabel,
+    normalizeMojibakeText,
 } from '../../../utils/presentation/naturalLanguage';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -72,9 +73,7 @@ const SESSION_PAGE_SIZE = 20;
 const PROCESSING_POLL_INTERVAL_MS = 2500;
 const PROCESSING_TIMEOUT_MS = 120000;
 const DEFAULT_INTEGER_MIN = 0;
-const DEFAULT_INTEGER_MAX = 9999;
 const DEFAULT_NUMBER_MIN = 0;
-const DEFAULT_NUMBER_MAX = 9999;
 const DEFAULT_NUMBER_STEP = 0.1;
 
 type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
@@ -167,6 +166,23 @@ function toText(value: unknown, fallback = '') {
     return typeof value === 'string' ? value : fallback;
 }
 
+function readOptionalText(...candidates: unknown[]) {
+    for (const candidate of candidates) {
+        if (typeof candidate !== 'string') continue;
+        const normalized = normalizeMojibakeText(candidate).trim();
+        if (normalized.length > 0) return normalized;
+    }
+    return null;
+}
+
+function pickFiniteNumber(candidates: unknown[]) {
+    for (const candidate of candidates) {
+        const parsed = Number(candidate);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+}
+
 function pickAnswerValue(record: Record<string, unknown>) {
     const candidates = [
         record.answer,
@@ -236,6 +252,10 @@ function normalizeQuestionType(value: unknown): QuestionnaireResponseType {
     if (normalized === 'text_context') return 'text';
     if (normalized === 'numeric' || normalized === 'float' || normalized === 'decimal') return 'number';
     return normalized;
+}
+
+function getQuestionStateKey(question: QuestionnaireQuestionV2DTO) {
+    return getApiQuestionId(question) || question.id || question.code || '';
 }
 
 function cleanOptionLabel(rawLabel: string) {
@@ -336,36 +356,111 @@ function isQuestionRequired(question: QuestionnaireQuestionV2DTO) {
 
 function normalizeNumberInputValue(value: string, question: QuestionnaireQuestionV2DTO) {
     if (value.trim() === '') return null;
-    const constraints = getNumericConstraints(question);
-    const normalizedValue = value.replace(',', '.');
+    if (getNumericValidationMessage(question, value) !== null) return null;
+    const normalizedValue = value.replace(',', '.').trim();
     const parsed = Number(normalizedValue);
     if (!Number.isFinite(parsed)) return null;
-    if (parsed < constraints.min || parsed > constraints.max) return null;
-    const isIntegerType = question.response_type === 'integer';
-    if (isIntegerType) return Math.trunc(parsed);
-    return parsed;
+    const constraints = getNumericConstraints(question);
+    return constraints.isIntegerType ? Math.trunc(parsed) : parsed;
 }
 
 function getNumericConstraints(question: QuestionnaireQuestionV2DTO) {
     const isIntegerType = question.response_type === 'integer';
+    const explicitMin = typeof question.response_min === 'number' && Number.isFinite(question.response_min)
+        ? question.response_min
+        : null;
+    const explicitMax = typeof question.response_max === 'number' && Number.isFinite(question.response_max)
+        ? question.response_max
+        : null;
+    const explicitStep = typeof question.response_step === 'number' && Number.isFinite(question.response_step) && question.response_step > 0
+        ? question.response_step
+        : null;
 
-    const fallbackMin = isIntegerType ? DEFAULT_INTEGER_MIN : DEFAULT_NUMBER_MIN;
-    const fallbackMax = isIntegerType ? DEFAULT_INTEGER_MAX : DEFAULT_NUMBER_MAX;
-    const fallbackStep = isIntegerType ? 1 : DEFAULT_NUMBER_STEP;
+    return {
+        min: explicitMin ?? (isIntegerType ? DEFAULT_INTEGER_MIN : DEFAULT_NUMBER_MIN),
+        max: explicitMax,
+        step: explicitStep ?? (isIntegerType ? 1 : DEFAULT_NUMBER_STEP),
+        hasExplicitMin: explicitMin !== null,
+        hasExplicitMax: explicitMax !== null,
+        hasExplicitStep: explicitStep !== null,
+        isIntegerType
+    };
+}
 
+function getQuestionContext(question: QuestionnaireQuestionV2DTO) {
+    const context = readOptionalText(
+        question.help_text,
+        question.context,
+        question.description,
+        question.guidance,
+        question.hint,
+        question.instructions,
+        question.explanation
+    );
+
+    if (!context) return null;
+
+    const normalizedQuestion = normalizeMojibakeText(question.text).trim().toLowerCase();
+    if (context.toLowerCase() === normalizedQuestion) return null;
+    return context;
+}
+
+function getNumericRangeHelp(question: QuestionnaireQuestionV2DTO) {
+    if (question.response_type !== 'integer' && question.response_type !== 'number') return null;
     const min = typeof question.response_min === 'number' && Number.isFinite(question.response_min)
         ? question.response_min
-        : fallbackMin;
-    const maxCandidate = typeof question.response_max === 'number' && Number.isFinite(question.response_max)
+        : null;
+    const max = typeof question.response_max === 'number' && Number.isFinite(question.response_max)
         ? question.response_max
-        : fallbackMax;
-    const max = Math.max(maxCandidate, min);
+        : null;
 
-    const step = typeof question.response_step === 'number' && Number.isFinite(question.response_step) && question.response_step > 0
-        ? question.response_step
-        : fallbackStep;
+    if (min !== null && max !== null) return `Rango permitido: ${min} a ${max}.`;
+    if (min !== null) return `Valor mínimo permitido: ${min}.`;
+    if (max !== null) return `Valor máximo permitido: ${max}.`;
+    return null;
+}
 
-    return { min, max, step };
+function buildNumericInputHint(question: QuestionnaireQuestionV2DTO) {
+    const constraints = getNumericConstraints(question);
+    if (constraints.hasExplicitMin && constraints.hasExplicitMax && constraints.min !== null && constraints.max !== null) {
+        return `Ingresa un valor entre ${constraints.min} y ${constraints.max}.`;
+    }
+    if (constraints.hasExplicitMin && constraints.min !== null) {
+        return `Ingresa un valor igual o mayor que ${constraints.min}.`;
+    }
+    if (constraints.hasExplicitMax && constraints.max !== null) {
+        return `Ingresa un valor igual o menor que ${constraints.max}.`;
+    }
+    return 'Ingresa un valor numérico válido.';
+}
+
+function getNumericValidationMessage(question: QuestionnaireQuestionV2DTO, value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const constraints = getNumericConstraints(question);
+    const parsed = Number(trimmed.replace(',', '.'));
+    if (!Number.isFinite(parsed)) return 'Ingresa un valor numérico válido.';
+    if (constraints.isIntegerType && !Number.isInteger(parsed)) {
+        return 'Ingresa un número entero válido.';
+    }
+    if (constraints.min !== null && constraints.max !== null && (parsed < constraints.min || parsed > constraints.max)) {
+        return `El valor debe estar entre ${constraints.min} y ${constraints.max}.`;
+    }
+    if (constraints.min !== null && parsed < constraints.min) {
+        return `El valor debe ser mayor o igual a ${constraints.min}.`;
+    }
+    if (constraints.max !== null && parsed > constraints.max) {
+        return `El valor debe ser menor o igual a ${constraints.max}.`;
+    }
+    if (!constraints.isIntegerType && constraints.step > 0) {
+        const base = constraints.min ?? 0;
+        const quotient = (parsed - base) / constraints.step;
+        if (Math.abs(quotient - Math.round(quotient)) > 1e-6) {
+            return `El valor debe respetar incrementos de ${constraints.step}.`;
+        }
+    }
+    return null;
 }
 
 function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
@@ -388,6 +483,23 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
                 toText(record.statement) ||
                 toText(record.title) ||
                 toText(record.label);
+            const responseMin = pickFiniteNumber([
+                record.response_min,
+                record.min_value,
+                record.min,
+                record.minimum
+            ]);
+            const responseMax = pickFiniteNumber([
+                record.response_max,
+                record.max_value,
+                record.max,
+                record.maximum
+            ]);
+            const responseStep = pickFiniteNumber([
+                record.response_step,
+                record.step,
+                record.increment
+            ]);
             return {
                 ...record,
                 id,
@@ -395,12 +507,28 @@ function normalizeQuestions(raw: unknown): QuestionnaireQuestionV2DTO[] {
                 code: toText(record.code),
                 response_type: normalizeQuestionType(record.response_type),
                 position: Number.isFinite(Number(record.position)) ? Number(record.position) : index + 1,
-                response_min: Number.isFinite(Number(record.response_min)) ? Number(record.response_min) : null,
-                response_max: Number.isFinite(Number(record.response_max)) ? Number(record.response_max) : null,
-                response_step: Number.isFinite(Number(record.response_step)) ? Number(record.response_step) : null,
+                response_min: responseMin,
+                response_max: responseMax,
+                response_step: responseStep,
                 response_options: Array.isArray(record.response_options)
                     ? (record.response_options as unknown[])
                     : null,
+                help_text: readOptionalText(
+                    record.help_text,
+                    record.context,
+                    record.description,
+                    record.guidance,
+                    record.hint,
+                    record.instructions,
+                    record.explanation
+                ),
+                context: readOptionalText(record.context, record.help_text),
+                description: readOptionalText(record.description),
+                guidance: readOptionalText(record.guidance),
+                hint: readOptionalText(record.hint),
+                instructions: readOptionalText(record.instructions),
+                explanation: readOptionalText(record.explanation),
+                section_title: readOptionalText(record.section_title, record.section),
                 required: typeof record.required === 'boolean' ? record.required : undefined
             };
         })
@@ -1152,12 +1280,7 @@ function isValidTextAnswer(question: QuestionnaireQuestionV2DTO, value: unknown,
 
 function isValidNumericAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
     if (typeof value !== 'number' || !Number.isFinite(value)) return false;
-    if (question.response_type === 'integer' && !Number.isInteger(value)) return false;
-
-    const constraints = getNumericConstraints(question);
-    if (value < constraints.min) return false;
-    if (value > constraints.max) return false;
-    return true;
+    return getNumericValidationMessage(question, String(value)) === null;
 }
 
 function isValidOptionsAnswer(question: QuestionnaireQuestionV2DTO, value: unknown) {
@@ -1217,7 +1340,11 @@ type AnswerControlProps = Readonly<{
     currentAnswer: QuestionnaireResponseValue | null;
     currentOptions: QuestionnaireOptionDTO[];
     currentNumericConstraints: ReturnType<typeof getNumericConstraints> | null;
+    currentNumericDraftValue: string;
+    currentNumericRangeHelp: string | null;
+    currentNumericValidationMessage: string | null;
     onAnswerChange: (value: QuestionnaireResponseValue) => void;
+    onNumericInputChange: (value: string) => void;
 }>;
 
 function AnswerControl({
@@ -1225,7 +1352,11 @@ function AnswerControl({
     currentAnswer,
     currentOptions,
     currentNumericConstraints,
-    onAnswerChange
+    currentNumericDraftValue,
+    currentNumericRangeHelp,
+    currentNumericValidationMessage,
+    onAnswerChange,
+    onNumericInputChange
 }: AnswerControlProps) {
     if (!currentQuestion) return null;
 
@@ -1246,16 +1377,23 @@ function AnswerControl({
                 <input
                     type="number"
                     className="question-input"
-                    value={typeof currentAnswer === 'number' ? currentAnswer : ''}
+                    inputMode={currentNumericConstraints?.isIntegerType ? 'numeric' : 'decimal'}
+                    value={currentNumericDraftValue}
                     min={currentNumericConstraints?.min ?? undefined}
-                    max={currentNumericConstraints?.max ?? undefined}
+                    max={currentNumericConstraints?.hasExplicitMax ? currentNumericConstraints.max ?? undefined : undefined}
                     step={currentNumericConstraints?.step ?? undefined}
-                    onChange={(event) => onAnswerChange(normalizeNumberInputValue(event.target.value, currentQuestion))}
+                    onChange={(event) => onNumericInputChange(event.target.value)}
                 />
+                {currentNumericRangeHelp ? (
+                    <p className="question-input-note">{currentNumericRangeHelp}</p>
+                ) : null}
                 {currentNumericConstraints ? (
                     <p className="question-input-hint">
-                        Ingresa un valor entre {currentNumericConstraints.min} y {currentNumericConstraints.max}.
+                        {buildNumericInputHint(currentQuestion)}
                     </p>
+                ) : null}
+                {currentNumericValidationMessage ? (
+                    <p className="question-input-error">{currentNumericValidationMessage}</p>
                 ) : null}
             </>
         );
@@ -1316,6 +1454,7 @@ export default function Cuestionario() {
     const [saveState, setSaveState] = useState<AnswerPersistenceState>('idle');
     const [saveError, setSaveError] = useState<string | null>(null);
     const [questionTransitionDirection, setQuestionTransitionDirection] = useState<'from-next' | 'from-prev'>('from-next');
+    const [numericDrafts, setNumericDrafts] = useState<Record<string, string>>({});
     const [completionPhase, setCompletionPhase] = useState<CompletionPhase>('idle');
     const [backendStatus, setBackendStatus] = useState<QuestionnaireV2Status | null>(null);
     const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -1516,6 +1655,7 @@ export default function Cuestionario() {
         savePromiseRef.current = null;
         setSaveState('idle');
         setSaveError(null);
+        setNumericDrafts({});
     }, []);
 
     const continueSession = useCallback(async (sessionIdToContinue: string) => {
@@ -1729,21 +1869,6 @@ export default function Cuestionario() {
     }, [cancelPendingAutoSave, flushPendingAnswers, saveState]);
 
     useEffect(() => {
-        if (!started || completionPhase !== 'idle' || saveState !== 'dirty') {
-            cancelPendingAutoSave();
-            return undefined;
-        }
-
-        autoSaveTimerRef.current = globalThis.setTimeout(() => {
-            void flushPendingAnswers().catch(() => false);
-        }, 700);
-
-        return () => {
-            cancelPendingAutoSave();
-        };
-    }, [cancelPendingAutoSave, completionPhase, flushPendingAnswers, saveState, started]);
-
-    useEffect(() => {
         const handleBeforeUnload = (event: BeforeUnloadEvent) => {
             if (saveState !== 'dirty' && saveState !== 'saving') return;
             event.preventDefault();
@@ -1763,7 +1888,50 @@ export default function Cuestionario() {
         currentQuestion && (currentQuestion.response_type === 'integer' || currentQuestion.response_type === 'number')
             ? getNumericConstraints(currentQuestion)
             : null;
-    const canContinue = currentQuestion ? isValid(currentQuestion, currentAnswer) : false;
+    const currentQuestionKey = currentQuestion ? getQuestionStateKey(currentQuestion) : '';
+    const hasCurrentNumericDraft = currentQuestionKey ? Object.prototype.hasOwnProperty.call(numericDrafts, currentQuestionKey) : false;
+    const currentNumericDraftValue =
+        currentNumericConstraints
+            ? (hasCurrentNumericDraft
+                ? numericDrafts[currentQuestionKey] ?? ''
+                : (typeof currentAnswer === 'number' ? String(currentAnswer) : ''))
+            : '';
+    const currentNumericValidationMessage =
+        currentQuestion && currentNumericConstraints
+            ? getNumericValidationMessage(currentQuestion, currentNumericDraftValue)
+            : null;
+    const currentQuestionContext = currentQuestion ? getQuestionContext(currentQuestion) : null;
+    const currentNumericRangeHelpRaw = currentQuestion ? getNumericRangeHelp(currentQuestion) : null;
+    const currentNumericRangeHelp =
+        currentQuestionContext && currentNumericRangeHelpRaw
+            ? (
+                normalizeMojibakeText(currentQuestionContext).toLowerCase().includes(
+                    normalizeMojibakeText(currentNumericRangeHelpRaw).toLowerCase().replace(/[.:]/g, '')
+                )
+                    ? null
+                    : currentNumericRangeHelpRaw
+            )
+            : currentNumericRangeHelpRaw;
+    const canContinue = currentQuestion
+        ? (currentNumericConstraints && currentNumericValidationMessage
+            ? false
+            : isValid(currentQuestion, currentAnswer))
+        : false;
+
+    useEffect(() => {
+        if (!started || completionPhase !== 'idle' || saveState !== 'dirty' || Boolean(currentNumericValidationMessage)) {
+            cancelPendingAutoSave();
+            return undefined;
+        }
+
+        autoSaveTimerRef.current = globalThis.setTimeout(() => {
+            void flushPendingAnswers().catch(() => false);
+        }, 700);
+
+        return () => {
+            cancelPendingAutoSave();
+        };
+    }, [cancelPendingAutoSave, completionPhase, currentNumericValidationMessage, flushPendingAnswers, saveState, started]);
     const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
     const hasSaveError = saveState === 'error';
     const hasRequiredAnswersPending = findFirstInvalidQuestionIndex(questions, answers) >= 0;
@@ -1870,8 +2038,41 @@ export default function Cuestionario() {
         if (!currentQuestion) return;
         setError(null);
         setSaveError(null);
+        const questionKey = getQuestionStateKey(currentQuestion);
+        if (questionKey) {
+            setNumericDrafts((prev) => {
+                if (!Object.prototype.hasOwnProperty.call(prev, questionKey)) return prev;
+                const next = { ...prev };
+                delete next[questionKey];
+                return next;
+            });
+        }
         markQuestionDirty(currentQuestion);
         setAnswers((prev) => setAnswerForQuestion(prev, currentQuestion, value));
+    };
+
+    const onNumericInputChange = (value: string) => {
+        if (!currentQuestion) return;
+        const questionKey = getQuestionStateKey(currentQuestion);
+        if (!questionKey) return;
+
+        setError(null);
+        setSaveError(null);
+        setNumericDrafts((prev) => ({ ...prev, [questionKey]: value }));
+
+        if (value.trim() === '') {
+            markQuestionDirty(currentQuestion);
+            setAnswers((prev) => setAnswerForQuestion(prev, currentQuestion, null));
+            return;
+        }
+
+        const nextValue = normalizeNumberInputValue(value, currentQuestion);
+        if (nextValue === null) {
+            return;
+        }
+
+        markQuestionDirty(currentQuestion);
+        setAnswers((prev) => setAnswerForQuestion(prev, currentQuestion, nextValue));
     };
 
     const handlePrevious = async () => {
@@ -2145,12 +2346,19 @@ export default function Cuestionario() {
                 ref={activeRef}
             >
                 <h2 className="question-text">{currentQuestion.text}</h2>
+                {currentQuestionContext ? (
+                    <p className="question-context">{currentQuestionContext}</p>
+                ) : null}
                 <AnswerControl
                     currentQuestion={currentQuestion}
                     currentAnswer={currentAnswer}
                     currentOptions={currentOptions}
                     currentNumericConstraints={currentNumericConstraints}
+                    currentNumericDraftValue={currentNumericDraftValue}
+                    currentNumericRangeHelp={currentNumericRangeHelp}
+                    currentNumericValidationMessage={currentNumericValidationMessage}
                     onAnswerChange={onAnswerChange}
+                    onNumericInputChange={onNumericInputChange}
                 />
 
                 <div className={`questionnaire-save-state is-${saveState}`} aria-live="polite">

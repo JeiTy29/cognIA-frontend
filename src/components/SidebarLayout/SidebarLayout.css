@@ -12,7 +12,7 @@
     width: calc(100% - 82px);
     max-width: 100%;
     min-width: 0;
-    padding: 24px 32px 92px;
+    padding: 56px 32px 32px;
     background: #ffffff;
     min-height: 100vh;
     overflow-x: hidden;
@@ -28,38 +28,37 @@
 
 .profile-context-indicator {
     position: fixed;
+    top: 22px;
     left: 82px;
-    right: 0;
-    bottom: 22px;
-    z-index: 20;
+    right: 32px;
+    z-index: 30;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     pointer-events: none;
 }
 
 .profile-context-indicator__inner {
     color: #105384;
     font-weight: 800;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     text-shadow: 0 1px 2px rgba(16, 83, 132, 0.12);
     display: inline-flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.35rem;
 }
 
-.profile-context-indicator__inner::before {
+.profile-context-indicator__inner::after {
     content: "";
-    width: 150px;
+    width: 120px;
     height: 2px;
     border-radius: 999px;
     background: linear-gradient(
         90deg,
         rgba(106, 191, 235, 0),
-        rgba(31, 145, 206, 0.85),
-        rgba(106, 191, 235, 0)
+        rgba(31, 145, 206, 0.85)
     );
 }
 
@@ -73,8 +72,7 @@
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        padding: clamp(14px, 4vw, 20px);
-        padding-bottom: calc(128px + env(safe-area-inset-bottom));
+        padding: calc(56px + env(safe-area-inset-top)) clamp(14px, 4vw, 20px) calc(104px + env(safe-area-inset-bottom));
         overflow-x: hidden;
     }
 
@@ -85,8 +83,9 @@
     }
 
     .profile-context-indicator {
-        left: 0;
-        bottom: calc(74px + env(safe-area-inset-bottom));
+        top: calc(12px + env(safe-area-inset-top));
+        left: 12px;
+        right: 16px;
     }
 
     .profile-context-indicator__inner {
@@ -95,7 +94,7 @@
         gap: 0.25rem;
     }
 
-    .profile-context-indicator__inner::before {
+    .profile-context-indicator__inner::after {
         width: 104px;
     }
 }
