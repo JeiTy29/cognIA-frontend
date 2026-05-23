@@ -204,8 +204,7 @@ export function drawXAxisLabels(options: XAxisLabelOptions) {
     points.forEach((_, index) => {
         if (index !== 0 && index !== points.length - 1 && index % labelStep !== 0) return;
         const x = left + (points.length > 1 ? (plotWidth / (points.length - 1)) * index : plotWidth / 2);
-        const label = labels[index];
-        doc.text(label, x, bottom + (rotate ? 3 : 5), {
+        doc.text(labels[index], x, bottom + (rotate ? 3 : 5), {
             align: rotate ? 'right' : 'center',
             angle: rotation
         });
@@ -299,11 +298,16 @@ export function drawHorizontalBarChart(context: ReportContext, config: ReportCha
     const barWidth = chart.width - labelWidth - valueWidth - 8;
     const rowHeight = 8.5;
     const top = chart.y + 10;
-    const maxValue = Math.max(...visiblePoints.map((point) => point.value), 1);
+    const maxValue = config.percent
+        ? 100
+        : Math.max(...visiblePoints.map((point) => point.value), 1);
 
     visiblePoints.forEach((point, index) => {
         const y = top + index * rowHeight;
-        const width = Math.max(2, (point.value / maxValue) * barWidth);
+        const width = Math.max(
+            point.value > 0 ? 1.5 : 0,
+            Math.min(barWidth, (point.value / maxValue) * barWidth)
+        );
 
         setTextHex(doc, ADMIN_REPORT_THEME.colors.ink);
         doc.setFont('helvetica', 'normal');
@@ -311,7 +315,9 @@ export function drawHorizontalBarChart(context: ReportContext, config: ReportCha
         doc.text(truncateLabel(point.label, 24), chart.x + 4, y + 4);
 
         setFillHex(doc, CHART_COLORS[index % CHART_COLORS.length]);
-        doc.roundedRect(barStartX, y + 1, width, 4.5, 1.5, 1.5, 'F');
+        if (width > 0) {
+            doc.roundedRect(barStartX, y + 1, width, 4.5, 1.5, 1.5, 'F');
+        }
 
         setTextHex(doc, ADMIN_REPORT_THEME.colors.muted);
         doc.text(formatChartValue(point.rawValue, config), barStartX + barWidth + 4, y + 4);

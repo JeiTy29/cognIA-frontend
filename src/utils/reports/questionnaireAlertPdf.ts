@@ -194,8 +194,8 @@ function buildDomainChartPoints(dataset: QuestionnaireAlertReportDataset): Repor
         }));
 }
 
-function buildAnsweredByDomainChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
-    return dataset.answeredQuestionsByDomain.map((row) => ({
+function buildDomainIntensityChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
+    return dataset.domainIntensity.map((row) => ({
         label: row.label,
         value: row.value
     }));
@@ -212,7 +212,7 @@ function addAnsweredQuestionsTable(context: ReportContext, dataset: Questionnair
     addSectionTitle(context, 'Preguntas respondidas');
     addParagraph(
         context,
-        'Esta tabla lista las preguntas contestadas durante la sesión, la respuesta registrada y una interpretación descriptiva según la escala disponible. Debe leerse como apoyo orientativo y no como diagnóstico individual.'
+        'Esta tabla lista las preguntas contestadas durante la sesión y la respuesta registrada por el usuario. Debe leerse como apoyo orientativo y no como diagnóstico individual.'
     );
 
     if (dataset.answeredQuestionsNotice) {
@@ -232,14 +232,13 @@ function addAnsweredQuestionsTable(context: ReportContext, dataset: Questionnair
     autoTable(context.doc, {
         startY: context.cursorY,
         margin: { left: context.marginX, right: context.marginX, bottom: 20 },
-        head: [['#', 'Sección', 'Dominio', 'Pregunta', 'Respuesta', 'Impacto']],
+        head: [['#', 'Sección', 'Dominio', 'Pregunta', 'Respuesta']],
         body: dataset.answeredQuestions.map((row) => [
             normalizePdfTableCell(formatReportNumber(row.index)),
             normalizePdfTableCell(row.sectionLabel, 'General'),
             normalizePdfTableCell(row.domainLabel, 'General'),
             normalizePdfTableCell(row.questionText, '--'),
-            normalizePdfTableCell(row.answerLabel, '--'),
-            normalizePdfTableCell(row.impactDescription, '--')
+            normalizePdfTableCell(row.answerLabel, '--')
         ]),
         theme: 'grid',
         headStyles: {
@@ -257,11 +256,10 @@ function addAnsweredQuestionsTable(context: ReportContext, dataset: Questionnair
         },
         columnStyles: {
             0: { cellWidth: 8, halign: 'center' },
-            1: { cellWidth: 22 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 60 },
-            4: { cellWidth: 26 },
-            5: { cellWidth: 'auto' }
+            1: { cellWidth: 26 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 'auto' },
+            4: { cellWidth: 34 }
         }
     });
 
@@ -280,10 +278,7 @@ export async function buildQuestionnaireAlertPdf({
     const mergedSessionSource = {
         ...(sessionSnapshot ?? {}),
         ...(sessionDetail ?? {}),
-        answers:
-            sessionDetail?.answers ??
-            sessionSnapshot?.answers ??
-            null
+        answers: sessionDetail?.answers ?? sessionSnapshot?.answers ?? null
     } as QuestionnaireHistoryDetailV2DTO | QuestionnaireSessionV2DTO | null;
 
     const dataset = buildQuestionnaireAlertReportDataset({
@@ -298,7 +293,7 @@ export async function buildQuestionnaireAlertPdf({
             sessionId,
             domains: dataset.domainRows.length,
             answeredQuestions: dataset.answeredQuestions.length,
-            answeredByDomain: dataset.answeredQuestionsByDomain.length,
+            domainIntensity: dataset.domainIntensity.length,
             impactDistribution: dataset.impactDistribution.length
         });
     }
@@ -382,16 +377,22 @@ export async function buildQuestionnaireAlertPdf({
         addNoticeBox(context, 'Compatibilidad por dominio', 'No hay datos suficientes para generar esta gráfica.', 'info');
     }
 
-    const answeredByDomainPoints = buildAnsweredByDomainChartPoints(dataset);
-    if (answeredByDomainPoints.length > 0) {
+    const domainIntensityPoints = buildDomainIntensityChartPoints(dataset);
+    if (domainIntensityPoints.length > 0) {
         drawHorizontalBarChart(context, {
-            title: 'Preguntas respondidas por dominio',
+            title: 'Intensidad promedio por dominio',
             description:
-                'Esta gráfica muestra cuántas preguntas contestadas se relacionan con cada dominio. Ayuda a entender qué áreas tuvieron mayor cantidad de información registrada.',
-            points: answeredByDomainPoints
+                'Esta gráfica resume la intensidad promedio de las respuestas interpretables asociadas con cada dominio. No representa diagnóstico; solo ayuda a visualizar en qué áreas las respuestas fueron más altas dentro de sus escalas.',
+            points: domainIntensityPoints,
+            percent: true
         });
     } else {
-        addNoticeBox(context, 'Preguntas respondidas por dominio', 'No hay suficientes preguntas respondidas para generar esta gráfica.', 'info');
+        addNoticeBox(
+            context,
+            'Intensidad promedio por dominio',
+            'No hay suficientes respuestas escalables para calcular intensidad por dominio.',
+            'info'
+        );
     }
 
     const impactDistributionPoints = buildImpactDistributionChartPoints(dataset);
@@ -399,11 +400,16 @@ export async function buildQuestionnaireAlertPdf({
         drawBarChart(context, {
             title: 'Distribución interpretativa de respuestas',
             description:
-                'Esta gráfica resume cómo se distribuyen las respuestas según su intensidad descriptiva dentro de la escala disponible para cada pregunta.',
+                'La distribución interpretativa agrupa las respuestas según la intensidad estimada dentro de la escala de cada pregunta. Por ejemplo, respuestas como “Nunca o ausente”, “No ocurrió” o “Sin impacto” se clasifican como ausencia de señal relevante; respuestas más frecuentes o intensas se ubican en señal baja, intermedia o alta. Esta lectura es descriptiva y no equivale a diagnóstico.',
             points: impactDistributionPoints
         });
     } else {
-        addNoticeBox(context, 'Distribución interpretativa de respuestas', 'No hay suficientes respuestas para generar esta gráfica.', 'info');
+        addNoticeBox(
+            context,
+            'Distribución interpretativa de respuestas',
+            'No hay suficientes respuestas para generar esta gráfica.',
+            'info'
+        );
     }
 
     addDataTable(context, {
@@ -425,7 +431,7 @@ export async function buildQuestionnaireAlertPdf({
 
     addSectionTitle(context, 'Limitaciones y uso responsable');
     addBulletList(context, [
-        'El impacto por pregunta es una orientación descriptiva según la escala de respuesta; no representa un diagnóstico individual.',
+        'La lectura interpretativa se calcula a partir de las escalas de respuesta disponibles y no representa un diagnóstico individual.',
         'Los porcentajes y niveles deben interpretarse junto con el conjunto completo de respuestas y el contexto del niño o niña.',
         'Este reporte es orientativo y no reemplaza una evaluación profesional.'
     ]);

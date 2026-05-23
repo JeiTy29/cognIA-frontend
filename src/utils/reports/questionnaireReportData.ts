@@ -22,10 +22,7 @@ import {
     getStatusLabel,
     normalizeMojibakeText
 } from '../presentation/naturalLanguage';
-import {
-    formatQuestionType,
-    formatReportPercent
-} from './reportFormatting';
+import { formatQuestionType, formatReportPercent } from './reportFormatting';
 
 export type AnsweredQuestionReportRow = {
     index: number;
@@ -33,10 +30,9 @@ export type AnsweredQuestionReportRow = {
     domainLabel: string;
     questionText: string;
     answerLabel: string;
-    normalizedAnswerLabel: string;
     responseTypeLabel: string;
-    impactLabel: string;
-    impactDescription: string;
+    relativeScore: number | null;
+    categoryLabel: string;
 };
 
 export type QuestionnaireDomainReportRow = {
@@ -58,6 +54,13 @@ export type QuestionnaireImpactDistributionRow = {
     count: number;
 };
 
+export type DomainIntensityRow = {
+    label: string;
+    value: number;
+    interpretedCount: number;
+    totalCount: number;
+};
+
 export type QuestionnaireCompletionSummary = {
     answeredCount: number;
     totalQuestions: number;
@@ -73,8 +76,8 @@ export type QuestionnaireAlertReportDataset = {
     answeredQuestionsNotice: string | null;
     domainRows: QuestionnaireDomainReportRow[];
     sectionSummaryRows: QuestionnaireSectionSummaryRow[];
-    answeredQuestionsByDomain: Array<{ label: string; value: number }>;
     impactDistribution: QuestionnaireImpactDistributionRow[];
+    domainIntensity: DomainIntensityRow[];
     completion: QuestionnaireCompletionSummary;
     summaryText: string;
     recommendationText: string;
@@ -91,6 +94,10 @@ type BuildDatasetArgs = {
 };
 
 type PrimitiveAnswer = string | number | boolean | null;
+type ResponseOption = {
+    value: unknown;
+    label: string;
+};
 
 function normalizeLookupKey(value: unknown) {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
@@ -115,6 +122,15 @@ function normalizeQuestionType(value: unknown): QuestionnaireResponseType {
     if (normalized === 'text_context') return 'text';
     if (normalized === 'numeric' || normalized === 'float' || normalized === 'decimal') return 'number';
     return normalized as QuestionnaireResponseType;
+}
+
+function normalizeComparableText(value: unknown) {
+    return normalizeMojibakeText(String(value ?? ''))
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function normalizeAnswerDictionary(value: unknown): Record<string, QuestionnaireResponseValue> {
@@ -214,15 +230,15 @@ function coerceAnswerForQuestion(question: QuestionnaireQuestionV2DTO, value: Qu
     const type = normalizeQuestionType(question.response_type);
     if (type === 'boolean') {
         if (typeof value === 'boolean') return value;
-        const text = String(value).trim().toLowerCase();
-        if (['true', '1', 'si', 'sí', 'yes'].includes(text)) return true;
+        const text = normalizeComparableText(value);
+        if (['true', '1', 'si', 'yes'].includes(text)) return true;
         if (['false', '0', 'no'].includes(text)) return false;
         return value;
     }
 
     if (['integer', 'number', 'count', 'likert', 'likert_0_4', 'likert_1_5', 'frequency_0_3', 'intensity_0_10'].includes(type)) {
-        const parsed = Number(String(value).replace(',', '.'));
-        if (Number.isFinite(parsed)) {
+        const parsed = toFiniteNumber(value);
+        if (parsed !== null) {
             return type === 'number' ? parsed : Math.trunc(parsed);
         }
     }
@@ -239,31 +255,48 @@ function getQuestionText(question: QuestionnaireQuestionV2DTO) {
 }
 
 function inferDomainFromText(value: string | null | undefined) {
-    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    const normalized = normalizeComparableText(value);
     if (!normalized) return null;
     if (/(adhd|tdah|inatt|hypimp)/.test(normalized)) return 'TDAH';
     if (/(conduct|odd|dmdd|outburst)/.test(normalized)) return 'Conducta';
     if (/(elimination|enuresis|encopresis)/.test(normalized)) return 'Eliminación';
-    if (/(anxiety|ansiedad|anx)/.test(normalized)) return 'Ansiedad';
-    if (/(depression|depresi|depr)/.test(normalized)) return 'Depresión';
+    if (/(anxiety|ansiedad|anx|gad|agor|social|separation|panic|worry)/.test(normalized)) return 'Ansiedad';
+    if (/(depression|depres|depr|mdd|pdd|depressive|mood)/.test(normalized)) return 'Depresión';
     return null;
 }
 
 function resolveQuestionDomain(question: QuestionnaireQuestionV2DTO) {
     const raw = question as Record<string, unknown>;
-    const candidates: unknown[] = [
-        raw.domain,
+    const directDomain = typeof raw.domain === 'string' ? inferDomainFromText(raw.domain) : null;
+    if (directDomain) return directDomain;
+
+    const domainArray = Array.isArray(raw.domains_final) ? raw.domains_final : [raw.domains_final];
+    for (const candidate of domainArray) {
+        if (typeof candidate === 'string') {
+            const inferred = inferDomainFromText(candidate);
+            if (inferred) return inferred;
+        }
+    }
+
+    const technicalCandidates: unknown[] = [
+        raw.question_code,
+        raw.code,
+        raw.feature,
         raw.domain_label,
         raw.area,
-        raw.section_domain,
-        Array.isArray(raw.domains_final) ? raw.domains_final[0] : raw.domains_final,
-        raw.feature
+        raw.section_domain
     ];
-
-    for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+    for (const candidate of technicalCandidates) {
+        if (typeof candidate === 'string') {
             const inferred = inferDomainFromText(candidate);
-            return inferred ?? formatDomainLabel(candidate);
+            if (inferred) return inferred;
+        }
+    }
+
+    if (typeof raw.domain === 'string' && raw.domain.trim().length > 0) {
+        const normalized = normalizeComparableText(raw.domain);
+        if (['adhd', 'conduct', 'elimination', 'anxiety', 'depression'].includes(normalized)) {
+            return formatDomainLabel(raw.domain);
         }
     }
 
@@ -272,20 +305,31 @@ function resolveQuestionDomain(question: QuestionnaireQuestionV2DTO) {
 
 function resolveSectionLabel(question: QuestionnaireQuestionV2DTO) {
     const raw = question as Record<string, unknown>;
-    return normalizeClinicalTextPresentation(
-        raw.section_title ?? raw.section ?? 'General',
-        'General'
-    );
+    return normalizeClinicalTextPresentation(raw.section_title ?? raw.section ?? 'General', 'General');
 }
 
 function getQuestionScale(question: QuestionnaireQuestionV2DTO) {
-    const explicitMin = toFiniteNumber(question.response_min);
-    const explicitMax = toFiniteNumber(question.response_max);
+    const raw = question as Record<string, unknown>;
+    const explicitMin = [
+        question.response_min,
+        question.min_value,
+        question.min,
+        question.minimum,
+        raw.min_value,
+        raw.min,
+        raw.minimum
+    ].map(toFiniteNumber).find((value) => value !== null) ?? null;
+    const explicitMax = [
+        question.response_max,
+        question.max_value,
+        question.max,
+        question.maximum,
+        raw.max_value,
+        raw.max,
+        raw.maximum
+    ].map(toFiniteNumber).find((value) => value !== null) ?? null;
     if (explicitMin !== null || explicitMax !== null) {
-        return {
-            min: explicitMin,
-            max: explicitMax
-        };
+        return { min: explicitMin, max: explicitMax };
     }
 
     const responseType = normalizeQuestionType(question.response_type);
@@ -293,86 +337,133 @@ function getQuestionScale(question: QuestionnaireQuestionV2DTO) {
     if (responseType === 'likert_1_5' || responseType === 'likert') return { min: 1, max: 5 };
     if (responseType === 'frequency_0_3') return { min: 0, max: 3 };
     if (responseType === 'intensity_0_10') return { min: 0, max: 10 };
+    if (responseType === 'boolean') return { min: 0, max: 1 };
     return { min: null, max: null };
 }
 
-function describeScaledImpact(question: QuestionnaireQuestionV2DTO, answer: number) {
-    const { min, max } = getQuestionScale(question);
-    if (min === null || max === null || max <= min) {
-        return {
-            impactLabel: 'Registrada',
-            normalizedAnswerLabel: 'Valor registrado',
-            impactDescription: 'Respuesta registrada para análisis del dominio correspondiente.'
-        };
-    }
-
-    const relative = Math.min(1, Math.max(0, (answer - min) / (max - min)));
-    if (relative <= 0.33) {
-        return {
-            impactLabel: 'Señal baja',
-            normalizedAnswerLabel: 'Baja',
-            impactDescription: 'Señal baja dentro de la escala de esta pregunta.'
-        };
-    }
-    if (relative <= 0.66) {
-        return {
-            impactLabel: 'Señal intermedia',
-            normalizedAnswerLabel: 'Intermedia',
-            impactDescription: 'Señal intermedia dentro de la escala de esta pregunta.'
-        };
-    }
-    return {
-        impactLabel: 'Señal alta',
-        normalizedAnswerLabel: 'Alta',
-        impactDescription: 'Señal alta dentro de la escala de esta pregunta.'
-    };
+function extractResponseOptions(question: QuestionnaireQuestionV2DTO): ResponseOption[] {
+    const options = question.response_options;
+    if (!Array.isArray(options)) return [];
+    return options
+        .map((option) => {
+            if (option && typeof option === 'object' && !Array.isArray(option)) {
+                const record = option as Record<string, unknown>;
+                return {
+                    value: record.value ?? record.id ?? record.key ?? record.code ?? record.answer,
+                    label: normalizeMojibakeText(String(record.label ?? record.text ?? record.name ?? record.title ?? record.value ?? ''))
+                };
+            }
+            return {
+                value: option,
+                label: normalizeMojibakeText(String(option))
+            };
+        })
+        .filter((option) => option.label.trim().length > 0);
 }
 
-function describeQuestionImpact(question: QuestionnaireQuestionV2DTO, answer: QuestionnaireResponseValue) {
-    const responseType = normalizeQuestionType(question.response_type);
+function toNumericOptionValue(value: unknown) {
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    return toFiniteNumber(value);
+}
 
-    if (typeof answer === 'number') {
-        if (['integer', 'number', 'count', 'likert', 'likert_0_4', 'likert_1_5', 'frequency_0_3', 'intensity_0_10'].includes(responseType)) {
-            return describeScaledImpact(question, answer);
-        }
-    }
+function knownTextScore(label: string, min: number | null, max: number | null) {
+    const normalized = normalizeComparableText(label);
+    const safeMin = min ?? 0;
+    const safeMax = max ?? Math.max(1, safeMin + 1);
+    const midpoint = safeMin + (safeMax - safeMin) * 0.5;
 
-    if (responseType === 'boolean') {
-        if (answer === true) {
-            return {
-                impactLabel: 'Afirmativa',
-                normalizedAnswerLabel: 'Sí',
-                impactDescription: 'Respuesta afirmativa registrada para interpretación del dominio correspondiente.'
-            };
-        }
-        if (answer === false) {
-            return {
-                impactLabel: 'Negativa',
-                normalizedAnswerLabel: 'No',
-                impactDescription: 'Respuesta negativa registrada para interpretación del dominio correspondiente.'
-            };
-        }
-    }
-
-    if (responseType === 'text') {
-        return {
-            impactLabel: 'Contextual',
-            normalizedAnswerLabel: 'Texto libre',
-            impactDescription: 'Respuesta contextual registrada para revisión profesional.'
-        };
-    }
-
-    return {
-        impactLabel: 'Registrada',
-        normalizedAnswerLabel: formatQuestionType(responseType),
-        impactDescription: 'Respuesta registrada para análisis del dominio correspondiente.'
-    };
+    if (!normalized) return null;
+    if (/(nunca|ausente|no ocurrio|sin impacto|ninguno|ninguna|nada|no\b)/.test(normalized)) return safeMin;
+    if (/(leve|ocasional|algo|poco)/.test(normalized)) return safeMin + Math.max(1, (safeMax - safeMin) * 0.33);
+    if (/(moderad|media|intermedi)/.test(normalized)) return midpoint;
+    if (/(claro|frecuente|muy frecuente|severo|alto|mucho|si\b)/.test(normalized)) return safeMax;
+    return null;
 }
 
 function resolveAnswerLabel(question: QuestionnaireQuestionV2DTO, answer: QuestionnaireResponseValue) {
     const raw = question as Record<string, unknown>;
     const answerValue = typeof raw.answer_value === 'string' ? raw.answer_value : null;
     return buildQuestionAnswerLabel(question, answer, answerValue);
+}
+
+function resolveNumericAnswerForImpact(question: QuestionnaireQuestionV2DTO, answer: QuestionnaireResponseValue, answerLabel: string) {
+    const raw = question as Record<string, unknown>;
+    const directCandidates = [
+        answer,
+        raw.answer,
+        raw.answer_value,
+        raw.normalized_answer,
+        raw.value
+    ];
+    for (const candidate of directCandidates) {
+        if (typeof candidate === 'boolean') return candidate ? 1 : 0;
+        const numeric = toFiniteNumber(candidate);
+        if (numeric !== null) return numeric;
+    }
+
+    const options = extractResponseOptions(question);
+    const answerComparable = normalizeComparableText(answerLabel);
+    const rawAnswerComparable = normalizeComparableText(answer);
+    for (const option of options) {
+        const optionComparable = normalizeComparableText(option.label);
+        const optionValueComparable = normalizeComparableText(option.value);
+        if (
+            optionComparable === answerComparable ||
+            optionComparable === rawAnswerComparable ||
+            optionValueComparable === answerComparable ||
+            optionValueComparable === rawAnswerComparable
+        ) {
+            const numeric = toNumericOptionValue(option.value);
+            if (numeric !== null) return numeric;
+        }
+    }
+
+    const { min, max } = getQuestionScale(question);
+    return knownTextScore(answerLabel, min, max);
+}
+
+function classifyScaledResponse(relativeScore: number) {
+    if (relativeScore <= 0.05) return 'Sin señal relevante';
+    if (relativeScore <= 0.33) return 'Señal baja';
+    if (relativeScore <= 0.66) return 'Señal intermedia';
+    return 'Señal alta';
+}
+
+function classifyAnswer(question: QuestionnaireQuestionV2DTO, answer: QuestionnaireResponseValue, answerLabel: string) {
+    const responseType = normalizeQuestionType(question.response_type);
+    if (responseType === 'text') {
+        return { relativeScore: null, categoryLabel: 'Contextual' };
+    }
+
+    if (responseType === 'boolean') {
+        const normalizedBoolean =
+            typeof answer === 'boolean'
+                ? answer
+                : ['true', '1', 'si', 'yes'].includes(normalizeComparableText(answer));
+        return normalizedBoolean
+            ? { relativeScore: 1, categoryLabel: 'Señal registrada' }
+            : { relativeScore: 0, categoryLabel: 'Sin señal relevante' };
+    }
+
+    const numeric = resolveNumericAnswerForImpact(question, answer, answerLabel);
+    const { min, max } = getQuestionScale(question);
+    if (numeric !== null && min !== null && max !== null && max > min) {
+        const relativeScore = Math.min(1, Math.max(0, (numeric - min) / (max - min)));
+        return {
+            relativeScore,
+            categoryLabel: classifyScaledResponse(relativeScore)
+        };
+    }
+
+    if (numeric !== null && max !== null && max > 0) {
+        const relativeScore = Math.min(1, Math.max(0, numeric / max));
+        return {
+            relativeScore,
+            categoryLabel: classifyScaledResponse(relativeScore)
+        };
+    }
+
+    return { relativeScore: null, categoryLabel: 'No interpretable' };
 }
 
 function buildAnswerRowFromQuestion(
@@ -390,17 +481,17 @@ function buildAnswerRowFromQuestion(
         return null;
     }
 
-    const impact = describeQuestionImpact(question, answer);
+    const answerLabel = resolveAnswerLabel(question, answer);
+    const classification = classifyAnswer(question, answer, answerLabel);
     return {
         index,
         sectionLabel: resolveSectionLabel(question),
         domainLabel: resolveQuestionDomain(question),
         questionText: getQuestionText(question),
-        answerLabel: resolveAnswerLabel(question, answer),
-        normalizedAnswerLabel: impact.normalizedAnswerLabel,
+        answerLabel,
         responseTypeLabel: formatQuestionType(question.response_type),
-        impactLabel: impact.impactLabel,
-        impactDescription: impact.impactDescription
+        relativeScore: classification.relativeScore,
+        categoryLabel: classification.categoryLabel
     } satisfies AnsweredQuestionReportRow;
 }
 
@@ -422,21 +513,25 @@ function buildFallbackAnswerRows(
                     : (typeof record.question_id === 'string' ? record.question_id : '')
             ) ?? 'General';
 
-            const normalizedAnswer =
+            const answerLabel =
                 typeof answer === 'boolean'
                     ? (answer ? 'Sí' : 'No')
                     : normalizeMojibakeText(String(answer));
+
+            const categoryLabel =
+                typeof answer === 'boolean'
+                    ? (answer ? 'Señal registrada' : 'Sin señal relevante')
+                    : 'No interpretable';
 
             return {
                 index: index + 1,
                 sectionLabel: normalizeClinicalTextPresentation(record.section, 'General'),
                 domainLabel,
                 questionText: 'No fue posible recuperar el texto completo de la pregunta.',
-                answerLabel: normalizedAnswer,
-                normalizedAnswerLabel: normalizedAnswer,
+                answerLabel,
                 responseTypeLabel: 'Respuesta registrada',
-                impactLabel: 'Registrada',
-                impactDescription: 'Respuesta registrada para análisis del dominio correspondiente.'
+                relativeScore: typeof answer === 'boolean' ? (answer ? 1 : 0) : null,
+                categoryLabel
             } satisfies AnsweredQuestionReportRow;
         })
         .filter((item): item is AnsweredQuestionReportRow => item !== null);
@@ -452,10 +547,7 @@ export function buildAnsweredQuestionsDataset({
         .filter((item): item is AnsweredQuestionReportRow => item !== null);
 
     if (rows.length > 0) {
-        return {
-            rows,
-            notice: null
-        };
+        return { rows, notice: null };
     }
 
     const fallbackRows = buildFallbackAnswerRows(sessionDetail);
@@ -549,12 +641,8 @@ function buildCompletionSummary(
     answeredRows: AnsweredQuestionReportRow[],
     sessionQuestions: QuestionnaireQuestionV2DTO[]
 ) {
-    const answeredCount =
-        toFiniteNumber(sessionDetail?.answered_count) ??
-        answeredRows.length;
-    const totalQuestions =
-        toFiniteNumber(sessionDetail?.total_questions) ??
-        (sessionQuestions.length > 0 ? sessionQuestions.length : answeredCount);
+    const answeredCount = toFiniteNumber(sessionDetail?.answered_count) ?? answeredRows.length;
+    const totalQuestions = toFiniteNumber(sessionDetail?.total_questions) ?? (sessionQuestions.length > 0 ? sessionQuestions.length : answeredCount);
     const safeTotal = totalQuestions > 0 ? totalQuestions : answeredCount;
     const ratio = safeTotal > 0 ? Math.min(1, Math.max(0, answeredCount / safeTotal)) : 0;
 
@@ -569,6 +657,40 @@ function buildCompletionSummary(
     } satisfies QuestionnaireCompletionSummary;
 }
 
+function buildImpactDistribution(rows: AnsweredQuestionReportRow[]) {
+    return Array.from(
+        rows.reduce((map, row) => {
+            map.set(row.categoryLabel, (map.get(row.categoryLabel) ?? 0) + 1);
+            return map;
+        }, new Map<string, number>())
+    )
+        .map(([label, count]) => ({ label, count }))
+        .sort((left, right) => right.count - left.count);
+}
+
+function buildDomainIntensity(rows: AnsweredQuestionReportRow[]) {
+    const groups = new Map<string, { totalCount: number; interpretedCount: number; sum: number }>();
+    rows.forEach((row) => {
+        const current = groups.get(row.domainLabel) ?? { totalCount: 0, interpretedCount: 0, sum: 0 };
+        current.totalCount += 1;
+        if (typeof row.relativeScore === 'number') {
+            current.interpretedCount += 1;
+            current.sum += row.relativeScore;
+        }
+        groups.set(row.domainLabel, current);
+    });
+
+    return Array.from(groups.entries())
+        .filter(([, value]) => value.interpretedCount > 0)
+        .map(([label, value]) => ({
+            label,
+            value: (value.sum / value.interpretedCount) * 100,
+            interpretedCount: value.interpretedCount,
+            totalCount: value.totalCount
+        }))
+        .sort((left, right) => right.value - left.value);
+}
+
 export function buildQuestionnaireAlertReportDataset({
     sessionDetail,
     sessionQuestions,
@@ -577,6 +699,7 @@ export function buildQuestionnaireAlertReportDataset({
 }: BuildDatasetArgs): QuestionnaireAlertReportDataset {
     const answered = buildAnsweredQuestionsDataset({ sessionDetail, sessionQuestions });
     const completion = buildCompletionSummary(sessionDetail, answered.rows, sessionQuestions);
+
     const sectionSummaryRows = Array.from(
         answered.rows.reduce((map, row) => {
             map.set(row.sectionLabel, (map.get(row.sectionLabel) ?? 0) + 1);
@@ -586,26 +709,11 @@ export function buildQuestionnaireAlertReportDataset({
         .map(([sectionLabel, answeredCount]) => ({ sectionLabel, answeredCount }))
         .sort((left, right) => right.answeredCount - left.answeredCount);
 
-    const answeredQuestionsByDomain = Array.from(
-        answered.rows.reduce((map, row) => {
-            map.set(row.domainLabel, (map.get(row.domainLabel) ?? 0) + 1);
-            return map;
-        }, new Map<string, number>())
-    )
-        .map(([label, value]) => ({ label, value }))
-        .sort((left, right) => right.value - left.value);
-
-    const impactDistribution = Array.from(
-        answered.rows.reduce((map, row) => {
-            map.set(row.impactLabel, (map.get(row.impactLabel) ?? 0) + 1);
-            return map;
-        }, new Map<string, number>())
-    )
-        .map(([label, count]) => ({ label, count }))
-        .sort((left, right) => right.count - left.count);
-
+    const impactDistribution = buildImpactDistribution(answered.rows);
+    const domainIntensity = buildDomainIntensity(answered.rows);
     const domainRows = buildDomainRowsFromResults(results?.domains ?? [], clinicalSummary?.domains ?? []);
     const sectionNarratives = buildSectionNarratives(clinicalSummary);
+
     const summaryText = normalizeClinicalTextPresentation(
         clinicalSummary?.simulated_diagnostic_text?.sintesis_general ?? results?.result?.summary,
         'No fue posible recuperar una síntesis general para esta sesión.'
@@ -616,7 +724,7 @@ export function buildQuestionnaireAlertReportDataset({
     );
     const clarificationText = normalizeClinicalTextPresentation(
         clinicalSummary?.simulated_diagnostic_text?.aclaracion_importante,
-        'El impacto por pregunta es una orientación descriptiva según la escala de respuesta; no representa un diagnóstico individual.'
+        'La lectura interpretativa se calcula a partir de las escalas de respuesta disponibles y no representa un diagnóstico individual.'
     );
     const disclaimerText = normalizeClinicalTextPresentation(
         clinicalSummary?.disclaimer,
@@ -628,8 +736,8 @@ export function buildQuestionnaireAlertReportDataset({
         answeredQuestionsNotice: answered.notice,
         domainRows,
         sectionSummaryRows,
-        answeredQuestionsByDomain,
         impactDistribution,
+        domainIntensity,
         completion,
         summaryText,
         recommendationText,
