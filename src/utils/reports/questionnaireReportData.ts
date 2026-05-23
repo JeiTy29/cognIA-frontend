@@ -67,10 +67,12 @@ export type DomainSignalRow = {
 };
 
 export type HighIntensityQuestionRow = {
-    label: string;
-    value: number;
     domainLabel: string;
+    questionText: string;
     answerLabel: string;
+    intensityValue: number;
+    intensityLabel: string;
+    originalIndex: number;
 };
 
 export type QuestionnaireCompletionSummary = {
@@ -732,18 +734,19 @@ function buildDomainSignals(rows: AnsweredQuestionReportRow[]) {
 function buildHighIntensityQuestions(rows: AnsweredQuestionReportRow[]) {
     return rows
         .filter((row) => typeof row.relativeScore === 'number' && row.relativeScore > 0)
-        .map((row) => {
-            const shortQuestion = row.questionText.length > 62
-                ? `${row.questionText.slice(0, 59).trimEnd()}…`
-                : row.questionText;
-            return {
-                label: `${row.domainLabel} · ${shortQuestion}`,
-                value: (row.relativeScore ?? 0) * 100,
-                domainLabel: row.domainLabel,
-                answerLabel: row.answerLabel
-            } satisfies HighIntensityQuestionRow;
-        })
-        .sort((left, right) => right.value - left.value)
+        .map((row) => ({
+            domainLabel: row.domainLabel,
+            questionText: row.questionText,
+            answerLabel: row.answerLabel,
+            intensityValue: (row.relativeScore ?? 0) * 100,
+            intensityLabel: formatReportPercent(row.relativeScore ?? 0, '0 %'),
+            originalIndex: row.index
+        } satisfies HighIntensityQuestionRow))
+        .sort((left, right) =>
+            right.intensityValue - left.intensityValue ||
+            left.domainLabel.localeCompare(right.domainLabel, 'es-CO') ||
+            left.originalIndex - right.originalIndex
+        )
         .slice(0, 8);
 }
 

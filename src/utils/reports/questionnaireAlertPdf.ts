@@ -177,13 +177,6 @@ function buildDomainSignalsChartPoints(dataset: QuestionnaireAlertReportDataset)
     }));
 }
 
-function buildHighIntensityChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
-    return dataset.highIntensityQuestions.map((row) => ({
-        label: row.label,
-        value: row.value
-    }));
-}
-
 function addAnsweredQuestionsTable(context: ReportContext, dataset: QuestionnaireAlertReportDataset) {
     addSectionTitle(context, 'Preguntas respondidas');
     addParagraph(
@@ -396,15 +389,45 @@ export async function buildQuestionnaireAlertPdf({
         );
     }
 
-    const highIntensityPoints = buildHighIntensityChartPoints(dataset);
-    if (highIntensityPoints.some((point) => point.value > 0)) {
-        drawHorizontalBarChart(context, {
-            title: 'Respuestas de mayor intensidad',
-            description:
-                'Esta gráfica muestra las respuestas que se ubicaron más alto dentro de su escala. Ayuda a identificar qué elementos del cuestionario requieren mayor atención descriptiva, sin que esto represente un diagnóstico.',
-            points: highIntensityPoints,
-            percent: true
+    if (dataset.highIntensityQuestions.some((row) => row.intensityValue > 0)) {
+        addSectionTitle(context, 'Respuestas de mayor intensidad');
+        addParagraph(
+            context,
+            'Esta sección muestra las respuestas que se ubicaron más alto dentro de su escala. Ayuda a identificar elementos que podrían requerir mayor atención descriptiva, sin que esto represente un diagnóstico.'
+        );
+        autoTable(context.doc, {
+            startY: context.cursorY,
+            margin: { left: context.marginX, right: context.marginX, bottom: 20 },
+            head: [['Dominio', 'Pregunta', 'Respuesta', 'Intensidad']],
+            body: dataset.highIntensityQuestions.map((row) => [
+                normalizePdfTableCell(row.domainLabel, 'General'),
+                normalizePdfTableCell(row.questionText, '--'),
+                normalizePdfTableCell(row.answerLabel, '--'),
+                normalizePdfTableCell(row.intensityLabel, '--')
+            ]),
+            theme: 'grid',
+            headStyles: {
+                fillColor: ADMIN_REPORT_THEME.colors.primary,
+                textColor: '#ffffff',
+                fontStyle: 'bold'
+            },
+            styles: {
+                font: 'helvetica',
+                fontSize: 7.7,
+                cellPadding: 2,
+                overflow: 'linebreak',
+                textColor: ADMIN_REPORT_THEME.colors.ink,
+                valign: 'top'
+            },
+            columnStyles: {
+                0: { cellWidth: 28 },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 34 },
+                3: { cellWidth: 24, halign: 'right' }
+            }
         });
+        context.cursorY =
+            (((context.doc as typeof context.doc & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY) ?? context.cursorY) + 5;
     } else {
         addNoticeBox(
             context,
