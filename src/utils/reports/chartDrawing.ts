@@ -8,6 +8,7 @@ import {
     type ReportContext
 } from './pdfBase';
 import { formatReportNumber, formatReportPercent } from './reportFormatting';
+import { normalizePdfText } from './reportTextNormalization';
 
 export type ReportChartPoint = {
     label: string;
@@ -90,7 +91,7 @@ function setTextHex(doc: jsPDF, hex: string) {
 }
 
 function truncateLabel(label: string, maxLength = 18) {
-    const normalized = label.trim();
+    const normalized = normalizePdfText(label).trim();
     if (normalized.length <= maxLength) return normalized;
     return `${normalized.slice(0, maxLength - 1)}…`;
 }
@@ -108,13 +109,16 @@ function formatChartValue(value: number, config: ReportChartConfig) {
 
 function normalizePoints(points: ReportChartPoint[], config: ReportChartConfig): NormalizedChartPoint[] {
     return points
-        .filter((point) => point.label.trim().length > 0 && Number.isFinite(point.value))
-        .map((point) => ({
-            label: point.label.trim(),
-            axisLabel: formatAxisLabel(point.label.trim(), config.compactLabels !== false),
-            rawValue: point.value,
-            value: normalizeChartValue(point.value, config.percent)
-        }));
+        .filter((point) => normalizePdfText(point.label).trim().length > 0 && Number.isFinite(point.value))
+        .map((point) => {
+            const label = normalizePdfText(point.label).trim();
+            return {
+                label,
+                axisLabel: formatAxisLabel(label, config.compactLabels !== false),
+                rawValue: point.value,
+                value: normalizeChartValue(point.value, config.percent)
+            };
+        });
 }
 
 function drawChartContainer(context: ReportContext, chartHeight: number) {
@@ -133,9 +137,9 @@ function drawChartContainer(context: ReportContext, chartHeight: number) {
 }
 
 function renderNoDataState(context: ReportContext, config: ReportChartConfig, message: string) {
-    addSectionTitle(context, config.title);
-    addParagraph(context, config.description);
-    addNoticeBox(context, 'Sin gráfica disponible', message, 'info');
+    addSectionTitle(context, normalizePdfText(config.title));
+    addParagraph(context, normalizePdfText(config.description));
+    addNoticeBox(context, 'Sin gráfica disponible', normalizePdfText(message), 'info');
 }
 
 function renderAllZeroState(context: ReportContext, config: ReportChartConfig) {
@@ -152,7 +156,7 @@ export function estimateTextWidth(doc: jsPDF, text: string, fontSize: number) {
 }
 
 export function formatAxisLabel(label: string, compact = true) {
-    const normalized = label.trim();
+    const normalized = normalizePdfText(label).trim();
     if (!compact) return normalized;
 
     const match = normalized.match(LONG_MONTH_LABEL_PATTERN);
@@ -221,8 +225,8 @@ export function drawBarChart(context: ReportContext, config: ReportChartConfig) 
         return;
     }
 
-    addSectionTitle(context, config.title);
-    addParagraph(context, config.description);
+    addSectionTitle(context, normalizePdfText(config.title));
+    addParagraph(context, normalizePdfText(config.description));
 
     const chartHeight = 84;
     const chart = drawChartContainer(context, chartHeight);
@@ -282,8 +286,8 @@ export function drawHorizontalBarChart(context: ReportContext, config: ReportCha
         return;
     }
 
-    addSectionTitle(context, config.title);
-    addParagraph(context, config.description);
+    addSectionTitle(context, normalizePdfText(config.title));
+    addParagraph(context, normalizePdfText(config.description));
 
     const visiblePoints = points.slice(0, 8);
     const chartHeight = Math.max(48, 18 + visiblePoints.length * 10);
@@ -327,8 +331,8 @@ export function drawLineChart(context: ReportContext, config: ReportChartConfig)
         return;
     }
 
-    addSectionTitle(context, config.title);
-    addParagraph(context, config.description);
+    addSectionTitle(context, normalizePdfText(config.title));
+    addParagraph(context, normalizePdfText(config.description));
 
     const chartHeight = 82;
     const chart = drawChartContainer(context, chartHeight);

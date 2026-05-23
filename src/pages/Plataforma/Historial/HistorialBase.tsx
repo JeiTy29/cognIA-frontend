@@ -23,8 +23,7 @@ import type {
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireSessionV2DTO,
     QuestionnaireShareResponseDTO,
-    QuestionnaireTagDTO,
-    QuestionnaireTagVisibility
+    QuestionnaireTagDTO
 } from '../../../services/questionnaires/questionnaires.types';
 import { buildReportViewModel } from '../../../utils/presentation/clinicalReport';
 import {
@@ -65,11 +64,6 @@ const pageSizeOptions = [
     { value: '10', label: '10' },
     { value: '20', label: '20' },
     { value: '50', label: '50' }
-];
-
-const tagVisibilityOptions = [
-    { value: 'private', label: 'Privado' },
-    { value: 'shared', label: 'Compartido' }
 ];
 
 const tagColorOptions = [
@@ -206,13 +200,6 @@ function resolveTagId(tag: QuestionnaireTagDTO) {
 function normalizeTagColor(color: string | null | undefined) {
     const value = (color ?? '').trim();
     return value || defaultTagColor;
-}
-
-function getTagVisibilityLabel(visibility: string | null | undefined) {
-    const normalized = (visibility ?? '').trim().toLowerCase();
-    if (normalized === 'private') return 'Privado';
-    if (normalized === 'shared') return 'Compartido';
-    return '--';
 }
 
 function shouldPreserveRawText(value: string) {
@@ -473,7 +460,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
-    const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
 
     const [tagWorking, setTagWorking] = useState(false);
     const [shareWorking, setShareWorking] = useState(false);
@@ -602,7 +588,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailNotice(null);
         setNewTag('');
         setNewTagColor(defaultTagColor);
-        setNewTagVisibility('private');
         setTagWorking(false);
         setShareWorking(false);
         setPdfWorking(false);
@@ -629,7 +614,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             await addQuestionnaireHistoryTagV2(detailSessionId, {
                 tag: newTag.trim(),
                 color: normalizeTagColor(newTagColor),
-                visibility: newTagVisibility
+                visibility: 'private'
             });
             await refreshDetailAfterTagChange();
             setNewTag('');
@@ -979,6 +964,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                             <div className="historial-v2-section">
                                 <h3>Etiquetas</h3>
+                                <p className="historial-v2-tag-disclaimer">
+                                    Las etiquetas son privadas y solo estarán visibles para ti.
+                                </p>
                                 {tagError ? <div className="historial-v2-inline-feedback error">{tagError}</div> : null}
                                 {tagNotice ? <div className="historial-v2-inline-feedback success">{tagNotice}</div> : null}
 
@@ -990,11 +978,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             const tagName = normalizeClinicalTextPresentation(tag.label ?? tag.tag, '--');
                                             const tagId = resolveTagId(tag);
                                             const tagColor = normalizeTagColor(tag.color);
-                                            const visibilityLabel = normalizeClinicalTextPresentation(
-                                                tag.visibility_label ?? getTagVisibilityLabel(tag.visibility),
-                                                '--'
-                                            );
-                                            const tagKey = tagId || `${tagName}-${visibilityLabel}-${tagColor}`;
+                                            const tagKey = tagId || `${tagName}-${tagColor}`;
 
                                             return (
                                                 <div
@@ -1003,7 +987,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                     style={{ borderLeftColor: tagColor }}
                                                 >
                                                     <span className="historial-v2-tag-name">{tagName}</span>
-                                                    <span className="historial-v2-tag-meta">{visibilityLabel}</span>
                                                     {tagId.length > 0 ? (
                                                         <button
                                                             type="button"
@@ -1025,12 +1008,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         placeholder="Etiqueta"
                                         value={newTag}
                                         onChange={(event) => setNewTag(event.target.value)}
-                                    />
-                                    <CustomSelect
-                                        value={newTagVisibility}
-                                        options={tagVisibilityOptions}
-                                        onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)}
-                                        ariaLabel="Visibilidad de etiqueta"
                                     />
                                     <div className="historial-v2-color-palette" role="radiogroup" aria-label="Color de etiqueta">
                                         {tagColorOptions.map((option) => (
@@ -1097,7 +1074,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 <h3>Reporte PDF</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Genera y descarga la versión más reciente del reporte con preguntas respondidas, resumen por secciones, impacto y gráfica de probabilidades disponible en el servidor.
+                                        Genera y descarga la versión enriquecida del reporte con preguntas respondidas, impacto y gráficas interpretativas.
                                     </p>
                                     {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                     {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}

@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable, { type RowInput } from 'jspdf-autotable';
 import { ADMIN_REPORT_THEME } from './adminReportTheme';
+import { normalizePdfTableCell, normalizePdfText } from './reportTextNormalization';
 
 export interface ReportSectionTable {
     title: string;
@@ -30,6 +31,18 @@ function ensurePageSpace(context: ReportContext, requiredHeight: number) {
     context.cursorY = 20;
 }
 
+function normalizeRowInput(row: RowInput): RowInput {
+    if (Array.isArray(row)) {
+        return row.map((cell) => normalizePdfTableCell(cell, '--'));
+    }
+    if (row && typeof row === 'object') {
+        return Object.fromEntries(
+            Object.entries(row).map(([key, value]) => [key, normalizePdfTableCell(value, '--')])
+        ) as RowInput;
+    }
+    return [normalizePdfTableCell(row, '--')];
+}
+
 export function ensureReportPageSpace(context: ReportContext, requiredHeight: number) {
     ensurePageSpace(context, requiredHeight);
 }
@@ -48,7 +61,7 @@ export function createReportContext(sectionTitle: string) {
         pageWidth: doc.internal.pageSize.getWidth(),
         pageHeight: doc.internal.pageSize.getHeight(),
         marginX: 16,
-        sectionTitle
+        sectionTitle: normalizePdfText(sectionTitle, 'Reporte CognIA')
     } satisfies ReportContext;
 }
 
@@ -64,6 +77,10 @@ export function addReportCover(
 ) {
     const { doc, pageWidth, pageHeight, marginX } = context;
     const colors = ADMIN_REPORT_THEME.colors;
+    const title = normalizePdfText(options.title);
+    const subtitle = normalizePdfText(options.subtitle);
+    const sectionLabel = normalizePdfText(options.sectionLabel);
+    const generatedAt = normalizePdfText(options.generatedAt);
 
     doc.setFillColor(248, 251, 255);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
@@ -79,27 +96,30 @@ export function addReportCover(
     doc.setTextColor(colors.primary);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text(ADMIN_REPORT_THEME.companyName, marginX, 22);
+    doc.text(normalizePdfText(ADMIN_REPORT_THEME.companyName), marginX, 22);
 
     doc.setTextColor(colors.ink);
     doc.setFontSize(20);
-    doc.text(options.title, marginX, 54);
+    doc.text(title, marginX, 54);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.text(options.subtitle, marginX, 62);
+    doc.text(doc.splitTextToSize(subtitle, pageWidth - marginX * 2), marginX, 62);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text(options.sectionLabel, marginX, 74);
+    doc.text(sectionLabel, marginX, 78);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Generado: ${options.generatedAt}`, marginX, 81);
+    doc.text(`Generado: ${generatedAt}`, marginX, 85);
 
     autoTable(doc, {
-        startY: 102,
+        startY: 96,
         margin: { left: marginX, right: marginX },
         theme: 'plain',
-        body: options.metaItems.map((item) => [item.label, item.value]),
+        body: options.metaItems.map((item) => [
+            normalizePdfText(item.label, '--'),
+            normalizePdfText(item.value, '--')
+        ]),
         styles: {
             font: 'helvetica',
             fontSize: 10,
@@ -111,41 +131,42 @@ export function addReportCover(
         }
     });
 
-    const finalY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 132;
+    const finalY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 126;
     doc.setFillColor(223, 240, 255);
-    doc.roundedRect(marginX, finalY + 8, pageWidth - marginX * 2, 26, 5, 5, 'F');
+    doc.roundedRect(marginX, finalY + 6, pageWidth - marginX * 2, 22, 5, 5, 'F');
     doc.setTextColor(colors.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Aviso de uso adecuado', marginX + 4, finalY + 17);
+    doc.text('Aviso de uso adecuado', marginX + 4, finalY + 14);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.text(
         'Documento administrativo interno. No divulgar sin autorización.',
         marginX + 4,
-        finalY + 24
+        finalY + 21
     );
 
-    context.doc.addPage();
-    context.cursorY = 20;
+    context.cursorY = finalY + 34;
 }
 
 export function addSectionTitle(context: ReportContext, title: string, subtitle?: string) {
-    ensurePageSpace(context, subtitle ? 18 : 12);
+    const normalizedTitle = normalizePdfText(title);
+    const normalizedSubtitle = normalizePdfText(subtitle);
+    ensurePageSpace(context, normalizedSubtitle ? 18 : 12);
     const { doc, marginX } = context;
     const colors = ADMIN_REPORT_THEME.colors;
 
     doc.setTextColor(colors.primary);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text(title, marginX, context.cursorY);
+    doc.text(normalizedTitle, marginX, context.cursorY);
     context.cursorY += 6;
 
-    if (subtitle) {
+    if (normalizedSubtitle) {
         doc.setTextColor(colors.muted);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
-        const lines = doc.splitTextToSize(subtitle, context.pageWidth - marginX * 2);
+        const lines = doc.splitTextToSize(normalizedSubtitle, context.pageWidth - marginX * 2);
         doc.text(lines, marginX, context.cursorY);
         context.cursorY += lines.length * 4.5 + 2;
     } else {
@@ -154,14 +175,15 @@ export function addSectionTitle(context: ReportContext, title: string, subtitle?
 }
 
 export function addParagraph(context: ReportContext, text: string) {
-    if (!text.trim()) return;
+    const normalizedText = normalizePdfText(text);
+    if (!normalizedText) return;
     ensurePageSpace(context, 12);
     const { doc, marginX } = context;
     const colors = ADMIN_REPORT_THEME.colors;
     doc.setTextColor(colors.ink);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    const lines = doc.splitTextToSize(text, context.pageWidth - marginX * 2);
+    const lines = doc.splitTextToSize(normalizedText, context.pageWidth - marginX * 2);
     doc.text(lines, marginX, context.cursorY);
     context.cursorY += lines.length * 4.5 + 3;
 }
@@ -175,7 +197,9 @@ export function addBulletList(context: ReportContext, items: string[]) {
     doc.setFontSize(10);
 
     for (const item of items) {
-        const lines = doc.splitTextToSize(`• ${item}`, context.pageWidth - marginX * 2);
+        const normalizedItem = normalizePdfText(item);
+        if (!normalizedItem) continue;
+        const lines = doc.splitTextToSize(`• ${normalizedItem}`, context.pageWidth - marginX * 2);
         ensurePageSpace(context, lines.length * 4.5 + 4);
         doc.text(lines, marginX, context.cursorY);
         context.cursorY += lines.length * 4.5 + 1.5;
@@ -190,6 +214,8 @@ export function addNoticeBox(
     text: string,
     tone: 'info' | 'success' | 'warning' = 'info'
 ) {
+    const normalizedTitle = normalizePdfText(title);
+    const normalizedText = normalizePdfText(text);
     const fillColor =
         tone === 'success'
             ? ADMIN_REPORT_THEME.colors.accentSoft
@@ -198,7 +224,7 @@ export function addNoticeBox(
                 : ADMIN_REPORT_THEME.colors.primarySoft;
 
     const { doc, marginX, pageWidth } = context;
-    const lines = doc.splitTextToSize(text, pageWidth - marginX * 2 - 8);
+    const lines = doc.splitTextToSize(normalizedText, pageWidth - marginX * 2 - 8);
     const boxHeight = Math.max(14, lines.length * 4.5 + 8);
     ensurePageSpace(context, boxHeight + 4);
 
@@ -207,7 +233,7 @@ export function addNoticeBox(
     doc.setTextColor(ADMIN_REPORT_THEME.colors.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text(title, marginX + 4, context.cursorY + 5);
+    doc.text(normalizedTitle, marginX + 4, context.cursorY + 5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.text(lines, marginX + 4, context.cursorY + 10);
@@ -222,7 +248,7 @@ export function addKeyValueTable(context: ReportContext, rows: Array<[string, st
         startY: context.cursorY,
         margin: { left: context.marginX, right: context.marginX, bottom: 20 },
         head: [['Campo', 'Valor']],
-        body: rows,
+        body: rows.map(([left, right]) => [normalizePdfTableCell(left, '--'), normalizePdfTableCell(right, '--')]),
         theme: 'grid',
         headStyles: {
             fillColor: ADMIN_REPORT_THEME.colors.primary,
@@ -258,8 +284,8 @@ export function addDataTable(context: ReportContext, table: ReportSectionTable) 
     autoTable(context.doc, {
         startY: context.cursorY,
         margin: { left: context.marginX, right: context.marginX, bottom: 20 },
-        head: [table.head],
-        body: table.body,
+        head: [table.head.map((cell) => normalizePdfTableCell(cell, '--'))],
+        body: table.body.map(normalizeRowInput),
         theme: 'grid',
         headStyles: {
             fillColor: ADMIN_REPORT_THEME.colors.primary,
@@ -281,6 +307,7 @@ export function addDataTable(context: ReportContext, table: ReportSectionTable) 
 export function addFooterToAllPages(context: ReportContext) {
     const { doc, pageWidth, pageHeight, marginX, sectionTitle } = context;
     const pageCount = doc.getNumberOfPages();
+    const footerNotice = normalizePdfText(ADMIN_REPORT_THEME.footerNotice, 'Documento administrativo interno.');
 
     for (let page = 1; page <= pageCount; page += 1) {
         doc.setPage(page);
@@ -289,8 +316,8 @@ export function addFooterToAllPages(context: ReportContext) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(82, 100, 118);
-        doc.text(sectionTitle, marginX, pageHeight - 7);
-        doc.text(ADMIN_REPORT_THEME.footerNotice, pageWidth / 2, pageHeight - 7, { align: 'center' });
+        doc.text(normalizePdfText(sectionTitle, 'Reporte CognIA'), marginX, pageHeight - 7);
+        doc.text(footerNotice, pageWidth / 2, pageHeight - 7, { align: 'center' });
         doc.text(`Página ${page} de ${pageCount}`, pageWidth - marginX, pageHeight - 7, { align: 'right' });
     }
 }

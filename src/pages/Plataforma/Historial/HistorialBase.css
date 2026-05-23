@@ -77,6 +77,9 @@
 }
 
 .historial-v2-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid rgba(33, 95, 143, 0.25);
     background: #ffffff;
     color: #215f8f;
@@ -278,7 +281,7 @@
 
 .historial-v2-tag {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 8px;
     border: 1px solid rgba(33, 95, 143, 0.15);
@@ -292,12 +295,11 @@
     overflow-wrap: anywhere;
 }
 
-.historial-v2-tag-meta {
-    font-size: 12px;
-    color: #111827;
-    background: #dbeafe;
-    border-radius: 999px;
-    padding: 3px 8px;
+.historial-v2-tag-disclaimer {
+    margin: -4px 0 2px;
+    color: #52677a;
+    font-size: 12.5px;
+    line-height: 1.4;
 }
 
 .historial-v2-tag button {
@@ -311,12 +313,14 @@
 
 .historial-v2-tag-form {
     display: grid;
-    grid-template-columns: 1fr 180px auto 120px;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, auto) 120px;
     gap: 10px;
+    align-items: center;
 }
 
 .historial-v2-tag-form input {
-    min-height: 40px;
+    min-height: 44px;
+    width: 100%;
     border-radius: 10px;
     border: 1px solid rgba(33, 95, 143, 0.25);
     padding: 8px 10px;
@@ -324,7 +328,13 @@
     color: #215f8f;
 }
 
+.historial-v2-tag-form .historial-v2-btn {
+    min-height: 44px;
+    width: 100%;
+}
+
 .historial-v2-color-palette {
+    min-height: 44px;
     display: flex;
     align-items: center;
     gap: 8px;
