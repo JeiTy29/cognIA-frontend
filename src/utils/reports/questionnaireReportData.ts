@@ -284,6 +284,19 @@ function inferDomainFromText(value: string | null | undefined) {
     return null;
 }
 
+function resolveKnownDomain(value: unknown) {
+    if (typeof value !== 'string' || value.trim().length === 0) return null;
+    const inferred = inferDomainFromText(value);
+    if (inferred) return inferred;
+
+    const normalized = normalizeComparableText(value).replace(/-/g, '_');
+    if (['adhd', 'conduct', 'elimination', 'anxiety', 'depression', 'general'].includes(normalized)) {
+        return formatDomainLabel(value);
+    }
+
+    return null;
+}
+
 function resolveQuestionDomain(question: QuestionnaireQuestionV2DTO) {
     const raw = question as Record<string, unknown>;
     const directDomain = typeof raw.domain === 'string' ? inferDomainFromText(raw.domain) : null;

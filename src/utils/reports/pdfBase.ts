@@ -9,6 +9,7 @@ export interface ReportSectionTable {
     head: string[];
     body: RowInput[];
     note?: string;
+    columnStyles?: Record<number, Record<string, unknown>>;
 }
 
 export interface ReportMetaItem {
@@ -298,7 +299,8 @@ export function addDataTable(context: ReportContext, table: ReportSectionTable) 
             cellPadding: 2.4,
             overflow: 'linebreak',
             textColor: ADMIN_REPORT_THEME.colors.ink
-        }
+        },
+        columnStyles: table.columnStyles
     });
     context.cursorY =
         ((context.doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? context.cursorY) + 5;

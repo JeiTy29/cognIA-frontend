@@ -1905,7 +1905,7 @@ export default function Cuestionario() {
 
             setCaseActionError(null);
             setWorking(true);
-            let failedStep: StartSessionStep = 'create_case';
+            const failedStep: StartSessionStep = 'create_case';
             try {
                 const createdCase = await createQuestionnaireCaseV2({
                     private_label: newCaseLabel.trim(),

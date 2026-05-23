@@ -463,10 +463,10 @@ function normalizeCaseDetailResponse(payload: unknown): QuestionnaireCaseDetailD
 
 function normalizeGuardianDashboard(payload: unknown): GuardianDashboardDTO {
     const root = asRecord(payload) ?? {};
-    const cases = asArray(root.cases).map((value) => {
+    const cases = asArray(root.cases).reduce<GuardianDashboardDTO['cases']>((items, value) => {
         const record = asRecord(value);
-        if (!record) return null;
-        return {
+        if (!record) return items;
+        items.push({
             ...record,
             case: normalizeCase(record.case),
             sessions_count: pickFiniteNumber([record.sessions_count]),
@@ -478,8 +478,9 @@ function normalizeGuardianDashboard(payload: unknown): GuardianDashboardDTO {
                 .map(normalizeCaseTrendPoint)
                 .filter((item): item is NonNullable<ReturnType<typeof normalizeCaseTrendPoint>> => Boolean(item)),
             chart_data: asRecord(record.chart_data)
-        };
-    }).filter((item): item is NonNullable<GuardianDashboardDTO['cases'][number]> => Boolean(item));
+        });
+        return items;
+    }, []);
 
     return {
         ...root,
@@ -492,12 +493,12 @@ function normalizeGuardianDashboard(payload: unknown): GuardianDashboardDTO {
 
 function normalizePsychologistSearchResponse(payload: unknown, page = 1, pageSize = defaultPageSize): PsychologistSearchResponseDTO {
     const root = pickRecord(payload, ['data', 'result', 'response']) ?? asRecord(payload);
-    const items = asArray(root?.items).map((value) => {
+    const items = asArray(root?.items).reduce<PsychologistSearchResponseDTO['items']>((itemsList, value) => {
         const record = asRecord(value);
-        if (!record) return null;
+        if (!record) return itemsList;
         const userId = firstNonEmptyString([record.user_id, record.id]);
-        if (!userId) return null;
-        return {
+        if (!userId) return itemsList;
+        itemsList.push({
             ...record,
             user_id: userId,
             username: firstNonEmptyString([record.username]),
@@ -505,8 +506,9 @@ function normalizePsychologistSearchResponse(payload: unknown, page = 1, pageSiz
             email: firstNonEmptyString([record.email]),
             professional_location: firstNonEmptyString([record.professional_location, record.location]),
             colpsic_verified: toBooleanOrNull(record.colpsic_verified)
-        };
-    }).filter((item): item is PsychologistSearchResponseDTO['items'][number] => Boolean(item));
+        });
+        return itemsList;
+    }, []);
 
     return {
         items,
@@ -550,12 +552,12 @@ function normalizeShareWithPsychologistResponse(payload: unknown): Questionnaire
 
 function normalizePsychologistDashboard(payload: unknown, page = 1, pageSize = defaultPageSize): PsychologistDashboardDTO {
     const root = asRecord(payload) ?? {};
-    const items = asArray(root.items).map((value) => {
+    const items = asArray(root.items).reduce<PsychologistDashboardDTO['items']>((normalizedItems, value) => {
         const record = asRecord(value);
-        if (!record) return null;
+        if (!record) return normalizedItems;
         const sessionId = firstNonEmptyString([record.session_id, record.id]);
-        if (!sessionId) return null;
-        return {
+        if (!sessionId) return normalizedItems;
+        normalizedItems.push({
             ...record,
             session_id: sessionId,
             case_public_id: firstNonEmptyString([record.case_public_id]),
@@ -568,8 +570,9 @@ function normalizePsychologistDashboard(payload: unknown, page = 1, pageSize = d
             latest_review: normalizeProfessionalReview(record.latest_review),
             can_review: toBooleanOrNull(record.can_review),
             can_download_pdf: toBooleanOrNull(record.can_download_pdf)
-        };
-    }).filter((item): item is PsychologistDashboardDTO['items'][number] => Boolean(item));
+        });
+        return normalizedItems;
+    }, []);
 
     return {
         ...root,

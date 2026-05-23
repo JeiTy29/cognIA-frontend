@@ -267,14 +267,30 @@ function addProfessionalReviewsSection(context: ReportContext, dataset: Question
         'Esta sección reúne conceptos y recomendaciones profesionales orientativas registradas sobre la evaluación compartida.'
     );
 
-    addDataTable(context, {
-        head: ['Estado', 'Concepto inicial', 'Recomendación', 'Visible para acudiente'],
+    autoTable(context.doc, {
+        startY: context.cursorY,
+        margin: { left: context.marginX, right: context.marginX, bottom: 20 },
+        head: [['Estado', 'Concepto inicial', 'Recomendación', 'Visible para acudiente']],
         body: dataset.professionalReviews.map((review) => [
             normalizePdfTableCell(review.review_status, '--'),
             normalizePdfTableCell(review.initial_concept, 'Sin concepto registrado'),
             normalizePdfTableCell(review.recommendation, 'Sin recomendación registrada'),
             normalizePdfTableCell(review.visible_to_guardian ? 'Sí' : 'No')
         ]),
+        theme: 'grid',
+        headStyles: {
+            fillColor: ADMIN_REPORT_THEME.colors.primary,
+            textColor: '#ffffff',
+            fontStyle: 'bold'
+        },
+        styles: {
+            font: 'helvetica',
+            fontSize: 8.6,
+            cellPadding: 2.2,
+            overflow: 'linebreak',
+            textColor: ADMIN_REPORT_THEME.colors.ink,
+            valign: 'top'
+        },
         columnStyles: {
             0: { cellWidth: 28 },
             1: { cellWidth: 50 },
@@ -282,6 +298,8 @@ function addProfessionalReviewsSection(context: ReportContext, dataset: Question
             3: { cellWidth: 28, halign: 'center' }
         }
     });
+    context.cursorY =
+        (((context.doc as typeof context.doc & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY) ?? context.cursorY) + 5;
 }
 
 export async function buildQuestionnaireAlertPdf({
