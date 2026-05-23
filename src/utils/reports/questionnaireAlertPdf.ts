@@ -7,7 +7,7 @@ import type {
     QuestionnaireSessionV2DTO
 } from '../../services/questionnaires/questionnaires.types';
 import { ADMIN_REPORT_THEME } from './adminReportTheme';
-import { drawBarChart, drawHorizontalBarChart, type ReportChartPoint } from './chartDrawing';
+import { drawHorizontalBarChart, type ReportChartPoint } from './chartDrawing';
 import {
     addBulletList,
     addDataTable,
@@ -15,7 +15,6 @@ import {
     addParagraph,
     addSectionTitle,
     createReportContext,
-    ensureReportPageSpace,
     type ReportContext
 } from './pdfBase';
 import { buildQuestionnaireAlertReportDataset, type QuestionnaireAlertReportDataset } from './questionnaireReportData';
@@ -155,36 +154,6 @@ function addQuestionnaireFooter(context: ReportContext) {
     }
 }
 
-function drawCompletionBar(context: ReportContext, ratio: number, answeredCount: number, totalQuestions: number) {
-    addSectionTitle(context, 'Completitud del cuestionario');
-    addParagraph(
-        context,
-        'Esta gráfica indica qué proporción del cuestionario fue respondida durante la sesión.'
-    );
-
-    ensureReportPageSpace(context, 24);
-    const { doc, marginX, pageWidth } = context;
-    const width = pageWidth - marginX * 2;
-    const barY = context.cursorY + 4;
-    const barWidth = width;
-    const progressWidth = Math.max(0, Math.min(1, ratio)) * barWidth;
-
-    doc.setFillColor(248, 251, 255);
-    doc.roundedRect(marginX, barY, barWidth, 8, 4, 4, 'F');
-    doc.setFillColor(11, 111, 184);
-    doc.roundedRect(marginX, barY, progressWidth, 8, 4, 4, 'F');
-    doc.setTextColor(11, 37, 64);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.text(
-        `${Math.round(Math.max(0, Math.min(1, ratio)) * 100)} % (${formatReportNumber(answeredCount)} de ${formatReportNumber(totalQuestions)} respuestas)`,
-        marginX,
-        barY + 15
-    );
-
-    context.cursorY = barY + 20;
-}
-
 function buildDomainChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
     return dataset.domainRows
         .filter((row) => row.probabilityValue !== null)
@@ -201,10 +170,17 @@ function buildDomainIntensityChartPoints(dataset: QuestionnaireAlertReportDatase
     }));
 }
 
-function buildImpactDistributionChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
-    return dataset.impactDistribution.map((row) => ({
+function buildDomainSignalsChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
+    return dataset.domainSignals.map((row) => ({
+        label: row.domainLabel,
+        value: row.weightedScore
+    }));
+}
+
+function buildHighIntensityChartPoints(dataset: QuestionnaireAlertReportDataset): ReportChartPoint[] {
+    return dataset.highIntensityQuestions.map((row) => ({
         label: row.label,
-        value: row.count
+        value: row.value
     }));
 }
 
@@ -294,7 +270,8 @@ export async function buildQuestionnaireAlertPdf({
             domains: dataset.domainRows.length,
             answeredQuestions: dataset.answeredQuestions.length,
             domainIntensity: dataset.domainIntensity.length,
-            impactDistribution: dataset.impactDistribution.length
+            domainSignals: dataset.domainSignals.length,
+            highIntensityQuestions: dataset.highIntensityQuestions.length
         });
     }
 
@@ -322,13 +299,6 @@ export async function buildQuestionnaireAlertPdf({
     addParagraph(context, dataset.summaryText);
     addParagraph(context, dataset.recommendationText);
     addNoticeBox(context, 'Aclaración importante', dataset.clarificationText, 'info');
-
-    drawCompletionBar(
-        context,
-        dataset.completion.ratio,
-        dataset.completion.answeredCount,
-        dataset.completion.totalQuestions
-    );
 
     addDataTable(context, {
         title: 'Resumen de sesión',
@@ -395,19 +365,51 @@ export async function buildQuestionnaireAlertPdf({
         );
     }
 
-    const impactDistributionPoints = buildImpactDistributionChartPoints(dataset);
-    if (impactDistributionPoints.length > 0) {
-        drawBarChart(context, {
-            title: 'Distribución interpretativa de respuestas',
+    const domainSignalsPoints = buildDomainSignalsChartPoints(dataset);
+    if (domainSignalsPoints.length > 0) {
+        drawHorizontalBarChart(context, {
+            title: 'Señales por dominio',
             description:
-                'La distribución interpretativa agrupa las respuestas según la intensidad estimada dentro de la escala de cada pregunta. Por ejemplo, respuestas como “Nunca o ausente”, “No ocurrió” o “Sin impacto” se clasifican como ausencia de señal relevante; respuestas más frecuentes o intensas se ubican en señal baja, intermedia o alta. Esta lectura es descriptiva y no equivale a diagnóstico.',
-            points: impactDistributionPoints
+                'Esta gráfica muestra cómo se distribuyen las respuestas interpretables dentro de cada dominio. Permite identificar si las señales registradas se concentran principalmente en niveles bajos, intermedios o altos. Esta lectura es descriptiva y no equivale a diagnóstico.',
+            points: domainSignalsPoints,
+            percent: true
+        });
+        addDataTable(context, {
+            title: 'Detalle de señales por dominio',
+            description:
+                'Esta tabla resume cuántas respuestas interpretables quedaron en ausencia de señal relevante, señal baja, señal intermedia o señal alta dentro de cada dominio.',
+            head: ['Dominio', 'Sin señal', 'Baja', 'Intermedia', 'Alta'],
+            body: dataset.domainSignals.map((row) => [
+                row.domainLabel,
+                formatReportNumber(row.noSignal),
+                formatReportNumber(row.low),
+                formatReportNumber(row.medium),
+                formatReportNumber(row.high)
+            ])
         });
     } else {
         addNoticeBox(
             context,
-            'Distribución interpretativa de respuestas',
-            'No hay suficientes respuestas para generar esta gráfica.',
+            'Señales por dominio',
+            'No hay suficientes respuestas interpretables para resumir señales por dominio.',
+            'info'
+        );
+    }
+
+    const highIntensityPoints = buildHighIntensityChartPoints(dataset);
+    if (highIntensityPoints.some((point) => point.value > 0)) {
+        drawHorizontalBarChart(context, {
+            title: 'Respuestas de mayor intensidad',
+            description:
+                'Esta gráfica muestra las respuestas que se ubicaron más alto dentro de su escala. Ayuda a identificar qué elementos del cuestionario requieren mayor atención descriptiva, sin que esto represente un diagnóstico.',
+            points: highIntensityPoints,
+            percent: true
+        });
+    } else {
+        addNoticeBox(
+            context,
+            'Respuestas de mayor intensidad',
+            'No se registraron respuestas con intensidad media o alta para destacar en esta sección.',
             'info'
         );
     }

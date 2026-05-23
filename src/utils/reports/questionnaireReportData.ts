@@ -49,16 +49,28 @@ export type QuestionnaireSectionSummaryRow = {
     answeredCount: number;
 };
 
-export type QuestionnaireImpactDistributionRow = {
-    label: string;
-    count: number;
-};
-
 export type DomainIntensityRow = {
     label: string;
     value: number;
     interpretedCount: number;
     totalCount: number;
+};
+
+export type DomainSignalRow = {
+    domainLabel: string;
+    noSignal: number;
+    low: number;
+    medium: number;
+    high: number;
+    total: number;
+    weightedScore: number;
+};
+
+export type HighIntensityQuestionRow = {
+    label: string;
+    value: number;
+    domainLabel: string;
+    answerLabel: string;
 };
 
 export type QuestionnaireCompletionSummary = {
@@ -76,8 +88,9 @@ export type QuestionnaireAlertReportDataset = {
     answeredQuestionsNotice: string | null;
     domainRows: QuestionnaireDomainReportRow[];
     sectionSummaryRows: QuestionnaireSectionSummaryRow[];
-    impactDistribution: QuestionnaireImpactDistributionRow[];
     domainIntensity: DomainIntensityRow[];
+    domainSignals: DomainSignalRow[];
+    highIntensityQuestions: HighIntensityQuestionRow[];
     completion: QuestionnaireCompletionSummary;
     summaryText: string;
     recommendationText: string;
@@ -441,7 +454,7 @@ function classifyAnswer(question: QuestionnaireQuestionV2DTO, answer: Questionna
                 ? answer
                 : ['true', '1', 'si', 'yes'].includes(normalizeComparableText(answer));
         return normalizedBoolean
-            ? { relativeScore: 1, categoryLabel: 'Señal registrada' }
+            ? { relativeScore: 1, categoryLabel: 'Señal alta' }
             : { relativeScore: 0, categoryLabel: 'Sin señal relevante' };
     }
 
@@ -520,7 +533,7 @@ function buildFallbackAnswerRows(
 
             const categoryLabel =
                 typeof answer === 'boolean'
-                    ? (answer ? 'Señal registrada' : 'Sin señal relevante')
+                    ? (answer ? 'Señal alta' : 'Sin señal relevante')
                     : 'No interpretable';
 
             return {
@@ -657,17 +670,6 @@ function buildCompletionSummary(
     } satisfies QuestionnaireCompletionSummary;
 }
 
-function buildImpactDistribution(rows: AnsweredQuestionReportRow[]) {
-    return Array.from(
-        rows.reduce((map, row) => {
-            map.set(row.categoryLabel, (map.get(row.categoryLabel) ?? 0) + 1);
-            return map;
-        }, new Map<string, number>())
-    )
-        .map(([label, count]) => ({ label, count }))
-        .sort((left, right) => right.count - left.count);
-}
-
 function buildDomainIntensity(rows: AnsweredQuestionReportRow[]) {
     const groups = new Map<string, { totalCount: number; interpretedCount: number; sum: number }>();
     rows.forEach((row) => {
@@ -691,6 +693,60 @@ function buildDomainIntensity(rows: AnsweredQuestionReportRow[]) {
         .sort((left, right) => right.value - left.value);
 }
 
+function buildDomainSignals(rows: AnsweredQuestionReportRow[]) {
+    const groups = new Map<string, Omit<DomainSignalRow, 'weightedScore'>>();
+    rows.forEach((row) => {
+        const current = groups.get(row.domainLabel) ?? {
+            domainLabel: row.domainLabel,
+            noSignal: 0,
+            low: 0,
+            medium: 0,
+            high: 0,
+            total: 0
+        };
+        current.total += 1;
+        if (row.categoryLabel === 'Sin señal relevante') current.noSignal += 1;
+        if (row.categoryLabel === 'Señal baja') current.low += 1;
+        if (row.categoryLabel === 'Señal intermedia') current.medium += 1;
+        if (row.categoryLabel === 'Señal alta') current.high += 1;
+        groups.set(row.domainLabel, current);
+    });
+
+    return Array.from(groups.values())
+        .filter((row) => row.noSignal + row.low + row.medium + row.high > 0)
+        .map((row) => ({
+            ...row,
+            weightedScore:
+                row.total > 0
+                    ? (((row.low * 1) + (row.medium * 2) + (row.high * 3)) / (row.total * 3)) * 100
+                    : 0
+        }))
+        .sort((left, right) =>
+            right.high - left.high ||
+            right.medium - left.medium ||
+            right.low - left.low ||
+            right.total - left.total
+        );
+}
+
+function buildHighIntensityQuestions(rows: AnsweredQuestionReportRow[]) {
+    return rows
+        .filter((row) => typeof row.relativeScore === 'number' && row.relativeScore > 0)
+        .map((row) => {
+            const shortQuestion = row.questionText.length > 62
+                ? `${row.questionText.slice(0, 59).trimEnd()}…`
+                : row.questionText;
+            return {
+                label: `${row.domainLabel} · ${shortQuestion}`,
+                value: (row.relativeScore ?? 0) * 100,
+                domainLabel: row.domainLabel,
+                answerLabel: row.answerLabel
+            } satisfies HighIntensityQuestionRow;
+        })
+        .sort((left, right) => right.value - left.value)
+        .slice(0, 8);
+}
+
 export function buildQuestionnaireAlertReportDataset({
     sessionDetail,
     sessionQuestions,
@@ -709,8 +765,9 @@ export function buildQuestionnaireAlertReportDataset({
         .map(([sectionLabel, answeredCount]) => ({ sectionLabel, answeredCount }))
         .sort((left, right) => right.answeredCount - left.answeredCount);
 
-    const impactDistribution = buildImpactDistribution(answered.rows);
     const domainIntensity = buildDomainIntensity(answered.rows);
+    const domainSignals = buildDomainSignals(answered.rows);
+    const highIntensityQuestions = buildHighIntensityQuestions(answered.rows);
     const domainRows = buildDomainRowsFromResults(results?.domains ?? [], clinicalSummary?.domains ?? []);
     const sectionNarratives = buildSectionNarratives(clinicalSummary);
 
@@ -736,8 +793,9 @@ export function buildQuestionnaireAlertReportDataset({
         answeredQuestionsNotice: answered.notice,
         domainRows,
         sectionSummaryRows,
-        impactDistribution,
         domainIntensity,
+        domainSignals,
+        highIntensityQuestions,
         completion,
         summaryText,
         recommendationText,
