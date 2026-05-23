@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGet = vi.fn();
+const apiGetBlobWithMeta = vi.fn();
 const apiSecurePatch = vi.fn();
 const apiSecurePost = vi.fn();
 const apiSecurePostNoBody = vi.fn();
@@ -13,7 +14,7 @@ vi.mock('../api/policy', () => ({
 vi.mock('../api/httpClient', () => ({
     apiDelete: vi.fn(),
     apiGet,
-    apiGetBlobWithMeta: vi.fn(),
+    apiGetBlobWithMeta,
     apiPatch: vi.fn(),
     apiPost: vi.fn(),
     apiPostNoBody: vi.fn(),
@@ -92,5 +93,30 @@ describe('questionnaires.api secure endpoints', () => {
             },
             expect.objectContaining({ auth: true, credentials: 'include' })
         );
+    });
+
+    it('descarga el PDF del historial sin caché y conserva el nombre enviado por backend', async () => {
+        apiGetBlobWithMeta.mockResolvedValueOnce({
+            blob: new Blob(['pdf']),
+            headers: new Headers({
+                'content-disposition': 'attachment; filename="Reporte backend.pdf"'
+            })
+        });
+
+        const module = await import('./questionnaires.api');
+        const result = await module.downloadQuestionnaireHistoryPdfV2('sess-1');
+
+        expect(apiGetBlobWithMeta).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/pdf/download',
+            expect.objectContaining({
+                auth: true,
+                credentials: 'include',
+                headers: expect.objectContaining({
+                    'Cache-Control': 'no-cache',
+                    Pragma: 'no-cache'
+                })
+            })
+        );
+        expect(result.filename).toBe('Reporte backend.pdf');
     });
 });

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import cogniaLogoLight from '../../../assets/branding/cognia-logo-light.png';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
@@ -7,6 +6,8 @@ import { ApiError } from '../../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
+    downloadQuestionnaireHistoryPdfV2,
+    generateQuestionnaireHistoryPdfV2,
     getAllQuestionnaireSessionQuestionsV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
@@ -25,10 +26,7 @@ import type {
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
-import {
-    buildClinicalReportHtml,
-    buildReportViewModel
-} from '../../../utils/presentation/clinicalReport';
+import { buildReportViewModel } from '../../../utils/presentation/clinicalReport';
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
@@ -37,8 +35,8 @@ import {
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
-import { buildReportFileName, buildReportTitle } from '../../../utils/presentation/reportFileName';
-import { downloadPdfBlob, renderReportHtmlToPdfBlob } from '../../../utils/presentation/reportPdf';
+import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
+import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../../utils/reports/questionnaireAlertPdf';
 import { buildAbsoluteShareUrl } from '../../../utils/presentation/shareUrl';
 import './HistorialBase.css';
 
@@ -109,6 +107,14 @@ const hiddenResultFields = [
     'file_id',
     'mime_type'
 ];
+
+function buildAlertReportFallbackFileName() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `Reporte CognIA - Alerta - ${yyyy}-${mm}-${dd}.pdf`;
+}
 
 const DOMAIN_LABELS: Record<string, string> = {
     adhd: 'TDAH',
@@ -672,58 +678,70 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         if (!detailSessionId) return;
         setPdfWorking(true);
         setPdfError(null);
-        setPdfNotice('Preparando PDF...');
+        setPdfNotice(null);
         try {
             let nextResults = resultsPayload;
             let nextSummary = clinicalSummaryPayload;
-            let nextSessionDetail: QuestionnaireSessionV2DTO | null = null;
+            let nextDetail = detailPayload;
+            let nextSessionSnapshot: QuestionnaireSessionV2DTO | null = null;
             let nextQuestions: QuestionnaireQuestionV2DTO[] = [];
 
-            if (!nextResults && canLoadClinicalArtifacts(detailPayload?.status)) {
-                nextResults = await getQuestionnaireHistoryResultsV2(detailSessionId);
-                setResultsPayload(nextResults);
+            if (!nextDetail) {
+                nextDetail = await getQuestionnaireHistoryDetailV2(detailSessionId);
+                setDetailPayload(nextDetail);
             }
 
-            if (!nextSummary && canLoadClinicalArtifacts(detailPayload?.status)) {
+            if (!nextResults && canLoadClinicalArtifacts(nextDetail?.status)) {
+                try {
+                    nextResults = await getQuestionnaireHistoryResultsV2(detailSessionId);
+                    setResultsPayload(nextResults);
+                } catch {
+                    nextResults = null;
+                }
+            }
+
+            if (!nextSummary && canLoadClinicalArtifacts(nextDetail?.status)) {
                 try {
                     nextSummary = await getQuestionnaireClinicalSummaryV2(detailSessionId);
                     setClinicalSummaryPayload(nextSummary);
-                } catch (summaryError) {
-                    setDetailNotice(buildActionErrorMessage(summaryError, 'No fue posible cargar el resumen clínico orientativo.'));
+                } catch {
+                    nextSummary = null;
                 }
             }
 
             try {
-                const [sessionDetail, sessionQuestions] = await Promise.all([
+                const [sessionSnapshot, sessionQuestions] = await Promise.all([
                     getQuestionnaireSessionV2(detailSessionId),
                     getAllQuestionnaireSessionQuestionsV2(detailSessionId)
                 ]);
-                nextSessionDetail = sessionDetail;
+                nextSessionSnapshot = sessionSnapshot;
                 nextQuestions = sessionQuestions;
             } catch {
-                nextSessionDetail = null;
+                nextSessionSnapshot = null;
                 nextQuestions = [];
             }
 
-            const nextViewModel = buildReportViewModel({
-                session: detailPayload,
+            const pdfBlob = await buildQuestionnaireAlertPdf({
+                sessionId: detailSessionId,
                 results: nextResults,
                 clinicalSummary: nextSummary,
-                questions: nextQuestions,
-                sessionAnswers: nextSessionDetail?.answers ?? detailPayload?.answers ?? null
+                sessionDetail: nextDetail,
+                sessionSnapshot: nextSessionSnapshot,
+                sessionQuestions: nextQuestions
             });
-            const reportTitle = buildReportTitle(detailPayload);
-            const fileName = buildReportFileName(detailPayload, 'pdf');
-            const reportHtml = buildClinicalReportHtml(nextViewModel, {
-                logoUrl: cogniaLogoLight,
-                fileTitle: reportTitle
-            });
-            const pdfBlob = await renderReportHtmlToPdfBlob(reportHtml);
-            downloadPdfBlob(pdfBlob, fileName);
+            downloadPdfBlob(pdfBlob, buildQuestionnaireAlertPdfFileName(nextSessionSnapshot ?? nextDetail));
             setPdfNotice('PDF descargado correctamente.');
         } catch (actionError) {
-            setPdfError(buildActionErrorMessage(actionError, 'No se pudo generar el PDF. Intenta nuevamente.'));
-            setPdfNotice(null);
+            try {
+                await generateQuestionnaireHistoryPdfV2(detailSessionId);
+                const { blob, filename } = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
+                downloadPdfBlob(blob, filename || buildAlertReportFallbackFileName());
+                setPdfNotice('No fue posible generar el PDF enriquecido. Se descargó la versión disponible del servidor.');
+                setPdfError(null);
+            } catch {
+                setPdfError(buildActionErrorMessage(actionError, 'No se pudo generar el PDF. Intenta nuevamente.'));
+                setPdfNotice(null);
+            }
         } finally {
             setPdfWorking(false);
         }
@@ -1076,10 +1094,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             </div>
 
                             <div className="historial-v2-section">
-                                <h3>Reporte orientativo</h3>
+                                <h3>Reporte PDF</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Prepara un reporte ampliado con portada visual, resultados por áreas y recomendaciones usando la información disponible del historial.
+                                        Genera y descarga la versión más reciente del reporte con preguntas respondidas, resumen por secciones, impacto y gráfica de probabilidades disponible en el servidor.
                                     </p>
                                     {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                     {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}
@@ -1090,7 +1108,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             onClick={() => { runHistoryTask(handleDownloadReport); }}
                                             disabled={pdfWorking}
                                         >
-                                            {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
+                                            {pdfWorking ? 'Generando PDF...' : 'Descargar PDF'}
                                         </button>
                                     </div>
                                 </div>

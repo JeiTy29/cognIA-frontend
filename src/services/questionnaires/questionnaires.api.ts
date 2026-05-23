@@ -931,6 +931,14 @@ function extractFilenameFromHeaders(headers: Headers) {
     return basicMatch?.[1] ?? null;
 }
 
+function buildQuestionnaireHistoryPdfFallbackFilename() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `Reporte CognIA - Alerta - ${yyyy}-${mm}-${dd}.pdf`;
+}
+
 export function getActiveQuestionnairesV2(params: {
     mode: QuestionnaireV2Mode;
     role: QuestionnaireV2Role;
@@ -1200,9 +1208,15 @@ export function getQuestionnaireHistoryPdfV2(sessionId: string) {
 export async function downloadQuestionnaireHistoryPdfV2(sessionId: string): Promise<DownloadPdfResult> {
     const result = await apiGetBlobWithMeta(
         `/api/v2/questionnaires/history/${sessionId}/pdf/download`,
-        requestOptions
+        {
+            ...requestOptions,
+            headers: {
+                'Cache-Control': 'no-cache',
+                Pragma: 'no-cache'
+            }
+        }
     );
-    const filename = extractFilenameFromHeaders(result.headers) ?? `cuestionario-${sessionId}.pdf`;
+    const filename = extractFilenameFromHeaders(result.headers) ?? buildQuestionnaireHistoryPdfFallbackFilename();
     return {
         blob: result.blob,
         filename

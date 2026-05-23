@@ -414,22 +414,15 @@ function getNumericRangeHelp(question: QuestionnaireQuestionV2DTO) {
         ? question.response_max
         : null;
 
-    if (min !== null && max !== null) return `Rango permitido: ${min} a ${max}.`;
-    if (min !== null) return `Valor mínimo permitido: ${min}.`;
-    if (max !== null) return `Valor máximo permitido: ${max}.`;
+    if (min !== null && max !== null) return `Ingresa un valor entre ${min} y ${max}.`;
+    if (min !== null) return `Ingresa un valor igual o mayor que ${min}.`;
+    if (max !== null) return `Ingresa un valor igual o menor que ${max}.`;
     return null;
 }
 
 function buildNumericInputHint(question: QuestionnaireQuestionV2DTO) {
-    const constraints = getNumericConstraints(question);
-    if (constraints.hasExplicitMin && constraints.hasExplicitMax && constraints.min !== null && constraints.max !== null) {
-        return `Ingresa un valor entre ${constraints.min} y ${constraints.max}.`;
-    }
-    if (constraints.hasExplicitMin && constraints.min !== null) {
-        return `Ingresa un valor igual o mayor que ${constraints.min}.`;
-    }
-    if (constraints.hasExplicitMax && constraints.max !== null) {
-        return `Ingresa un valor igual o menor que ${constraints.max}.`;
+    if (question.response_type === 'integer') {
+        return 'Ingresa un número entero válido.';
     }
     return 'Ingresa un valor numérico válido.';
 }
@@ -1341,7 +1334,7 @@ type AnswerControlProps = Readonly<{
     currentOptions: QuestionnaireOptionDTO[];
     currentNumericConstraints: ReturnType<typeof getNumericConstraints> | null;
     currentNumericDraftValue: string;
-    currentNumericRangeHelp: string | null;
+    currentNumericHelperText: string | null;
     currentNumericValidationMessage: string | null;
     onAnswerChange: (value: QuestionnaireResponseValue) => void;
     onNumericInputChange: (value: string) => void;
@@ -1353,7 +1346,7 @@ function AnswerControl({
     currentOptions,
     currentNumericConstraints,
     currentNumericDraftValue,
-    currentNumericRangeHelp,
+    currentNumericHelperText,
     currentNumericValidationMessage,
     onAnswerChange,
     onNumericInputChange
@@ -1384,12 +1377,9 @@ function AnswerControl({
                     step={currentNumericConstraints?.step ?? undefined}
                     onChange={(event) => onNumericInputChange(event.target.value)}
                 />
-                {currentNumericRangeHelp ? (
-                    <p className="question-input-note">{currentNumericRangeHelp}</p>
-                ) : null}
-                {currentNumericConstraints ? (
+                {currentNumericHelperText ? (
                     <p className="question-input-hint">
-                        {buildNumericInputHint(currentQuestion)}
+                        {currentNumericHelperText}
                     </p>
                 ) : null}
                 {currentNumericValidationMessage ? (
@@ -1455,6 +1445,7 @@ export default function Cuestionario() {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [questionTransitionDirection, setQuestionTransitionDirection] = useState<'from-next' | 'from-prev'>('from-next');
     const [numericDrafts, setNumericDrafts] = useState<Record<string, string>>({});
+    const [isQuestionContextOpen, setIsQuestionContextOpen] = useState(false);
     const [completionPhase, setCompletionPhase] = useState<CompletionPhase>('idle');
     const [backendStatus, setBackendStatus] = useState<QuestionnaireV2Status | null>(null);
     const [completionPayload, setCompletionPayload] = useState<QuestionnaireSubmitResponseV2DTO | null>(null);
@@ -1464,6 +1455,7 @@ export default function Cuestionario() {
     const [clinicalSummary, setClinicalSummary] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [reportNotice, setReportNotice] = useState<string | null>(null);
     const activeRef = useRef<HTMLDivElement | null>(null);
+    const questionContextRef = useRef<HTMLDivElement | null>(null);
     const isMountedRef = useRef(true);
     const pollingTimerRef = useRef<PollTimer>(null);
     const pollingTokenRef = useRef(0);
@@ -1902,21 +1894,46 @@ export default function Cuestionario() {
             : null;
     const currentQuestionContext = currentQuestion ? getQuestionContext(currentQuestion) : null;
     const currentNumericRangeHelpRaw = currentQuestion ? getNumericRangeHelp(currentQuestion) : null;
-    const currentNumericRangeHelp =
-        currentQuestionContext && currentNumericRangeHelpRaw
-            ? (
-                normalizeMojibakeText(currentQuestionContext).toLowerCase().includes(
-                    normalizeMojibakeText(currentNumericRangeHelpRaw).toLowerCase().replace(/[.:]/g, '')
-                )
-                    ? null
-                    : currentNumericRangeHelpRaw
-            )
-            : currentNumericRangeHelpRaw;
+    const currentNumericRangeHelp = currentQuestionContext ? null : currentNumericRangeHelpRaw;
+    const currentNumericHelperText =
+        currentQuestion && currentNumericConstraints
+            ? (currentNumericRangeHelp ?? buildNumericInputHint(currentQuestion))
+            : null;
     const canContinue = currentQuestion
         ? (currentNumericConstraints && currentNumericValidationMessage
             ? false
             : isValid(currentQuestion, currentAnswer))
         : false;
+    const questionContextPopoverId = currentQuestionContext ? `question-context-popover-${currentIndex}` : undefined;
+
+    useEffect(() => {
+        setIsQuestionContextOpen(false);
+    }, [currentQuestionKey]);
+
+    useEffect(() => {
+        if (!isQuestionContextOpen) return undefined;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (questionContextRef.current?.contains(target)) return;
+            setIsQuestionContextOpen(false);
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsQuestionContextOpen(false);
+            }
+        };
+
+        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isQuestionContextOpen]);
 
     useEffect(() => {
         if (!started || completionPhase !== 'idle' || saveState !== 'dirty' || Boolean(currentNumericValidationMessage)) {
@@ -2345,17 +2362,40 @@ export default function Cuestionario() {
                 className={`stack-item is-active questionnaire-question-card ${questionTransitionDirection}`}
                 ref={activeRef}
             >
-                <h2 className="question-text">{currentQuestion.text}</h2>
-                {currentQuestionContext ? (
-                    <p className="question-context">{currentQuestionContext}</p>
-                ) : null}
+                <div className="question-title-row" ref={questionContextRef}>
+                    <h2 className="question-text">{currentQuestion.text}</h2>
+                    {currentQuestionContext ? (
+                        <div className="question-context-anchor">
+                            <button
+                                type="button"
+                                className={`question-info-button ${isQuestionContextOpen ? 'is-open' : ''}`}
+                                aria-label="Ver información de la pregunta"
+                                aria-expanded={isQuestionContextOpen}
+                                aria-controls={questionContextPopoverId}
+                                onClick={() => setIsQuestionContextOpen((prev) => !prev)}
+                            >
+                                i
+                            </button>
+                            {isQuestionContextOpen ? (
+                                <div
+                                    id={questionContextPopoverId}
+                                    className="question-context-popover"
+                                    role="dialog"
+                                    aria-label="Información de la pregunta"
+                                >
+                                    {currentQuestionContext}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
                 <AnswerControl
                     currentQuestion={currentQuestion}
                     currentAnswer={currentAnswer}
                     currentOptions={currentOptions}
                     currentNumericConstraints={currentNumericConstraints}
                     currentNumericDraftValue={currentNumericDraftValue}
-                    currentNumericRangeHelp={currentNumericRangeHelp}
+                    currentNumericHelperText={currentNumericHelperText}
                     currentNumericValidationMessage={currentNumericValidationMessage}
                     onAnswerChange={onAnswerChange}
                     onNumericInputChange={onNumericInputChange}
