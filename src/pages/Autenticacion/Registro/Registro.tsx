@@ -65,6 +65,7 @@ function getRegistrationValidationError(input: {
     openedTerms: boolean;
     openedPrivacy: boolean;
     username: string;
+    city: string;
     password: string;
     confirmPassword: string;
 }): { target: RegistrationValidationTarget; message: string } | null {
@@ -80,6 +81,11 @@ function getRegistrationValidationError(input: {
 
     if (!usernamePattern.test(input.username)) {
         return { target: 'submit', message: 'Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres válidos.' };
+    }
+
+    const normalizedCity = input.city.trim();
+    if (normalizedCity.length < 2 || normalizedCity.length > 120 || /^[\d\s]+$/u.test(normalizedCity)) {
+        return { target: 'submit', message: 'Ingresa una ciudad válida para continuar.' };
     }
 
     const passwordError = validatePassword(input.password);
@@ -209,6 +215,7 @@ export default function Registro() {
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
+    const [ciudad, setCiudad] = useState('');
     const [numeroOperador, setNumeroOperador] = useState('');
     const [contrasena, setContrasena] = useState('');
     const [confirmarContrasena, setConfirmarContrasena] = useState('');
@@ -238,6 +245,7 @@ export default function Registro() {
         setFullName('');
         setUsername('');
         setEmail('');
+        setCiudad('');
         setNumeroOperador('');
         setContrasena('');
         setConfirmarContrasena('');
@@ -301,6 +309,7 @@ export default function Registro() {
             openedTerms: hasOpenedTerms,
             openedPrivacy: hasOpenedPrivacy,
             username,
+            city: ciudad,
             password: contrasena,
             confirmPassword: confirmarContrasena
         });
@@ -321,7 +330,9 @@ export default function Registro() {
             const payloadBase = {
                 username,
                 email,
-                password: contrasena
+                password: contrasena,
+                professional_city: ciudad.trim(),
+                professional_location: ciudad.trim()
             };
 
             if (rolSeleccionado === 'padre') {
@@ -469,6 +480,16 @@ export default function Registro() {
                                                 required
                                             />
                                         </div>
+                                        <div className="form-group">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Ciudad"
+                                                value={ciudad}
+                                                onChange={(event) => setCiudad(event.target.value)}
+                                                required
+                                            />
+                                        </div>
                                     </>
                                 )
                                 : renderRegistrationForm(
@@ -503,6 +524,16 @@ export default function Registro() {
                                                 placeholder="Correo electrónico"
                                                 value={email}
                                                 onChange={(event) => setEmail(event.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Ciudad"
+                                                value={ciudad}
+                                                onChange={(event) => setCiudad(event.target.value)}
                                                 required
                                             />
                                         </div>

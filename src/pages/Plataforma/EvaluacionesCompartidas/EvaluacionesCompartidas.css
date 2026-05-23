@@ -1,0 +1,297 @@
+.evaluaciones-compartidas {
+    width: min(1220px, 100%);
+    display: grid;
+    gap: 18px;
+    color: #215f8f;
+}
+
+.evaluaciones-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.evaluaciones-header h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+}
+
+.evaluaciones-header p,
+.evaluaciones-detail-copy,
+.evaluaciones-helper {
+    margin: 0;
+    color: #52677a;
+    line-height: 1.6;
+}
+
+.evaluaciones-refresh,
+.evaluaciones-card-actions button,
+.evaluaciones-detail-actions button {
+    border: 1px solid rgba(33, 95, 143, 0.24);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 10px;
+    min-height: 40px;
+    padding: 0 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.evaluaciones-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.evaluaciones-filters input,
+.evaluaciones-filters select,
+.evaluaciones-field select,
+.evaluaciones-field textarea {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    min-height: 42px;
+    padding: 10px 12px;
+    font: inherit;
+    color: #215f8f;
+    background: #ffffff;
+}
+
+.evaluaciones-field textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+.evaluaciones-alert,
+.evaluaciones-empty-card,
+.evaluaciones-summary-grid article,
+.evaluaciones-card,
+.evaluaciones-review-card,
+.evaluaciones-answer-row {
+    border-radius: 16px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    background: #ffffff;
+}
+
+.evaluaciones-alert {
+    padding: 12px 14px;
+}
+
+.evaluaciones-alert.error {
+    background: #fff1f2;
+    color: #8b1e3f;
+}
+
+.evaluaciones-alert.success {
+    background: #ecfdf3;
+    color: #0f5132;
+}
+
+.evaluaciones-empty,
+.evaluaciones-empty-card {
+    padding: 24px;
+    text-align: center;
+}
+
+.evaluaciones-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.evaluaciones-summary-grid article {
+    padding: 16px;
+    display: grid;
+    gap: 6px;
+}
+
+.evaluaciones-summary-grid strong {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.evaluaciones-summary-grid span {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.evaluaciones-aggregates {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.evaluaciones-aggregates section {
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 16px;
+}
+
+.evaluaciones-aggregates h2,
+.evaluaciones-card h2,
+.evaluaciones-detail-section h3 {
+    margin: 0 0 10px;
+}
+
+.evaluaciones-aggregates ul {
+    margin: 0;
+    padding-left: 18px;
+    color: #52677a;
+    display: grid;
+    gap: 8px;
+}
+
+.evaluaciones-list {
+    display: grid;
+    gap: 14px;
+}
+
+.evaluaciones-card {
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+}
+
+.evaluaciones-card-top,
+.evaluaciones-card-meta,
+.evaluaciones-card-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.evaluaciones-card-top p {
+    margin: 6px 0 0;
+    color: #52677a;
+}
+
+.evaluaciones-badge {
+    align-self: flex-start;
+    border-radius: 999px;
+    background: rgba(81, 194, 244, 0.14);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.evaluaciones-card-meta {
+    flex-wrap: wrap;
+}
+
+.evaluaciones-card-meta > div,
+.evaluaciones-detail-grid > div {
+    min-width: 180px;
+    display: grid;
+    gap: 4px;
+}
+
+.evaluaciones-card-meta strong,
+.evaluaciones-detail-grid strong,
+.evaluaciones-field span {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+
+.evaluaciones-card-domains,
+.evaluaciones-detail-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.evaluaciones-domain-pill {
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    background: #fbfdff;
+    padding: 10px 12px;
+    display: grid;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.evaluaciones-domain-pill small {
+    color: #52677a;
+}
+
+.evaluaciones-detail-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: #215f8f;
+}
+
+.evaluaciones-detail-grid,
+.evaluaciones-detail-section,
+.evaluaciones-review-list,
+.evaluaciones-answer-list {
+    display: grid;
+    gap: 12px;
+}
+
+.evaluaciones-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evaluaciones-answer-row,
+.evaluaciones-review-card {
+    padding: 14px;
+}
+
+.evaluaciones-answer-row small,
+.evaluaciones-review-card small {
+    color: #52677a;
+}
+
+.evaluaciones-review-card p {
+    margin: 0;
+    color: #35536d;
+    line-height: 1.55;
+}
+
+.evaluaciones-review-card p span {
+    font-weight: 700;
+}
+
+.evaluaciones-field,
+.evaluaciones-checkbox {
+    display: grid;
+    gap: 8px;
+}
+
+.evaluaciones-checkbox {
+    grid-template-columns: auto 1fr;
+    align-items: flex-start;
+}
+
+.evaluaciones-detail-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 1024px) {
+    .evaluaciones-filters,
+    .evaluaciones-summary-grid,
+    .evaluaciones-aggregates {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 860px) {
+    .evaluaciones-header,
+    .evaluaciones-card-top,
+    .evaluaciones-card-actions {
+        flex-direction: column;
+    }
+
+    .evaluaciones-filters,
+    .evaluaciones-summary-grid,
+    .evaluaciones-aggregates,
+    .evaluaciones-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}

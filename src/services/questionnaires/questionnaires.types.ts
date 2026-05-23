@@ -215,6 +215,9 @@ export interface CreateQuestionnaireSessionV2Payload {
     role: QuestionnaireV2Role;
     child_age_years?: 6 | 7 | 8 | 9 | 10 | 11;
     child_sex_assigned_at_birth?: string;
+    case_id?: string;
+    case_public_id?: string;
+    case_label?: string;
     metadata?: Record<string, unknown>;
 }
 
@@ -300,6 +303,7 @@ export interface ShareQuestionnairePayload {
     grantee_user_id?: string;
     grant_can_tag?: boolean;
     grant_can_download_pdf?: boolean;
+    share_scope?: 'session' | 'case';
 }
 
 export interface QuestionnaireShareResponseDTO {
@@ -395,4 +399,246 @@ export interface QuestionnaireSharedDataV2DTO {
 export interface DownloadPdfResult {
     blob: Blob;
     filename: string;
+}
+
+export type QuestionnaireCaseStatus = FlexibleString<'active' | 'archived'>;
+export type QuestionnaireAlertLevel =
+    FlexibleString<'low' | 'moderate' | 'elevated' | 'high' | 'critical_review'>;
+export type QuestionnaireReviewStatus =
+    FlexibleString<'pending' | 'in_review' | 'reviewed' | 'orientation_recommended' | 'closed'>;
+
+export interface QuestionnaireCaseDTO {
+    case_id: string;
+    case_public_id?: string | null;
+    private_label?: string | null;
+    display_label?: string | null;
+    status?: QuestionnaireCaseStatus | null;
+    sessions_count?: number | null;
+    latest_session_id?: string | null;
+    latest_processed_at?: string | null;
+    latest_alert_level?: QuestionnaireAlertLevel | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseDomainSummaryDTO {
+    domain?: string | null;
+    latest_probability?: number | null;
+    latest_alert_level?: QuestionnaireAlertLevel | null;
+    max_probability?: number | null;
+    sessions_with_alert?: number | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseTrendDomainDTO {
+    domain?: string | null;
+    probability?: number | null;
+    alert_level?: QuestionnaireAlertLevel | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseTrendPointDTO {
+    date?: string | null;
+    session_id?: string | null;
+    domains?: QuestionnaireCaseTrendDomainDTO[];
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseDetailDTO {
+    case: QuestionnaireCaseDTO | null;
+    sessions: QuestionnaireSessionV2DTO[];
+    domain_summary: QuestionnaireCaseDomainSummaryDTO[];
+    trend: QuestionnaireCaseTrendPointDTO[];
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseListResponseDTO {
+    items: QuestionnaireCaseDTO[];
+    pagination: PaginationDTO;
+}
+
+export interface CreateQuestionnaireCasePayload {
+    private_label: string;
+    metadata?: Record<string, unknown>;
+}
+
+export interface UpdateQuestionnaireCasePayload {
+    private_label?: string;
+    status?: QuestionnaireCaseStatus;
+}
+
+export interface GuardianDashboardCaseDTO {
+    case: QuestionnaireCaseDTO | null;
+    sessions_count?: number | null;
+    latest_session?: QuestionnaireSessionV2DTO | null;
+    domain_breakdown?: QuestionnaireCaseDomainSummaryDTO[];
+    trend?: QuestionnaireCaseTrendPointDTO[];
+    chart_data?: Record<string, unknown> | null;
+    [key: string]: unknown;
+}
+
+export interface GuardianDashboardDTO {
+    period?: {
+        months?: number | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        [key: string]: unknown;
+    } | null;
+    summary?: {
+        total_cases?: number | null;
+        total_sessions?: number | null;
+        processed_sessions?: number | null;
+        cases_needing_professional_review?: number | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        [key: string]: unknown;
+    } | null;
+    cases: GuardianDashboardCaseDTO[];
+    warnings?: string[];
+    [key: string]: unknown;
+}
+
+export interface PsychologistSearchItemDTO {
+    user_id: string;
+    username?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+    professional_location?: string | null;
+    colpsic_verified?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistSearchResponseDTO {
+    items: PsychologistSearchItemDTO[];
+    pagination: PaginationDTO;
+}
+
+export interface ShareWithPsychologistPayload {
+    grantee_user_id: string;
+    grant_can_tag: boolean;
+    grant_can_download_pdf: boolean;
+    share_scope: 'session';
+    expires_in_hours?: number;
+    max_uses?: number;
+}
+
+export interface QuestionnaireShareGrantDTO {
+    grant_id?: string | null;
+    can_view?: boolean | null;
+    can_download_pdf?: boolean | null;
+    can_tag?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireShareGranteeDTO {
+    user_id?: string | null;
+    username?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+    professional_location?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireDashboardAggregateDTO {
+    domain?: string | null;
+    alert_level?: QuestionnaireAlertLevel | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    count?: number | null;
+    max_probability?: number | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistDashboardItemDTO {
+    session_id: string;
+    case_public_id?: string | null;
+    status?: QuestionnaireV2Status | null;
+    processed_at?: string | null;
+    guardian?: {
+        user_id?: string | null;
+        display_name?: string | null;
+        [key: string]: unknown;
+    } | null;
+    domains?: QuestionnaireEvaluationDomainDTO[];
+    needs_professional_review?: boolean | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    latest_review?: QuestionnaireProfessionalReviewDTO | null;
+    can_review?: boolean | null;
+    can_download_pdf?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistDashboardDTO {
+    filters?: Record<string, unknown> | null;
+    summary?: {
+        total_shared_sessions?: number | null;
+        total_cases?: number | null;
+        pending_reviews?: number | null;
+        reviewed_cases?: number | null;
+        cases_needing_professional_review?: number | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        [key: string]: unknown;
+    } | null;
+    aggregates?: {
+        by_domain?: QuestionnaireDashboardAggregateDTO[];
+        by_alert_level?: QuestionnaireDashboardAggregateDTO[];
+        by_review_status?: QuestionnaireDashboardAggregateDTO[];
+        [key: string]: unknown;
+    } | null;
+    items: PsychologistDashboardItemDTO[];
+    pagination: PaginationDTO;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireProfessionalReviewDTO {
+    review_id: string;
+    session_id?: string | null;
+    case_id?: string | null;
+    owner_user_id?: string | null;
+    psychologist_user_id?: string | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    initial_concept?: string | null;
+    recommendation?: string | null;
+    visible_to_guardian?: boolean | null;
+    is_diagnostic?: boolean | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
+}
+
+export interface ProfessionalReviewPayload {
+    review_status: QuestionnaireReviewStatus;
+    initial_concept?: string;
+    recommendation?: string;
+    visible_to_guardian?: boolean;
+}
+
+export interface QuestionnaireReportPreviewAnswerDTO {
+    question_id?: string | null;
+    question_code?: string | null;
+    prompt?: string | null;
+    raw_answer?: QuestionnaireResponseValue;
+    raw_answer_display?: string | null;
+    normalized_answer?: string | null;
+    domain?: string | null;
+    section_title?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireReportPreviewPdfDTO {
+    available?: boolean | null;
+    file_name?: string | null;
+    download_url?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireReportPreviewDTO {
+    session?: QuestionnaireSessionV2DTO | null;
+    result?: QuestionnaireEvaluationResultDTO | null;
+    domains: QuestionnaireEvaluationDomainDTO[];
+    comorbidity: QuestionnaireEvaluationComorbidityDTO[];
+    answers: QuestionnaireReportPreviewAnswerDTO[];
+    professional_reviews: QuestionnaireProfessionalReviewDTO[];
+    pdf?: QuestionnaireReportPreviewPdfDTO | null;
+    disclaimer?: string | null;
+    [key: string]: unknown;
 }

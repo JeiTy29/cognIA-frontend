@@ -390,18 +390,60 @@
     background: #fbfdff;
 }
 
-.historial-v2-share-link-box {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    border: 1px dashed rgba(33, 95, 143, 0.22);
-    border-radius: 10px;
-    padding: 10px 12px;
-    background: #ffffff;
+.historial-v2-share-search-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
+    gap: 10px;
 }
 
-.historial-v2-share-link-box strong {
-    font-size: 13px;
+.historial-v2-share-search-grid input {
+    min-height: 42px;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.22);
+    padding: 9px 12px;
+    color: #215f8f;
+}
+
+.historial-v2-psychologist-list,
+.historial-v2-review-list {
+    display: grid;
+    gap: 10px;
+}
+
+.historial-v2-psychologist-item,
+.historial-v2-review-card {
+    border: 1px solid rgba(33, 95, 143, 0.15);
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 12px;
+}
+
+.historial-v2-psychologist-item {
+    text-align: left;
+    display: grid;
+    gap: 4px;
+    color: #215f8f;
+    cursor: pointer;
+}
+
+.historial-v2-psychologist-item.is-selected {
+    border-color: rgba(23, 144, 233, 0.45);
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.12);
+}
+
+.historial-v2-psychologist-item span,
+.historial-v2-psychologist-item small,
+.historial-v2-review-card p {
+    color: #52677a;
+}
+
+.historial-v2-review-card p {
+    margin: 0;
+    line-height: 1.55;
+}
+
+.historial-v2-review-card p span {
+    font-weight: 700;
 }
 
 .historial-v2-modal-actions {
@@ -441,6 +483,10 @@
     }
 
     .historial-v2-tag-form {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-v2-share-search-grid {
         grid-template-columns: 1fr;
     }
 }

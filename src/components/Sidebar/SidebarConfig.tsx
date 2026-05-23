@@ -34,6 +34,12 @@ const IconSupport = (
     </svg>
 );
 
+const IconCases = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v2H4V5Zm0 5h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Zm4 3h4v2H8v-2Zm6 0h2v2h-2v-2Z" />
+    </svg>
+);
+
 const IconMetrics = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 19h16v2H2V3h2v16Zm4-6h3v5H8v-5Zm5-5h3v10h-3V8Zm5-3h3v13h-3V5Z" />
@@ -65,6 +71,24 @@ const IconAudit = (
 );
 
 export const sidebarItems: SidebarItem[] = [
+    {
+        id: 'seguimiento',
+        label: 'Seguimiento',
+        icon: IconCases,
+        roles: ['padre'],
+        paths: {
+            padre: '/padre/seguimiento'
+        }
+    },
+    {
+        id: 'evaluaciones-recibidas',
+        label: 'Evaluaciones recibidas',
+        icon: IconCases,
+        roles: ['psicologo'],
+        paths: {
+            psicologo: '/psicologo/evaluaciones'
+        }
+    },
     {
         id: 'cuestionario',
         label: 'Cuestionario',

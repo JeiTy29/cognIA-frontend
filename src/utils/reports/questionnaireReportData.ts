@@ -3,7 +3,9 @@ import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireEvaluationDomainDTO,
     QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireProfessionalReviewDTO,
     QuestionnaireQuestionV2DTO,
+    QuestionnaireReportPreviewDTO,
     QuestionnaireResponseType,
     QuestionnaireResponseValue,
     QuestionnaireSecureResultsV2DTO,
@@ -88,6 +90,7 @@ export type QuestionnaireCompletionSummary = {
 export type QuestionnaireAlertReportDataset = {
     answeredQuestions: AnsweredQuestionReportRow[];
     answeredQuestionsNotice: string | null;
+    professionalReviews: QuestionnaireProfessionalReviewDTO[];
     domainRows: QuestionnaireDomainReportRow[];
     sectionSummaryRows: QuestionnaireSectionSummaryRow[];
     domainIntensity: DomainIntensityRow[];
@@ -106,6 +109,7 @@ type BuildDatasetArgs = {
     sessionQuestions: QuestionnaireQuestionV2DTO[];
     results: QuestionnaireSecureResultsV2DTO | null;
     clinicalSummary: QuestionnaireClinicalSummaryV2DTO | null;
+    reportPreview?: QuestionnaireReportPreviewDTO | null;
 };
 
 type PrimitiveAnswer = string | number | boolean | null;
@@ -552,10 +556,39 @@ function buildFallbackAnswerRows(
         .filter((item): item is AnsweredQuestionReportRow => item !== null);
 }
 
+function buildPreviewAnswerRows(reportPreview: QuestionnaireReportPreviewDTO | null) {
+    const answers = reportPreview?.answers ?? [];
+    return answers
+        .map((item, index) => {
+            const domainLabel = resolveKnownDomain(item.domain) ?? inferDomainFromText(item.question_code ?? item.prompt ?? '') ?? 'General';
+            const answerLabel = normalizeMojibakeText(item.normalized_answer ?? item.raw_answer_display ?? String(item.raw_answer ?? '--'));
+            const pseudoQuestion = {
+                response_type: 'text',
+                response_options: null,
+                response_min: null,
+                response_max: null
+            } as unknown as QuestionnaireQuestionV2DTO;
+            const classification = classifyAnswer(pseudoQuestion, item.raw_answer ?? item.normalized_answer ?? null, answerLabel);
+
+            return {
+                index: index + 1,
+                sectionLabel: normalizeClinicalTextPresentation(item.section_title, 'General'),
+                domainLabel,
+                questionText: normalizeClinicalTextPresentation(item.prompt, 'Pregunta no disponible'),
+                answerLabel,
+                responseTypeLabel: 'Respuesta registrada',
+                relativeScore: classification.relativeScore,
+                categoryLabel: classification.categoryLabel
+            } satisfies AnsweredQuestionReportRow;
+        })
+        .filter((item): item is AnsweredQuestionReportRow => item !== null);
+}
+
 export function buildAnsweredQuestionsDataset({
     sessionDetail,
-    sessionQuestions
-}: Pick<BuildDatasetArgs, 'sessionDetail' | 'sessionQuestions'>) {
+    sessionQuestions,
+    reportPreview
+}: Pick<BuildDatasetArgs, 'sessionDetail' | 'sessionQuestions' | 'reportPreview'>) {
     const answerLookup = normalizeAnswerDictionary(sessionDetail?.answers);
     const rows = sessionQuestions
         .map((question, index) => buildAnswerRowFromQuestion(question, answerLookup, index + 1))
@@ -570,6 +603,14 @@ export function buildAnsweredQuestionsDataset({
         return {
             rows: fallbackRows,
             notice: 'No fue posible recuperar el texto completo de algunas preguntas, pero se muestran las respuestas disponibles.'
+        };
+    }
+
+    const previewRows = buildPreviewAnswerRows(reportPreview ?? null);
+    if (previewRows.length > 0) {
+        return {
+            rows: previewRows,
+            notice: 'Se usó la vista previa segura del reporte para reconstruir las respuestas visibles de la sesión.'
         };
     }
 
@@ -754,9 +795,10 @@ export function buildQuestionnaireAlertReportDataset({
     sessionDetail,
     sessionQuestions,
     results,
-    clinicalSummary
+    clinicalSummary,
+    reportPreview
 }: BuildDatasetArgs): QuestionnaireAlertReportDataset {
-    const answered = buildAnsweredQuestionsDataset({ sessionDetail, sessionQuestions });
+    const answered = buildAnsweredQuestionsDataset({ sessionDetail, sessionQuestions, reportPreview });
     const completion = buildCompletionSummary(sessionDetail, answered.rows, sessionQuestions);
 
     const sectionSummaryRows = Array.from(
@@ -794,6 +836,7 @@ export function buildQuestionnaireAlertReportDataset({
     return {
         answeredQuestions: answered.rows,
         answeredQuestionsNotice: answered.notice,
+        professionalReviews: reportPreview?.professional_reviews ?? [],
         domainRows,
         sectionSummaryRows,
         domainIntensity,

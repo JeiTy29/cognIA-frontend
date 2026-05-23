@@ -12,18 +12,22 @@ import {
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryResultsV2,
+    getQuestionnaireReportPreviewV2,
     getQuestionnaireSessionV2,
-    shareQuestionnaireHistoryV2
+    searchPsychologistsV2,
+    shareQuestionnaireWithPsychologistV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnaireProfessionalReviewDTO,
     QuestionnaireQuestionV2DTO,
+    QuestionnaireReportPreviewDTO,
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireSessionV2DTO,
-    QuestionnaireShareResponseDTO,
-    QuestionnaireTagDTO
+    QuestionnaireTagDTO,
+    PsychologistSearchItemDTO
 } from '../../../services/questionnaires/questionnaires.types';
 import { buildReportViewModel } from '../../../utils/presentation/clinicalReport';
 import {
@@ -36,7 +40,7 @@ import {
 } from '../../../utils/presentation/naturalLanguage';
 import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../../utils/reports/questionnaireAlertPdf';
-import { buildAbsoluteShareUrl } from '../../../utils/presentation/shareUrl';
+import { normalizeBackendText } from '../../../utils/questionnaires/presentation';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -78,13 +82,6 @@ const tagColorOptions = [
 ];
 
 const defaultTagColor = tagColorOptions[0].value;
-
-const DEFAULT_SHARE_PAYLOAD = {
-    expires_in_hours: 168,
-    max_uses: 10,
-    grant_can_tag: false,
-    grant_can_download_pdf: true
-} as const;
 
 const hiddenResultFields = [
     'id',
@@ -273,12 +270,8 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
 }
 
 function resolveQuestionnaireId(
-    detail: QuestionnaireHistoryDetailV2DTO | null,
-    sharePayload: QuestionnaireShareResponseDTO | null
+    detail: QuestionnaireHistoryDetailV2DTO | null
 ) {
-    const fromShare = sharePayload?.questionnaire_id;
-    if (typeof fromShare === 'string' && fromShare.trim().length > 0) return fromShare.trim();
-
     const candidates: unknown[] = [detail?.questionnaire_id, detail?.questionnaire_template_id];
     for (const candidate of candidates) {
         if (typeof candidate === 'string' && candidate.trim().length > 0) {
@@ -301,15 +294,13 @@ function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number)
 function resolveSessionMetadataRows(
     detail: QuestionnaireHistoryDetailV2DTO | null,
     detailSessionId: string | null,
-    questionnaireIdForShare: string | null,
-    sharePayload: QuestionnaireShareResponseDTO | null
+    questionnaireIdForShare: string | null
 ) {
     return buildSafeDisplayRows(
         {
             session_id: detail?.id ?? detailSessionId,
             questionnaire_id: questionnaireIdForShare,
-            mode_key: detail?.mode_key ?? null,
-            share_code: sharePayload?.share_code ?? null
+            mode_key: detail?.mode_key ?? null
         },
         {
             includeTechnical: true,
@@ -317,8 +308,7 @@ function resolveSessionMetadataRows(
             customLabels: {
                 session_id: 'ID de sesión',
                 questionnaire_id: 'ID de cuestionario',
-                mode_key: 'Clave interna de modo',
-                share_code: 'Código de acceso compartido'
+                mode_key: 'Clave interna de modo'
             }
         }
     );
@@ -330,6 +320,8 @@ type HistoryDetailLoadResult =
         detail: QuestionnaireHistoryDetailV2DTO;
         results: QuestionnaireSecureResultsV2DTO | null;
         summary: QuestionnaireClinicalSummaryV2DTO | null;
+        preview: QuestionnaireReportPreviewDTO | null;
+        visibleReviews: QuestionnaireProfessionalReviewDTO[];
         notice: string | null;
     }
     | {
@@ -346,17 +338,22 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
                 detail,
                 results: null,
                 summary: null,
+                preview: null,
+                visibleReviews: [],
                 notice: null
             };
         }
 
-        const [resultsResponse, summaryResponse] = await Promise.allSettled([
+        const [resultsResponse, summaryResponse, previewResponse] = await Promise.allSettled([
             getQuestionnaireHistoryResultsV2(sessionId),
-            getQuestionnaireClinicalSummaryV2(sessionId)
+            getQuestionnaireClinicalSummaryV2(sessionId),
+            getQuestionnaireReportPreviewV2(sessionId)
         ]);
 
         const results = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
         const summary = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
+        const preview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
+        const visibleReviews = (preview?.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false);
         const notice =
             summaryResponse.status === 'fulfilled' || resultsResponse.status !== 'fulfilled'
                 ? null
@@ -367,6 +364,8 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
             detail,
             results,
             summary,
+            preview,
+            visibleReviews,
             notice
         };
     } catch (requestError) {
@@ -453,7 +452,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
-    const [sharePayload, setSharePayload] = useState<QuestionnaireShareResponseDTO | null>(null);
+    const [reportPreviewPayload, setReportPreviewPayload] = useState<QuestionnaireReportPreviewDTO | null>(null);
+    const [visibleProfessionalReviews, setVisibleProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
@@ -471,6 +471,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [shareNotice, setShareNotice] = useState<string | null>(null);
     const [pdfError, setPdfError] = useState<string | null>(null);
     const [pdfNotice, setPdfNotice] = useState<string | null>(null);
+    const [shareQuery, setShareQuery] = useState('');
+    const [shareLocation, setShareLocation] = useState('');
+    const [shareResults, setShareResults] = useState<PsychologistSearchItemDTO[]>([]);
+    const [shareSearchLoading, setShareSearchLoading] = useState(false);
+    const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
 
     const title = 'Historial de cuestionarios';
     const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';
@@ -480,22 +485,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const showTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
     const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
 
-    const questionnaireIdForShare = useMemo(
-        () => resolveQuestionnaireId(detailPayload, sharePayload),
-        [detailPayload, sharePayload]
-    );
+    const questionnaireIdForShare = useMemo(() => resolveQuestionnaireId(detailPayload), [detailPayload]);
 
     const internalReferenceRows = useMemo(
-        () => resolveSessionMetadataRows(detailPayload, detailSessionId, questionnaireIdForShare, sharePayload),
-        [detailPayload, detailSessionId, questionnaireIdForShare, sharePayload]
-    );
-
-    const shareLink = useMemo(
-        () => {
-            const rawLink = sharePayload?.shared_url ?? sharePayload?.shared_path ?? sharePayload?.url ?? null;
-            return rawLink ? buildAbsoluteShareUrl(rawLink) : null;
-        },
-        [sharePayload]
+        () => resolveSessionMetadataRows(detailPayload, detailSessionId, questionnaireIdForShare),
+        [detailPayload, detailSessionId, questionnaireIdForShare]
     );
 
     const reportViewModel = useMemo(
@@ -556,7 +550,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailLoading(true);
         setDetailError(null);
         setDetailNotice(null);
-        setSharePayload(null);
+        setReportPreviewPayload(null);
+        setVisibleProfessionalReviews([]);
         setClinicalSummaryPayload(null);
         resetActionMessages();
 
@@ -566,6 +561,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailPayload(null);
             setResultsPayload(null);
             setClinicalSummaryPayload(null);
+            setReportPreviewPayload(null);
+            setVisibleProfessionalReviews([]);
             setDetailLoading(false);
             return;
         }
@@ -573,6 +570,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(detailLoad.detail);
         setResultsPayload(detailLoad.results);
         setClinicalSummaryPayload(detailLoad.summary);
+        setReportPreviewPayload(detailLoad.preview);
+        setVisibleProfessionalReviews(detailLoad.visibleReviews);
         setDetailNotice(detailLoad.notice);
         setDetailLoading(false);
     };
@@ -582,7 +581,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(null);
         setResultsPayload(null);
         setClinicalSummaryPayload(null);
-        setSharePayload(null);
+        setReportPreviewPayload(null);
+        setVisibleProfessionalReviews([]);
         setDetailLoading(false);
         setDetailError(null);
         setDetailNotice(null);
@@ -591,6 +591,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setTagWorking(false);
         setShareWorking(false);
         setPdfWorking(false);
+        setShareQuery('');
+        setShareLocation('');
+        setShareResults([]);
+        setSelectedPsychologistId('');
         resetActionMessages();
     };
 
@@ -643,17 +647,57 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         }
     };
 
-    const handleGenerateShare = async () => {
-        if (!detailSessionId) return;
+    const handleSearchPsychologists = async () => {
+        setShareSearchLoading(true);
+        setShareError(null);
+        setShareNotice(null);
+        try {
+            const response = await searchPsychologistsV2({
+                q: shareQuery.trim() || undefined,
+                location: shareLocation.trim() || undefined,
+                page: 1,
+                page_size: 10
+            });
+            setShareResults(response.items);
+            setSelectedPsychologistId('');
+        } catch (actionError) {
+            setShareResults([]);
+            setShareError(buildActionErrorMessage(actionError, 'No se pudo buscar psicólogos registrados.'));
+        } finally {
+            setShareSearchLoading(false);
+        }
+    };
+
+    const handleShareWithPsychologist = async () => {
+        if (!detailSessionId || !selectedPsychologistId) return;
         setShareWorking(true);
         setShareError(null);
         setShareNotice(null);
         try {
-            const payload = await shareQuestionnaireHistoryV2(detailSessionId, { ...DEFAULT_SHARE_PAYLOAD });
-            setSharePayload(payload);
-            setShareNotice('Enlace generado correctamente.');
+            const payload = await shareQuestionnaireWithPsychologistV2(detailSessionId, {
+                grantee_user_id: selectedPsychologistId,
+                grant_can_tag: false,
+                grant_can_download_pdf: true,
+                share_scope: 'session',
+                expires_in_hours: 720,
+                max_uses: 100
+            });
+            const grantee = (payload as { grantee?: { full_name?: string | null; username?: string | null } }).grantee;
+            const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psicólogo seleccionado');
+            setShareNotice(`La evaluación fue compartida con ${sharedName}.`);
         } catch (actionError) {
-            setShareError(buildActionErrorMessage(actionError, 'No se pudo completar la acción. Intenta nuevamente.'));
+            const code = getApiErrorCode(actionError);
+            if (code === 'share_target_not_psychologist') {
+                setShareError('Solo puedes compartir esta evaluación con psicólogos registrados.');
+            } else if (code === 'share_grantee_inactive') {
+                setShareError('Este psicólogo no se encuentra activo actualmente.');
+            } else if (code === 'share_grantee_not_found') {
+                setShareError('No se encontró el psicólogo seleccionado.');
+            } else if (code === 'forbidden_history_access') {
+                setShareError('No tienes permisos para compartir esta evaluación.');
+            } else {
+                setShareError('No se pudo compartir la evaluación. Intenta nuevamente.');
+            }
         } finally {
             setShareWorking(false);
         }
@@ -670,6 +714,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             let nextDetail = detailPayload;
             let nextSessionSnapshot: QuestionnaireSessionV2DTO | null = null;
             let nextQuestions: QuestionnaireQuestionV2DTO[] = [];
+            let nextPreview = reportPreviewPayload;
 
             if (!nextDetail) {
                 nextDetail = await getQuestionnaireHistoryDetailV2(detailSessionId);
@@ -694,6 +739,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 }
             }
 
+            if (!nextPreview && canLoadClinicalArtifacts(nextDetail?.status)) {
+                try {
+                    nextPreview = await getQuestionnaireReportPreviewV2(detailSessionId);
+                    setReportPreviewPayload(nextPreview);
+                    setVisibleProfessionalReviews((nextPreview.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false));
+                } catch {
+                    nextPreview = null;
+                }
+            }
+
             try {
                 const [sessionSnapshot, sessionQuestions] = await Promise.all([
                     getQuestionnaireSessionV2(detailSessionId),
@@ -712,7 +767,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 clinicalSummary: nextSummary,
                 sessionDetail: nextDetail,
                 sessionSnapshot: nextSessionSnapshot,
-                sessionQuestions: nextQuestions
+                sessionQuestions: nextQuestions,
+                reportPreview: nextPreview,
+                professionalReviews: nextPreview?.professional_reviews ?? visibleProfessionalReviews,
+                audience: role === 'psicologo' ? 'psychologist' : 'guardian'
             });
             downloadPdfBlob(pdfBlob, buildQuestionnaireAlertPdfFileName(nextSessionSnapshot ?? nextDetail));
             setPdfNotice('PDF descargado correctamente.');
@@ -729,21 +787,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             }
         } finally {
             setPdfWorking(false);
-        }
-    };
-
-    const handleCopyShareLink = async () => {
-        if (!shareLink) {
-            setShareError('Todavía no hay un enlace disponible para copiar.');
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(shareLink);
-            setShareError(null);
-            setShareNotice('Enlace copiado.');
-        } catch {
-            setShareError('No fue posible copiar el enlace automáticamente.');
         }
     };
 
@@ -948,6 +991,31 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 />
                             </div>
 
+                            {reportPreviewPayload ? (
+                                <div className="historial-v2-section">
+                                    <h3>Vista previa estructurada del reporte</h3>
+                                    <p className="historial-v2-helper-text">
+                                        Esta vista usa la respuesta segura del reporte para resumir dominios, respuestas normalizadas y revisiones profesionales visibles.
+                                    </p>
+                                    {reportPreviewPayload.answers.length > 0 ? (
+                                        <div className="historial-v2-review-list">
+                                            {reportPreviewPayload.answers.slice(0, 8).map((answer, index) => (
+                                                <article key={`${answer.question_id ?? answer.question_code ?? index}`} className="historial-v2-review-card">
+                                                    <strong>{normalizeBackendText(answer.prompt, 'Pregunta no disponible')}</strong>
+                                                    <p><span>Respuesta:</span> {normalizeBackendText(answer.normalized_answer ?? answer.raw_answer_display, '--')}</p>
+                                                    <p><span>Dominio:</span> {normalizeBackendText(answer.domain, 'General')} · {normalizeBackendText(answer.section_title, 'General')}</p>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="historial-v2-helper-text">Sin respuestas estructuradas visibles en la vista previa.</p>
+                                    )}
+                                    {reportPreviewPayload.disclaimer ? (
+                                        <p className="historial-v2-helper-text">{normalizeBackendText(reportPreviewPayload.disclaimer)}</p>
+                                    ) : null}
+                                </div>
+                            ) : null}
+
                             {internalReferenceRows.length > 0 ? (
                                 <div className="historial-v2-section">
                                     <h3>Referencia interna</h3>
@@ -1035,46 +1103,97 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 </div>
                             </div>
 
-                            <div className="historial-v2-section">
-                                <h3>Compartir resultados</h3>
-                                <div className="historial-v2-actions-card">
-                                    <p className="historial-v2-helper-text">
-                                        Genera un enlace válido por 7 días para compartir este resultado. El enlace podrá usarse hasta 10 veces.
-                                    </p>
-                                    {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
-                                    {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
-                                    <div className="historial-v2-section-actions">
-                                        <button
-                                            type="button"
-                                            className="historial-v2-btn"
-                                            onClick={() => { runHistoryTask(handleGenerateShare); }}
-                                            disabled={shareWorking}
-                                        >
-                                            {shareWorking ? 'Generando enlace...' : 'Generar enlace para compartir'}
-                                        </button>
-                                        {shareLink ? (
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
-                                                Copiar enlace
+                            {role === 'padre' ? (
+                                <div className="historial-v2-section">
+                                    <h3>Compartir con psicólogo</h3>
+                                    <div className="historial-v2-actions-card">
+                                        <p className="historial-v2-helper-text">
+                                            Busca un psicólogo registrado por nombre, correo o ciudad para compartir esta evaluación directamente con su cuenta profesional.
+                                        </p>
+                                        <div className="historial-v2-share-search-grid">
+                                            <input
+                                                type="text"
+                                                placeholder="Nombre o correo"
+                                                value={shareQuery}
+                                                onChange={(event) => setShareQuery(event.target.value)}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Ciudad"
+                                                value={shareLocation}
+                                                onChange={(event) => setShareLocation(event.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="historial-v2-btn"
+                                                onClick={() => { runHistoryTask(handleSearchPsychologists); }}
+                                                disabled={shareSearchLoading}
+                                            >
+                                                {shareSearchLoading ? 'Buscando...' : 'Buscar'}
                                             </button>
-                                        ) : null}
-                                    </div>
-
-                                    {shareLink ? (
-                                        <div className="historial-v2-share-link-box">
-                                            <strong>Enlace disponible</strong>
-                                            <a href={shareLink} target="_blank" rel="noreferrer">
-                                                {shareLink}
-                                            </a>
                                         </div>
-                                    ) : null}
+                                        {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
+                                        {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
+                                        {shareResults.length === 0 && (shareQuery.trim().length > 0 || shareLocation.trim().length > 0) && !shareSearchLoading ? (
+                                            <p className="historial-v2-helper-text">No se encontraron psicólogos con esos criterios.</p>
+                                        ) : null}
+                                        {shareResults.length > 0 ? (
+                                            <div className="historial-v2-psychologist-list">
+                                                {shareResults.map((psychologist) => (
+                                                    <button
+                                                        key={psychologist.user_id}
+                                                        type="button"
+                                                        className={`historial-v2-psychologist-item ${selectedPsychologistId === psychologist.user_id ? 'is-selected' : ''}`}
+                                                        onClick={() => setSelectedPsychologistId(psychologist.user_id)}
+                                                    >
+                                                        <strong>{normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psicólogo registrado')}</strong>
+                                                        <span>{normalizeBackendText(psychologist.email, 'Correo no disponible')}</span>
+                                                        <small>
+                                                            {normalizeBackendText(psychologist.professional_location, 'Ubicación no disponible')}
+                                                            {psychologist.colpsic_verified ? ' · Verificado' : ''}
+                                                        </small>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                        <div className="historial-v2-section-actions">
+                                            <button
+                                                type="button"
+                                                className="historial-v2-btn"
+                                                onClick={() => { runHistoryTask(handleShareWithPsychologist); }}
+                                                disabled={!selectedPsychologistId || shareWorking}
+                                            >
+                                                {shareWorking ? 'Compartiendo...' : 'Compartir evaluación'}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : null}
+
+                            {role === 'padre' ? (
+                                <div className="historial-v2-section">
+                                    <h3>Observaciones profesionales visibles</h3>
+                                    {visibleProfessionalReviews.length > 0 ? (
+                                        <div className="historial-v2-review-list">
+                                            {visibleProfessionalReviews.map((review) => (
+                                                <article key={review.review_id} className="historial-v2-review-card">
+                                                    <strong>{normalizeBackendText(review.review_status, 'Observación profesional')}</strong>
+                                                    <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
+                                                    <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="historial-v2-helper-text">Sin revisiones profesionales visibles para esta sesión.</p>
+                                    )}
+                                </div>
+                            ) : null}
 
                             <div className="historial-v2-section">
                                 <h3>Reporte PDF</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Genera y descarga la versión enriquecida del reporte con preguntas respondidas, impacto y gráficas interpretativas.
+                                        Genera y descarga la versión enriquecida del reporte con preguntas respondidas, revisiones visibles y gráficas interpretativas.
                                     </p>
                                     {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                     {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}

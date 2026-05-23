@@ -633,6 +633,118 @@
     transform: rotate(45deg);
 }
 
+.questionnaire-case-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: #215f8f;
+}
+
+.questionnaire-case-modal h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.questionnaire-case-modal-description,
+.questionnaire-case-helper,
+.questionnaire-case-disclaimer p {
+    margin: 0;
+    color: #52677a;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.questionnaire-case-options {
+    display: grid;
+    gap: 10px;
+}
+
+.questionnaire-case-option {
+    width: 100%;
+    border: 1px solid rgba(33, 95, 143, 0.16);
+    background: #fbfdff;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: left;
+    display: grid;
+    gap: 4px;
+    cursor: pointer;
+    color: #215f8f;
+}
+
+.questionnaire-case-option strong {
+    font-size: 15px;
+}
+
+.questionnaire-case-option span {
+    color: #52677a;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.questionnaire-case-option.is-selected {
+    border-color: rgba(23, 144, 233, 0.5);
+    box-shadow: 0 0 0 3px rgba(23, 144, 233, 0.14);
+    background: #f4fbff;
+}
+
+.questionnaire-case-panel {
+    display: grid;
+    gap: 8px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    border-radius: 14px;
+    padding: 14px;
+    background: #ffffff;
+}
+
+.questionnaire-case-field {
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.questionnaire-case-field input {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.22);
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #215f8f;
+}
+
+.questionnaire-case-select .global-select-menu.is-open {
+    max-height: 228px;
+}
+
+.questionnaire-case-helper.error {
+    color: #8b1e3f;
+}
+
+.questionnaire-case-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #35536d;
+    line-height: 1.5;
+}
+
+.questionnaire-case-checkbox input {
+    margin-top: 2px;
+}
+
+.questionnaire-case-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.questionnaire-case-retry {
+    margin-top: 10px;
+}
+
 .question-options {
     display: flex;
     flex-direction: column;

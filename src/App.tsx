@@ -23,6 +23,8 @@ const HistorialPadre = lazy(() => import('./pages/Plataforma/HistorialPadre/Hist
 const MiCuenta = lazy(() => import('./pages/Plataforma/MiCuenta/MiCuenta'));
 const AyudaBase = lazy(() => import('./pages/Plataforma/Ayuda/AyudaBase'));
 const HistorialPsicologo = lazy(() => import('./pages/Plataforma/HistorialPsicologo/HistorialPsicologo'));
+const SeguimientoGuardian = lazy(() => import('./pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian'));
+const EvaluacionesCompartidas = lazy(() => import('./pages/Plataforma/EvaluacionesCompartidas/EvaluacionesCompartidas'));
 const SugerenciasPsicologo = lazy(() => import('./pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo'));
 const Metricas = lazy(() => import('./pages/Administrador/Metricas/Metricas'));
 const Cuestionarios = lazy(() => import('./pages/Administrador/Cuestionarios/Cuestionarios'));
@@ -117,14 +119,16 @@ export default function App() {
                     <Route element={<ProtectedRoute preserveShell />}>
                         <Route element={<SidebarLayout />}>
                             <Route path="/padre" element={<ProtectedRoute allowedRoles={['padre']} />}>
-                                <Route index element={<Navigate to="/padre/cuestionario" replace />} />
+                                <Route index element={<Navigate to="/padre/seguimiento" replace />} />
+                                <Route path="seguimiento" element={<SeguimientoGuardian />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPadre />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="padre" />} />
                             </Route>
                             <Route path="/psicologo" element={<ProtectedRoute allowedRoles={['psicologo']} />}>
-                                <Route index element={<Navigate to="/psicologo/cuestionario" replace />} />
+                                <Route index element={<Navigate to="/psicologo/evaluaciones" replace />} />
+                                <Route path="evaluaciones" element={<EvaluacionesCompartidas />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPsicologo />} />
                                 <Route path="sugerencias" element={<SugerenciasPsicologo />} />

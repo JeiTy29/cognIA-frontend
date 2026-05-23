@@ -3,9 +3,11 @@ import '../Plataforma.css';
 import './Cuestionario.css';
 import { ApiError } from '../../../services/api/httpClient';
 import {
+    createQuestionnaireCaseV2,
     createQuestionnaireSessionV2,
     getAllQuestionnaireSessionQuestionsV2,
     getActiveQuestionnairesV2,
+    getQuestionnaireCasesV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryV2,
     getQuestionnaireHistoryResultsV2,
@@ -16,6 +18,7 @@ import {
 import type {
     QuestionnaireClinicalDomainV2DTO,
     QuestionnaireClinicalSummaryV2DTO,
+    QuestionnaireCaseDTO,
     QuestionnaireEvaluationComorbidityDTO,
     QuestionnaireEvaluationDomainDTO,
     QuestionnaireEvaluationResultDTO,
@@ -53,6 +56,8 @@ import {
 } from '../../../utils/presentation/naturalLanguage';
 import questionnaireImage from '../../../assets/Imagenes/Cuestionario.svg';
 import { useAuth } from '../../../hooks/auth/useAuth';
+import { Modal } from '../../../components/Modal/Modal';
+import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 
 const DEFAULT_MODE: QuestionnaireV2Mode = 'complete';
 
@@ -75,6 +80,9 @@ const PROCESSING_TIMEOUT_MS = 120000;
 const DEFAULT_INTEGER_MIN = 0;
 const DEFAULT_NUMBER_MIN = 0;
 const DEFAULT_NUMBER_STEP = 0.1;
+const CASE_SELECTOR_PAGE_SIZE = 50;
+
+type CaseSelectionMode = 'existing' | 'new' | 'none';
 
 type CompletionPhase = 'idle' | 'submitting' | 'processing' | 'processed' | 'failed';
 type ProcessingStepState = 'pending' | 'active' | 'done' | 'error';
@@ -121,6 +129,24 @@ function roleToApiRole(role: string | null) {
 
 function getRolePresentationLabel(role: 'guardian' | 'psychologist') {
     return role === 'psychologist' ? 'Psicólogo' : 'Padre o tutor';
+}
+
+function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
+    const label = readOptionalText(item.display_label, item.private_label) ?? 'Caso sin etiqueta';
+    const publicId = readOptionalText(item.case_public_id);
+    const sessionsCount = typeof item.sessions_count === 'number' && item.sessions_count >= 0
+        ? `${item.sessions_count} ${item.sessions_count === 1 ? 'sesión' : 'sesiones'}`
+        : null;
+
+    return [label, publicId, sessionsCount].filter(Boolean).join(' · ');
+}
+
+function validateCaseLabel(value: string) {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return 'Ingresa una etiqueta para el caso.';
+    if (trimmed.length < 2) return 'La etiqueta del caso debe tener al menos 2 caracteres.';
+    if (trimmed.length > 120) return 'La etiqueta del caso no puede superar los 120 caracteres.';
+    return null;
 }
 
 function getHistorySessionId(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
@@ -691,12 +717,14 @@ function toApiErrorDetail(payload: unknown): string | null {
 }
 
 type StartSessionStep =
+    | 'create_case'
     | 'create_session'
     | 'load_questions'
     | 'load_session_detail'
     | 'validate_questions';
 
 function mapStartSessionStepLabel(step: StartSessionStep) {
+    if (step === 'create_case') return 'crear el caso';
     if (step === 'create_session') return 'crear la sesión';
     if (step === 'load_questions') return 'cargar las preguntas';
     if (step === 'load_session_detail') return 'cargar el detalle de la sesión';
@@ -1433,6 +1461,15 @@ export default function Cuestionario() {
     const [activeLoading, setActiveLoading] = useState(true);
     const [activeError, setActiveError] = useState<string | null>(null);
     const [reusableSession, setReusableSession] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
+    const [caseModalOpen, setCaseModalOpen] = useState(false);
+    const [caseSelectionMode, setCaseSelectionMode] = useState<CaseSelectionMode | null>(null);
+    const [availableCases, setAvailableCases] = useState<QuestionnaireCaseDTO[]>([]);
+    const [casesLoading, setCasesLoading] = useState(false);
+    const [casesError, setCasesError] = useState<string | null>(null);
+    const [selectedCaseId, setSelectedCaseId] = useState('');
+    const [newCaseLabel, setNewCaseLabel] = useState('');
+    const [continueWithoutCaseConfirmed, setContinueWithoutCaseConfirmed] = useState(false);
+    const [caseActionError, setCaseActionError] = useState<string | null>(null);
 
     const [started, setStarted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -1472,6 +1509,24 @@ export default function Cuestionario() {
         () => MODE_OPTIONS.find((mode) => mode.value === selectedMode) ?? MODE_OPTIONS[2],
         [selectedMode]
     );
+    const caseOptions = useMemo(
+        () => availableCases.map((item) => ({
+            value: item.case_id,
+            label: getCaseOptionLabel(item)
+        })),
+        [availableCases]
+    );
+    const newCaseLabelError = useMemo(
+        () => (caseSelectionMode === 'new' ? validateCaseLabel(newCaseLabel) : null),
+        [caseSelectionMode, newCaseLabel]
+    );
+    const canContinueWithCaseSelection = useMemo(() => {
+        if (working) return false;
+        if (!caseSelectionMode) return false;
+        if (caseSelectionMode === 'existing') return selectedCaseId.trim().length > 0;
+        if (caseSelectionMode === 'new') return newCaseLabelError === null;
+        return continueWithoutCaseConfirmed;
+    }, [caseSelectionMode, continueWithoutCaseConfirmed, newCaseLabelError, selectedCaseId, working]);
 
     useEffect(() => {
         completionPayloadRef.current = completionPayload;
@@ -1530,6 +1585,44 @@ export default function Cuestionario() {
             setActiveLoading(false);
         }
     }, [apiRole, selectedMode]);
+
+    const loadGuardianCases = useCallback(async () => {
+        setCasesLoading(true);
+        setCasesError(null);
+        try {
+            const response = await getQuestionnaireCasesV2({
+                status: 'active',
+                page: 1,
+                page_size: CASE_SELECTOR_PAGE_SIZE
+            });
+            setAvailableCases(response.items);
+        } catch (requestError) {
+            setAvailableCases([]);
+            setCasesError(mapError(requestError, 'No se pudieron cargar los casos disponibles.'));
+        } finally {
+            setCasesLoading(false);
+        }
+    }, []);
+
+    const resetCaseSelection = useCallback(() => {
+        setCaseSelectionMode(null);
+        setSelectedCaseId('');
+        setNewCaseLabel('');
+        setContinueWithoutCaseConfirmed(false);
+        setCaseActionError(null);
+    }, []);
+
+    const closeCaseModal = useCallback(() => {
+        if (working) return;
+        setCaseModalOpen(false);
+        resetCaseSelection();
+    }, [resetCaseSelection, working]);
+
+    const openCaseModal = useCallback(() => {
+        resetCaseSelection();
+        setCaseModalOpen(true);
+        loadGuardianCases().catch(() => undefined);
+    }, [loadGuardianCases, resetCaseSelection]);
 
     const loadAllSessionQuestions = useCallback(async (sessionIdToLoad: string) => {
         const rawQuestions = await getAllQuestionnaireSessionQuestionsV2(sessionIdToLoad, SESSION_PAGE_SIZE);
@@ -1723,10 +1816,11 @@ export default function Cuestionario() {
         }
     }, [loadAllSessionQuestions, resetAnswerPersistence, stopPolling]);
 
-    const startSession = useCallback(async () => {
+    const createAndStartSession = useCallback(async (selection?: { caseId?: string }) => {
         stopPolling();
         setWorking(true);
         setError(null);
+        setCaseActionError(null);
         setCompletionPhase('idle');
         setCompletionPayload(null);
         setCompletionError(null);
@@ -1740,7 +1834,8 @@ export default function Cuestionario() {
         try {
             const created = await createQuestionnaireSessionV2({
                 mode: selectedMode,
-                role: apiRole
+                role: apiRole,
+                ...(selection?.caseId ? { case_id: selection.caseId } : {})
             });
             const createdRecord = created as Record<string, unknown>;
             const id = toText(createdRecord.id) || toText(createdRecord.session_id);
@@ -1772,12 +1867,80 @@ export default function Cuestionario() {
             setSessionSnapshot(detail);
             setStarted(true);
             setReusableSession(null);
+            setCaseModalOpen(false);
+            resetCaseSelection();
         } catch (requestError) {
-            setError(mapStartSessionError(requestError, failedStep));
+            const mappedError = mapStartSessionError(requestError, failedStep);
+            setError(mappedError);
+            setCaseActionError(mappedError);
         } finally {
             setWorking(false);
         }
-    }, [apiRole, loadAllSessionQuestions, resetAnswerPersistence, selectedMode, stopPolling]);
+    }, [apiRole, loadAllSessionQuestions, resetAnswerPersistence, resetCaseSelection, selectedMode, stopPolling]);
+
+    const handleStartQuestionnaire = useCallback(async () => {
+        if (apiRole !== 'guardian') {
+            await createAndStartSession();
+            return;
+        }
+
+        openCaseModal();
+    }, [apiRole, createAndStartSession, openCaseModal]);
+
+    const handleConfirmCaseSelection = useCallback(async () => {
+        if (!caseSelectionMode || working) return;
+
+        if (caseSelectionMode === 'existing') {
+            if (!selectedCaseId) return;
+            await createAndStartSession({ caseId: selectedCaseId });
+            return;
+        }
+
+        if (caseSelectionMode === 'new') {
+            const validationError = validateCaseLabel(newCaseLabel);
+            if (validationError) {
+                setCaseActionError(validationError);
+                return;
+            }
+
+            setCaseActionError(null);
+            setWorking(true);
+            let failedStep: StartSessionStep = 'create_case';
+            try {
+                const createdCase = await createQuestionnaireCaseV2({
+                    private_label: newCaseLabel.trim(),
+                    metadata: {}
+                });
+                if (!createdCase?.case_id) {
+                    throw new Error('missing_case_id');
+                }
+                setWorking(false);
+                await createAndStartSession({ caseId: createdCase.case_id });
+            } catch (requestError) {
+                const mappedError = requestError instanceof Error && requestError.message === 'missing_case_id'
+                    ? 'El backend respondió al crear el caso, pero no devolvió un identificador usable.'
+                    : mapStartSessionError(requestError, failedStep);
+                setCaseActionError(mappedError);
+                setError(mappedError);
+                setWorking(false);
+            }
+            return;
+        }
+
+        if (!continueWithoutCaseConfirmed) {
+            setCaseActionError('Debes confirmar que deseas continuar sin asignar un caso.');
+            return;
+        }
+
+        await createAndStartSession();
+    }, [
+        caseSelectionMode,
+        continueWithoutCaseConfirmed,
+        createAndStartSession,
+        newCaseLabel,
+        selectedCaseId,
+        working
+    ]);
 
     const markQuestionDirty = useCallback((question: QuestionnaireQuestionV2DTO) => {
         const questionId = getApiQuestionId(question);
@@ -2252,7 +2415,7 @@ export default function Cuestionario() {
                     <button
                         type="button"
                         className="questionnaire-btn ghost"
-                        onClick={() => startSession().catch(() => undefined)}
+                        onClick={() => handleStartQuestionnaire().catch(() => undefined)}
                         disabled={working}
                     >
                         Empezar de nuevo
@@ -2263,7 +2426,7 @@ export default function Cuestionario() {
             <button
                 type="button"
                 className="questionnaire-btn primary questionnaire-start"
-                onClick={() => startSession().catch(() => undefined)}
+                onClick={() => handleStartQuestionnaire().catch(() => undefined)}
                 disabled={working}
             >
                 {working ? 'Iniciando...' : 'Comenzar'}
@@ -2549,12 +2712,163 @@ export default function Cuestionario() {
         intro: introContent,
         workspace: workspaceContent
     }[shellState];
+    const hasAvailableCases = availableCases.length > 0;
+    const showExistingCaseSelector = hasAvailableCases;
 
     return (
         <div className="plataforma-view">
             <div className={`questionnaire-shell ${started ? '' : 'is-intro'}`}>
                 {shellContent}
             </div>
+            <Modal isOpen={caseModalOpen} onClose={closeCaseModal}>
+                <div className="questionnaire-case-modal">
+                    <h2>Selecciona un caso</h2>
+                    <p className="questionnaire-case-modal-description">
+                        Un caso permite agrupar varios cuestionarios relacionados con una misma persona o situación. Esto facilita el seguimiento en el tiempo y permite que un psicólogo revise la evolución de forma más organizada.
+                    </p>
+
+                    {casesError ? (
+                        <div className="question-warning">
+                            {casesError}
+                            <button
+                                type="button"
+                                className="questionnaire-btn ghost questionnaire-case-retry"
+                                onClick={() => loadGuardianCases().catch(() => undefined)}
+                                disabled={casesLoading}
+                            >
+                                {casesLoading ? 'Cargando...' : 'Reintentar'}
+                            </button>
+                        </div>
+                    ) : null}
+
+                    {caseActionError ? <div className="question-warning">{caseActionError}</div> : null}
+
+                    <div className="questionnaire-case-options">
+                        {showExistingCaseSelector ? (
+                            <button
+                                type="button"
+                                className={`questionnaire-case-option ${caseSelectionMode === 'existing' ? 'is-selected' : ''}`}
+                                onClick={() => {
+                                    setCaseSelectionMode('existing');
+                                    setCaseActionError(null);
+                                }}
+                            >
+                                <strong>Seleccionar caso existente</strong>
+                                <span>Usa uno de tus casos activos para asociar esta evaluación.</span>
+                            </button>
+                        ) : null}
+
+                        <button
+                            type="button"
+                            className={`questionnaire-case-option ${caseSelectionMode === 'new' ? 'is-selected' : ''}`}
+                            onClick={() => {
+                                setCaseSelectionMode('new');
+                                setCaseActionError(null);
+                            }}
+                        >
+                            <strong>Crear nuevo caso</strong>
+                            <span>Agrupa este cuestionario desde el inicio con una etiqueta privada.</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className={`questionnaire-case-option ${caseSelectionMode === 'none' ? 'is-selected' : ''}`}
+                            onClick={() => {
+                                setCaseSelectionMode('none');
+                                setCaseActionError(null);
+                            }}
+                        >
+                            <strong>Continuar sin caso</strong>
+                            <span>La sesión quedará en tu historial, pero sin agrupación de seguimiento.</span>
+                        </button>
+                    </div>
+
+                    {casesLoading ? <p className="questionnaire-case-loading">Cargando casos activos...</p> : null}
+
+                    {caseSelectionMode === 'existing' && showExistingCaseSelector ? (
+                        <div className="questionnaire-case-panel">
+                            <label className="questionnaire-case-field">
+                                <span>Caso activo</span>
+                                <CustomSelect
+                                    value={selectedCaseId}
+                                    options={caseOptions}
+                                    onChange={(value) => {
+                                        setSelectedCaseId(value);
+                                        setCaseActionError(null);
+                                    }}
+                                    ariaLabel="Seleccionar caso existente"
+                                    placeholder="Selecciona un caso"
+                                    disabled={casesLoading}
+                                    className="questionnaire-case-select"
+                                />
+                            </label>
+                        </div>
+                    ) : null}
+
+                    {caseSelectionMode === 'new' ? (
+                        <div className="questionnaire-case-panel">
+                            <label className="questionnaire-case-field">
+                                <span>Etiqueta del caso</span>
+                                <input
+                                    type="text"
+                                    value={newCaseLabel}
+                                    onChange={(event) => {
+                                        setNewCaseLabel(event.target.value);
+                                        setCaseActionError(null);
+                                    }}
+                                    placeholder="Ej. Hijo mayor, Seguimiento escolar, Caso ansiedad"
+                                    maxLength={120}
+                                />
+                            </label>
+                            {newCaseLabelError ? <p className="questionnaire-case-helper error">{newCaseLabelError}</p> : null}
+                        </div>
+                    ) : null}
+
+                    {caseSelectionMode === 'none' ? (
+                        <div className="questionnaire-case-panel questionnaire-case-disclaimer">
+                            <p>
+                                Puedes continuar sin asignar un caso. El cuestionario se guardará en tu historial, pero puede ser más difícil realizar seguimiento longitudinal o compartir la evolución completa con un psicólogo.
+                            </p>
+                            <label className="questionnaire-case-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={continueWithoutCaseConfirmed}
+                                    onChange={(event) => {
+                                        setContinueWithoutCaseConfirmed(event.target.checked);
+                                        setCaseActionError(null);
+                                    }}
+                                />
+                                <span>Entiendo y deseo continuar sin asignar un caso.</span>
+                            </label>
+                        </div>
+                    ) : null}
+
+                    {!hasAvailableCases && !casesLoading ? (
+                        <p className="questionnaire-case-helper">
+                            Aún no tienes casos activos creados. Puedes crear uno ahora o continuar sin caso.
+                        </p>
+                    ) : null}
+
+                    <div className="questionnaire-case-actions">
+                        <button
+                            type="button"
+                            className="questionnaire-btn ghost"
+                            onClick={closeCaseModal}
+                            disabled={working}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="questionnaire-btn primary"
+                            onClick={() => handleConfirmCaseSelection().catch(() => undefined)}
+                            disabled={!canContinueWithCaseSelection}
+                        >
+                            {working ? 'Iniciando...' : 'Continuar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

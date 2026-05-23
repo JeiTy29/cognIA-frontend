@@ -272,6 +272,7 @@ export default function MiCuenta() {
     const username = profile?.username ?? '—';
     const nombreCompleto = profile?.full_name ?? '—';
     const tarjetaProfesional = profile?.professional_card_number ?? '—';
+    const ciudad = profile?.professional_city ?? profile?.professional_location ?? '—';
     const mfaEnabled = profile?.mfa_enabled ?? false;
     const openMfaDisableModal = () => {
         setDisableError(null);
@@ -470,6 +471,13 @@ export default function MiCuenta() {
                         <span className="mi-cuenta-label">Correo</span>
                         <span className="mi-cuenta-value">{correo}</span>
                     </div>
+                    <div className="mi-cuenta-field">
+                        <span className="mi-cuenta-label">Ciudad</span>
+                        <span className="mi-cuenta-value">{ciudad}</span>
+                    </div>
+                    <p className="mi-cuenta-section-note">
+                        La edición de ciudad estará disponible próximamente.
+                    </p>
                 </section>
 
                 <section className="info-card mi-cuenta-section">

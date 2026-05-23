@@ -95,6 +95,86 @@ describe('questionnaires.api secure endpoints', () => {
         );
     });
 
+    it('usa transporte cifrado para crear casos, compartir con psicólogo y guardar revisiones profesionales', async () => {
+        apiSecurePost
+            .mockResolvedValueOnce({ case: { case_id: 'case-1', private_label: 'Hijo mayor' } })
+            .mockResolvedValueOnce({ share_code: 'abc123', grantee: { user_id: 'psy-1' } })
+            .mockResolvedValueOnce({ review_id: 'rev-1', review_status: 'in_review' });
+        apiSecurePatch.mockResolvedValueOnce({ review_id: 'rev-1', review_status: 'reviewed' });
+
+        const module = await import('./questionnaires.api');
+        await module.createQuestionnaireCaseV2({ private_label: 'Hijo mayor', metadata: {} });
+        await module.shareQuestionnaireWithPsychologistV2('sess-1', {
+            grantee_user_id: 'psy-1',
+            grant_can_tag: false,
+            grant_can_download_pdf: true,
+            share_scope: 'session',
+            expires_in_hours: 720,
+            max_uses: 100
+        });
+        await module.createQuestionnaireProfessionalReviewV2('sess-1', {
+            review_status: 'in_review',
+            initial_concept: 'Texto',
+            recommendation: 'Seguimiento',
+            visible_to_guardian: true
+        });
+        await module.updateQuestionnaireProfessionalReviewV2('sess-1', 'rev-1', {
+            review_status: 'reviewed',
+            initial_concept: 'Actualizado',
+            recommendation: 'Actualizado',
+            visible_to_guardian: true
+        });
+
+        expect(apiSecurePost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/cases',
+            { private_label: 'Hijo mayor', metadata: {} },
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+        expect(apiSecurePost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/share',
+            expect.objectContaining({
+                grantee_user_id: 'psy-1',
+                share_scope: 'session'
+            }),
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+        expect(apiSecurePost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/professional-reviews',
+            expect.objectContaining({
+                review_status: 'in_review',
+                visible_to_guardian: true
+            }),
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+        expect(apiSecurePatch).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/professional-reviews/rev-1',
+            expect.objectContaining({
+                review_status: 'reviewed'
+            }),
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('usa POST cifrado para report-preview secure', async () => {
+        apiSecurePostNoBody.mockResolvedValueOnce({
+            session: { session_id: 'sess-1' },
+            result: null,
+            domains: [],
+            comorbidity: [],
+            answers: [],
+            professional_reviews: [],
+            pdf: { available: true }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.getQuestionnaireReportPreviewV2('sess-1');
+
+        expect(apiSecurePostNoBody).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/report-preview/secure',
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
     it('descarga el PDF del historial sin caché y conserva el nombre enviado por backend', async () => {
         apiGetBlobWithMeta.mockResolvedValueOnce({
             blob: new Blob(['pdf']),

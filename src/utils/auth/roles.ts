@@ -12,8 +12,8 @@ export function getPrimaryRole(roles?: string[]): AppRole | null {
 export function getDefaultRouteForRoles(roles?: string[]) {
     const primary = getPrimaryRole(roles);
     if (primary === 'admin') return '/admin/metricas';
-    if (primary === 'psicologo') return '/psicologo/cuestionario';
-    return '/padre/cuestionario';
+    if (primary === 'psicologo') return '/psicologo/evaluaciones';
+    return '/padre/seguimiento';
 }
 
 export function hasAllowedRole(roles: string[] | undefined, allowed: AppRole[] | undefined) {

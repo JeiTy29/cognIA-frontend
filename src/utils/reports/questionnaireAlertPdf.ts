@@ -2,7 +2,9 @@ import autoTable from 'jspdf-autotable';
 import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireProfessionalReviewDTO,
     QuestionnaireQuestionV2DTO,
+    QuestionnaireReportPreviewDTO,
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireSessionV2DTO
 } from '../../services/questionnaires/questionnaires.types';
@@ -29,6 +31,9 @@ type BuildQuestionnaireAlertPdfArgs = {
     sessionDetail: QuestionnaireHistoryDetailV2DTO | null;
     sessionSnapshot: QuestionnaireSessionV2DTO | null;
     sessionQuestions: QuestionnaireQuestionV2DTO[];
+    reportPreview?: QuestionnaireReportPreviewDTO | null;
+    professionalReviews?: QuestionnaireProfessionalReviewDTO[];
+    audience?: 'guardian' | 'psychologist';
 };
 
 function buildQuestionnaireAlertPdfFilename(
@@ -40,15 +45,20 @@ function buildQuestionnaireAlertPdfFilename(
     const yyyy = safeDate.getFullYear();
     const mm = String(safeDate.getMonth() + 1).padStart(2, '0');
     const dd = String(safeDate.getDate()).padStart(2, '0');
-    const isGuardian = String(session?.role ?? '').trim().toLowerCase() === 'guardian';
-    return isGuardian
-        ? `Reporte CognIA - Alerta padre tutor - ${yyyy}-${mm}-${dd}.pdf`
-        : `Reporte CognIA - Alerta - ${yyyy}-${mm}-${dd}.pdf`;
+    const normalizedRole = String(session?.role ?? '').trim().toLowerCase();
+    if (normalizedRole === 'guardian') {
+        return `Reporte CognIA - Alerta padre tutor - ${yyyy}-${mm}-${dd}.pdf`;
+    }
+    if (normalizedRole === 'psychologist') {
+        return `Reporte CognIA - Revisión profesional - ${yyyy}-${mm}-${dd}.pdf`;
+    }
+    return `Reporte CognIA - Alerta - ${yyyy}-${mm}-${dd}.pdf`;
 }
 
 function addQuestionnaireCover(
     context: ReportContext,
     options: {
+        audience: 'guardian' | 'psychologist';
         generatedAt: string;
         modeLabel: string;
         roleLabel: string;
@@ -79,12 +89,20 @@ function addQuestionnaireCover(
 
     doc.setTextColor(colors.ink);
     doc.setFontSize(19);
-    doc.text(normalizePdfText('Informe orientativo de resultados'), marginX, 44);
+    doc.text(
+        normalizePdfText(options.audience === 'psychologist' ? 'Documento de apoyo para revisión profesional' : 'Informe orientativo de resultados'),
+        marginX,
+        44
+    );
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10.5);
     doc.text(
         doc.splitTextToSize(
-            normalizePdfText('Resultado de tamizaje y apoyo a revisión profesional.'),
+            normalizePdfText(
+                options.audience === 'psychologist'
+                    ? 'Síntesis estructurada para apoyar la revisión profesional. No constituye diagnóstico clínico.'
+                    : 'Resultado de tamizaje y apoyo a revisión profesional.'
+            ),
             pageWidth - marginX * 2 - 4
         ),
         marginX,
@@ -124,7 +142,11 @@ function addQuestionnaireCover(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text(
-        normalizePdfText('Este reporte es orientativo y no reemplaza una evaluación profesional.'),
+        normalizePdfText(
+            options.audience === 'psychologist'
+                ? 'Documento de apoyo para revisión profesional. No constituye diagnóstico clínico.'
+                : 'Este reporte es orientativo y no reemplaza una evaluación profesional.'
+        ),
         marginX + 4,
         finalY + 17
     );
@@ -236,13 +258,42 @@ function addAnsweredQuestionsTable(context: ReportContext, dataset: Questionnair
         (((context.doc as typeof context.doc & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY) ?? context.cursorY) + 5;
 }
 
+function addProfessionalReviewsSection(context: ReportContext, dataset: QuestionnaireAlertReportDataset) {
+    if (dataset.professionalReviews.length === 0) return;
+
+    addSectionTitle(context, 'Observaciones profesionales');
+    addParagraph(
+        context,
+        'Esta sección reúne conceptos y recomendaciones profesionales orientativas registradas sobre la evaluación compartida.'
+    );
+
+    addDataTable(context, {
+        head: ['Estado', 'Concepto inicial', 'Recomendación', 'Visible para acudiente'],
+        body: dataset.professionalReviews.map((review) => [
+            normalizePdfTableCell(review.review_status, '--'),
+            normalizePdfTableCell(review.initial_concept, 'Sin concepto registrado'),
+            normalizePdfTableCell(review.recommendation, 'Sin recomendación registrada'),
+            normalizePdfTableCell(review.visible_to_guardian ? 'Sí' : 'No')
+        ]),
+        columnStyles: {
+            0: { cellWidth: 28 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 'auto' },
+            3: { cellWidth: 28, halign: 'center' }
+        }
+    });
+}
+
 export async function buildQuestionnaireAlertPdf({
     sessionId,
     results,
     clinicalSummary,
     sessionDetail,
     sessionSnapshot,
-    sessionQuestions
+    sessionQuestions,
+    reportPreview = null,
+    professionalReviews = [],
+    audience = 'guardian'
 }: BuildQuestionnaireAlertPdfArgs): Promise<Blob> {
     const mergedSessionSource = {
         ...(sessionSnapshot ?? {}),
@@ -254,7 +305,13 @@ export async function buildQuestionnaireAlertPdf({
         sessionDetail: mergedSessionSource,
         sessionQuestions,
         results,
-        clinicalSummary
+        clinicalSummary,
+        reportPreview: reportPreview
+            ? {
+                ...reportPreview,
+                professional_reviews: professionalReviews.length > 0 ? professionalReviews : reportPreview.professional_reviews
+            }
+            : null
     });
 
     if (import.meta.env.DEV) {
@@ -279,6 +336,7 @@ export async function buildQuestionnaireAlertPdf({
         '--';
 
     addQuestionnaireCover(context, {
+        audience,
         generatedAt: formatReportDateTime(new Date()),
         modeLabel: getModeLabel(modeSource, '--'),
         roleLabel: getRoleLabel(roleSource, 'Padre o tutor'),
@@ -453,12 +511,17 @@ export async function buildQuestionnaireAlertPdf({
     });
 
     addAnsweredQuestionsTable(context, dataset);
+    addProfessionalReviewsSection(context, dataset);
 
     addSectionTitle(context, 'Limitaciones y uso responsable');
     addBulletList(context, [
         'La lectura interpretativa se calcula a partir de las escalas de respuesta disponibles y no representa un diagnóstico individual.',
-        'Los porcentajes y niveles deben interpretarse junto con el conjunto completo de respuestas y el contexto del niño o niña.',
-        'Este reporte es orientativo y no reemplaza una evaluación profesional.'
+        audience === 'psychologist'
+            ? 'Debe contrastarse con entrevista, observación clínica y contexto familiar o escolar.'
+            : 'Los porcentajes y niveles deben interpretarse junto con el conjunto completo de respuestas y el contexto del niño o niña.',
+        audience === 'psychologist'
+            ? 'Documento de apoyo para revisión profesional. No constituye diagnóstico clínico.'
+            : 'Este reporte es orientativo y no reemplaza una evaluación profesional.'
     ]);
     addParagraph(context, dataset.disclaimerText);
 
