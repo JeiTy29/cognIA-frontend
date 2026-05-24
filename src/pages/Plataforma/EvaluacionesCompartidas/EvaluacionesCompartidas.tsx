@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './EvaluacionesCompartidas.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -73,6 +74,8 @@ function buildAggregateLine(label: string, count: unknown, extra?: string) {
 }
 
 export default function EvaluacionesCompartidas() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const { profile } = useAuth();
     const currentUserId = profile?.id ?? null;
     const [query, setQuery] = useState('');
@@ -100,6 +103,7 @@ export default function EvaluacionesCompartidas() {
     const [initialConcept, setInitialConcept] = useState('');
     const [recommendation, setRecommendation] = useState('');
     const [visibleToGuardian, setVisibleToGuardian] = useState(true);
+    const locationState = (location.state ?? {}) as { openEvaluationSessionId?: string } | null;
 
     const loadDashboard = useCallback(async () => {
         setLoading(true);
@@ -180,6 +184,15 @@ export default function EvaluacionesCompartidas() {
             setDetailLoading(false);
         }
     }, [currentUserId]);
+
+    useEffect(() => {
+        if (!locationState?.openEvaluationSessionId || !dashboard?.items?.length) return;
+        const matchingItem = dashboard.items.find((item) => item.session_id === locationState.openEvaluationSessionId) ?? null;
+        if (matchingItem) {
+            loadDetail(matchingItem).catch(() => undefined);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [dashboard?.items, loadDetail, location.pathname, locationState?.openEvaluationSessionId, navigate]);
 
     const closeDetail = () => {
         setActiveSession(null);

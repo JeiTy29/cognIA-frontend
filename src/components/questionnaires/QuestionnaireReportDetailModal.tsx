@@ -36,7 +36,8 @@ import {
 import { downloadPdfBlob } from '../../utils/presentation/reportPdf';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../utils/reports/questionnaireAlertPdf';
 import {
-    normalizeBackendText
+    normalizeBackendText,
+    normalizeReviewStatus
 } from '../../utils/questionnaires/presentation';
 import { resolveAnsweredQuestionRows } from '../../utils/questionnaires/answeredQuestions';
 import { emitNotificationsRefresh } from '../../utils/notifications/events';
@@ -1047,16 +1048,6 @@ export function QuestionnaireReportDetailModal({
                                             cityLabel="Ciudad"
                                             className="historial-v2-share-location"
                                         />
-                                        <div className="historial-v2-share-button-wrap">
-                                            <button
-                                                type="button"
-                                                className="historial-v2-btn"
-                                                onClick={() => { runHistoryTask(handleSearchPsychologists); }}
-                                                disabled={shareSearchLoading}
-                                            >
-                                                {shareSearchLoading ? 'Buscando...' : 'Buscar'}
-                                            </button>
-                                        </div>
                                         <label className="historial-v2-inline-toggle">
                                             <input
                                                 type="checkbox"
@@ -1072,6 +1063,24 @@ export function QuestionnaireReportDetailModal({
                                             />
                                             <span>Buscar psicólogos de mi misma ubicación</span>
                                         </label>
+                                        <div className="historial-v2-share-button-wrap">
+                                            <button
+                                                type="button"
+                                                className="historial-v2-btn"
+                                                aria-label="Buscar psicólogos"
+                                                onClick={() => { runHistoryTask(handleSearchPsychologists); }}
+                                                disabled={shareSearchLoading}
+                                            >
+                                                {shareSearchLoading ? (
+                                                    <span>...</span>
+                                                ) : (
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                                        <circle cx="11" cy="11" r="6.5" />
+                                                        <path d="m16 16 4.5 4.5" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                     {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
                                     {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
@@ -1128,7 +1137,7 @@ export function QuestionnaireReportDetailModal({
                                     <div className="historial-v2-review-list">
                                         {visibleProfessionalReviews.map((review) => (
                                             <article key={review.review_id} className="historial-v2-review-card">
-                                                <strong>{normalizeBackendText(review.review_status, 'Observación profesional')}</strong>
+                                                <strong>{normalizeReviewStatus(review.review_status)}</strong>
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
                                             </article>

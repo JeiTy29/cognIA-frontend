@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
@@ -62,6 +63,9 @@ function resolveHistoryCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
 }
 
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const initialLocationState = (location.state ?? {}) as { openHistorySessionId?: string } | null;
     const {
         items,
         page,
@@ -77,7 +81,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         reload
     } = useQuestionnaireHistoryV2();
 
-    const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
+    const [detailSessionId, setDetailSessionId] = useState<string | null>(initialLocationState?.openHistorySessionId ?? null);
+
+    useEffect(() => {
+        const locationState = (location.state ?? {}) as { openHistorySessionId?: string } | null;
+        if (!locationState?.openHistorySessionId) return;
+        navigate(location.pathname, { replace: true, state: {} });
+    }, [location.pathname, location.state, navigate]);
 
     const title = 'Historial de cuestionarios';
     const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';

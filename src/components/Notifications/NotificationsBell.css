@@ -14,8 +14,20 @@
 }
 
 .notifications-bell__icon {
-    font-size: 18px;
+    width: 20px;
+    height: 20px;
+    color: #0f5f9f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
+}
+
+.notifications-bell__icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    stroke: currentColor;
 }
 
 .notifications-bell__badge {

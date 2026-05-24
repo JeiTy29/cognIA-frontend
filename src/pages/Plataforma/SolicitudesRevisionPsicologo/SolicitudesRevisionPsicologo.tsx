@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './SolicitudesRevisionPsicologo.css';
 import { Modal } from '../../../components/Modal/Modal';
@@ -30,6 +31,8 @@ const statusOptions = [
 type ActionIntent = 'accept' | 'reject' | null;
 
 export default function SolicitudesRevisionPsicologo() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [status, setStatus] = useState<(typeof statusOptions)[number]['value']>('pending');
     const [query, setQuery] = useState('');
     const [dateFrom, setDateFrom] = useState('');
@@ -44,7 +47,6 @@ export default function SolicitudesRevisionPsicologo() {
     const [actionMessage, setActionMessage] = useState('');
     const [actionWorking, setActionWorking] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
-
     const loadRequests = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -78,6 +80,18 @@ export default function SolicitudesRevisionPsicologo() {
     useEffect(() => {
         loadRequests().catch(() => undefined);
     }, [loadRequests]);
+
+    useEffect(() => {
+        const locationState = (location.state ?? {}) as { notificationGrantId?: string; status?: string } | null;
+        if (!locationState) return;
+        if (locationState.status && status !== locationState.status && statusOptions.some((option) => option.value === locationState.status)) {
+            setStatus(locationState.status as (typeof statusOptions)[number]['value']);
+            return;
+        }
+        if (locationState.notificationGrantId) {
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.pathname, location.state, navigate, status]);
 
     const handleOpenAction = (request: PsychologistShareRequestDTO, intent: ActionIntent) => {
         setSelectedRequest(request);
@@ -145,9 +159,18 @@ export default function SolicitudesRevisionPsicologo() {
                 </div>
 
                 <div className="solicitudes-revision__filters">
-                    <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}>
-                        {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
+                    <div className="solicitudes-revision__status-tabs" role="tablist" aria-label="Filtrar solicitudes por estado">
+                        {statusOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                className={`solicitudes-revision__status-tab ${status === option.value ? 'is-active' : ''}`}
+                                onClick={() => setStatus(option.value)}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                     <input
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -233,20 +256,32 @@ export default function SolicitudesRevisionPsicologo() {
                                 ) : null}
 
                                 <div className="solicitudes-revision__actions">
-                                    <button
-                                        type="button"
-                                        disabled={!request.can_accept}
-                                        onClick={() => handleOpenAction(request, 'accept')}
-                                    >
-                                        Aceptar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={!request.can_reject}
-                                        onClick={() => handleOpenAction(request, 'reject')}
-                                    >
-                                        Rechazar
-                                    </button>
+                                    {request.request_status === 'pending' ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                disabled={!request.can_accept}
+                                                onClick={() => handleOpenAction(request, 'accept')}
+                                            >
+                                                Aceptar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={!request.can_reject}
+                                                onClick={() => handleOpenAction(request, 'reject')}
+                                            >
+                                                Rechazar
+                                            </button>
+                                        </>
+                                    ) : null}
+                                    {request.request_status === 'accepted' && request.session?.session_id ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/psicologo/evaluaciones', { state: { openEvaluationSessionId: request.session?.session_id } })}
+                                        >
+                                            Ver evaluación
+                                        </button>
+                                    ) : null}
                                 </div>
                             </article>
                         ))}

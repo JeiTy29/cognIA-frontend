@@ -11,27 +11,27 @@ function titleCaseWords(value: string) {
 }
 
 const BACKEND_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
-    [/Ã¡/g, 'á'],
-    [/Ã©/g, 'é'],
-    [/Ã­/g, 'í'],
-    [/Ã³/g, 'ó'],
-    [/Ãº/g, 'ú'],
-    [/Ã/g, 'Á'],
-    [/Ã‰/g, 'É'],
-    [/Ã/g, 'Í'],
-    [/Ã“/g, 'Ó'],
-    [/Ãš/g, 'Ú'],
-    [/Ã±/g, 'ñ'],
-    [/Ã‘/g, 'Ñ'],
-    [/Â¿/g, '¿'],
-    [/Â¡/g, '¡'],
-    [/Â·/g, '·'],
-    [/â€“/g, '–'],
-    [/â€”/g, '—'],
-    [/â€¦/g, '…'],
-    [/â€¢/g, '•'],
-    [/â€œ|â€/g, '"'],
-    [/â€˜|â€™/g, '\''],
+    [/ÃƒÂ¡/g, 'á'],
+    [/ÃƒÂ©/g, 'é'],
+    [/ÃƒÂ­/g, 'í'],
+    [/ÃƒÂ³/g, 'ó'],
+    [/ÃƒÂº/g, 'ú'],
+    [/ÃƒÂ/g, 'Á'],
+    [/Ãƒâ€°/g, 'É'],
+    [/ÃƒÂ/g, 'Í'],
+    [/Ãƒâ€œ/g, 'Ó'],
+    [/ÃƒÅ¡/g, 'Ú'],
+    [/ÃƒÂ±/g, 'ñ'],
+    [/Ãƒâ€˜/g, 'Ñ'],
+    [/Ã‚Â¿/g, '¿'],
+    [/Ã‚Â¡/g, '¡'],
+    [/Ã‚Â·/g, '·'],
+    [/Ã¢â‚¬â€œ/g, '–'],
+    [/Ã¢â‚¬â€/g, '—'],
+    [/Ã¢â‚¬Â¦/g, '…'],
+    [/Ã¢â‚¬Â¢/g, '•'],
+    [/Ã¢â‚¬Å“|Ã¢â‚¬Â/g, '"'],
+    [/Ã¢â‚¬Ëœ|Ã¢â‚¬â„¢/g, '\''],
     [/psic\?logo/gi, 'psicólogo'],
     [/ubicaci\?n/gi, 'ubicación'],
     [/revisi\?n/gi, 'revisión'],
@@ -123,10 +123,7 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
 };
 
 function formatFallbackLabel(value: string) {
-    return normalizeBackendText(
-        titleCaseWords(value.replace(/[_-]+/g, ' ')),
-        '--'
-    );
+    return normalizeBackendText(titleCaseWords(value.replace(/[_-]+/g, ' ')), '--');
 }
 
 function normalizeKnownWords(value: string) {

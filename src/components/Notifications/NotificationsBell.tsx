@@ -47,6 +47,12 @@ function buildNotificationMessage(notification: NotificationDTO) {
     return 'Sin detalle disponible.';
 }
 
+type NotificationModalContent = {
+    title: string;
+    message: string;
+    createdAt: string | null;
+};
+
 export function NotificationsBell() {
     const navigate = useNavigate();
     const { isAuthenticated, primaryRole } = useAuth();
@@ -56,6 +62,7 @@ export function NotificationsBell() {
     const [items, setItems] = useState<NotificationDTO[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [workingId, setWorkingId] = useState<string | null>(null);
+    const [modalContent, setModalContent] = useState<NotificationModalContent | null>(null);
 
     const loadNotifications = useCallback(async () => {
         if (!isAuthenticated) return;
@@ -126,6 +133,63 @@ export function NotificationsBell() {
         }
     };
 
+    const handleNotificationView = async (notification: NotificationDTO) => {
+        const target = getNotificationTarget(notification, primaryRole);
+        const title = buildNotificationTitle(notification);
+        const message = buildNotificationMessage(notification);
+
+        if (notification.type === 'questionnaire_share_requested' && primaryRole === 'psicologo') {
+            await handleMarkAsRead(notification);
+            navigate('/psicologo/solicitudes', {
+                state: {
+                    notificationGrantId: notification.grant_id,
+                    status: 'pending'
+                }
+            });
+            setIsOpen(false);
+            return;
+        }
+
+        if (
+            (
+                notification.type === 'questionnaire_share_accepted' ||
+                notification.type === 'professional_review_created' ||
+                notification.type === 'professional_review_updated'
+            ) &&
+            primaryRole === 'padre' &&
+            notification.session_id
+        ) {
+            await handleMarkAsRead(notification);
+            navigate('/padre/historial', {
+                state: { openHistorySessionId: notification.session_id }
+            });
+            setIsOpen(false);
+            return;
+        }
+
+        if (notification.type === 'questionnaire_share_rejected' && primaryRole === 'padre') {
+            await handleMarkAsRead(notification);
+            setModalContent({
+                title,
+                message,
+                createdAt: notification.created_at ?? null
+            });
+            return;
+        }
+
+        if (target) {
+            await handleMarkAsRead(notification, true);
+            return;
+        }
+
+        await handleMarkAsRead(notification);
+        setModalContent({
+            title,
+            message,
+            createdAt: notification.created_at ?? null
+        });
+    };
+
     if (!isAuthenticated) return null;
 
     return (
@@ -160,43 +224,55 @@ export function NotificationsBell() {
                     ) : null}
                     {!loading && sortedItems.length > 0 ? (
                         <div className="notifications-modal__list">
-                            {sortedItems.map((notification) => {
-                                const target = getNotificationTarget(notification, primaryRole);
-                                return (
-                                    <article key={notification.notification_id} className="notifications-modal__item is-unread">
-                                        <strong>{buildNotificationTitle(notification)}</strong>
-                                        <p>{buildNotificationMessage(notification)}</p>
-                                        {notification.case_public_id ? (
-                                            <small>Caso {normalizeBackendText(notification.case_public_id)}</small>
-                                        ) : null}
-                                        <small>{formatDateTime(notification.created_at)}</small>
-                                        <div className="notifications-modal__actions">
-                                            <button
-                                                type="button"
-                                                disabled={workingId === notification.notification_id}
-                                                onClick={() => {
-                                                    handleMarkAsRead(notification).catch(() => undefined);
-                                                }}
-                                            >
-                                                {workingId === notification.notification_id ? 'Guardando...' : 'Marcar como leída'}
-                                            </button>
-                                            {target ? (
-                                                <button
-                                                    type="button"
-                                                    disabled={workingId === notification.notification_id}
-                                                    onClick={() => {
-                                                        handleMarkAsRead(notification, true).catch(() => undefined);
-                                                    }}
-                                                >
-                                                    Ver
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </article>
-                                );
-                            })}
+                            {sortedItems.map((notification) => (
+                                <article key={notification.notification_id} className="notifications-modal__item is-unread">
+                                    <strong>{buildNotificationTitle(notification)}</strong>
+                                    <p>{buildNotificationMessage(notification)}</p>
+                                    {notification.case_public_id ? (
+                                        <small>Caso {normalizeBackendText(notification.case_public_id)}</small>
+                                    ) : null}
+                                    <small>{formatDateTime(notification.created_at)}</small>
+                                    <div className="notifications-modal__actions">
+                                        <button
+                                            type="button"
+                                            disabled={workingId === notification.notification_id}
+                                            onClick={() => {
+                                                handleMarkAsRead(notification).catch(() => undefined);
+                                            }}
+                                        >
+                                            {workingId === notification.notification_id ? 'Guardando...' : 'Marcar como leída'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={workingId === notification.notification_id}
+                                            onClick={() => {
+                                                handleNotificationView(notification).catch(() => undefined);
+                                            }}
+                                        >
+                                            Ver
+                                        </button>
+                                    </div>
+                                </article>
+                            ))}
                         </div>
                     ) : null}
+                </div>
+            </Modal>
+
+            <Modal isOpen={modalContent !== null} onClose={() => setModalContent(null)}>
+                <div className="notifications-modal">
+                    <div className="notifications-modal__header">
+                        <h2>{modalContent?.title ?? 'Notificación'}</h2>
+                    </div>
+                    <div className="notifications-modal__item is-unread">
+                        <p>{modalContent?.message}</p>
+                        <small>{formatDateTime(modalContent?.createdAt)}</small>
+                    </div>
+                    <div className="notifications-modal__actions">
+                        <button type="button" onClick={() => setModalContent(null)}>
+                            Cerrar
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </>

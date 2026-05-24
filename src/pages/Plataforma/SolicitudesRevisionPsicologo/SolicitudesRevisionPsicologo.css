@@ -53,6 +53,30 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.solicitudes-revision__status-tabs {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.solicitudes-revision__status-tab {
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 999px;
+    min-height: 38px;
+    padding: 0 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.solicitudes-revision__status-tab.is-active {
+    background: #0f5f9f;
+    color: #ffffff;
+    border-color: #0f5f9f;
+}
+
 .solicitudes-revision__filters input,
 .solicitudes-revision__filters select,
 .solicitudes-revision__modal textarea {

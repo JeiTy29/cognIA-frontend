@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../CustomSelect/CustomSelect';
 import { ApiError } from '../../services/api/httpClient';
 import {
+    getCachedColombiaCitiesByDepartment,
+    getCachedColombiaLocations,
     getColombiaCitiesByDepartment,
     getColombiaLocations
 } from '../../services/locations/locations.api';
@@ -51,7 +53,8 @@ export function ColombiaLocationSelect({
             setLoadingDepartments(true);
             setError(null);
             try {
-                const response = await getColombiaLocations();
+                const cached = getCachedColombiaLocations();
+                const response = cached ?? await getColombiaLocations();
                 if (cancelled) return;
                 setDepartments(response.departments.map((item) => item.department));
                 setCitiesByDepartment(
@@ -79,6 +82,15 @@ export function ColombiaLocationSelect({
     useEffect(() => {
         const selectedDepartment = value.department.trim();
         if (!selectedDepartment || citiesByDepartment[selectedDepartment]) return;
+
+        const cached = getCachedColombiaCitiesByDepartment(selectedDepartment);
+        if (cached) {
+            setCitiesByDepartment((prev) => ({
+                ...prev,
+                [selectedDepartment]: cached.cities
+            }));
+            return;
+        }
 
         let cancelled = false;
         const loadCities = async () => {

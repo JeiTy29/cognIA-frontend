@@ -313,6 +313,33 @@ export default function MiCuenta() {
         });
     }, [isEditingProfile, profile]);
 
+    const profileChanges = useMemo(() => {
+        const changes: Record<string, string> = {};
+        const nextUsername = profileForm.username.trim();
+        const nextEmail = profileForm.email.trim();
+        const nextDepartment = profileForm.department.trim();
+        const nextCity = profileForm.city.trim();
+        const nextFullName = profileForm.fullName.trim();
+
+        if (nextUsername && nextUsername !== (profile?.username ?? '')) {
+            changes.username = nextUsername;
+        }
+        if (nextEmail && nextEmail !== (profile?.email ?? '')) {
+            changes.email = nextEmail;
+        }
+        if (nextDepartment && nextDepartment !== (profile?.department ?? profile?.professional_department ?? '')) {
+            changes.department = nextDepartment;
+        }
+        if (nextCity && nextCity !== (profile?.city ?? profile?.professional_city ?? '')) {
+            changes.city = nextCity;
+        }
+        if (isPsychologist && nextFullName && nextFullName !== (profile?.full_name ?? '')) {
+            changes.full_name = nextFullName;
+        }
+
+        return changes;
+    }, [isPsychologist, profile?.city, profile?.department, profile?.email, profile?.full_name, profile?.professional_city, profile?.professional_department, profile?.username, profileForm.city, profileForm.department, profileForm.email, profileForm.fullName, profileForm.username]);
+
     const profileMessage = useMemo(() => {
         if (profileStatus !== 'error') return null;
         if (profileErrorStatus === 403) return 'No tienes permisos para ver tu perfil.';
@@ -468,16 +495,34 @@ export default function MiCuenta() {
         const nextDepartment = profileForm.department.trim();
         const nextCity = profileForm.city.trim();
 
-        if (!fullName || !nextUsername || !nextEmail) {
-            setProfileSaveError('Completa nombre, usuario y correo para continuar.');
+        if (Object.keys(profileChanges).length === 0) {
+            setProfileSaveNotice('No hay cambios por guardar.');
+            setProfileSaveError(null);
             return;
         }
-        if (!nextDepartment) {
+
+        if ('username' in profileChanges && !nextUsername) {
+            setProfileSaveError('Ingresa un nombre de usuario válido.');
+            return;
+        }
+        if ('email' in profileChanges && !nextEmail) {
+            setProfileSaveError('Ingresa un correo válido.');
+            return;
+        }
+        if ('department' in profileChanges && !nextDepartment) {
             setProfileSaveError('Selecciona un departamento.');
             return;
         }
-        if (!nextCity) {
+        if ('city' in profileChanges && !nextCity) {
             setProfileSaveError('Selecciona una ciudad.');
+            return;
+        }
+        if (('department' in profileChanges || 'city' in profileChanges) && (!nextDepartment || !nextCity)) {
+            setProfileSaveError('Selecciona departamento y ciudad para actualizar la ubicación.');
+            return;
+        }
+        if (isPsychologist && 'full_name' in profileChanges && !fullName) {
+            setProfileSaveError('Ingresa tu nombre completo.');
             return;
         }
 
@@ -485,13 +530,7 @@ export default function MiCuenta() {
         setProfileSaveError(null);
         setProfileSaveNotice(null);
         try {
-            await updateMyProfile({
-                full_name: fullName,
-                username: nextUsername,
-                email: nextEmail,
-                department: nextDepartment,
-                city: nextCity
-            });
+            await updateMyProfile(profileChanges);
             await reloadProfile();
             setIsEditingProfile(false);
             setProfileSaveNotice('Tu perfil se actualizó correctamente.');
@@ -761,15 +800,17 @@ export default function MiCuenta() {
                         Actualiza tus datos personales y tu ubicación registrada.
                     </p>
                     <form className="mi-cuenta-form mi-cuenta-profile-form" onSubmit={handleProfileSave}>
-                        <label className="mi-cuenta-input-group">
-                            <span className="mi-cuenta-input-label">Nombre completo</span>
-                            <input
-                                className="mi-cuenta-input"
-                                value={profileForm.fullName}
-                                disabled={profileSaving}
-                                onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                            />
-                        </label>
+                        {isPsychologist ? (
+                            <label className="mi-cuenta-input-group">
+                                <span className="mi-cuenta-input-label">Nombre completo</span>
+                                <input
+                                    className="mi-cuenta-input"
+                                    value={profileForm.fullName}
+                                    disabled={profileSaving}
+                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                                />
+                            </label>
+                        ) : null}
                         <label className="mi-cuenta-input-group">
                             <span className="mi-cuenta-input-label">Nombre de usuario</span>
                             <input
@@ -812,7 +853,7 @@ export default function MiCuenta() {
                             >
                                 Cancelar
                             </button>
-                            <button type="submit" className="mi-cuenta-btn primary" disabled={profileSaving}>
+                            <button type="submit" className="mi-cuenta-btn primary" disabled={profileSaving || Object.keys(profileChanges).length === 0}>
                                 {profileSaving ? 'Guardando...' : 'Guardar cambios'}
                             </button>
                         </div>
