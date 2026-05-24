@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
@@ -217,6 +217,12 @@ export default function SeguimientoGuardian() {
         setCreateCaseModalOpen(false);
         setCreateCaseError(null);
         setCreateCaseLabel('');
+    };
+
+    const handleOpenReport = (event: MouseEvent<HTMLButtonElement>, nextSessionId: string) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setReportSessionId(nextSessionId);
     };
 
     const handleCreateCase = async () => {
@@ -489,11 +495,14 @@ export default function SeguimientoGuardian() {
                                                                             </div>
                                                                         ) : null}
 
-                                                                        <div className="seguimiento-session-actions">
+                                                                        <div
+                                                                            className="seguimiento-session-actions"
+                                                                            onClick={(event) => event.stopPropagation()}
+                                                                        >
                                                                             <button
                                                                                 type="button"
                                                                                 className="seguimiento-inline-btn"
-                                                                                onClick={() => setReportSessionId(sessionKey)}
+                                                                                onClick={(event) => handleOpenReport(event, sessionKey)}
                                                                                 disabled={!isSessionProcessed(session)}
                                                                                 title={isSessionProcessed(session) ? 'Ver reporte de sesión' : 'Reporte disponible cuando la sesión esté procesada.'}
                                                                             >
