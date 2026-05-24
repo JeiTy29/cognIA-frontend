@@ -21,13 +21,14 @@ import type {
 } from '../../../services/questionnaires/questionnaires.types';
 import {
     formatDateTime,
-    formatPercent,
     normalizeAlertLevel,
+    normalizeBooleanLabel,
     normalizeCaseStatus,
     normalizeDomainLabel,
     normalizeQuestionnaireMode,
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
+import { downloadGuardianFollowUpReportPdf } from '../../../utils/reports/guardianFollowUpPdf';
 
 const periodOptions = [
     { value: '3', label: 'Últimos 3 meses' },
@@ -41,10 +42,17 @@ const caseStatusOptions = [
     { value: 'all', label: 'Todos' }
 ] as const;
 
-const CREATE_CASE_MAX_LENGTH = 120;
+const reportPeriodOptions = [
+    { value: '3', label: '3 meses' },
+    { value: '6', label: '6 meses' },
+    { value: '12', label: '12 meses' },
+    { value: 'custom', label: 'Personalizado' }
+] as const;
 
-type CaseFilterStatus = (typeof caseStatusOptions)[number]['value'];
-type CaseActionIntent = 'archive' | 'activate';
+type CaseStatusFilter = (typeof caseStatusOptions)[number]['value'];
+type ReportPeriodValue = (typeof reportPeriodOptions)[number]['value'];
+
+const CREATE_CASE_MAX_LENGTH = 120;
 
 function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
     const label = item.display_label ?? item.private_label ?? 'Caso sin etiqueta';
@@ -74,7 +82,7 @@ function parseSortableDate(...candidates: Array<string | null | undefined>) {
 }
 
 function resolveSessionKey(session: QuestionnaireSessionV2DTO) {
-    return session.session_id ?? session.id;
+    return session.session_id ?? session.id ?? '';
 }
 
 function sortCaseSessions(sessions: QuestionnaireSessionV2DTO[]) {
@@ -97,7 +105,12 @@ function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
     return {
         domainLabel: normalizeDomainLabel(topDomain.domain),
         alertLabel: normalizeAlertLevel(topDomain.alert_level),
-        probabilityLabel: formatPercent(topDomain.probability)
+        probabilityLabel:
+            typeof topDomain.probability === 'number'
+                ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
+                    topDomain.probability <= 1 ? topDomain.probability * 100 : topDomain.probability
+                )} %`
+                : '--'
     };
 }
 
@@ -117,20 +130,37 @@ function hasPeakProbability(domains: QuestionnaireCaseDomainSummaryDTO[]) {
     return domains.some((domain) => typeof domain.max_probability === 'number');
 }
 
+function resolveCaseDomainBreakdown(caseEntry: GuardianDashboardCaseDTO | null, caseDetail: QuestionnaireCaseDetailDTO | null) {
+    if (Array.isArray(caseEntry?.domain_breakdown) && caseEntry.domain_breakdown.length > 0) {
+        return caseEntry.domain_breakdown;
+    }
+    return caseDetail?.domain_summary ?? [];
+}
+
+function buildInitialReportDates(months: number) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - months);
+    return {
+        dateFrom: start.toISOString().slice(0, 10),
+        dateTo: end.toISOString().slice(0, 10)
+    };
+}
+
 export default function SeguimientoGuardian() {
     const [months, setMonths] = useState('3');
-    const [caseStatusFilter, setCaseStatusFilter] = useState<CaseFilterStatus>('active');
     const [caseId, setCaseId] = useState('');
+    const [caseStatusFilter, setCaseStatusFilter] = useState<CaseStatusFilter>('active');
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
     const [cases, setCases] = useState<QuestionnaireCaseDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [pageNotice, setPageNotice] = useState<string | null>(null);
 
     const [createCaseModalOpen, setCreateCaseModalOpen] = useState(false);
     const [createCaseLabel, setCreateCaseLabel] = useState('');
     const [createCaseWorking, setCreateCaseWorking] = useState(false);
     const [createCaseError, setCreateCaseError] = useState<string | null>(null);
-    const [createCaseNotice, setCreateCaseNotice] = useState<string | null>(null);
 
     const [caseDetailsById, setCaseDetailsById] = useState<Record<string, QuestionnaireCaseDetailDTO>>({});
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
@@ -138,10 +168,20 @@ export default function SeguimientoGuardian() {
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
     const [reportSessionId, setReportSessionId] = useState<string | null>(null);
 
-    const [caseActionTarget, setCaseActionTarget] = useState<QuestionnaireCaseDTO | null>(null);
-    const [caseActionIntent, setCaseActionIntent] = useState<CaseActionIntent | null>(null);
-    const [caseActionWorking, setCaseActionWorking] = useState(false);
-    const [caseActionError, setCaseActionError] = useState<string | null>(null);
+    const [archiveTargetCase, setArchiveTargetCase] = useState<QuestionnaireCaseDTO | null>(null);
+    const [caseStatusWorkingId, setCaseStatusWorkingId] = useState<string | null>(null);
+    const [caseStatusActionError, setCaseStatusActionError] = useState<string | null>(null);
+
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [reportPeriod, setReportPeriod] = useState<ReportPeriodValue>('3');
+    const [reportDateFrom, setReportDateFrom] = useState('');
+    const [reportDateTo, setReportDateTo] = useState('');
+    const [reportCaseId, setReportCaseId] = useState('');
+    const [reportIncludeSessions, setReportIncludeSessions] = useState(true);
+    const [reportIncludeDomains, setReportIncludeDomains] = useState(true);
+    const [reportIncludeCharts, setReportIncludeCharts] = useState(true);
 
     const caseOptions = useMemo(
         () => [
@@ -164,19 +204,18 @@ export default function SeguimientoGuardian() {
         setLoading(true);
         setError(null);
         try {
-            const caseStatusParam = caseStatusFilter === 'all' ? undefined : caseStatusFilter;
             const [casesResponse, dashboardResponse] = await Promise.all([
-                getQuestionnaireCasesV2({ status: caseStatusParam, page: 1, page_size: 50 }),
+                getQuestionnaireCasesV2({
+                    ...(caseStatusFilter === 'all' ? {} : { status: caseStatusFilter }),
+                    page: 1,
+                    page_size: 50
+                }),
                 getGuardianQuestionnaireDashboardV2({
                     months: Number(months),
                     ...(caseId ? { case_id: caseId } : {})
                 })
             ]);
-
             setCases(casesResponse.items);
-            if (caseId && !casesResponse.items.some((item) => item.case_id === caseId)) {
-                setCaseId('');
-            }
             setDashboard(dashboardResponse);
         } catch {
             setError('No fue posible cargar los casos. Intenta nuevamente.');
@@ -189,21 +228,26 @@ export default function SeguimientoGuardian() {
 
     const loadCaseDetail = useCallback(
         async (nextCaseId: string, force = false) => {
-            if (!nextCaseId) return;
-            if (!force && (caseDetailsById[nextCaseId] || caseLoadingById[nextCaseId])) return;
+            if (!nextCaseId) return null;
+            if (!force && (caseDetailsById[nextCaseId] || caseLoadingById[nextCaseId])) {
+                return caseDetailsById[nextCaseId] ?? null;
+            }
 
             setCaseLoadingById((prev) => ({ ...prev, [nextCaseId]: true }));
             setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: null }));
             try {
                 const detail = await getQuestionnaireCaseDetailV2(nextCaseId);
                 const sortedSessions = sortCaseSessions(detail.sessions ?? []);
-                setCaseDetailsById((prev) => ({ ...prev, [nextCaseId]: { ...detail, sessions: sortedSessions } }));
+                const normalizedDetail = { ...detail, sessions: sortedSessions };
+                setCaseDetailsById((prev) => ({ ...prev, [nextCaseId]: normalizedDetail }));
                 setExpandedSessionByCaseId((prev) => {
                     if (prev[nextCaseId] || sortedSessions.length === 0) return prev;
                     return { ...prev, [nextCaseId]: resolveSessionKey(sortedSessions[0]) };
                 });
+                return normalizedDetail;
             } catch {
                 setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: 'No fue posible cargar las sesiones de este caso.' }));
+                return null;
             } finally {
                 setCaseLoadingById((prev) => ({ ...prev, [nextCaseId]: false }));
             }
@@ -216,6 +260,12 @@ export default function SeguimientoGuardian() {
     }, [loadDashboard]);
 
     useEffect(() => {
+        if (caseId && !cases.some((item) => item.case_id === caseId)) {
+            setCaseId('');
+        }
+    }, [caseId, cases]);
+
+    useEffect(() => {
         visibleCases.forEach((item) => {
             if (item.case_id) {
                 loadCaseDetail(item.case_id).catch(() => undefined);
@@ -225,7 +275,6 @@ export default function SeguimientoGuardian() {
 
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
-    const hasVisibleCases = visibleCases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
 
     const openCreateCaseModal = () => {
@@ -239,19 +288,6 @@ export default function SeguimientoGuardian() {
         setCreateCaseModalOpen(false);
         setCreateCaseError(null);
         setCreateCaseLabel('');
-    };
-
-    const openCaseActionModal = (targetCase: QuestionnaireCaseDTO, intent: CaseActionIntent) => {
-        setCaseActionTarget(targetCase);
-        setCaseActionIntent(intent);
-        setCaseActionError(null);
-    };
-
-    const closeCaseActionModal = () => {
-        if (caseActionWorking) return;
-        setCaseActionTarget(null);
-        setCaseActionIntent(null);
-        setCaseActionError(null);
     };
 
     const handleOpenReport = (event: MouseEvent<HTMLButtonElement>, nextSessionId: string) => {
@@ -269,7 +305,7 @@ export default function SeguimientoGuardian() {
 
         setCreateCaseWorking(true);
         setCreateCaseError(null);
-        setCreateCaseNotice(null);
+        setPageNotice(null);
         try {
             const createdCase = await createQuestionnaireCaseV2({
                 private_label: createCaseLabel.trim(),
@@ -277,7 +313,7 @@ export default function SeguimientoGuardian() {
             });
             setCreateCaseModalOpen(false);
             setCreateCaseLabel('');
-            setCreateCaseNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente.`);
+            setPageNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente.`);
             await loadDashboard();
         } catch {
             setCreateCaseError('No fue posible crear el caso. Intenta nuevamente.');
@@ -286,48 +322,117 @@ export default function SeguimientoGuardian() {
         }
     };
 
-    const handleConfirmCaseAction = async () => {
-        if (!caseActionTarget?.case_id || !caseActionIntent) return;
+    const openReportModal = () => {
+        const nextMonths = Number(months || 3);
+        const defaultDates = buildInitialReportDates(nextMonths);
+        setReportPeriod((['3', '6', '12'] as string[]).includes(months) ? (months as ReportPeriodValue) : '3');
+        setReportDateFrom(defaultDates.dateFrom);
+        setReportDateTo(defaultDates.dateTo);
+        setReportCaseId(caseId);
+        setReportIncludeSessions(true);
+        setReportIncludeDomains(true);
+        setReportIncludeCharts(true);
+        setReportError(null);
+        setReportModalOpen(true);
+    };
 
-        const nextStatus = caseActionIntent === 'archive' ? 'archived' : 'active';
-        setCaseActionWorking(true);
-        setCaseActionError(null);
-        setCreateCaseNotice(null);
+    const closeReportModal = () => {
+        if (reportWorking) return;
+        setReportModalOpen(false);
+        setReportError(null);
+    };
+
+    const handleCaseStatusChange = async (nextCase: QuestionnaireCaseDTO, nextStatus: 'active' | 'archived') => {
+        setCaseStatusWorkingId(nextCase.case_id);
+        setCaseStatusActionError(null);
+        setPageNotice(null);
         try {
-            const updatedCase = await updateQuestionnaireCaseV2(caseActionTarget.case_id, { status: nextStatus });
-            setCaseDetailsById((prev) => {
-                const currentDetail = prev[caseActionTarget.case_id];
-                if (!currentDetail) return prev;
-                return {
-                    ...prev,
-                    [caseActionTarget.case_id]: {
-                        ...currentDetail,
-                        case: currentDetail.case ? { ...currentDetail.case, status: updatedCase?.status ?? nextStatus } : currentDetail.case
-                    }
-                };
-            });
-
-            if (caseId === caseActionTarget.case_id && caseActionIntent === 'archive' && caseStatusFilter === 'active') {
-                setCaseId('');
-            }
-
-            await loadDashboard();
-            setCreateCaseNotice(
-                caseActionIntent === 'archive'
-                    ? `El caso "${resolveCaseLabel(caseActionTarget)}" fue archivado correctamente.`
-                    : `El caso "${resolveCaseLabel(caseActionTarget)}" fue reactivado correctamente.`
+            await updateQuestionnaireCaseV2(nextCase.case_id, { status: nextStatus });
+            setArchiveTargetCase(null);
+            setPageNotice(
+                nextStatus === 'archived'
+                    ? `El caso "${resolveCaseLabel(nextCase)}" fue archivado correctamente.`
+                    : `El caso "${resolveCaseLabel(nextCase)}" fue reactivado correctamente.`
             );
-            closeCaseActionModal();
+            await loadDashboard();
         } catch {
-            setCaseActionError(
-                caseActionIntent === 'archive'
+            setCaseStatusActionError(
+                nextStatus === 'archived'
                     ? 'No fue posible archivar el caso. Intenta nuevamente.'
                     : 'No fue posible reactivar el caso. Intenta nuevamente.'
             );
         } finally {
-            setCaseActionWorking(false);
+            setCaseStatusWorkingId(null);
         }
     };
+
+    const handleGenerateFollowUpReport = async () => {
+        setReportWorking(true);
+        setReportError(null);
+        try {
+            const params =
+                reportPeriod === 'custom'
+                    ? {
+                        date_from: reportDateFrom || undefined,
+                        date_to: reportDateTo || undefined
+                    }
+                    : {
+                        months: Number(reportPeriod)
+                    };
+
+            if (reportPeriod === 'custom' && (!reportDateFrom || !reportDateTo)) {
+                setReportError('Selecciona un rango de fechas para el periodo personalizado.');
+                setReportWorking(false);
+                return;
+            }
+
+            const dashboardPayload = await getGuardianQuestionnaireDashboardV2({
+                ...params,
+                ...(reportCaseId ? { case_id: reportCaseId } : {})
+            });
+
+            const reportCases = reportCaseId
+                ? cases.filter((item) => item.case_id === reportCaseId)
+                : cases;
+
+            const detailIds = reportCases.map((item) => item.case_id).filter(Boolean);
+            const detailResults = await Promise.all(
+                detailIds.map(async (nextCaseId) => caseDetailsById[nextCaseId] ?? await loadCaseDetail(nextCaseId, true))
+            );
+
+            downloadGuardianFollowUpReportPdf({
+                dashboard: dashboardPayload,
+                caseDetails: detailResults.filter((item): item is QuestionnaireCaseDetailDTO => Boolean(item)),
+                options: {
+                    months: reportPeriod === 'custom' ? null : Number(reportPeriod),
+                    dateFrom: reportPeriod === 'custom' ? reportDateFrom : null,
+                    dateTo: reportPeriod === 'custom' ? reportDateTo : null,
+                    caseId: reportCaseId || null,
+                    caseLabel: reportCaseId ? resolveCaseLabel(cases.find((item) => item.case_id === reportCaseId)) : 'Todos los casos',
+                    includeRecentSessions: reportIncludeSessions,
+                    includeDomainBreakdown: reportIncludeDomains,
+                    includeCharts: reportIncludeCharts
+                }
+            });
+            setReportModalOpen(false);
+            setPageNotice('El reporte de seguimiento se descargó correctamente.');
+        } catch {
+            setReportError('No fue posible generar el reporte de seguimiento. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
+
+    const emptyTitle =
+        caseStatusFilter === 'archived'
+            ? 'No tienes casos archivados.'
+            : caseStatusFilter === 'all'
+                ? 'Aún no tienes casos creados.'
+                : 'Aún no tienes casos activos.';
+    const emptyCopy =
+        caseStatusFilter === 'archived'
+            ? 'Cuando archives un caso aparecerá aquí, junto con sus sesiones y reportes disponibles.'
+            : 'Cuando inicies un cuestionario podrás crear un caso para agrupar seguimientos.';
 
     return (
         <div className="plataforma-view">
@@ -350,17 +455,15 @@ export default function SeguimientoGuardian() {
                                     ariaLabel="Filtrar casos por periodo"
                                 />
                             </label>
-                            {cases.length > 0 ? (
-                                <label>
-                                    Estado
-                                    <CustomSelect
-                                        value={caseStatusFilter}
-                                        options={caseStatusOptions.map((option) => ({ value: option.value, label: option.label }))}
-                                        onChange={(value) => setCaseStatusFilter(value as CaseFilterStatus)}
-                                        ariaLabel="Filtrar casos por estado"
-                                    />
-                                </label>
-                            ) : null}
+                            <label>
+                                Estado
+                                <CustomSelect
+                                    value={caseStatusFilter}
+                                    options={caseStatusOptions.map((item) => ({ value: item.value, label: item.label }))}
+                                    onChange={(value) => setCaseStatusFilter(value as CaseStatusFilter)}
+                                    ariaLabel="Filtrar por estado del caso"
+                                />
+                            </label>
                             {cases.length > 0 ? (
                                 <label>
                                     Caso
@@ -373,32 +476,31 @@ export default function SeguimientoGuardian() {
                                 </label>
                             ) : null}
                         </div>
-                        <button type="button" className="seguimiento-create-btn" onClick={openCreateCaseModal}>
-                            Crear caso
-                        </button>
+                        <div className="seguimiento-header-button-row">
+                            <button type="button" className="seguimiento-inline-btn" onClick={openReportModal} disabled={loading || !hasCases}>
+                                Descargar reporte de seguimiento
+                            </button>
+                            <button type="button" className="seguimiento-create-btn" onClick={openCreateCaseModal}>
+                                Crear caso
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {createCaseNotice ? <div className="seguimiento-alert success">{createCaseNotice}</div> : null}
+                {pageNotice ? <div className="seguimiento-alert success">{pageNotice}</div> : null}
                 {error ? <div className="seguimiento-alert error">{error}</div> : null}
+                {caseStatusActionError ? <div className="seguimiento-alert error">{caseStatusActionError}</div> : null}
 
                 {loading ? <div className="seguimiento-empty">Cargando casos...</div> : null}
 
                 {!loading && !hasCases ? (
                     <div className="seguimiento-empty-card">
-                        <h2>Aún no tienes casos creados.</h2>
-                        <p>Cuando inicies un cuestionario podrás crear un caso para agrupar seguimientos.</p>
+                        <h2>{emptyTitle}</h2>
+                        <p>{emptyCopy}</p>
                     </div>
                 ) : null}
 
-                {!loading && hasCases && !hasVisibleCases ? (
-                    <div className="seguimiento-empty-card">
-                        <h2>No hay casos para este filtro.</h2>
-                        <p>Ajusta el estado o el caso seleccionado para ver otros resultados.</p>
-                    </div>
-                ) : null}
-
-                {!loading && hasVisibleCases ? (
+                {!loading && hasCases ? (
                     <>
                         <div className="seguimiento-summary-grid">
                             <article className="seguimiento-summary-card">
@@ -432,10 +534,10 @@ export default function SeguimientoGuardian() {
                                     expandedSessionByCaseId[caseItem.case_id] ?? (caseSessions[0] ? resolveSessionKey(caseSessions[0]) : '');
                                 const caseIsLoading = caseLoadingById[caseItem.case_id] === true;
                                 const caseLoadError = caseErrorById[caseItem.case_id] ?? null;
-                                const domainBreakdown = caseEntry?.domain_breakdown ?? caseDetail?.domain_summary ?? [];
+                                const domainBreakdown = resolveCaseDomainBreakdown(caseEntry, caseDetail);
                                 const showPeakProbability = hasPeakProbability(domainBreakdown);
                                 const sessionsCount = caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length;
-                                const isArchivedCase = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
+                                const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
 
                                 return (
                                     <article key={caseItem.case_id} className="seguimiento-case-card">
@@ -444,13 +546,38 @@ export default function SeguimientoGuardian() {
                                                 <h2>{resolveCaseLabel(caseItem)}</h2>
                                                 <p>{caseItem.case_public_id ?? 'Sin código público disponible'}</p>
                                             </div>
-                                            <div className="seguimiento-case-badges">
-                                                <span className="seguimiento-case-badge">
-                                                    {sessionsCount} {sessionsCount === 1 ? 'sesión' : 'sesiones'}
-                                                </span>
-                                                {isArchivedCase ? (
-                                                    <span className="seguimiento-case-badge is-archived">Archivado</span>
-                                                ) : null}
+                                            <div className="seguimiento-case-top-side">
+                                                <div className="seguimiento-case-badges">
+                                                    <span className={`seguimiento-case-badge ${isArchived ? 'is-archived' : ''}`}>
+                                                        {normalizeCaseStatus(caseItem.status)}
+                                                    </span>
+                                                    <span className="seguimiento-case-badge">
+                                                        {sessionsCount} {sessionsCount === 1 ? 'sesión' : 'sesiones'}
+                                                    </span>
+                                                </div>
+                                                <div className="seguimiento-case-actions">
+                                                    {isArchived ? (
+                                                        <button
+                                                            type="button"
+                                                            className="seguimiento-inline-btn"
+                                                            disabled={caseStatusWorkingId === caseItem.case_id}
+                                                            onClick={() => {
+                                                                handleCaseStatusChange(caseItem, 'active').catch(() => undefined);
+                                                            }}
+                                                        >
+                                                            {caseStatusWorkingId === caseItem.case_id ? 'Guardando...' : 'Reactivar caso'}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            className="seguimiento-inline-btn"
+                                                            disabled={caseStatusWorkingId === caseItem.case_id}
+                                                            onClick={() => setArchiveTargetCase(caseItem)}
+                                                        >
+                                                            Archivar caso
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -467,26 +594,6 @@ export default function SeguimientoGuardian() {
                                                 <strong>Alerta principal</strong>
                                                 <span>{normalizeAlertLevel(caseItem.latest_alert_level ?? caseEntry?.domain_breakdown?.[0]?.latest_alert_level)}</span>
                                             </div>
-                                        </div>
-
-                                        <div className="seguimiento-case-actions-row">
-                                            {isArchivedCase ? (
-                                                <button
-                                                    type="button"
-                                                    className="seguimiento-inline-btn"
-                                                    onClick={() => openCaseActionModal(caseItem, 'activate')}
-                                                >
-                                                    Reactivar caso
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    className="seguimiento-inline-btn"
-                                                    onClick={() => openCaseActionModal(caseItem, 'archive')}
-                                                >
-                                                    Archivar caso
-                                                </button>
-                                            )}
                                         </div>
 
                                         <div className="seguimiento-domain-list">
@@ -508,10 +615,20 @@ export default function SeguimientoGuardian() {
                                                             className={`seguimiento-domain-row ${showPeakProbability ? 'has-peak' : ''}`}
                                                         >
                                                             <span className="seguimiento-domain-cell heading">{normalizeDomainLabel(domain.domain)}</span>
-                                                            <span className="seguimiento-domain-cell">{formatPercent(domain.latest_probability)}</span>
+                                                            <span className="seguimiento-domain-cell">
+                                                                {typeof domain.latest_probability === 'number'
+                                                                    ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
+                                                                        domain.latest_probability <= 1 ? domain.latest_probability * 100 : domain.latest_probability
+                                                                    )} %`
+                                                                    : '--'}
+                                                            </span>
                                                             {showPeakProbability ? (
                                                                 <span className="seguimiento-domain-cell">
-                                                                    {typeof domain.max_probability === 'number' ? formatPercent(domain.max_probability) : '—'}
+                                                                    {typeof domain.max_probability === 'number'
+                                                                        ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
+                                                                            domain.max_probability <= 1 ? domain.max_probability * 100 : domain.max_probability
+                                                                        )} %`
+                                                                        : '—'}
                                                                 </span>
                                                             ) : null}
                                                             <span className="seguimiento-domain-cell">{normalizeAlertLevel(domain.latest_alert_level)}</span>
@@ -585,11 +702,17 @@ export default function SeguimientoGuardian() {
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Progreso</strong>
-                                                                                <span>{formatPercent(session.progress_percent ?? session.progress_pct)}</span>
+                                                                                <span>
+                                                                                    {typeof (session.progress_percent ?? session.progress_pct) === 'number'
+                                                                                        ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
+                                                                                            Number(session.progress_percent ?? session.progress_pct)
+                                                                                        )} %`
+                                                                                        : '--'}
+                                                                                </span>
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Revisión profesional</strong>
-                                                                                <span>{session.result?.needs_professional_review ? 'Sí' : 'No'}</span>
+                                                                                <span>{normalizeBooleanLabel(session.result?.needs_professional_review)}</span>
                                                                             </div>
                                                                         </div>
 
@@ -604,7 +727,13 @@ export default function SeguimientoGuardian() {
                                                                                 {session.domains.map((domain) => (
                                                                                     <div key={`${sessionKey}-${domain.domain}`} className="seguimiento-domain-pill">
                                                                                         <strong>{normalizeDomainLabel(domain.domain)}</strong>
-                                                                                        <span>{formatPercent(domain.probability)}</span>
+                                                                                        <span>
+                                                                                            {typeof domain.probability === 'number'
+                                                                                                ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
+                                                                                                    domain.probability <= 1 ? domain.probability * 100 : domain.probability
+                                                                                                )} %`
+                                                                                                : '--'}
+                                                                                        </span>
                                                                                         <small>{normalizeAlertLevel(domain.alert_level)}</small>
                                                                                     </div>
                                                                                 ))}
@@ -683,36 +812,101 @@ export default function SeguimientoGuardian() {
                 </div>
             </Modal>
 
-            <Modal isOpen={caseActionTarget !== null && caseActionIntent !== null} onClose={closeCaseActionModal}>
+            <Modal isOpen={archiveTargetCase !== null} onClose={() => setArchiveTargetCase(null)}>
                 <div className="seguimiento-case-modal">
-                    <h2>{caseActionIntent === 'archive' ? '¿Archivar este caso?' : '¿Reactivar este caso?'}</h2>
+                    <h2>¿Archivar este caso?</h2>
                     <p className="seguimiento-case-modal-description">
-                        {caseActionIntent === 'archive'
-                            ? 'El caso dejará de mostrarse entre los casos activos, pero sus cuestionarios y reportes no se eliminarán.'
-                            : 'El caso volverá a mostrarse entre los casos activos y conservará todos sus cuestionarios y reportes asociados.'}
+                        El caso dejará de mostrarse entre los casos activos, pero sus cuestionarios y reportes no se eliminarán.
                     </p>
-                    <p className="seguimiento-case-helper">{resolveCaseLabel(caseActionTarget)}</p>
-                    {caseActionError ? <div className="seguimiento-alert error">{caseActionError}</div> : null}
+                    {caseStatusActionError ? <div className="seguimiento-alert error">{caseStatusActionError}</div> : null}
                     <div className="seguimiento-case-actions">
                         <button
                             type="button"
                             className="seguimiento-inline-btn ghost"
-                            onClick={closeCaseActionModal}
-                            disabled={caseActionWorking}
+                            onClick={() => setArchiveTargetCase(null)}
+                            disabled={caseStatusWorkingId === archiveTargetCase?.case_id}
                         >
                             Cancelar
                         </button>
                         <button
                             type="button"
                             className="seguimiento-create-btn"
-                            onClick={() => handleConfirmCaseAction().catch(() => undefined)}
-                            disabled={caseActionWorking}
+                            disabled={caseStatusWorkingId === archiveTargetCase?.case_id}
+                            onClick={() => {
+                                if (!archiveTargetCase) return;
+                                handleCaseStatusChange(archiveTargetCase, 'archived').catch(() => undefined);
+                            }}
                         >
-                            {caseActionWorking
-                                ? 'Guardando...'
-                                : caseActionIntent === 'archive'
-                                    ? 'Archivar caso'
-                                    : 'Reactivar caso'}
+                            {caseStatusWorkingId === archiveTargetCase?.case_id ? 'Guardando...' : 'Archivar caso'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={reportModalOpen} onClose={closeReportModal}>
+                <div className="seguimiento-report-modal">
+                    <h2>Generar reporte de seguimiento</h2>
+                    <p className="seguimiento-report-copy">
+                        Configura el periodo y el alcance del reporte. El documento se generará desde los datos del seguimiento del padre o tutor sin salir de esta vista.
+                    </p>
+                    <div className="seguimiento-report-form">
+                        <label className="seguimiento-case-field">
+                            <span>Periodo</span>
+                            <CustomSelect
+                                value={reportPeriod}
+                                options={reportPeriodOptions.map((item) => ({ value: item.value, label: item.label }))}
+                                onChange={(value) => setReportPeriod(value as ReportPeriodValue)}
+                                ariaLabel="Seleccionar periodo del reporte"
+                            />
+                        </label>
+                        {reportPeriod === 'custom' ? (
+                            <>
+                                <label className="seguimiento-case-field">
+                                    <span>Fecha inicial</span>
+                                    <input type="date" value={reportDateFrom} onChange={(event) => setReportDateFrom(event.target.value)} />
+                                </label>
+                                <label className="seguimiento-case-field">
+                                    <span>Fecha final</span>
+                                    <input type="date" value={reportDateTo} onChange={(event) => setReportDateTo(event.target.value)} />
+                                </label>
+                            </>
+                        ) : null}
+                        <label className="seguimiento-case-field">
+                            <span>Caso</span>
+                            <CustomSelect
+                                value={reportCaseId}
+                                options={caseOptions}
+                                onChange={setReportCaseId}
+                                ariaLabel="Seleccionar caso del reporte"
+                            />
+                        </label>
+                    </div>
+                    <div className="seguimiento-report-toggles">
+                        <label className="seguimiento-report-toggle">
+                            <input type="checkbox" checked={reportIncludeSessions} onChange={(event) => setReportIncludeSessions(event.target.checked)} />
+                            <span>Incluir sesiones recientes</span>
+                        </label>
+                        <label className="seguimiento-report-toggle">
+                            <input type="checkbox" checked={reportIncludeDomains} onChange={(event) => setReportIncludeDomains(event.target.checked)} />
+                            <span>Incluir desglose por dominio</span>
+                        </label>
+                        <label className="seguimiento-report-toggle">
+                            <input type="checkbox" checked={reportIncludeCharts} onChange={(event) => setReportIncludeCharts(event.target.checked)} />
+                            <span>Incluir gráficas</span>
+                        </label>
+                    </div>
+                    {reportError ? <div className="seguimiento-alert error">{reportError}</div> : null}
+                    <div className="seguimiento-case-actions">
+                        <button type="button" className="seguimiento-inline-btn ghost" onClick={closeReportModal} disabled={reportWorking}>
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="seguimiento-create-btn"
+                            onClick={() => handleGenerateFollowUpReport().catch(() => undefined)}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando...' : 'Descargar reporte'}
                         </button>
                     </div>
                 </div>

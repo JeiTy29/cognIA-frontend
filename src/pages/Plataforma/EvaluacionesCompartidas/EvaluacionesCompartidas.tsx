@@ -39,6 +39,7 @@ import {
 } from '../../../utils/questionnaires/presentation';
 import { resolveAnsweredQuestionRows } from '../../../utils/questionnaires/answeredQuestions';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../../utils/reports/questionnaireAlertPdf';
+import { downloadPsychologistFollowUpReportPdf } from '../../../utils/reports/psychologistFollowUpPdf';
 import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
 
 const reviewStatusOptions: Array<{ value: QuestionnaireReviewStatus; label: string }> = [
@@ -68,9 +69,37 @@ const filterDomainOptions = [
     { value: 'depression', label: 'Depresión' }
 ];
 
+const reportPeriodOptions = [
+    { value: '3', label: '3 meses' },
+    { value: '6', label: '6 meses' },
+    { value: '12', label: '12 meses' },
+    { value: 'custom', label: 'Personalizado' }
+] as const;
+
+type ReportPeriodValue = (typeof reportPeriodOptions)[number]['value'];
+
 function buildAggregateLine(label: string, count: unknown, extra?: string) {
     const countText = Number.isFinite(Number(count)) ? String(count) : '0';
     return extra ? `${label}: ${countText} · ${extra}` : `${label}: ${countText}`;
+}
+
+function buildInitialReportDates(monthsBack: number) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - monthsBack);
+    return {
+        dateFrom: start.toISOString().slice(0, 10),
+        dateTo: end.toISOString().slice(0, 10)
+    };
+}
+
+function buildPsychologistReportPeriodLabel(period: ReportPeriodValue, dateFrom: string, dateTo: string) {
+    if (period === 'custom') {
+        const fromLabel = dateFrom ? formatDateTime(dateFrom).split(',')[0] ?? 'Fecha no disponible' : 'Fecha no disponible';
+        const toLabel = dateTo ? formatDateTime(dateTo).split(',')[0] ?? 'Fecha no disponible' : 'Fecha no disponible';
+        return `Del ${fromLabel} al ${toLabel}`;
+    }
+    return `Últimos ${period} meses`;
 }
 
 export default function EvaluacionesCompartidas() {
@@ -97,6 +126,19 @@ export default function EvaluacionesCompartidas() {
     const [detailError, setDetailError] = useState<string | null>(null);
     const [reviewWorking, setReviewWorking] = useState(false);
     const [pdfSessionId, setPdfSessionId] = useState<string | null>(null);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [reportPeriod, setReportPeriod] = useState<ReportPeriodValue>('3');
+    const [reportDateFrom, setReportDateFrom] = useState('');
+    const [reportDateTo, setReportDateTo] = useState('');
+    const [reportCasePublicId, setReportCasePublicId] = useState('');
+    const [reportDomain, setReportDomain] = useState('');
+    const [reportAlertLevel, setReportAlertLevel] = useState('');
+    const [reportReviewStatus, setReportReviewStatus] = useState('');
+    const [reportIncludeAggregates, setReportIncludeAggregates] = useState(true);
+    const [reportIncludeEvaluations, setReportIncludeEvaluations] = useState(true);
+    const [reportIncludeCharts, setReportIncludeCharts] = useState(true);
     const [reviewError, setReviewError] = useState<string | null>(null);
     const [reviewNotice, setReviewNotice] = useState<string | null>(null);
     const [reviewStatusValue, setReviewStatusValue] = useState<QuestionnaireReviewStatus>('pending');
@@ -314,6 +356,127 @@ export default function EvaluacionesCompartidas() {
         }
     };
 
+    const openReportModal = () => {
+        const currentPeriodDefaults = buildInitialReportDates(3);
+        setReportPeriod(dateFrom || dateTo ? 'custom' : '3');
+        setReportDateFrom(dateFrom || currentPeriodDefaults.dateFrom);
+        setReportDateTo(dateTo || currentPeriodDefaults.dateTo);
+        setReportCasePublicId(casePublicId);
+        setReportDomain(domain);
+        setReportAlertLevel(alertLevel);
+        setReportReviewStatus(reviewStatus);
+        setReportIncludeAggregates(true);
+        setReportIncludeEvaluations(true);
+        setReportIncludeCharts(true);
+        setReportError(null);
+        setReportModalOpen(true);
+    };
+
+    const closeReportModal = () => {
+        if (reportWorking) return;
+        setReportModalOpen(false);
+        setReportError(null);
+    };
+
+    const loadDashboardForReport = useCallback(async () => {
+        const resolvedDates =
+            reportPeriod === 'custom'
+                ? {
+                    from: reportDateFrom || undefined,
+                    to: reportDateTo || undefined
+                }
+                : (() => {
+                    const defaults = buildInitialReportDates(Number(reportPeriod));
+                    return {
+                        from: defaults.dateFrom,
+                        to: defaults.dateTo
+                    };
+                })();
+
+        const baseParams = {
+            q: query || undefined,
+            case_public_id: reportCasePublicId || undefined,
+            date_from: resolvedDates.from,
+            date_to: resolvedDates.to,
+            domain: reportDomain || undefined,
+            alert_level: reportAlertLevel || undefined,
+            review_status: reportReviewStatus || undefined
+        };
+
+        const firstPage = await getPsychologistQuestionnaireDashboardV2({
+            ...baseParams,
+            page: 1,
+            page_size: 100
+        });
+
+        const totalPages = Math.max(1, Number(firstPage.pagination?.pages ?? 1));
+        if (totalPages === 1) {
+            return firstPage;
+        }
+
+        const otherPages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) =>
+                getPsychologistQuestionnaireDashboardV2({
+                    ...baseParams,
+                    page: index + 2,
+                    page_size: 100
+                })
+            )
+        );
+
+        return {
+            ...firstPage,
+            items: [firstPage, ...otherPages].flatMap((page) => page.items ?? []),
+            pagination: {
+                ...firstPage.pagination,
+                page: 1,
+                page_size: 100,
+                pages: totalPages
+            }
+        };
+    }, [
+        query,
+        reportAlertLevel,
+        reportCasePublicId,
+        reportDateFrom,
+        reportDateTo,
+        reportDomain,
+        reportPeriod,
+        reportReviewStatus,
+    ]);
+
+    const handleGenerateProfessionalReport = async () => {
+        if (reportPeriod === 'custom' && (!reportDateFrom || !reportDateTo)) {
+            setReportError('Selecciona un rango de fechas para el periodo personalizado.');
+            return;
+        }
+
+        setReportWorking(true);
+        setReportError(null);
+        try {
+            const reportDashboard = await loadDashboardForReport();
+            downloadPsychologistFollowUpReportPdf({
+                dashboard: reportDashboard,
+                options: {
+                    periodLabel: buildPsychologistReportPeriodLabel(reportPeriod, reportDateFrom, reportDateTo),
+                    casePublicId: reportCasePublicId || null,
+                    domain: reportDomain || null,
+                    alertLevel: reportAlertLevel || null,
+                    reviewStatus: reportReviewStatus || null,
+                    includeAggregates: reportIncludeAggregates,
+                    includeEvaluations: reportIncludeEvaluations,
+                    includeCharts: reportIncludeCharts
+                }
+            });
+            setReportModalOpen(false);
+            setError(null);
+        } catch {
+            setReportError('No fue posible generar el reporte de seguimiento profesional. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
+
     const summary = dashboard?.summary ?? null;
     const items = dashboard?.items ?? [];
     const emptyState = !loading && items.length === 0;
@@ -328,9 +491,14 @@ export default function EvaluacionesCompartidas() {
                             Revisa evaluaciones compartidas contigo y registra observaciones profesionales orientativas sin convertirlas en diagnóstico.
                         </p>
                     </div>
-                    <button type="button" className="evaluaciones-refresh" onClick={() => loadDashboard().catch(() => undefined)}>
-                        Actualizar
-                    </button>
+                    <div className="evaluaciones-header-actions">
+                        <button type="button" className="evaluaciones-refresh" onClick={openReportModal}>
+                            Descargar reporte de seguimiento
+                        </button>
+                        <button type="button" className="evaluaciones-refresh" onClick={() => loadDashboard().catch(() => undefined)}>
+                            Actualizar
+                        </button>
+                    </div>
                 </div>
 
                 <div className="evaluaciones-filters">
@@ -519,7 +687,12 @@ export default function EvaluacionesCompartidas() {
                                                 <strong>{normalizeReviewStatus(review.review_status)}</strong>
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
-                                                <small>{review.visible_to_guardian ? 'Visible para padre/tutor' : 'Solo visible para profesional'}</small>
+                                                <small>
+                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} · Estado de revisión: {normalizeReviewStatus(review.review_status)}
+                                                </small>
+                                                <small>
+                                                    Actualizada: {formatDateTime(review.updated_at)} · {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
+                                                </small>
                                             </article>
                                         ))}
                                     </div>
@@ -565,6 +738,110 @@ export default function EvaluacionesCompartidas() {
                             )}
                         </>
                     ) : null}
+                </div>
+            </Modal>
+
+            <Modal isOpen={reportModalOpen} onClose={closeReportModal}>
+                <div className="evaluaciones-detail-modal">
+                    <h2>Generar reporte profesional</h2>
+                    <p className="evaluaciones-detail-copy">
+                        Configura el alcance del reporte. El documento se generará desde las evaluaciones aceptadas visibles en tu dashboard, sin mezclar solicitudes pendientes como evaluaciones activas.
+                    </p>
+
+                    <div className="evaluaciones-report-form">
+                        <label className="evaluaciones-field">
+                            <span>Periodo</span>
+                            <select value={reportPeriod} onChange={(event) => setReportPeriod(event.target.value as ReportPeriodValue)}>
+                                {reportPeriodOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        {reportPeriod === 'custom' ? (
+                            <>
+                                <label className="evaluaciones-field">
+                                    <span>Fecha inicial</span>
+                                    <input type="date" value={reportDateFrom} onChange={(event) => setReportDateFrom(event.target.value)} />
+                                </label>
+                                <label className="evaluaciones-field">
+                                    <span>Fecha final</span>
+                                    <input type="date" value={reportDateTo} onChange={(event) => setReportDateTo(event.target.value)} />
+                                </label>
+                            </>
+                        ) : null}
+
+                        <label className="evaluaciones-field">
+                            <span>Caso público</span>
+                            <input
+                                type="text"
+                                value={reportCasePublicId}
+                                placeholder="Todos los casos"
+                                onChange={(event) => setReportCasePublicId(event.target.value)}
+                            />
+                        </label>
+
+                        <label className="evaluaciones-field">
+                            <span>Dominio</span>
+                            <select value={reportDomain} onChange={(event) => setReportDomain(event.target.value)}>
+                                {filterDomainOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="evaluaciones-field">
+                            <span>Nivel de alerta</span>
+                            <select value={reportAlertLevel} onChange={(event) => setReportAlertLevel(event.target.value)}>
+                                {filterAlertOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="evaluaciones-field">
+                            <span>Estado de revisión</span>
+                            <select value={reportReviewStatus} onChange={(event) => setReportReviewStatus(event.target.value)}>
+                                {filterReviewStatusOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+
+                    <div className="evaluaciones-report-toggles">
+                        <label className="evaluaciones-checkbox">
+                            <input type="checkbox" checked={reportIncludeAggregates} onChange={(event) => setReportIncludeAggregates(event.target.checked)} />
+                            <span>Incluir agregados y distribuciones</span>
+                        </label>
+                        <label className="evaluaciones-checkbox">
+                            <input type="checkbox" checked={reportIncludeEvaluations} onChange={(event) => setReportIncludeEvaluations(event.target.checked)} />
+                            <span>Incluir listado de evaluaciones</span>
+                        </label>
+                        <label className="evaluaciones-checkbox">
+                            <input type="checkbox" checked={reportIncludeCharts} onChange={(event) => setReportIncludeCharts(event.target.checked)} />
+                            <span>Incluir gráficas</span>
+                        </label>
+                    </div>
+
+                    {reportError ? <div className="evaluaciones-alert error">{reportError}</div> : null}
+
+                    <div className="evaluaciones-detail-actions">
+                        <button type="button" onClick={closeReportModal} disabled={reportWorking}>
+                            Cancelar
+                        </button>
+                        <button type="button" onClick={() => { handleGenerateProfessionalReport().catch(() => undefined); }} disabled={reportWorking}>
+                            {reportWorking ? 'Generando...' : 'Descargar reporte'}
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </div>

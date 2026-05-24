@@ -12,6 +12,13 @@
     align-items: flex-start;
 }
 
+.evaluaciones-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .evaluaciones-header h1 {
     margin: 0 0 8px;
     font-size: 30px;
@@ -61,6 +68,16 @@
 .evaluaciones-field textarea {
     min-height: 110px;
     resize: vertical;
+}
+
+.evaluaciones-report-form,
+.evaluaciones-report-toggles {
+    display: grid;
+    gap: 12px;
+}
+
+.evaluaciones-report-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .evaluaciones-alert,
@@ -279,6 +296,10 @@
     .evaluaciones-aggregates {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .evaluaciones-report-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 860px) {
@@ -291,7 +312,8 @@
     .evaluaciones-filters,
     .evaluaciones-summary-grid,
     .evaluaciones-aggregates,
-    .evaluaciones-detail-grid {
+    .evaluaciones-detail-grid,
+    .evaluaciones-report-form {
         grid-template-columns: 1fr;
     }
 }
