@@ -572,71 +572,12 @@ export default function MiCuenta() {
                             onClick={() => {
                                 setProfileSaveError(null);
                                 setProfileSaveNotice(null);
-                                setIsEditingProfile((prev) => !prev);
+                                setIsEditingProfile(true);
                             }}
                         >
-                            {isEditingProfile ? 'Cerrar edición' : 'Editar perfil'}
+                            Editar perfil
                         </button>
                     </div>
-                    {isEditingProfile ? (
-                        <form className="mi-cuenta-form mi-cuenta-profile-form" onSubmit={handleProfileSave}>
-                            <label className="mi-cuenta-input-group">
-                                <span className="mi-cuenta-input-label">Nombre completo</span>
-                                <input
-                                    className="mi-cuenta-input"
-                                    value={profileForm.fullName}
-                                    disabled={profileSaving}
-                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                                />
-                            </label>
-                            <label className="mi-cuenta-input-group">
-                                <span className="mi-cuenta-input-label">Nombre de usuario</span>
-                                <input
-                                    className="mi-cuenta-input"
-                                    value={profileForm.username}
-                                    disabled={profileSaving}
-                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, username: event.target.value }))}
-                                />
-                            </label>
-                            <label className="mi-cuenta-input-group">
-                                <span className="mi-cuenta-input-label">Correo</span>
-                                <input
-                                    className="mi-cuenta-input"
-                                    type="email"
-                                    value={profileForm.email}
-                                    disabled={profileSaving}
-                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
-                                />
-                            </label>
-                            <ColombiaLocationSelect
-                                value={{ department: profileForm.department, city: profileForm.city }}
-                                onChange={(nextValue) => setProfileForm((prev) => ({
-                                    ...prev,
-                                    department: nextValue.department,
-                                    city: nextValue.city
-                                }))}
-                                disabled={profileSaving}
-                                required
-                            />
-                            {profileSaveError ? <div className="mi-cuenta-error">{profileSaveError}</div> : null}
-                            <div className="mi-cuenta-actions">
-                                <button
-                                    type="button"
-                                    className="mi-cuenta-btn ghost"
-                                    disabled={profileSaving}
-                                    onClick={() => {
-                                        setIsEditingProfile(false);
-                                        setProfileSaveError(null);
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button type="submit" className="mi-cuenta-btn primary" disabled={profileSaving}>
-                                    {profileSaving ? 'Guardando...' : 'Guardar cambios'}
-                                </button>
-                            </div>
-                        </form>
-                    ) : null}
                 </section>
 
                 <section className="info-card mi-cuenta-section">
@@ -803,6 +744,79 @@ export default function MiCuenta() {
                             reloadProfile().catch(() => undefined);
                         }}
                     />
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isEditingProfile}
+                onClose={() => {
+                    if (profileSaving) return;
+                    setIsEditingProfile(false);
+                    setProfileSaveError(null);
+                }}
+            >
+                <div className="mi-cuenta-modal mi-cuenta-profile-modal" aria-labelledby="profile-edit-title">
+                    <h2 className="mi-cuenta-section-title" id="profile-edit-title">Editar perfil</h2>
+                    <p className="mi-cuenta-section-note mi-cuenta-modal-note">
+                        Actualiza tus datos personales y tu ubicación registrada.
+                    </p>
+                    <form className="mi-cuenta-form mi-cuenta-profile-form" onSubmit={handleProfileSave}>
+                        <label className="mi-cuenta-input-group">
+                            <span className="mi-cuenta-input-label">Nombre completo</span>
+                            <input
+                                className="mi-cuenta-input"
+                                value={profileForm.fullName}
+                                disabled={profileSaving}
+                                onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                            />
+                        </label>
+                        <label className="mi-cuenta-input-group">
+                            <span className="mi-cuenta-input-label">Nombre de usuario</span>
+                            <input
+                                className="mi-cuenta-input"
+                                value={profileForm.username}
+                                disabled={profileSaving}
+                                onChange={(event) => setProfileForm((prev) => ({ ...prev, username: event.target.value }))}
+                            />
+                        </label>
+                        <label className="mi-cuenta-input-group">
+                            <span className="mi-cuenta-input-label">Correo</span>
+                            <input
+                                className="mi-cuenta-input"
+                                type="email"
+                                value={profileForm.email}
+                                disabled={profileSaving}
+                                onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
+                            />
+                        </label>
+                        <ColombiaLocationSelect
+                            value={{ department: profileForm.department, city: profileForm.city }}
+                            onChange={(nextValue) => setProfileForm((prev) => ({
+                                ...prev,
+                                department: nextValue.department,
+                                city: nextValue.city
+                            }))}
+                            disabled={profileSaving}
+                            required
+                        />
+                        {profileSaveError ? <div className="mi-cuenta-error">{profileSaveError}</div> : null}
+                        <div className="mi-cuenta-actions">
+                            <button
+                                type="button"
+                                className="mi-cuenta-btn ghost"
+                                disabled={profileSaving}
+                                onClick={() => {
+                                    setIsEditingProfile(false);
+                                    setProfileSaveError(null);
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button type="submit" className="mi-cuenta-btn primary" disabled={profileSaving}>
+                                {profileSaving ? 'Guardando...' : 'Guardar cambios'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </Modal>
 

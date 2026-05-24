@@ -20,7 +20,9 @@ import {
 import type {
     PsychologistDashboardDTO,
     PsychologistDashboardItemDTO,
+    QuestionnaireHistoryDetailV2DTO,
     QuestionnaireProfessionalReviewDTO,
+    QuestionnaireQuestionV2DTO,
     QuestionnaireReportPreviewDTO,
     QuestionnaireReviewStatus
 } from '../../../services/questionnaires/questionnaires.types';
@@ -29,10 +31,12 @@ import {
     formatPercent,
     normalizeAlertLevel,
     normalizeBackendText,
+    normalizeBooleanLabel,
     normalizeDomainLabel,
     normalizeReviewStatus,
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
+import { resolveAnsweredQuestionRows } from '../../../utils/questionnaires/answeredQuestions';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../../utils/reports/questionnaireAlertPdf';
 import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
 
@@ -84,6 +88,8 @@ export default function EvaluacionesCompartidas() {
     const [activeSession, setActiveSession] = useState<PsychologistDashboardItemDTO | null>(null);
     const [preview, setPreview] = useState<QuestionnaireReportPreviewDTO | null>(null);
     const [reviews, setReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
+    const [detailSession, setDetailSession] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
+    const [detailQuestions, setDetailQuestions] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [reviewWorking, setReviewWorking] = useState(false);
@@ -138,19 +144,25 @@ export default function EvaluacionesCompartidas() {
         setReviewError(null);
         setReviewNotice(null);
         try {
-            const [previewResponse, reviewsResponse] = await Promise.allSettled([
+            const [previewResponse, reviewsResponse, detailResponse, questionsResponse] = await Promise.allSettled([
                 getQuestionnaireReportPreviewV2(item.session_id),
-                getQuestionnaireProfessionalReviewsV2(item.session_id)
+                getQuestionnaireProfessionalReviewsV2(item.session_id),
+                getQuestionnaireHistoryDetailV2(item.session_id),
+                getAllQuestionnaireSessionQuestionsV2(item.session_id)
             ]);
             const nextPreview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
             const nextReviews = reviewsResponse.status === 'fulfilled'
                 ? reviewsResponse.value
                 : (nextPreview?.professional_reviews ?? []);
+            const nextDetail = detailResponse.status === 'fulfilled' ? detailResponse.value : null;
+            const nextQuestions = questionsResponse.status === 'fulfilled' ? questionsResponse.value : [];
             if (!nextPreview) {
                 throw new Error('preview_unavailable');
             }
             setPreview(nextPreview);
             setReviews(nextReviews);
+            setDetailSession(nextDetail);
+            setDetailQuestions(Array.isArray(nextQuestions) ? nextQuestions : []);
             const ownReview = currentUserId
                 ? nextReviews.find((review) => review.psychologist_user_id === currentUserId)
                 : null;
@@ -161,6 +173,8 @@ export default function EvaluacionesCompartidas() {
         } catch {
             setPreview(null);
             setReviews([]);
+            setDetailSession(null);
+            setDetailQuestions([]);
             setDetailError('No fue posible cargar el detalle de esta evaluación. Intenta nuevamente.');
         } finally {
             setDetailLoading(false);
@@ -171,6 +185,8 @@ export default function EvaluacionesCompartidas() {
         setActiveSession(null);
         setPreview(null);
         setReviews([]);
+        setDetailSession(null);
+        setDetailQuestions([]);
         setDetailLoading(false);
         setDetailError(null);
         setReviewError(null);
@@ -184,6 +200,15 @@ export default function EvaluacionesCompartidas() {
     const ownReview = useMemo(
         () => (currentUserId ? reviews.find((review) => review.psychologist_user_id === currentUserId) ?? null : null),
         [currentUserId, reviews]
+    );
+    const answeredQuestionRows = useMemo(
+        () =>
+            resolveAnsweredQuestionRows({
+                reportPreview: preview,
+                sessionQuestions: detailQuestions,
+                sessionDetail: detailSession
+            }),
+        [detailQuestions, detailSession, preview]
     );
 
     const canSaveReview = useMemo(() => {
@@ -384,7 +409,7 @@ export default function EvaluacionesCompartidas() {
                                     </div>
                                     <div>
                                         <strong>Revisión profesional</strong>
-                                        <span>{item.needs_professional_review ? 'Sí' : 'No'}</span>
+                                        <span>{normalizeBooleanLabel(item.needs_professional_review)}</span>
                                     </div>
                                 </div>
 
@@ -457,13 +482,13 @@ export default function EvaluacionesCompartidas() {
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Respuestas registradas</h3>
-                                {(preview.answers ?? []).length > 0 ? (
+                                {answeredQuestionRows.length > 0 ? (
                                     <div className="evaluaciones-answer-list">
-                                        {preview.answers.map((answer, index) => (
-                                            <div key={`${answer.question_id ?? answer.question_code ?? index}`} className="evaluaciones-answer-row">
-                                                <strong>{normalizeBackendText(answer.prompt, 'Pregunta no disponible')}</strong>
-                                                <span>{normalizeBackendText(answer.normalized_answer ?? answer.raw_answer_display, '--')}</span>
-                                                <small>{normalizeDomainLabel(answer.domain)} · {normalizeBackendText(answer.section_title, 'General')}</small>
+                                        {answeredQuestionRows.map((answer) => (
+                                            <div key={answer.key} className="evaluaciones-answer-row">
+                                                <strong>{answer.questionText}</strong>
+                                                <span>{answer.answerLabel}</span>
+                                                <small>{answer.domainLabel} · {answer.sectionLabel}</small>
                                             </div>
                                         ))}
                                     </div>

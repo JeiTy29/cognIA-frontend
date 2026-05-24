@@ -166,6 +166,17 @@
     margin-bottom: 16px;
 }
 
+.register-location-section {
+    margin-top: 16px;
+    margin-bottom: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.register-location-section .colombia-location-select {
+    gap: 14px;
+}
+
 /* Forms layout */
 .form-row {
     display: grid;

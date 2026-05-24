@@ -2,7 +2,45 @@ function readText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
+function isUrlLike(value: string) {
+    return /^https?:\/\//i.test(value);
+}
+
+function titleCaseWords(value: string) {
+    return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 const BACKEND_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
+    [/Ã¡/g, 'á'],
+    [/Ã©/g, 'é'],
+    [/Ã­/g, 'í'],
+    [/Ã³/g, 'ó'],
+    [/Ãº/g, 'ú'],
+    [/Ã/g, 'Á'],
+    [/Ã‰/g, 'É'],
+    [/Ã/g, 'Í'],
+    [/Ã“/g, 'Ó'],
+    [/Ãš/g, 'Ú'],
+    [/Ã±/g, 'ñ'],
+    [/Ã‘/g, 'Ñ'],
+    [/Â¿/g, '¿'],
+    [/Â¡/g, '¡'],
+    [/Â·/g, '·'],
+    [/â€“/g, '–'],
+    [/â€”/g, '—'],
+    [/â€¦/g, '…'],
+    [/â€¢/g, '•'],
+    [/â€œ|â€/g, '"'],
+    [/â€˜|â€™/g, '\''],
+    [/psic\?logo/gi, 'psicólogo'],
+    [/ubicaci\?n/gi, 'ubicación'],
+    [/revisi\?n/gi, 'revisión'],
+    [/evaluaci\?n/gi, 'evaluación'],
+    [/informaci\?n/gi, 'información'],
+    [/sesi\?n/gi, 'sesión'],
+    [/contrase\?a/gi, 'contraseña'],
+    [/aprobaci\?n/gi, 'aprobación'],
+    [/notificaci\?n/gi, 'notificación'],
     [/diagnostico/gi, 'diagnóstico'],
     [/clinico/gi, 'clínico'],
     [/evaluacion/gi, 'evaluación'],
@@ -76,17 +114,51 @@ const REQUEST_STATUS_LABELS: Record<string, string> = {
     rejected: 'Rechazada'
 };
 
+const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+    questionnaire_share_requested: 'Nueva solicitud de revisión',
+    questionnaire_share_accepted: 'Solicitud aceptada',
+    questionnaire_share_rejected: 'Solicitud rechazada',
+    professional_review_created: 'Nueva revisión profesional',
+    professional_review_updated: 'Revisión profesional actualizada'
+};
+
 function formatFallbackLabel(value: string) {
     return normalizeBackendText(
-        value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+        titleCaseWords(value.replace(/[_-]+/g, ' ')),
         '--'
     );
 }
 
-export function normalizeBackendText(value: unknown, fallback = '--') {
-    const raw = readText(value);
+function normalizeKnownWords(value: string) {
+    return BACKEND_TEXT_REPLACEMENTS.reduce(
+        (current, [pattern, replacement]) => current.replace(pattern, replacement),
+        value
+    );
+}
+
+export function normalizeBooleanLabel(value: unknown, fallback = '--') {
+    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    const raw = readText(value).toLowerCase();
     if (!raw) return fallback;
-    return BACKEND_TEXT_REPLACEMENTS.reduce((current, [pattern, replacement]) => current.replace(pattern, replacement), raw);
+    if (raw === 'true') return 'Sí';
+    if (raw === 'false') return 'No';
+    return fallback;
+}
+
+export function normalizeBackendText(value: unknown, fallback = '--') {
+    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    const raw = readText(value);
+    if (!raw || raw === 'null' || raw === 'undefined' || raw === 'NaN' || raw === '[object Object]') {
+        return fallback;
+    }
+
+    if (isUrlLike(raw)) return raw;
+
+    const normalized = normalizeKnownWords(raw)
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return normalized || fallback;
 }
 
 export function normalizeDomainLabel(value: unknown) {
@@ -132,6 +204,12 @@ export function normalizeQuestionnaireMode(value: unknown) {
 }
 
 export const normalizeModeLabel = normalizeQuestionnaireMode;
+
+export function normalizeNotificationType(value: unknown) {
+    const raw = readText(value).toLowerCase();
+    if (!raw) return 'Notificación';
+    return NOTIFICATION_TYPE_LABELS[raw] ?? formatFallbackLabel(raw);
+}
 
 export function formatPercent(value: unknown, maximumFractionDigits = 1) {
     const numeric = Number(value);

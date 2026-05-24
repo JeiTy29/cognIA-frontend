@@ -110,7 +110,7 @@ export default function SolicitudesRevisionPsicologo() {
                 await rejectPsychologistShareRequestV2(selectedRequest.grant_id, { message: actionMessage.trim() || undefined });
                 setNotice('Solicitud rechazada.');
             }
-            emitNotificationsRefresh();
+            emitNotificationsRefresh({ removeGrantIds: [selectedRequest.grant_id] });
             handleCloseAction();
             await loadRequests();
         } catch {

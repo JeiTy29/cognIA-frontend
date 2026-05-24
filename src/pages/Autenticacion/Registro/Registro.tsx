@@ -507,14 +507,16 @@ export default function Registro() {
                                                 required
                                             />
                                         </div>
-                                        <ColombiaLocationSelect
-                                            value={{ department, city }}
-                                            onChange={(nextValue) => {
-                                                setDepartment(nextValue.department);
-                                                setCity(nextValue.city);
-                                            }}
-                                            required
-                                        />
+                                        <div className="register-location-section">
+                                            <ColombiaLocationSelect
+                                                value={{ department, city }}
+                                                onChange={(nextValue) => {
+                                                    setDepartment(nextValue.department);
+                                                    setCity(nextValue.city);
+                                                }}
+                                                required
+                                            />
+                                        </div>
                                     </>
                                 )
                                 : renderRegistrationForm(
@@ -552,14 +554,16 @@ export default function Registro() {
                                                 required
                                             />
                                         </div>
-                                        <ColombiaLocationSelect
-                                            value={{ department, city }}
-                                            onChange={(nextValue) => {
-                                                setDepartment(nextValue.department);
-                                                setCity(nextValue.city);
-                                            }}
-                                            required
-                                        />
+                                        <div className="register-location-section">
+                                            <ColombiaLocationSelect
+                                                value={{ department, city }}
+                                                onChange={(nextValue) => {
+                                                    setDepartment(nextValue.department);
+                                                    setCity(nextValue.city);
+                                                }}
+                                                required
+                                            />
+                                        </div>
                                         <div className="form-group">
                                             <input
                                                 type="text"

@@ -412,12 +412,30 @@
 
 .historial-v2-share-search-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 120px;
-    gap: 10px;
+    grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) 120px;
+    gap: 12px;
+    align-items: end;
+}
+
+.historial-v2-share-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.historial-v2-share-field span,
+.historial-v2-share-location .colombia-location-select__field > span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #52677a;
+}
+
+.historial-v2-share-search-grid input,
+.historial-v2-share-search-grid .historial-v2-btn {
+    min-height: 42px;
 }
 
 .historial-v2-share-search-grid input {
-    min-height: 42px;
     border-radius: 10px;
     border: 1px solid rgba(33, 95, 143, 0.22);
     padding: 9px 12px;
@@ -428,7 +446,17 @@
     min-width: 0;
 }
 
+.historial-v2-share-button-wrap {
+    display: flex;
+    align-items: end;
+}
+
+.historial-v2-share-button-wrap .historial-v2-btn {
+    width: 100%;
+}
+
 .historial-v2-inline-toggle {
+    grid-column: 1 / -1;
     min-height: 42px;
     display: inline-flex;
     align-items: center;

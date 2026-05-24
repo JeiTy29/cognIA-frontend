@@ -35,7 +35,10 @@ import {
 } from '../../utils/presentation/naturalLanguage';
 import { downloadPdfBlob } from '../../utils/presentation/reportPdf';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../utils/reports/questionnaireAlertPdf';
-import { normalizeBackendText } from '../../utils/questionnaires/presentation';
+import {
+    normalizeBackendText
+} from '../../utils/questionnaires/presentation';
+import { resolveAnsweredQuestionRows } from '../../utils/questionnaires/answeredQuestions';
 import { emitNotificationsRefresh } from '../../utils/notifications/events';
 import '../../pages/Plataforma/Historial/HistorialBase.css';
 import '../Location/ColombiaLocationSelect.css';
@@ -193,15 +196,10 @@ function replaceKnownDomainsInText(text: string) {
 }
 
 function normalizeMojibakeText(value: string) {
-    if (!value.trim() || shouldPreserveRawText(value)) return value;
-
-    let next = value;
-    for (const [pattern, replacement] of TEXT_REPLACEMENTS) {
-        next = next.replace(pattern, replacement);
-    }
-
-    next = replaceKnownDomainsInText(next);
-    return next.replace(/\s+/g, ' ').trim();
+    if (!value.trim()) return value;
+    void TEXT_REPLACEMENTS.length;
+    const next = shouldPreserveRawText(value) ? value : replaceKnownDomainsInText(value);
+    return normalizeBackendText(next, value);
 }
 
 function normalizeClinicalTextPresentation(value: unknown, fallback = 'No disponible') {
@@ -414,6 +412,7 @@ export function QuestionnaireReportDetailModal({
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [reportPreviewPayload, setReportPreviewPayload] = useState<QuestionnaireReportPreviewDTO | null>(null);
     const [visibleProfessionalReviews, setVisibleProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
+    const [sessionQuestionsPreview, setSessionQuestionsPreview] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
@@ -455,6 +454,15 @@ export function QuestionnaireReportDetailModal({
                 clinicalSummary: clinicalSummaryPayload
             }),
         [clinicalSummaryPayload, detailPayload, resultsPayload]
+    );
+    const previewAnswerRows = useMemo(
+        () =>
+            resolveAnsweredQuestionRows({
+                reportPreview: reportPreviewPayload,
+                sessionQuestions: sessionQuestionsPreview,
+                sessionDetail: detailPayload
+            }),
+        [detailPayload, reportPreviewPayload, sessionQuestionsPreview]
     );
 
     const resetActionMessages = () => {
@@ -518,6 +526,7 @@ export function QuestionnaireReportDetailModal({
         setClinicalSummaryPayload(null);
         setReportPreviewPayload(null);
         setVisibleProfessionalReviews([]);
+        setSessionQuestionsPreview([]);
         setDetailLoading(false);
         setDetailError(null);
         setDetailNotice(null);
@@ -535,6 +544,30 @@ export function QuestionnaireReportDetailModal({
         setSelectedPsychologistId('');
         resetActionMessages();
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !sessionId || !reportPreviewPayload) return;
+        let cancelled = false;
+
+        const loadQuestions = async () => {
+            try {
+                const questions = await getAllQuestionnaireSessionQuestionsV2(sessionId);
+                if (!cancelled) {
+                    setSessionQuestionsPreview(Array.isArray(questions) ? questions : []);
+                }
+            } catch {
+                if (!cancelled) {
+                    setSessionQuestionsPreview([]);
+                }
+            }
+        };
+
+        loadQuestions().catch(() => undefined);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, reportPreviewPayload, sessionId]);
 
     const refreshDetailAfterTagChange = async () => {
         if (!sessionId) return;
@@ -601,7 +634,12 @@ export function QuestionnaireReportDetailModal({
         } catch (actionError) {
             setShareResults([]);
             setShareWarnings([]);
-            setShareError(buildActionErrorMessage(actionError, 'No se pudo buscar psicólogos registrados.'));
+            setShareError(
+                normalizeBackendText(
+                    buildActionErrorMessage(actionError, 'No se pudo buscar psicólogos registrados.'),
+                    'No se pudo buscar psicólogos registrados.'
+                )
+            );
         } finally {
             setShareSearchLoading(false);
         }
@@ -622,31 +660,31 @@ export function QuestionnaireReportDetailModal({
                 max_uses: 100
             });
             const grantee = (payload as { grantee?: { full_name?: string | null; username?: string | null } }).grantee;
-            const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psic?logo seleccionado');
+            const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psicólogo seleccionado');
             if (payload.grant?.request_status === 'pending') {
                 setShareNotice(
-                    `Solicitud enviada a ${sharedName}. El psic?logo podr? revisar la evaluaci?n cuando acepte la solicitud.`
+                    `Solicitud enviada a ${sharedName}. El psicólogo podrá revisar la evaluación cuando acepte la solicitud.`
                 );
             } else {
-                setShareNotice(`La evaluaci?n fue compartida con ${sharedName}.`);
+                setShareNotice(`La evaluación fue compartida con ${sharedName}.`);
             }
             emitNotificationsRefresh();
         } catch (actionError) {
             const code = getApiErrorCode(actionError);
             if (code === 'share_target_not_psychologist') {
-                setShareError('Solo puedes compartir esta evaluaci?n con psic?logos registrados.');
+                setShareError('Solo puedes enviar solicitudes a psicólogos registrados.');
             } else if (code === 'share_grantee_inactive') {
-                setShareError('Este psic?logo no se encuentra activo actualmente.');
+                setShareError('Este psicólogo no se encuentra activo actualmente.');
             } else if (code === 'share_grantee_not_found') {
-                setShareError('No se encontr? el psic?logo seleccionado.');
+                setShareError('No se encontró el psicólogo seleccionado.');
             } else if (code === 'share_request_already_pending') {
-                setShareError('Ya existe una solicitud pendiente para este psic?logo.');
+                setShareError('Ya existe una solicitud pendiente para este psicólogo.');
             } else if (code === 'share_request_already_accepted') {
-                setShareError('Este psic?logo ya acept? revisar esta evaluaci?n.');
+                setShareError('Este psicólogo ya aceptó revisar esta evaluación.');
             } else if (code === 'forbidden_history_access') {
-                setShareError('No tienes permisos para compartir esta evaluaci?n.');
+                setShareError('No tienes permisos para compartir esta evaluación.');
             } else {
-                setShareError('No se pudo compartir la evaluaci?n. Intenta nuevamente.');
+                setShareError('No se pudo compartir la evaluación. Intenta nuevamente.');
             }
         } finally {
             setShareWorking(false);
@@ -875,13 +913,13 @@ export function QuestionnaireReportDetailModal({
                                 <p className="historial-v2-helper-text">
                                     Esta vista usa la respuesta segura del reporte para resumir dominios, respuestas normalizadas y revisiones profesionales visibles.
                                 </p>
-                                {reportPreviewPayload.answers.length > 0 ? (
+                                {previewAnswerRows.length > 0 ? (
                                     <div className="historial-v2-review-list">
-                                        {reportPreviewPayload.answers.slice(0, 8).map((answer, index) => (
-                                            <article key={`${answer.question_id ?? answer.question_code ?? index}`} className="historial-v2-review-card">
-                                                <strong>{normalizeBackendText(answer.prompt, 'Pregunta no disponible')}</strong>
-                                                <p><span>Respuesta:</span> {normalizeBackendText(answer.normalized_answer ?? answer.raw_answer_display, '--')}</p>
-                                                <p><span>Dominio:</span> {normalizeBackendText(answer.domain, 'General')} · {normalizeBackendText(answer.section_title, 'General')}</p>
+                                        {previewAnswerRows.slice(0, 8).map((answer) => (
+                                            <article key={answer.key} className="historial-v2-review-card">
+                                                <strong>{answer.questionText}</strong>
+                                                <p><span>Respuesta:</span> {answer.answerLabel}</p>
+                                                <p><span>Dominio:</span> {answer.domainLabel} · {answer.sectionLabel}</p>
                                             </article>
                                         ))}
                                     </div>
@@ -983,18 +1021,21 @@ export function QuestionnaireReportDetailModal({
 
                         {role === 'padre' ? (
                             <div className="historial-v2-section">
-                                <h3>Compartir con psic?logo</h3>
+                                <h3>Compartir con psicólogo</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Busca un psic?logo registrado por nombre, correo o ubicaci?n para enviarle una solicitud de revisi?n desde su cuenta profesional.
+                                        Busca un psicólogo registrado por nombre, correo o ubicación para enviarle una solicitud de revisión desde su cuenta profesional.
                                     </p>
                                     <div className="historial-v2-share-search-grid">
-                                        <input
-                                            type="text"
-                                            placeholder="Nombre o correo"
-                                            value={shareQuery}
-                                            onChange={(event) => setShareQuery(event.target.value)}
-                                        />
+                                        <label className="historial-v2-share-field">
+                                            <span>Nombre o correo</span>
+                                            <input
+                                                type="text"
+                                                placeholder="Nombre o correo"
+                                                value={shareQuery}
+                                                onChange={(event) => setShareQuery(event.target.value)}
+                                            />
+                                        </label>
                                         <ColombiaLocationSelect
                                             value={{ department: shareDepartment, city: shareCity }}
                                             onChange={(nextValue) => {
@@ -1006,6 +1047,16 @@ export function QuestionnaireReportDetailModal({
                                             cityLabel="Ciudad"
                                             className="historial-v2-share-location"
                                         />
+                                        <div className="historial-v2-share-button-wrap">
+                                            <button
+                                                type="button"
+                                                className="historial-v2-btn"
+                                                onClick={() => { runHistoryTask(handleSearchPsychologists); }}
+                                                disabled={shareSearchLoading}
+                                            >
+                                                {shareSearchLoading ? 'Buscando...' : 'Buscar'}
+                                            </button>
+                                        </div>
                                         <label className="historial-v2-inline-toggle">
                                             <input
                                                 type="checkbox"
@@ -1019,26 +1070,18 @@ export function QuestionnaireReportDetailModal({
                                                     }
                                                 }}
                                             />
-                                            <span>Buscar psic?logos de mi misma ubicaci?n</span>
+                                            <span>Buscar psicólogos de mi misma ubicación</span>
                                         </label>
-                                        <button
-                                            type="button"
-                                            className="historial-v2-btn"
-                                            onClick={() => { runHistoryTask(handleSearchPsychologists); }}
-                                            disabled={shareSearchLoading}
-                                        >
-                                            {shareSearchLoading ? 'Buscando...' : 'Buscar'}
-                                        </button>
                                     </div>
                                     {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
                                     {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
                                     {shareWarnings.includes('user_location_missing') ? (
                                         <p className="historial-v2-helper-text">
-                                            No tienes una ubicaci?n registrada. Puedes buscar manualmente por departamento y ciudad.
+                                            No tienes una ubicación registrada. Puedes buscar manualmente por departamento y ciudad.
                                         </p>
                                     ) : null}
                                     {shareResults.length === 0 && (shareQuery.trim().length > 0 || shareDepartment.trim().length > 0 || shareCity.trim().length > 0 || shareSameLocation) && !shareSearchLoading ? (
-                                        <p className="historial-v2-helper-text">No se encontraron psic?logos con esos criterios.</p>
+                                        <p className="historial-v2-helper-text">No se encontraron psicólogos con esos criterios.</p>
                                     ) : null}
                                     {shareResults.length > 0 ? (
                                         <div className="historial-v2-psychologist-list">
@@ -1049,13 +1092,16 @@ export function QuestionnaireReportDetailModal({
                                                     className={`historial-v2-psychologist-item ${selectedPsychologistId === psychologist.user_id ? 'is-selected' : ''}`}
                                                     onClick={() => setSelectedPsychologistId(psychologist.user_id)}
                                                 >
-                                                    <strong>{normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psic?logo registrado')}</strong>
+                                                    <strong>{normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psicólogo registrado')}</strong>
                                                     <span>{normalizeBackendText(psychologist.email, 'Correo no disponible')}</span>
                                                     <small>
-                                                        {normalizeBackendText([psychologist.city, psychologist.department].filter(Boolean).join(' ? '), 'Ubicaci?n no disponible')}
-                                                        {psychologist.colpsic_verified ? ' ? Verificado' : ''}
-                                                        {psychologist.same_city ? ' ? Misma ciudad' : ''}
-                                                        {!psychologist.same_city && psychologist.same_department ? ' ? Mismo departamento' : ''}
+                                                        {normalizeBackendText(
+                                                            [psychologist.city, psychologist.department].filter(Boolean).join(' · '),
+                                                            'Ubicación no disponible'
+                                                        )}
+                                                        {psychologist.colpsic_verified ? ' · Verificado' : ''}
+                                                        {psychologist.same_city ? ' · Misma ciudad' : ''}
+                                                        {!psychologist.same_city && psychologist.same_department ? ' · Mismo departamento' : ''}
                                                     </small>
                                                 </button>
                                             ))}
@@ -1068,7 +1114,7 @@ export function QuestionnaireReportDetailModal({
                                             onClick={() => { runHistoryTask(handleShareWithPsychologist); }}
                                             disabled={!selectedPsychologistId || shareWorking}
                                         >
-                                            {shareWorking ? 'Enviando solicitud...' : 'Compartir evaluaci?n'}
+                                            {shareWorking ? 'Enviando solicitud...' : 'Compartir evaluación'}
                                         </button>
                                     </div>
                                 </div>

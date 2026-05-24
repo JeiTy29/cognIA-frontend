@@ -340,10 +340,20 @@
     flex-direction: column;
     gap: 16px;
     max-width: 520px;
+    width: min(100%, 520px);
 }
 
 .mi-cuenta-modal .mi-cuenta-section-title {
     color: #0b2540;
+}
+
+.mi-cuenta-profile-modal {
+    max-width: 620px;
+    width: min(100%, 620px);
+}
+
+.mi-cuenta-profile-modal .colombia-location-select {
+    gap: 14px;
 }
 
 .mi-cuenta-segmented {
