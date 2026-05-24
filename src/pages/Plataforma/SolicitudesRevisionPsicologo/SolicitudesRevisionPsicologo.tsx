@@ -14,6 +14,7 @@ import {
     formatPercent,
     normalizeAlertLevel,
     normalizeBackendText,
+    normalizeBooleanLabel,
     normalizeDomainLabel,
     normalizeQuestionnaireMode,
     normalizeRequestStatus,
@@ -47,6 +48,7 @@ export default function SolicitudesRevisionPsicologo() {
     const [actionMessage, setActionMessage] = useState('');
     const [actionWorking, setActionWorking] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+
     const loadRequests = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -239,7 +241,7 @@ export default function SolicitudesRevisionPsicologo() {
                                         <p>
                                             <strong>Mayor alerta:</strong> {normalizeAlertLevel(request.summary.highest_alert_level)}
                                             {' · '}
-                                            <strong>Requiere revisión:</strong> {request.summary.needs_professional_review ? 'Sí' : 'No'}
+                                            <strong>Requiere revisión:</strong> {normalizeBooleanLabel(request.summary.needs_professional_review)}
                                         </p>
                                         {Array.isArray(request.summary.domains) && request.summary.domains.length > 0 ? (
                                             <div className="solicitudes-revision__domains">
@@ -252,6 +254,15 @@ export default function SolicitudesRevisionPsicologo() {
                                                 ))}
                                             </div>
                                         ) : null}
+                                    </div>
+                                ) : null}
+
+                                {request.request_status === 'rejected' && normalizeBackendText((request as { response_message?: string | null }).response_message, '') ? (
+                                    <div className="solicitudes-revision__summary-block">
+                                        <p>
+                                            <strong>Motivo del rechazo:</strong>{' '}
+                                            {normalizeBackendText((request as { response_message?: string | null }).response_message, '')}
+                                        </p>
                                     </div>
                                 ) : null}
 

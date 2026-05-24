@@ -509,6 +509,10 @@ export default function MiCuenta() {
             setProfileSaveError('Ingresa un correo válido.');
             return;
         }
+        if ('email' in profileChanges && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+            setProfileSaveError('Ingresa un correo válido.');
+            return;
+        }
         if ('department' in profileChanges && !nextDepartment) {
             setProfileSaveError('Selecciona un departamento.');
             return;

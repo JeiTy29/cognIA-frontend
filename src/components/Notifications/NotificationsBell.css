@@ -11,6 +11,7 @@
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 12px 22px rgba(16, 83, 132, 0.08);
+    flex-shrink: 0;
 }
 
 .notifications-bell__icon {
@@ -28,6 +29,8 @@
     height: 20px;
     display: block;
     stroke: currentColor;
+    fill: none;
+    overflow: visible;
 }
 
 .notifications-bell__badge {

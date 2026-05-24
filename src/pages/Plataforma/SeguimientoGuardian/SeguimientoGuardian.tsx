@@ -8,7 +8,8 @@ import {
     createQuestionnaireCaseV2,
     getGuardianQuestionnaireDashboardV2,
     getQuestionnaireCaseDetailV2,
-    getQuestionnaireCasesV2
+    getQuestionnaireCasesV2,
+    updateQuestionnaireCaseV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     GuardianDashboardCaseDTO,
@@ -34,7 +35,16 @@ const periodOptions = [
     { value: '12', label: 'Últimos 12 meses' }
 ];
 
+const caseStatusOptions = [
+    { value: 'active', label: 'Activos' },
+    { value: 'archived', label: 'Archivados' },
+    { value: 'all', label: 'Todos' }
+] as const;
+
 const CREATE_CASE_MAX_LENGTH = 120;
+
+type CaseFilterStatus = (typeof caseStatusOptions)[number]['value'];
+type CaseActionIntent = 'archive' | 'activate';
 
 function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
     const label = item.display_label ?? item.private_label ?? 'Caso sin etiqueta';
@@ -109,6 +119,7 @@ function hasPeakProbability(domains: QuestionnaireCaseDomainSummaryDTO[]) {
 
 export default function SeguimientoGuardian() {
     const [months, setMonths] = useState('3');
+    const [caseStatusFilter, setCaseStatusFilter] = useState<CaseFilterStatus>('active');
     const [caseId, setCaseId] = useState('');
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
     const [cases, setCases] = useState<QuestionnaireCaseDTO[]>([]);
@@ -126,6 +137,11 @@ export default function SeguimientoGuardian() {
     const [caseErrorById, setCaseErrorById] = useState<Record<string, string | null>>({});
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
     const [reportSessionId, setReportSessionId] = useState<string | null>(null);
+
+    const [caseActionTarget, setCaseActionTarget] = useState<QuestionnaireCaseDTO | null>(null);
+    const [caseActionIntent, setCaseActionIntent] = useState<CaseActionIntent | null>(null);
+    const [caseActionWorking, setCaseActionWorking] = useState(false);
+    const [caseActionError, setCaseActionError] = useState<string | null>(null);
 
     const caseOptions = useMemo(
         () => [
@@ -148,14 +164,19 @@ export default function SeguimientoGuardian() {
         setLoading(true);
         setError(null);
         try {
+            const caseStatusParam = caseStatusFilter === 'all' ? undefined : caseStatusFilter;
             const [casesResponse, dashboardResponse] = await Promise.all([
-                getQuestionnaireCasesV2({ status: 'active', page: 1, page_size: 50 }),
+                getQuestionnaireCasesV2({ status: caseStatusParam, page: 1, page_size: 50 }),
                 getGuardianQuestionnaireDashboardV2({
                     months: Number(months),
                     ...(caseId ? { case_id: caseId } : {})
                 })
             ]);
+
             setCases(casesResponse.items);
+            if (caseId && !casesResponse.items.some((item) => item.case_id === caseId)) {
+                setCaseId('');
+            }
             setDashboard(dashboardResponse);
         } catch {
             setError('No fue posible cargar los casos. Intenta nuevamente.');
@@ -164,7 +185,7 @@ export default function SeguimientoGuardian() {
         } finally {
             setLoading(false);
         }
-    }, [caseId, months]);
+    }, [caseId, caseStatusFilter, months]);
 
     const loadCaseDetail = useCallback(
         async (nextCaseId: string, force = false) => {
@@ -204,6 +225,7 @@ export default function SeguimientoGuardian() {
 
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
+    const hasVisibleCases = visibleCases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
 
     const openCreateCaseModal = () => {
@@ -217,6 +239,19 @@ export default function SeguimientoGuardian() {
         setCreateCaseModalOpen(false);
         setCreateCaseError(null);
         setCreateCaseLabel('');
+    };
+
+    const openCaseActionModal = (targetCase: QuestionnaireCaseDTO, intent: CaseActionIntent) => {
+        setCaseActionTarget(targetCase);
+        setCaseActionIntent(intent);
+        setCaseActionError(null);
+    };
+
+    const closeCaseActionModal = () => {
+        if (caseActionWorking) return;
+        setCaseActionTarget(null);
+        setCaseActionIntent(null);
+        setCaseActionError(null);
     };
 
     const handleOpenReport = (event: MouseEvent<HTMLButtonElement>, nextSessionId: string) => {
@@ -243,17 +278,54 @@ export default function SeguimientoGuardian() {
             setCreateCaseModalOpen(false);
             setCreateCaseLabel('');
             setCreateCaseNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente.`);
-            const [casesResponse, dashboardResponse] = await Promise.all([
-                getQuestionnaireCasesV2({ status: 'active', page: 1, page_size: 50 }),
-                getGuardianQuestionnaireDashboardV2({ months: Number(months) })
-            ]);
-            setCaseId('');
-            setCases(casesResponse.items);
-            setDashboard(dashboardResponse);
+            await loadDashboard();
         } catch {
             setCreateCaseError('No fue posible crear el caso. Intenta nuevamente.');
         } finally {
             setCreateCaseWorking(false);
+        }
+    };
+
+    const handleConfirmCaseAction = async () => {
+        if (!caseActionTarget?.case_id || !caseActionIntent) return;
+
+        const nextStatus = caseActionIntent === 'archive' ? 'archived' : 'active';
+        setCaseActionWorking(true);
+        setCaseActionError(null);
+        setCreateCaseNotice(null);
+        try {
+            const updatedCase = await updateQuestionnaireCaseV2(caseActionTarget.case_id, { status: nextStatus });
+            setCaseDetailsById((prev) => {
+                const currentDetail = prev[caseActionTarget.case_id];
+                if (!currentDetail) return prev;
+                return {
+                    ...prev,
+                    [caseActionTarget.case_id]: {
+                        ...currentDetail,
+                        case: currentDetail.case ? { ...currentDetail.case, status: updatedCase?.status ?? nextStatus } : currentDetail.case
+                    }
+                };
+            });
+
+            if (caseId === caseActionTarget.case_id && caseActionIntent === 'archive' && caseStatusFilter === 'active') {
+                setCaseId('');
+            }
+
+            await loadDashboard();
+            setCreateCaseNotice(
+                caseActionIntent === 'archive'
+                    ? `El caso "${resolveCaseLabel(caseActionTarget)}" fue archivado correctamente.`
+                    : `El caso "${resolveCaseLabel(caseActionTarget)}" fue reactivado correctamente.`
+            );
+            closeCaseActionModal();
+        } catch {
+            setCaseActionError(
+                caseActionIntent === 'archive'
+                    ? 'No fue posible archivar el caso. Intenta nuevamente.'
+                    : 'No fue posible reactivar el caso. Intenta nuevamente.'
+            );
+        } finally {
+            setCaseActionWorking(false);
         }
     };
 
@@ -278,6 +350,17 @@ export default function SeguimientoGuardian() {
                                     ariaLabel="Filtrar casos por periodo"
                                 />
                             </label>
+                            {cases.length > 0 ? (
+                                <label>
+                                    Estado
+                                    <CustomSelect
+                                        value={caseStatusFilter}
+                                        options={caseStatusOptions.map((option) => ({ value: option.value, label: option.label }))}
+                                        onChange={(value) => setCaseStatusFilter(value as CaseFilterStatus)}
+                                        ariaLabel="Filtrar casos por estado"
+                                    />
+                                </label>
+                            ) : null}
                             {cases.length > 0 ? (
                                 <label>
                                     Caso
@@ -308,7 +391,14 @@ export default function SeguimientoGuardian() {
                     </div>
                 ) : null}
 
-                {!loading && hasCases ? (
+                {!loading && hasCases && !hasVisibleCases ? (
+                    <div className="seguimiento-empty-card">
+                        <h2>No hay casos para este filtro.</h2>
+                        <p>Ajusta el estado o el caso seleccionado para ver otros resultados.</p>
+                    </div>
+                ) : null}
+
+                {!loading && hasVisibleCases ? (
                     <>
                         <div className="seguimiento-summary-grid">
                             <article className="seguimiento-summary-card">
@@ -342,8 +432,10 @@ export default function SeguimientoGuardian() {
                                     expandedSessionByCaseId[caseItem.case_id] ?? (caseSessions[0] ? resolveSessionKey(caseSessions[0]) : '');
                                 const caseIsLoading = caseLoadingById[caseItem.case_id] === true;
                                 const caseLoadError = caseErrorById[caseItem.case_id] ?? null;
-                                const domainBreakdown = caseEntry?.domain_breakdown ?? [];
+                                const domainBreakdown = caseEntry?.domain_breakdown ?? caseDetail?.domain_summary ?? [];
                                 const showPeakProbability = hasPeakProbability(domainBreakdown);
+                                const sessionsCount = caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length;
+                                const isArchivedCase = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
 
                                 return (
                                     <article key={caseItem.case_id} className="seguimiento-case-card">
@@ -352,10 +444,14 @@ export default function SeguimientoGuardian() {
                                                 <h2>{resolveCaseLabel(caseItem)}</h2>
                                                 <p>{caseItem.case_public_id ?? 'Sin código público disponible'}</p>
                                             </div>
-                                            <span className="seguimiento-case-badge">
-                                                {caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length}{' '}
-                                                {(caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length) === 1 ? 'sesión' : 'sesiones'}
-                                            </span>
+                                            <div className="seguimiento-case-badges">
+                                                <span className="seguimiento-case-badge">
+                                                    {sessionsCount} {sessionsCount === 1 ? 'sesión' : 'sesiones'}
+                                                </span>
+                                                {isArchivedCase ? (
+                                                    <span className="seguimiento-case-badge is-archived">Archivado</span>
+                                                ) : null}
+                                            </div>
                                         </div>
 
                                         <div className="seguimiento-case-meta">
@@ -371,6 +467,26 @@ export default function SeguimientoGuardian() {
                                                 <strong>Alerta principal</strong>
                                                 <span>{normalizeAlertLevel(caseItem.latest_alert_level ?? caseEntry?.domain_breakdown?.[0]?.latest_alert_level)}</span>
                                             </div>
+                                        </div>
+
+                                        <div className="seguimiento-case-actions-row">
+                                            {isArchivedCase ? (
+                                                <button
+                                                    type="button"
+                                                    className="seguimiento-inline-btn"
+                                                    onClick={() => openCaseActionModal(caseItem, 'activate')}
+                                                >
+                                                    Reactivar caso
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="seguimiento-inline-btn"
+                                                    onClick={() => openCaseActionModal(caseItem, 'archive')}
+                                                >
+                                                    Archivar caso
+                                                </button>
+                                            )}
                                         </div>
 
                                         <div className="seguimiento-domain-list">
@@ -562,6 +678,41 @@ export default function SeguimientoGuardian() {
                             disabled={createCaseWorking || createCaseLabelError !== null}
                         >
                             {createCaseWorking ? 'Guardando...' : 'Crear caso'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={caseActionTarget !== null && caseActionIntent !== null} onClose={closeCaseActionModal}>
+                <div className="seguimiento-case-modal">
+                    <h2>{caseActionIntent === 'archive' ? '¿Archivar este caso?' : '¿Reactivar este caso?'}</h2>
+                    <p className="seguimiento-case-modal-description">
+                        {caseActionIntent === 'archive'
+                            ? 'El caso dejará de mostrarse entre los casos activos, pero sus cuestionarios y reportes no se eliminarán.'
+                            : 'El caso volverá a mostrarse entre los casos activos y conservará todos sus cuestionarios y reportes asociados.'}
+                    </p>
+                    <p className="seguimiento-case-helper">{resolveCaseLabel(caseActionTarget)}</p>
+                    {caseActionError ? <div className="seguimiento-alert error">{caseActionError}</div> : null}
+                    <div className="seguimiento-case-actions">
+                        <button
+                            type="button"
+                            className="seguimiento-inline-btn ghost"
+                            onClick={closeCaseActionModal}
+                            disabled={caseActionWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="seguimiento-create-btn"
+                            onClick={() => handleConfirmCaseAction().catch(() => undefined)}
+                            disabled={caseActionWorking}
+                        >
+                            {caseActionWorking
+                                ? 'Guardando...'
+                                : caseActionIntent === 'archive'
+                                    ? 'Archivar caso'
+                                    : 'Reactivar caso'}
                         </button>
                     </div>
                 </div>

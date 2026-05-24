@@ -443,9 +443,10 @@
 }
 
 .historial-v2-share-location {
-    display: grid;
-    grid-template-columns: minmax(170px, 1fr) minmax(170px, 1fr);
-    gap: 12px;
+    display: contents;
+}
+
+.historial-v2-share-location .colombia-location-select__field {
     min-width: 0;
 }
 
@@ -570,6 +571,6 @@
     }
 
     .historial-v2-share-location {
-        grid-template-columns: 1fr;
+        display: contents;
     }
 }

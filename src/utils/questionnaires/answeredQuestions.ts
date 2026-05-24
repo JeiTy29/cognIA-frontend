@@ -57,7 +57,7 @@ function normalizeAnswerPrimitive(value: unknown): string | null {
     if (booleanLabel) return booleanLabel;
 
     if (Array.isArray(value)) {
-        const parts: string[] = value
+        const parts = value
             .map((item) => normalizeAnswerPrimitive(item))
             .filter((item): item is string => Boolean(item));
         return parts.length > 0 ? parts.join(', ') : null;
@@ -76,7 +76,7 @@ function normalizeAnswerPrimitive(value: unknown): string | null {
         ];
 
         for (const candidate of textCandidates) {
-            const label: string | null = normalizeAnswerPrimitive(candidate);
+            const label = normalizeAnswerPrimitive(candidate);
             if (label) return label;
         }
 

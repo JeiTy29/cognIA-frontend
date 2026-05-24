@@ -22,6 +22,9 @@ function getNotificationTarget(notification: NotificationDTO, primaryRole: strin
     if (notification.session_id && primaryRole === 'psicologo') {
         return '/psicologo/evaluaciones';
     }
+    if (notification.case_public_id && primaryRole === 'padre') {
+        return '/padre/casos';
+    }
     return null;
 }
 
@@ -169,6 +172,7 @@ export function NotificationsBell() {
 
         if (notification.type === 'questionnaire_share_rejected' && primaryRole === 'padre') {
             await handleMarkAsRead(notification);
+            setIsOpen(false);
             setModalContent({
                 title,
                 message,
@@ -183,6 +187,7 @@ export function NotificationsBell() {
         }
 
         await handleMarkAsRead(notification);
+        setIsOpen(false);
         setModalContent({
             title,
             message,
