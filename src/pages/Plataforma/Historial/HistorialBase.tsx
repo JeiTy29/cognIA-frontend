@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
@@ -47,6 +48,10 @@ type HistorialRole = 'padre' | 'psicologo';
 
 interface HistorialBaseProps {
     role: HistorialRole;
+}
+
+interface HistoryRouteState {
+    openHistorySessionId?: string;
 }
 
 interface BulletItem {
@@ -450,6 +455,8 @@ function BulletList({
 }
 
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
+    const location = useLocation();
+    const navigate = useNavigate();
     const {
         items,
         page,
@@ -552,16 +559,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         });
     })();
 
-    const resetActionMessages = () => {
+    const resetActionMessages = useCallback(() => {
         setTagError(null);
         setTagNotice(null);
         setShareError(null);
         setShareNotice(null);
         setPdfError(null);
         setPdfNotice(null);
-    };
+    }, []);
 
-    const openDetail = async (sessionId: string) => {
+    const openDetail = useCallback(async (sessionId: string) => {
         if (!sessionId || sessionId.trim().length === 0) {
             setDetailError('No se encontró una referencia válida para esta sesión.');
             return;
@@ -595,7 +602,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setVisibleProfessionalReviews(detailLoad.visibleReviews);
         setDetailNotice(detailLoad.notice);
         setDetailLoading(false);
-    };
+    }, [resetActionMessages]);
 
     const closeDetail = () => {
         setDetailSessionId(null);
@@ -622,6 +629,18 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const handleOpenDetail = (nextSessionId: string) => {
         runHistoryTask(() => openDetail(nextSessionId));
     };
+
+    useEffect(() => {
+        const routeState = (location.state ?? null) as HistoryRouteState | null;
+        const pendingSessionId = typeof routeState?.openHistorySessionId === 'string'
+            ? routeState.openHistorySessionId.trim()
+            : '';
+
+        if (!pendingSessionId) return;
+
+        runHistoryTask(() => openDetail(pendingSessionId));
+        navigate(location.pathname, { replace: true, state: null });
+    }, [location.pathname, location.state, navigate, openDetail]);
 
     const refreshDetailAfterTagChange = async () => {
         if (!detailSessionId) return;

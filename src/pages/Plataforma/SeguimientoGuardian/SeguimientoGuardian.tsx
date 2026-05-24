@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
@@ -7,23 +8,23 @@ import {
     createQuestionnaireCaseV2,
     getGuardianQuestionnaireDashboardV2,
     getQuestionnaireCaseDetailV2,
-    getQuestionnaireCasesV2,
-    getQuestionnaireReportPreviewV2
+    getQuestionnaireCasesV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     GuardianDashboardCaseDTO,
     GuardianDashboardDTO,
     QuestionnaireCaseDTO,
     QuestionnaireCaseDetailDTO,
-    QuestionnaireReportPreviewDTO,
+    QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireSessionV2DTO
 } from '../../../services/questionnaires/questionnaires.types';
 import {
     formatDateTime,
     formatPercent,
     normalizeAlertLevel,
-    normalizeBackendText,
+    normalizeCaseStatus,
     normalizeDomainLabel,
+    normalizeQuestionnaireMode,
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
 
@@ -102,7 +103,12 @@ function getDashboardEntryMap(entries: GuardianDashboardCaseDTO[]) {
     );
 }
 
+function hasPeakProbability(domains: QuestionnaireCaseDomainSummaryDTO[]) {
+    return domains.some((domain) => typeof domain.max_probability === 'number');
+}
+
 export default function SeguimientoGuardian() {
+    const navigate = useNavigate();
     const [months, setMonths] = useState('3');
     const [caseId, setCaseId] = useState('');
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
@@ -120,12 +126,6 @@ export default function SeguimientoGuardian() {
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
     const [caseErrorById, setCaseErrorById] = useState<Record<string, string | null>>({});
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
-
-    const [reportSession, setReportSession] = useState<QuestionnaireSessionV2DTO | null>(null);
-    const [reportCaseLabel, setReportCaseLabel] = useState('');
-    const [reportPreview, setReportPreview] = useState<QuestionnaireReportPreviewDTO | null>(null);
-    const [reportLoading, setReportLoading] = useState(false);
-    const [reportError, setReportError] = useState<string | null>(null);
 
     const caseOptions = useMemo(
         () => [
@@ -190,26 +190,6 @@ export default function SeguimientoGuardian() {
         [caseDetailsById, caseLoadingById]
     );
 
-    const loadReportPreview = useCallback(async (session: QuestionnaireSessionV2DTO, nextCaseLabel: string) => {
-        const nextSessionId = resolveSessionKey(session);
-        if (!nextSessionId) return;
-
-        setReportSession(session);
-        setReportCaseLabel(nextCaseLabel);
-        setReportPreview(null);
-        setReportLoading(true);
-        setReportError(null);
-        try {
-            const preview = await getQuestionnaireReportPreviewV2(nextSessionId);
-            setReportPreview(preview);
-        } catch {
-            setReportPreview(null);
-            setReportError('No fue posible cargar el reporte de esta sesión. Intenta nuevamente.');
-        } finally {
-            setReportLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
         loadDashboard().catch(() => undefined);
     }, [loadDashboard]);
@@ -271,13 +251,19 @@ export default function SeguimientoGuardian() {
         }
     };
 
-    const closeReportModal = () => {
-        setReportSession(null);
-        setReportCaseLabel('');
-        setReportPreview(null);
-        setReportLoading(false);
-        setReportError(null);
-    };
+    const handleOpenHistoryReport = useCallback(
+        (session: QuestionnaireSessionV2DTO) => {
+            const sessionId = resolveSessionKey(session);
+            if (!sessionId) return;
+
+            navigate('/padre/historial', {
+                state: {
+                    openHistorySessionId: sessionId
+                }
+            });
+        },
+        [navigate]
+    );
 
     return (
         <div className="plataforma-view">
@@ -364,6 +350,8 @@ export default function SeguimientoGuardian() {
                                     expandedSessionByCaseId[caseItem.case_id] ?? (caseSessions[0] ? resolveSessionKey(caseSessions[0]) : '');
                                 const caseIsLoading = caseLoadingById[caseItem.case_id] === true;
                                 const caseLoadError = caseErrorById[caseItem.case_id] ?? null;
+                                const domainBreakdown = caseEntry?.domain_breakdown ?? [];
+                                const showPeakProbability = hasPeakProbability(domainBreakdown);
 
                                 return (
                                     <article key={caseItem.case_id} className="seguimiento-case-card">
@@ -381,7 +369,7 @@ export default function SeguimientoGuardian() {
                                         <div className="seguimiento-case-meta">
                                             <div>
                                                 <strong>Estado del caso</strong>
-                                                <span>{normalizeBackendText(caseItem.status, 'Activo')}</span>
+                                                <span>{normalizeCaseStatus(caseItem.status)}</span>
                                             </div>
                                             <div>
                                                 <strong>Último procesamiento</strong>
@@ -394,17 +382,36 @@ export default function SeguimientoGuardian() {
                                         </div>
 
                                         <div className="seguimiento-domain-list">
-                                            <h3>Resumen por dominio</h3>
-                                            {caseEntry?.domain_breakdown && caseEntry.domain_breakdown.length > 0 ? (
-                                                caseEntry.domain_breakdown.map((domain) => (
-                                                    <div key={`${caseItem.case_id}-${domain.domain}`} className="seguimiento-domain-row">
-                                                        <strong>{normalizeDomainLabel(domain.domain)}</strong>
-                                                        <span>{formatPercent(domain.latest_probability)}</span>
-                                                        <span>{normalizeAlertLevel(domain.latest_alert_level)}</span>
+                                            <h3>Última medición por dominio</h3>
+                                            <p>
+                                                Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico.
+                                            </p>
+                                            {domainBreakdown.length > 0 ? (
+                                                <div className="seguimiento-domain-table">
+                                                    <div className={`seguimiento-domain-row seguimiento-domain-head ${showPeakProbability ? 'has-peak' : ''}`}>
+                                                        <strong>Dominio</strong>
+                                                        <strong>Última medición</strong>
+                                                        {showPeakProbability ? <strong>Mayor registrada</strong> : null}
+                                                        <strong>Alerta actual</strong>
                                                     </div>
-                                                ))
+                                                    {domainBreakdown.map((domain) => (
+                                                        <div
+                                                            key={`${caseItem.case_id}-${domain.domain}`}
+                                                            className={`seguimiento-domain-row ${showPeakProbability ? 'has-peak' : ''}`}
+                                                        >
+                                                            <span className="seguimiento-domain-cell heading">{normalizeDomainLabel(domain.domain)}</span>
+                                                            <span className="seguimiento-domain-cell">{formatPercent(domain.latest_probability)}</span>
+                                                            {showPeakProbability ? (
+                                                                <span className="seguimiento-domain-cell">
+                                                                    {typeof domain.max_probability === 'number' ? formatPercent(domain.max_probability) : '—'}
+                                                                </span>
+                                                            ) : null}
+                                                            <span className="seguimiento-domain-cell">{normalizeAlertLevel(domain.latest_alert_level)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             ) : (
-                                                <p>No hay resumen de dominios disponible para este periodo.</p>
+                                                <p>No hay mediciones de dominio disponibles para este periodo.</p>
                                             )}
                                         </div>
 
@@ -434,6 +441,7 @@ export default function SeguimientoGuardian() {
                                                         const sessionKey = resolveSessionKey(session);
                                                         const isExpanded = expandedSessionId === sessionKey;
                                                         const sessionAlert = resolveSessionAlert(session);
+
                                                         return (
                                                             <div key={sessionKey} className={`seguimiento-session-card ${isExpanded ? 'is-expanded' : ''}`}>
                                                                 <button
@@ -444,7 +452,7 @@ export default function SeguimientoGuardian() {
                                                                 >
                                                                     <span>{formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)}</span>
                                                                     <span>{normalizeSessionStatus(session.status)}</span>
-                                                                    <span>{normalizeBackendText(session.mode, 'Modo no disponible')}</span>
+                                                                    <span>{normalizeQuestionnaireMode(session.mode)}</span>
                                                                     <span>{sessionAlert ? `${sessionAlert.domainLabel} · ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
                                                                 </button>
 
@@ -465,7 +473,7 @@ export default function SeguimientoGuardian() {
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Modo</strong>
-                                                                                <span>{normalizeBackendText(session.mode, 'No disponible')}</span>
+                                                                                <span>{normalizeQuestionnaireMode(session.mode)}</span>
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Progreso</strong>
@@ -499,7 +507,7 @@ export default function SeguimientoGuardian() {
                                                                             <button
                                                                                 type="button"
                                                                                 className="seguimiento-inline-btn"
-                                                                                onClick={() => loadReportPreview(session, resolveCaseLabel(caseItem)).catch(() => undefined)}
+                                                                                onClick={() => handleOpenHistoryReport(session)}
                                                                                 disabled={!isSessionProcessed(session)}
                                                                                 title={isSessionProcessed(session) ? 'Ver reporte de sesión' : 'Reporte disponible cuando la sesión esté procesada.'}
                                                                             >
@@ -561,92 +569,6 @@ export default function SeguimientoGuardian() {
                             {createCaseWorking ? 'Guardando...' : 'Crear caso'}
                         </button>
                     </div>
-                </div>
-            </Modal>
-
-            <Modal isOpen={reportSession !== null} onClose={closeReportModal}>
-                <div className="seguimiento-report-modal">
-                    <h2>Reporte de sesión</h2>
-                    <p className="seguimiento-report-copy">
-                        Este reporte resume la información registrada durante la sesión seleccionada usando la vista previa segura del backend.
-                    </p>
-
-                    {reportLoading ? <div className="seguimiento-empty">Cargando reporte...</div> : null}
-                    {reportError ? (
-                        <div className="seguimiento-alert error">
-                            {reportError}
-                            {reportSession ? (
-                                <button
-                                    type="button"
-                                    className="seguimiento-inline-btn"
-                                    onClick={() => loadReportPreview(reportSession, reportCaseLabel).catch(() => undefined)}
-                                >
-                                    Reintentar
-                                </button>
-                            ) : null}
-                        </div>
-                    ) : null}
-
-                    {!reportLoading && reportPreview ? (
-                        <>
-                            <div className="seguimiento-session-grid">
-                                <div>
-                                    <strong>Caso</strong>
-                                    <span>{reportCaseLabel || 'Sin caso asociado'}</span>
-                                </div>
-                                <div>
-                                    <strong>Estado</strong>
-                                    <span>{normalizeSessionStatus(reportPreview.session?.status)}</span>
-                                </div>
-                                <div>
-                                    <strong>Actualización</strong>
-                                    <span>{formatDateTime(reportPreview.session?.updated_at)}</span>
-                                </div>
-                                <div>
-                                    <strong>PDF servidor</strong>
-                                    <span>{reportPreview.pdf?.available ? 'Disponible' : 'No disponible'}</span>
-                                </div>
-                            </div>
-
-                            <div className="seguimiento-report-section">
-                                <h3>Resultados por dominio</h3>
-                                {reportPreview.domains.length > 0 ? (
-                                    <div className="seguimiento-session-domains">
-                                        {reportPreview.domains.map((domain, index) => (
-                                            <div key={`${domain.domain ?? index}`} className="seguimiento-domain-pill">
-                                                <strong>{normalizeDomainLabel(domain.domain)}</strong>
-                                                <span>{formatPercent(domain.probability)}</span>
-                                                <small>{normalizeAlertLevel(domain.alert_level)}</small>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="seguimiento-session-empty">Sin resultados de dominio disponibles.</p>
-                                )}
-                            </div>
-
-                            <div className="seguimiento-report-section">
-                                <h3>Respuestas registradas</h3>
-                                {reportPreview.answers.length > 0 ? (
-                                    <div className="seguimiento-report-answer-list">
-                                        {reportPreview.answers.map((answer, index) => (
-                                            <article key={`${answer.question_id ?? answer.question_code ?? index}`} className="seguimiento-report-answer-card">
-                                                <strong>{normalizeBackendText(answer.prompt, 'Pregunta no disponible')}</strong>
-                                                <span>{normalizeBackendText(answer.normalized_answer ?? answer.raw_answer_display, '--')}</span>
-                                                <small>{normalizeDomainLabel(answer.domain)} · {normalizeBackendText(answer.section_title, 'General')}</small>
-                                            </article>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="seguimiento-session-empty">Sin respuestas estructuradas disponibles para esta sesión.</p>
-                                )}
-                            </div>
-
-                            {reportPreview.disclaimer ? (
-                                <p className="seguimiento-report-disclaimer">{normalizeBackendText(reportPreview.disclaimer)}</p>
-                            ) : null}
-                        </>
-                    ) : null}
                 </div>
             </Modal>
         </div>

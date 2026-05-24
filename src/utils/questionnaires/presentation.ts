@@ -51,6 +51,17 @@ const SESSION_STATUS_LABELS: Record<string, string> = {
     archived: 'Archivado'
 };
 
+const CASE_STATUS_LABELS: Record<string, string> = {
+    active: 'Activo',
+    archived: 'Archivado'
+};
+
+const QUESTIONNAIRE_MODE_LABELS: Record<string, string> = {
+    short: 'Corto',
+    medium: 'Medio',
+    complete: 'Completo'
+};
+
 const REVIEW_STATUS_LABELS: Record<string, string> = {
     pending: 'Pendiente',
     in_review: 'En revisión',
@@ -88,6 +99,18 @@ export function normalizeReviewStatus(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
     return REVIEW_STATUS_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+}
+
+export function normalizeCaseStatus(value: unknown) {
+    const raw = readText(value).toLowerCase();
+    if (!raw) return '--';
+    return CASE_STATUS_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+}
+
+export function normalizeQuestionnaireMode(value: unknown) {
+    const raw = readText(value).toLowerCase();
+    if (!raw) return '--';
+    return QUESTIONNAIRE_MODE_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
 }
 
 export function formatPercent(value: unknown, maximumFractionDigits = 1) {
