@@ -72,15 +72,6 @@ const IconAudit = (
 
 export const sidebarItems: SidebarItem[] = [
     {
-        id: 'seguimiento',
-        label: 'Seguimiento',
-        icon: IconCases,
-        roles: ['padre'],
-        paths: {
-            padre: '/padre/seguimiento'
-        }
-    },
-    {
         id: 'evaluaciones-recibidas',
         label: 'Evaluaciones recibidas',
         icon: IconCases,
@@ -91,12 +82,21 @@ export const sidebarItems: SidebarItem[] = [
     },
     {
         id: 'cuestionario',
-        label: 'Cuestionario',
+        label: 'Cuestionarios',
         icon: IconClipboard,
         roles: ['padre', 'psicologo'],
         paths: {
             padre: '/padre/cuestionario',
             psicologo: '/psicologo/cuestionario'
+        }
+    },
+    {
+        id: 'casos',
+        label: 'Casos',
+        icon: IconCases,
+        roles: ['padre'],
+        paths: {
+            padre: '/padre/casos'
         }
     },
     {

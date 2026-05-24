@@ -71,6 +71,26 @@
     white-space: nowrap;
 }
 
+.historial-v2-primary-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    white-space: normal;
+    min-width: 0;
+}
+
+.historial-v2-primary-title {
+    color: #215f8f;
+    font-size: 13px;
+}
+
+.historial-v2-case-ref {
+    color: #52677a;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
 .historial-v2-actions {
     display: flex;
     justify-content: flex-end;

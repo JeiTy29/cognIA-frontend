@@ -364,6 +364,12 @@ function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
             firstNonEmptyString([record.session_id, record.id, record.questionnaire_session_id]) ?? id,
         questionnaire_id: firstNonEmptyString([record.questionnaire_id, record.questionnaireId]) ?? undefined,
         mode_key: firstNonEmptyString([record.mode_key]),
+        case: normalizeCase(record.case),
+        case_id: firstNonEmptyString([record.case_id, asRecord(record.case)?.case_id]),
+        case_public_id: firstNonEmptyString([record.case_public_id, record.case_code, asRecord(record.case)?.case_public_id]),
+        case_label: firstNonEmptyString([record.case_label]),
+        case_private_label: firstNonEmptyString([record.case_private_label, asRecord(record.case)?.private_label]),
+        case_display_label: firstNonEmptyString([record.case_display_label, asRecord(record.case)?.display_label]),
         progress_pct: toNumberOrNull(record.progress_pct),
         progress_percent: toNumberOrNull(record.progress_percent),
         total_questions: toNumberOrNull(record.total_questions),
@@ -775,7 +781,13 @@ function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO |
         id,
         session_id: resolveHistorySessionId(record, id),
         questionnaire_session_id: resolveHistoryQuestionnaireSessionId(record, id),
-        questionnaire_id: questionnaireId
+        questionnaire_id: questionnaireId,
+        case: normalizeCase(record.case),
+        case_id: firstNonEmptyString([record.case_id, asRecord(record.case)?.case_id]),
+        case_public_id: firstNonEmptyString([record.case_public_id, record.case_code, asRecord(record.case)?.case_public_id]),
+        case_label: firstNonEmptyString([record.case_label]),
+        case_private_label: firstNonEmptyString([record.case_private_label, asRecord(record.case)?.private_label]),
+        case_display_label: firstNonEmptyString([record.case_display_label, asRecord(record.case)?.display_label])
     } as QuestionnaireHistoryDetailV2DTO;
 }
 
@@ -811,6 +823,12 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
         id,
         session_id: resolveHistorySessionId(root, id),
         questionnaire_session_id: resolveHistoryQuestionnaireSessionId(root, id),
+        case: normalizeCase(root.case),
+        case_id: firstNonEmptyString([root.case_id, asRecord(root.case)?.case_id]),
+        case_public_id: firstNonEmptyString([root.case_public_id, root.case_code, asRecord(root.case)?.case_public_id]),
+        case_label: firstNonEmptyString([root.case_label]),
+        case_private_label: firstNonEmptyString([root.case_private_label, asRecord(root.case)?.private_label]),
+        case_display_label: firstNonEmptyString([root.case_display_label, asRecord(root.case)?.display_label]),
         tags
     } as QuestionnaireHistoryDetailV2DTO;
 }

@@ -22,6 +22,7 @@ import type {
     QuestionnaireEvaluationComorbidityDTO,
     QuestionnaireEvaluationDomainDTO,
     QuestionnaireEvaluationResultDTO,
+    QuestionnaireHistoryDetailV2DTO,
     QuestionnaireOptionDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireResponseType,
@@ -139,6 +140,26 @@ function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
         : null;
 
     return [label, publicId, sessionsCount].filter(Boolean).join(' · ');
+}
+
+function resolveSessionCaseLabel(
+    session: QuestionnaireSessionV2DTO | QuestionnaireHistoryDetailV2DTO | null | undefined
+) {
+    if (!session) return null;
+    const raw = session as Record<string, unknown>;
+    const caseRecord = raw.case && typeof raw.case === 'object' && !Array.isArray(raw.case)
+        ? raw.case as Record<string, unknown>
+        : null;
+
+    return readOptionalText(
+        caseRecord?.display_label,
+        caseRecord?.private_label,
+        raw.case_display_label,
+        raw.case_private_label,
+        raw.case_label,
+        caseRecord?.case_public_id,
+        raw.case_public_id
+    );
 }
 
 function validateCaseLabel(value: string) {
@@ -1364,6 +1385,7 @@ type AnswerControlProps = Readonly<{
     currentNumericDraftValue: string;
     currentNumericHelperText: string | null;
     currentNumericValidationMessage: string | null;
+    disabled: boolean;
     onAnswerChange: (value: QuestionnaireResponseValue) => void;
     onNumericInputChange: (value: string) => void;
 }>;
@@ -1376,6 +1398,7 @@ function AnswerControl({
     currentNumericDraftValue,
     currentNumericHelperText,
     currentNumericValidationMessage,
+    disabled,
     onAnswerChange,
     onNumericInputChange
 }: AnswerControlProps) {
@@ -1387,6 +1410,7 @@ function AnswerControl({
                 className="question-textarea"
                 rows={5}
                 value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+                disabled={disabled}
                 onChange={(event) => onAnswerChange(event.target.value)}
             />
         );
@@ -1403,6 +1427,7 @@ function AnswerControl({
                     min={currentNumericConstraints?.min ?? undefined}
                     max={currentNumericConstraints?.hasExplicitMax ? currentNumericConstraints.max ?? undefined : undefined}
                     step={currentNumericConstraints?.step ?? undefined}
+                    disabled={disabled}
                     onChange={(event) => onNumericInputChange(event.target.value)}
                 />
                 {currentNumericHelperText ? (
@@ -1425,6 +1450,7 @@ function AnswerControl({
                         key={String(option.value)}
                         type="button"
                         className={`answer-option ${currentAnswer === option.value ? 'is-selected' : ''}`}
+                        disabled={disabled}
                         onClick={() => onAnswerChange(option.value as QuestionnaireResponseValue)}
                     >
                         <span className="answer-indicator" aria-hidden="true"></span>
@@ -1440,6 +1466,7 @@ function AnswerControl({
             type="text"
             className="question-input"
             value={typeof currentAnswer === 'string' ? currentAnswer : ''}
+            disabled={disabled}
             onChange={(event) => onAnswerChange(event.target.value)}
         />
     );
@@ -1473,10 +1500,12 @@ export default function Cuestionario() {
 
     const [started, setStarted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [activeCaseLabel, setActiveCaseLabel] = useState<string | null>(null);
     const [questions, setQuestions] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [answers, setAnswers] = useState<Record<string, QuestionnaireResponseValue>>({});
     const [currentIndex, setCurrentIndex] = useState(0);
     const [working, setWorking] = useState(false);
+    const [isAdvancingQuestion, setIsAdvancingQuestion] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<AnswerPersistenceState>('idle');
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -1807,6 +1836,7 @@ export default function Cuestionario() {
             setAnswers(initialAnswers);
             setCurrentIndex(nextQuestionIndex >= 0 ? nextQuestionIndex : Math.max(allQuestions.length - 1, 0));
             setSessionSnapshot(detail);
+            setActiveCaseLabel(resolveSessionCaseLabel(detail));
             setStarted(true);
             setReusableSession(null);
         } catch (requestError) {
@@ -1816,7 +1846,7 @@ export default function Cuestionario() {
         }
     }, [loadAllSessionQuestions, resetAnswerPersistence, stopPolling]);
 
-    const createAndStartSession = useCallback(async (selection?: { caseId?: string }) => {
+    const createAndStartSession = useCallback(async (selection?: { caseId?: string; caseLabel?: string | null }) => {
         stopPolling();
         setWorking(true);
         setError(null);
@@ -1865,6 +1895,7 @@ export default function Cuestionario() {
             setAnswers(initialAnswers);
             setCurrentIndex(Math.max(findFirstInvalidQuestionIndex(allQuestions, initialAnswers), 0));
             setSessionSnapshot(detail);
+            setActiveCaseLabel(resolveSessionCaseLabel(detail) ?? selection?.caseLabel ?? null);
             setStarted(true);
             setReusableSession(null);
             setCaseModalOpen(false);
@@ -1892,7 +1923,11 @@ export default function Cuestionario() {
 
         if (caseSelectionMode === 'existing') {
             if (!selectedCaseId) return;
-            await createAndStartSession({ caseId: selectedCaseId });
+            const selectedCase = availableCases.find((item) => item.case_id === selectedCaseId) ?? null;
+            await createAndStartSession({
+                caseId: selectedCaseId,
+                caseLabel: selectedCase ? (readOptionalText(selectedCase.display_label, selectedCase.private_label, selectedCase.case_public_id) ?? null) : null
+            });
             return;
         }
 
@@ -1915,7 +1950,10 @@ export default function Cuestionario() {
                     throw new Error('missing_case_id');
                 }
                 setWorking(false);
-                await createAndStartSession({ caseId: createdCase.case_id });
+                await createAndStartSession({
+                    caseId: createdCase.case_id,
+                    caseLabel: readOptionalText(createdCase.display_label, createdCase.private_label, createdCase.case_public_id)
+                });
             } catch (requestError) {
                 const mappedError = requestError instanceof Error && requestError.message === 'missing_case_id'
                     ? 'El backend respondió al crear el caso, pero no devolvió un identificador usable.'
@@ -1932,8 +1970,9 @@ export default function Cuestionario() {
             return;
         }
 
-        await createAndStartSession();
+        await createAndStartSession({ caseLabel: null });
     }, [
+        availableCases,
         caseSelectionMode,
         continueWithoutCaseConfirmed,
         createAndStartSession,
@@ -2067,6 +2106,7 @@ export default function Cuestionario() {
             ? false
             : isValid(currentQuestion, currentAnswer))
         : false;
+    const isAnswerInteractionBlocked = isAdvancingQuestion || working;
     const questionContextPopoverId = currentQuestionContext ? `question-context-popover-${currentIndex}` : undefined;
 
     useEffect(() => {
@@ -2129,6 +2169,7 @@ export default function Cuestionario() {
         const nextIndex = currentIndex + 1;
         if (nextIndex >= questions.length) return;
         actionLockRef.current = true;
+        setIsAdvancingQuestion(true);
         setWorking(true);
         setError(null);
         try {
@@ -2143,6 +2184,7 @@ export default function Cuestionario() {
             setError(mapError(requestError, 'No se pudo guardar la respuesta.'));
         } finally {
             actionLockRef.current = false;
+            setIsAdvancingQuestion(false);
             setWorking(false);
         }
     };
@@ -2215,7 +2257,7 @@ export default function Cuestionario() {
     };
 
     const onAnswerChange = (value: QuestionnaireResponseValue) => {
-        if (!currentQuestion) return;
+        if (!currentQuestion || isAnswerInteractionBlocked) return;
         setError(null);
         setSaveError(null);
         const questionKey = getQuestionStateKey(currentQuestion);
@@ -2232,7 +2274,7 @@ export default function Cuestionario() {
     };
 
     const onNumericInputChange = (value: string) => {
-        if (!currentQuestion) return;
+        if (!currentQuestion || isAnswerInteractionBlocked) return;
         const questionKey = getQuestionStateKey(currentQuestion);
         if (!questionKey) return;
 
@@ -2259,6 +2301,7 @@ export default function Cuestionario() {
         if (currentIndex <= 0 || actionLockRef.current) return;
         const previousIndex = currentIndex - 1;
         actionLockRef.current = true;
+        setIsAdvancingQuestion(true);
         setWorking(true);
         setError(null);
         try {
@@ -2269,8 +2312,11 @@ export default function Cuestionario() {
             }
             setQuestionTransitionDirection('from-prev');
             setCurrentIndex(previousIndex);
+        } catch (requestError) {
+            setError(mapError(requestError, 'No se pudo guardar la respuesta antes de volver.'));
         } finally {
             actionLockRef.current = false;
+            setIsAdvancingQuestion(false);
             setWorking(false);
         }
     };
@@ -2279,6 +2325,7 @@ export default function Cuestionario() {
         stopPolling();
         setStarted(false);
         setSessionId(null);
+        setActiveCaseLabel(null);
         setQuestions([]);
         setAnswers({});
         setCurrentIndex(0);
@@ -2392,6 +2439,7 @@ export default function Cuestionario() {
     const statusChipClass = getProcessingChipClass(completionPhase);
     const isLastQuestion = currentIndex === questions.length - 1;
     const submitActionLabel = getSubmitActionLabel(working, isLastQuestion);
+    const questionWarning = error ?? (saveState === 'error' ? saveError : null);
 
     const introActionContent =
         reusableSession && reusableSessionId ? (
@@ -2560,18 +2608,12 @@ export default function Cuestionario() {
                     currentNumericDraftValue={currentNumericDraftValue}
                     currentNumericHelperText={currentNumericHelperText}
                     currentNumericValidationMessage={currentNumericValidationMessage}
+                    disabled={isAnswerInteractionBlocked}
                     onAnswerChange={onAnswerChange}
                     onNumericInputChange={onNumericInputChange}
                 />
 
-                <div className={`questionnaire-save-state is-${saveState}`} aria-live="polite">
-                    {saveState === 'dirty' ? 'Cambios pendientes por guardar.' : null}
-                    {saveState === 'saving' ? 'Guardando respuestas...' : null}
-                    {saveState === 'saved' ? 'Respuestas guardadas.' : null}
-                    {saveState === 'error' ? (saveError ?? 'No se pudieron guardar las respuestas.') : null}
-                </div>
-
-                {error ? <div className="question-warning">{error}</div> : null}
+                {questionWarning ? <div className="question-warning">{questionWarning}</div> : null}
 
                 <div className="questionnaire-progress">
                     <span className="questionnaire-progress-text">
@@ -2590,7 +2632,7 @@ export default function Cuestionario() {
                     onClick={() => {
                         handlePrevious().catch(swallowQuestionnaireAsyncError);
                     }}
-                    disabled={currentIndex <= 0 || working}
+                    disabled={currentIndex <= 0 || isAnswerInteractionBlocked}
                 >
                     Anterior
                 </button>
@@ -2598,7 +2640,7 @@ export default function Cuestionario() {
                     type="button"
                     className="questionnaire-btn primary"
                     onClick={handlePrimaryActionClick}
-                    disabled={isLastQuestion ? !canSubmitQuestionnaire : (!canContinue || working || hasSaveError)}
+                    disabled={isLastQuestion ? !canSubmitQuestionnaire : (!canContinue || isAnswerInteractionBlocked || hasSaveError)}
                 >
                     {submitActionLabel}
                 </button>
@@ -2693,6 +2735,9 @@ export default function Cuestionario() {
                     <div className="questionnaire-role-chip">
                         Aplicado por: {getRolePresentationLabel(apiRole)}
                     </div>
+                    {activeCaseLabel ? (
+                        <p className="questionnaire-case-reference">Caso: {activeCaseLabel}</p>
+                    ) : null}
                     <p className="questionnaire-disclaimer">
                         Este cuestionario no diagnostica, solo genera una alerta temprana.
                     </p>

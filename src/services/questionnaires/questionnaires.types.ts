@@ -240,8 +240,15 @@ export interface QuestionnaireSessionV2DTO {
     comorbidity?: QuestionnaireEvaluationComorbidityDTO[];
     metadata?: Record<string, unknown> | null;
     title?: string | null;
+    case?: QuestionnaireCaseDTO | null;
+    case_id?: string | null;
+    case_public_id?: string | null;
+    case_label?: string | null;
+    case_private_label?: string | null;
+    case_display_label?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+    processed_at?: string | null;
     answers?: QuestionnaireAnswerV2DTO[] | Record<string, QuestionnaireResponseValue>;
     [key: string]: unknown;
 }
@@ -267,6 +274,12 @@ export interface QuestionnaireHistoryItemV2DTO {
     role?: QuestionnaireV2Role;
     title?: string | null;
     name?: string | null;
+    case?: QuestionnaireCaseDTO | null;
+    case_id?: string | null;
+    case_public_id?: string | null;
+    case_label?: string | null;
+    case_private_label?: string | null;
+    case_display_label?: string | null;
     version?: string | null;
     created_at?: string | null;
     updated_at?: string | null;

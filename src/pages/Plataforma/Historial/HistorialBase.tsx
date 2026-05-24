@@ -291,6 +291,23 @@ function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number)
     return `Registro ${index + 1}`;
 }
 
+function resolveHistoryCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
+    const record = item as Record<string, unknown>;
+    const caseRecord = toRecord(record.case);
+    const label = normalizeClinicalTextPresentation(
+        caseRecord?.display_label ??
+        caseRecord?.private_label ??
+        record.case_display_label ??
+        record.case_private_label ??
+        record.case_label ??
+        caseRecord?.case_public_id ??
+        record.case_public_id,
+        ''
+    );
+
+    return label ? `Caso: ${label}` : 'Sin caso asociado';
+}
+
 function resolveSessionMetadataRows(
     detail: QuestionnaireHistoryDetailV2DTO | null,
     detailSessionId: string | null,
@@ -513,9 +530,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
         return items.map((item: QuestionnaireHistoryItemV2DTO, index) => {
             const sessionTitle = resolveSessionTitle(item, index);
+            const caseLabel = resolveHistoryCaseLabel(item);
             return (
                 <div className="historial-v2-row" key={item.id}>
-                    <div title={sessionTitle}>{sessionTitle}</div>
+                    <div className="historial-v2-primary-cell" title={`${sessionTitle}\n${caseLabel}`}>
+                        <strong className="historial-v2-primary-title">{sessionTitle}</strong>
+                        <span className="historial-v2-case-ref">{caseLabel}</span>
+                    </div>
                     <div>{normalizeClinicalTextPresentation(getStatusLabel(item.status), '--')}</div>
                     <div>{normalizeClinicalTextPresentation(getModeLabel(item.mode), '--')}</div>
                     <div>{normalizeClinicalTextPresentation(getRoleLabel(item.role), '--')}</div>

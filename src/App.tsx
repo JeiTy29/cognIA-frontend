@@ -119,9 +119,10 @@ export default function App() {
                     <Route element={<ProtectedRoute preserveShell />}>
                         <Route element={<SidebarLayout />}>
                             <Route path="/padre" element={<ProtectedRoute allowedRoles={['padre']} />}>
-                                <Route index element={<Navigate to="/padre/seguimiento" replace />} />
-                                <Route path="seguimiento" element={<SeguimientoGuardian />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
+                                <Route index element={<Navigate to="/padre/cuestionario" replace />} />
+                                <Route path="casos" element={<SeguimientoGuardian />} />
+                                <Route path="seguimiento" element={<Navigate to="/padre/casos" replace />} />
                                 <Route path="historial" element={<HistorialPadre />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="padre" />} />
