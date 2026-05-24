@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../Modal/Modal';
+import { ColombiaLocationSelect } from '../Location/ColombiaLocationSelect';
 import { ApiError } from '../../services/api/httpClient';
 import {
     addQuestionnaireHistoryTagV2,
@@ -35,7 +36,9 @@ import {
 import { downloadPdfBlob } from '../../utils/presentation/reportPdf';
 import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../utils/reports/questionnaireAlertPdf';
 import { normalizeBackendText } from '../../utils/questionnaires/presentation';
+import { emitNotificationsRefresh } from '../../utils/notifications/events';
 import '../../pages/Plataforma/Historial/HistorialBase.css';
+import '../Location/ColombiaLocationSelect.css';
 
 export type QuestionnaireReportModalRole = 'padre' | 'psicologo';
 
@@ -429,7 +432,10 @@ export function QuestionnaireReportDetailModal({
     const [pdfError, setPdfError] = useState<string | null>(null);
     const [pdfNotice, setPdfNotice] = useState<string | null>(null);
     const [shareQuery, setShareQuery] = useState('');
-    const [shareLocation, setShareLocation] = useState('');
+    const [shareDepartment, setShareDepartment] = useState('');
+    const [shareCity, setShareCity] = useState('');
+    const [shareSameLocation, setShareSameLocation] = useState(false);
+    const [shareWarnings, setShareWarnings] = useState<string[]>([]);
     const [shareResults, setShareResults] = useState<PsychologistSearchItemDTO[]>([]);
     const [shareSearchLoading, setShareSearchLoading] = useState(false);
     const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
@@ -456,6 +462,7 @@ export function QuestionnaireReportDetailModal({
         setTagNotice(null);
         setShareError(null);
         setShareNotice(null);
+        setShareWarnings([]);
         setPdfError(null);
         setPdfNotice(null);
     };
@@ -520,7 +527,10 @@ export function QuestionnaireReportDetailModal({
         setShareWorking(false);
         setPdfWorking(false);
         setShareQuery('');
-        setShareLocation('');
+        setShareDepartment('');
+        setShareCity('');
+        setShareSameLocation(false);
+        setShareWarnings([]);
         setShareResults([]);
         setSelectedPsychologistId('');
         resetActionMessages();
@@ -575,17 +585,22 @@ export function QuestionnaireReportDetailModal({
         setShareSearchLoading(true);
         setShareError(null);
         setShareNotice(null);
+        setShareWarnings([]);
         try {
             const response = await searchPsychologistsV2({
                 q: shareQuery.trim() || undefined,
-                location: shareLocation.trim() || undefined,
+                department: shareSameLocation ? undefined : (shareDepartment.trim() || undefined),
+                city: shareSameLocation ? undefined : (shareCity.trim() || undefined),
+                same_location: shareSameLocation || undefined,
                 page: 1,
                 page_size: 10
             });
             setShareResults(response.items);
+            setShareWarnings(response.warnings ?? []);
             setSelectedPsychologistId('');
         } catch (actionError) {
             setShareResults([]);
+            setShareWarnings([]);
             setShareError(buildActionErrorMessage(actionError, 'No se pudo buscar psicólogos registrados.'));
         } finally {
             setShareSearchLoading(false);
@@ -607,20 +622,31 @@ export function QuestionnaireReportDetailModal({
                 max_uses: 100
             });
             const grantee = (payload as { grantee?: { full_name?: string | null; username?: string | null } }).grantee;
-            const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psicólogo seleccionado');
-            setShareNotice(`La evaluación fue compartida con ${sharedName}.`);
+            const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psic?logo seleccionado');
+            if (payload.grant?.request_status === 'pending') {
+                setShareNotice(
+                    `Solicitud enviada a ${sharedName}. El psic?logo podr? revisar la evaluaci?n cuando acepte la solicitud.`
+                );
+            } else {
+                setShareNotice(`La evaluaci?n fue compartida con ${sharedName}.`);
+            }
+            emitNotificationsRefresh();
         } catch (actionError) {
             const code = getApiErrorCode(actionError);
             if (code === 'share_target_not_psychologist') {
-                setShareError('Solo puedes compartir esta evaluación con psicólogos registrados.');
+                setShareError('Solo puedes compartir esta evaluaci?n con psic?logos registrados.');
             } else if (code === 'share_grantee_inactive') {
-                setShareError('Este psicólogo no se encuentra activo actualmente.');
+                setShareError('Este psic?logo no se encuentra activo actualmente.');
             } else if (code === 'share_grantee_not_found') {
-                setShareError('No se encontró el psicólogo seleccionado.');
+                setShareError('No se encontr? el psic?logo seleccionado.');
+            } else if (code === 'share_request_already_pending') {
+                setShareError('Ya existe una solicitud pendiente para este psic?logo.');
+            } else if (code === 'share_request_already_accepted') {
+                setShareError('Este psic?logo ya acept? revisar esta evaluaci?n.');
             } else if (code === 'forbidden_history_access') {
-                setShareError('No tienes permisos para compartir esta evaluación.');
+                setShareError('No tienes permisos para compartir esta evaluaci?n.');
             } else {
-                setShareError('No se pudo compartir la evaluación. Intenta nuevamente.');
+                setShareError('No se pudo compartir la evaluaci?n. Intenta nuevamente.');
             }
         } finally {
             setShareWorking(false);
@@ -957,10 +983,10 @@ export function QuestionnaireReportDetailModal({
 
                         {role === 'padre' ? (
                             <div className="historial-v2-section">
-                                <h3>Compartir con psicólogo</h3>
+                                <h3>Compartir con psic?logo</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Busca un psicólogo registrado por nombre, correo o ciudad para compartir esta evaluación directamente con su cuenta profesional.
+                                        Busca un psic?logo registrado por nombre, correo o ubicaci?n para enviarle una solicitud de revisi?n desde su cuenta profesional.
                                     </p>
                                     <div className="historial-v2-share-search-grid">
                                         <input
@@ -969,12 +995,32 @@ export function QuestionnaireReportDetailModal({
                                             value={shareQuery}
                                             onChange={(event) => setShareQuery(event.target.value)}
                                         />
-                                        <input
-                                            type="text"
-                                            placeholder="Ciudad"
-                                            value={shareLocation}
-                                            onChange={(event) => setShareLocation(event.target.value)}
+                                        <ColombiaLocationSelect
+                                            value={{ department: shareDepartment, city: shareCity }}
+                                            onChange={(nextValue) => {
+                                                setShareDepartment(nextValue.department);
+                                                setShareCity(nextValue.city);
+                                            }}
+                                            disabled={shareSameLocation}
+                                            departmentLabel="Departamento"
+                                            cityLabel="Ciudad"
+                                            className="historial-v2-share-location"
                                         />
+                                        <label className="historial-v2-inline-toggle">
+                                            <input
+                                                type="checkbox"
+                                                checked={shareSameLocation}
+                                                onChange={(event) => {
+                                                    const checked = event.target.checked;
+                                                    setShareSameLocation(checked);
+                                                    if (checked) {
+                                                        setShareDepartment('');
+                                                        setShareCity('');
+                                                    }
+                                                }}
+                                            />
+                                            <span>Buscar psic?logos de mi misma ubicaci?n</span>
+                                        </label>
                                         <button
                                             type="button"
                                             className="historial-v2-btn"
@@ -986,8 +1032,13 @@ export function QuestionnaireReportDetailModal({
                                     </div>
                                     {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
                                     {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
-                                    {shareResults.length === 0 && (shareQuery.trim().length > 0 || shareLocation.trim().length > 0) && !shareSearchLoading ? (
-                                        <p className="historial-v2-helper-text">No se encontraron psicólogos con esos criterios.</p>
+                                    {shareWarnings.includes('user_location_missing') ? (
+                                        <p className="historial-v2-helper-text">
+                                            No tienes una ubicaci?n registrada. Puedes buscar manualmente por departamento y ciudad.
+                                        </p>
+                                    ) : null}
+                                    {shareResults.length === 0 && (shareQuery.trim().length > 0 || shareDepartment.trim().length > 0 || shareCity.trim().length > 0 || shareSameLocation) && !shareSearchLoading ? (
+                                        <p className="historial-v2-helper-text">No se encontraron psic?logos con esos criterios.</p>
                                     ) : null}
                                     {shareResults.length > 0 ? (
                                         <div className="historial-v2-psychologist-list">
@@ -998,11 +1049,13 @@ export function QuestionnaireReportDetailModal({
                                                     className={`historial-v2-psychologist-item ${selectedPsychologistId === psychologist.user_id ? 'is-selected' : ''}`}
                                                     onClick={() => setSelectedPsychologistId(psychologist.user_id)}
                                                 >
-                                                    <strong>{normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psicólogo registrado')}</strong>
+                                                    <strong>{normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psic?logo registrado')}</strong>
                                                     <span>{normalizeBackendText(psychologist.email, 'Correo no disponible')}</span>
                                                     <small>
-                                                        {normalizeBackendText(psychologist.professional_location, 'Ubicación no disponible')}
-                                                        {psychologist.colpsic_verified ? ' · Verificado' : ''}
+                                                        {normalizeBackendText([psychologist.city, psychologist.department].filter(Boolean).join(' ? '), 'Ubicaci?n no disponible')}
+                                                        {psychologist.colpsic_verified ? ' ? Verificado' : ''}
+                                                        {psychologist.same_city ? ' ? Misma ciudad' : ''}
+                                                        {!psychologist.same_city && psychologist.same_department ? ' ? Mismo departamento' : ''}
                                                     </small>
                                                 </button>
                                             ))}
@@ -1015,7 +1068,7 @@ export function QuestionnaireReportDetailModal({
                                             onClick={() => { runHistoryTask(handleShareWithPsychologist); }}
                                             disabled={!selectedPsychologistId || shareWorking}
                                         >
-                                            {shareWorking ? 'Compartiendo...' : 'Compartir evaluación'}
+                                            {shareWorking ? 'Enviando solicitud...' : 'Compartir evaluaci?n'}
                                         </button>
                                     </div>
                                 </div>

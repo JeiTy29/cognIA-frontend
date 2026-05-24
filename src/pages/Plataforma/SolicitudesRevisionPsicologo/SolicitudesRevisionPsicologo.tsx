@@ -1,0 +1,281 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import '../Plataforma.css';
+import './SolicitudesRevisionPsicologo.css';
+import { Modal } from '../../../components/Modal/Modal';
+import {
+    acceptPsychologistShareRequestV2,
+    getPsychologistShareRequestsV2,
+    rejectPsychologistShareRequestV2
+} from '../../../services/questionnaires/questionnaires.api';
+import type { PsychologistShareRequestDTO } from '../../../services/questionnaires/questionnaires.types';
+import {
+    formatDateTime,
+    formatPercent,
+    normalizeAlertLevel,
+    normalizeBackendText,
+    normalizeDomainLabel,
+    normalizeQuestionnaireMode,
+    normalizeRequestStatus,
+    normalizeSessionStatus
+} from '../../../utils/questionnaires/presentation';
+import { emitNotificationsRefresh } from '../../../utils/notifications/events';
+
+const statusOptions = [
+    { value: 'pending', label: 'Pendientes' },
+    { value: 'accepted', label: 'Aceptadas' },
+    { value: 'rejected', label: 'Rechazadas' },
+    { value: 'all', label: 'Todas' }
+] as const;
+
+type ActionIntent = 'accept' | 'reject' | null;
+
+export default function SolicitudesRevisionPsicologo() {
+    const [status, setStatus] = useState<(typeof statusOptions)[number]['value']>('pending');
+    const [query, setQuery] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [requests, setRequests] = useState<PsychologistShareRequestDTO[]>([]);
+    const [summary, setSummary] = useState<{ pending_count?: number | null; accepted_count?: number | null; rejected_count?: number | null } | null>(null);
+    const [selectedRequest, setSelectedRequest] = useState<PsychologistShareRequestDTO | null>(null);
+    const [actionIntent, setActionIntent] = useState<ActionIntent>(null);
+    const [actionMessage, setActionMessage] = useState('');
+    const [actionWorking, setActionWorking] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const loadRequests = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await getPsychologistShareRequestsV2({
+                status,
+                q: query.trim() || undefined,
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
+                page: 1,
+                page_size: 20
+            });
+            setRequests(response.items);
+            setSummary(response.summary ?? null);
+        } catch (requestError) {
+            const payload = typeof requestError === 'object' && requestError && 'payload' in requestError
+                ? (requestError as { payload?: { error?: string } }).payload
+                : null;
+            if (payload?.error === 'psychologist_share_requests_requires_psychologist') {
+                setError('Esta vista solo está disponible para psicólogos.');
+            } else {
+                setError('No fue posible cargar las solicitudes de revisión.');
+            }
+            setRequests([]);
+            setSummary(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [dateFrom, dateTo, query, status]);
+
+    useEffect(() => {
+        loadRequests().catch(() => undefined);
+    }, [loadRequests]);
+
+    const handleOpenAction = (request: PsychologistShareRequestDTO, intent: ActionIntent) => {
+        setSelectedRequest(request);
+        setActionIntent(intent);
+        setActionMessage(
+            intent === 'accept'
+                ? 'Acepto revisar el caso.'
+                : 'No puedo revisar este caso en este momento.'
+        );
+        setActionError(null);
+    };
+
+    const handleCloseAction = () => {
+        if (actionWorking) return;
+        setSelectedRequest(null);
+        setActionIntent(null);
+        setActionMessage('');
+        setActionError(null);
+    };
+
+    const handleSubmitAction = async () => {
+        if (!selectedRequest?.grant_id || !actionIntent) return;
+        setActionWorking(true);
+        setActionError(null);
+        try {
+            if (actionIntent === 'accept') {
+                await acceptPsychologistShareRequestV2(selectedRequest.grant_id, { message: actionMessage.trim() || undefined });
+                setNotice('Solicitud aceptada. La evaluación ahora está disponible en tus evaluaciones recibidas.');
+            } else {
+                await rejectPsychologistShareRequestV2(selectedRequest.grant_id, { message: actionMessage.trim() || undefined });
+                setNotice('Solicitud rechazada.');
+            }
+            emitNotificationsRefresh();
+            handleCloseAction();
+            await loadRequests();
+        } catch {
+            setActionError(
+                actionIntent === 'accept'
+                    ? 'No fue posible aceptar la solicitud.'
+                    : 'No fue posible rechazar la solicitud.'
+            );
+        } finally {
+            setActionWorking(false);
+        }
+    };
+
+    const emptyMessage = useMemo(() => {
+        if (status === 'accepted') return 'No tienes solicitudes aceptadas.';
+        if (status === 'rejected') return 'No tienes solicitudes rechazadas.';
+        if (status === 'all') return 'No hay solicitudes para mostrar.';
+        return 'No tienes solicitudes pendientes por revisar.';
+    }, [status]);
+
+    return (
+        <div className="plataforma-view">
+            <section className="solicitudes-revision" aria-label="Solicitudes de revisión">
+                <div className="solicitudes-revision__header">
+                    <div>
+                        <h1>Solicitudes de revisión</h1>
+                        <p>Administra las solicitudes pendientes antes de que las evaluaciones aparezcan en tus evaluaciones recibidas.</p>
+                    </div>
+                    <button type="button" onClick={() => loadRequests().catch(() => undefined)}>
+                        Actualizar
+                    </button>
+                </div>
+
+                <div className="solicitudes-revision__filters">
+                    <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}>
+                        {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <input
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Buscar por caso o acudiente"
+                    />
+                    <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+                    <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+                </div>
+
+                {notice ? <div className="solicitudes-revision__notice success">{notice}</div> : null}
+                {error ? <div className="solicitudes-revision__notice error">{error}</div> : null}
+
+                {summary ? (
+                    <div className="solicitudes-revision__summary">
+                        <article><strong>Pendientes</strong><span>{summary.pending_count ?? 0}</span></article>
+                        <article><strong>Aceptadas</strong><span>{summary.accepted_count ?? 0}</span></article>
+                        <article><strong>Rechazadas</strong><span>{summary.rejected_count ?? 0}</span></article>
+                    </div>
+                ) : null}
+
+                {loading ? <div className="solicitudes-revision__empty">Cargando solicitudes...</div> : null}
+                {!loading && requests.length === 0 ? <div className="solicitudes-revision__empty">{emptyMessage}</div> : null}
+
+                {!loading && requests.length > 0 ? (
+                    <div className="solicitudes-revision__list">
+                        {requests.map((request) => (
+                            <article key={request.grant_id} className="solicitudes-revision__card">
+                                <div className="solicitudes-revision__card-top">
+                                    <div>
+                                        <h2>{normalizeBackendText(request.case?.case_public_id, 'Caso sin código público')}</h2>
+                                        <p>{normalizeBackendText(request.guardian?.display_name, 'Acudiente no disponible')}</p>
+                                    </div>
+                                    <span>{normalizeRequestStatus(request.request_status)}</span>
+                                </div>
+
+                                <div className="solicitudes-revision__meta">
+                                    <div>
+                                        <strong>Sesión</strong>
+                                        <span>{normalizeBackendText(request.session?.questionnaire_id ?? request.session?.session_id, '--')}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Estado</strong>
+                                        <span>{normalizeSessionStatus(request.session?.status)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Modo</strong>
+                                        <span>{normalizeQuestionnaireMode(request.session?.mode)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Solicitada</strong>
+                                        <span>{formatDateTime(request.requested_at)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Respondida</strong>
+                                        <span>{formatDateTime(request.responded_at)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Progreso</strong>
+                                        <span>{formatPercent(request.session?.progress_pct)}</span>
+                                    </div>
+                                </div>
+
+                                {request.summary ? (
+                                    <div className="solicitudes-revision__summary-block">
+                                        <p>{normalizeBackendText(request.summary.result_summary, 'Sin resumen orientativo disponible.')}</p>
+                                        <p>
+                                            <strong>Mayor alerta:</strong> {normalizeAlertLevel(request.summary.highest_alert_level)}
+                                            {' · '}
+                                            <strong>Requiere revisión:</strong> {request.summary.needs_professional_review ? 'Sí' : 'No'}
+                                        </p>
+                                        {Array.isArray(request.summary.domains) && request.summary.domains.length > 0 ? (
+                                            <div className="solicitudes-revision__domains">
+                                                {request.summary.domains.map((domainItem, index) => (
+                                                    <div key={`${request.grant_id}-${domainItem.domain ?? index}`} className="solicitudes-revision__domain-pill">
+                                                        <strong>{normalizeDomainLabel(domainItem.domain)}</strong>
+                                                        <span>{formatPercent(domainItem.probability)}</span>
+                                                        <small>{normalizeAlertLevel(domainItem.alert_level)}</small>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+
+                                <div className="solicitudes-revision__actions">
+                                    <button
+                                        type="button"
+                                        disabled={!request.can_accept}
+                                        onClick={() => handleOpenAction(request, 'accept')}
+                                    >
+                                        Aceptar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!request.can_reject}
+                                        onClick={() => handleOpenAction(request, 'reject')}
+                                    >
+                                        Rechazar
+                                    </button>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                ) : null}
+            </section>
+
+            <Modal isOpen={selectedRequest !== null && actionIntent !== null} onClose={handleCloseAction}>
+                <div className="solicitudes-revision__modal">
+                    <h2>{actionIntent === 'accept' ? 'Aceptar solicitud' : 'Rechazar solicitud'}</h2>
+                    <p>
+                        {actionIntent === 'accept'
+                            ? 'Puedes dejar un mensaje opcional para confirmar la revisión del caso.'
+                            : 'Confirma si deseas rechazar esta solicitud. Puedes dejar un mensaje opcional.'}
+                    </p>
+                    <textarea
+                        value={actionMessage}
+                        onChange={(event) => setActionMessage(event.target.value)}
+                        placeholder={actionIntent === 'accept' ? 'Acepto revisar el caso.' : 'No puedo revisar este caso en este momento.'}
+                    />
+                    {actionError ? <div className="solicitudes-revision__notice error">{actionError}</div> : null}
+                    <div className="solicitudes-revision__modal-actions">
+                        <button type="button" onClick={handleCloseAction} disabled={actionWorking}>Cancelar</button>
+                        <button type="button" onClick={() => { handleSubmitAction().catch(() => undefined); }} disabled={actionWorking}>
+                            {actionWorking ? 'Procesando...' : actionIntent === 'accept' ? 'Aceptar' : 'Rechazar'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        </div>
+    );
+}

@@ -81,6 +81,15 @@ export const sidebarItems: SidebarItem[] = [
         }
     },
     {
+        id: 'solicitudes-revision',
+        label: 'Solicitudes de revisión',
+        icon: IconHistory,
+        roles: ['psicologo'],
+        paths: {
+            psicologo: '/psicologo/solicitudes'
+        }
+    },
+    {
         id: 'cuestionario',
         label: 'Cuestionarios',
         icon: IconClipboard,

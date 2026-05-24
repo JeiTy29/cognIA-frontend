@@ -23,6 +23,8 @@ import type {
     PatchSessionAnswersV2Payload,
     ProfessionalReviewPayload,
     PsychologistDashboardDTO,
+    PsychologistShareRequestDTO,
+    PsychologistShareRequestsResponseDTO,
     PsychologistSearchResponseDTO,
     QuestionnaireCaseDTO,
     QuestionnaireCaseDetailDTO,
@@ -43,6 +45,8 @@ import type {
     QuestionnaireProfessionalReviewDTO,
     QuestionnaireSessionPageV2Response,
     QuestionnaireSessionV2DTO,
+    AcceptShareRequestPayload,
+    RejectShareRequestPayload,
     QuestionnaireSharedComorbidityDTO,
     QuestionnaireSharedDomainDTO,
     QuestionnaireShareResponseDTO,
@@ -51,6 +55,7 @@ import type {
     QuestionnaireSharedDataV2DTO,
     QuestionnaireTagDTO,
     QuestionnaireTemplateV2DTO,
+    QuestionnaireAlertLevel,
     QuestionnaireV2Mode,
     QuestionnaireV2Role,
     ShareQuestionnairePayload,
@@ -510,6 +515,10 @@ function normalizePsychologistSearchResponse(payload: unknown, page = 1, pageSiz
             username: firstNonEmptyString([record.username]),
             full_name: firstNonEmptyString([record.full_name, record.display_name]),
             email: firstNonEmptyString([record.email]),
+            department: firstNonEmptyString([record.department]),
+            city: firstNonEmptyString([record.city]),
+            same_department: toBooleanOrNull(record.same_department),
+            same_city: toBooleanOrNull(record.same_city),
             professional_location: firstNonEmptyString([record.professional_location, record.location]),
             colpsic_verified: toBooleanOrNull(record.colpsic_verified)
         });
@@ -518,7 +527,13 @@ function normalizePsychologistSearchResponse(payload: unknown, page = 1, pageSiz
 
     return {
         items,
-        pagination: normalizePagination(root?.pagination, page, pageSize)
+        pagination: normalizePagination(root?.pagination, page, pageSize),
+        recommendation: asRecord(root?.recommendation) ? {
+            basis: firstNonEmptyString([asRecord(root?.recommendation)?.basis]),
+            department: firstNonEmptyString([asRecord(root?.recommendation)?.department]),
+            city: firstNonEmptyString([asRecord(root?.recommendation)?.city])
+        } : null,
+        warnings: asArray<string>(root?.warnings)
     };
 }
 
@@ -551,8 +566,73 @@ function normalizeShareWithPsychologistResponse(payload: unknown): Questionnaire
         ...share,
         share_code_id: firstNonEmptyString([root.share_code_id]) ?? undefined,
         case: asRecord(root.case) ?? undefined,
-        grantee: asRecord(root.grantee) ?? undefined,
-        grant: asRecord(root.grant) ?? undefined
+        grantee: asRecord(root.grantee)
+            ? {
+                ...asRecord(root.grantee),
+                user_id: firstNonEmptyString([asRecord(root.grantee)?.user_id, asRecord(root.grantee)?.id]),
+                username: firstNonEmptyString([asRecord(root.grantee)?.username]),
+                full_name: firstNonEmptyString([asRecord(root.grantee)?.full_name, asRecord(root.grantee)?.display_name]),
+                email: firstNonEmptyString([asRecord(root.grantee)?.email]),
+                department: firstNonEmptyString([asRecord(root.grantee)?.department]),
+                city: firstNonEmptyString([asRecord(root.grantee)?.city]),
+                professional_location: firstNonEmptyString([asRecord(root.grantee)?.professional_location, asRecord(root.grantee)?.location])
+            }
+            : undefined,
+        grant: asRecord(root.grant)
+            ? {
+                ...asRecord(root.grant),
+                grant_id: firstNonEmptyString([asRecord(root.grant)?.grant_id, asRecord(root.grant)?.id]),
+                request_status: firstNonEmptyString([asRecord(root.grant)?.request_status]),
+                can_view: toBooleanOrNull(asRecord(root.grant)?.can_view),
+                can_download_pdf: toBooleanOrNull(asRecord(root.grant)?.can_download_pdf),
+                can_tag: toBooleanOrNull(asRecord(root.grant)?.can_tag),
+                requested_at: firstNonEmptyString([asRecord(root.grant)?.requested_at]),
+                responded_at: firstNonEmptyString([asRecord(root.grant)?.responded_at]),
+                response_message: firstNonEmptyString([asRecord(root.grant)?.response_message])
+            }
+            : undefined
+    };
+}
+
+function normalizePsychologistShareRequest(value: unknown): PsychologistShareRequestDTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+    const grantId = firstNonEmptyString([record.grant_id, record.id]);
+    if (!grantId) return null;
+    const summaryRecord = asRecord(record.summary);
+    return {
+        ...record,
+        grant_id: grantId,
+        request_status: firstNonEmptyString([record.request_status]) as PsychologistShareRequestDTO['request_status'],
+        requested_at: firstNonEmptyString([record.requested_at]),
+        responded_at: firstNonEmptyString([record.responded_at]),
+        case: asRecord(record.case),
+        session: record.session ? normalizeSession(record.session) : null,
+        guardian: asRecord(record.guardian),
+        summary: summaryRecord ? {
+            ...summaryRecord,
+            needs_professional_review: toBooleanOrNull(summaryRecord.needs_professional_review),
+            highest_alert_level: firstNonEmptyString([summaryRecord.highest_alert_level]) as QuestionnaireAlertLevel | null,
+            domains: normalizeEvaluationDomains(summaryRecord.domains),
+            result_summary: firstNonEmptyString([summaryRecord.result_summary, summaryRecord.summary])
+        } : null,
+        can_accept: toBooleanOrNull(record.can_accept),
+        can_reject: toBooleanOrNull(record.can_reject)
+    };
+}
+
+function normalizePsychologistShareRequestsResponse(
+    payload: unknown,
+    page = 1,
+    pageSize = defaultPageSize
+): PsychologistShareRequestsResponseDTO {
+    const root = asRecord(payload) ?? {};
+    return {
+        items: asArray(root.items)
+            .map(normalizePsychologistShareRequest)
+            .filter((item): item is PsychologistShareRequestDTO => Boolean(item)),
+        pagination: normalizePagination(root.pagination, page, pageSize),
+        summary: asRecord(root.summary)
     };
 }
 
@@ -1308,6 +1388,7 @@ export async function getAllQuestionnaireSessionQuestionsV2(sessionId: string, p
 
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
     const requestBody: PatchSessionAnswersV2Payload = {
+        mark_final: false,
         include_answers: false,
         ...payload
     };
@@ -1448,7 +1529,9 @@ export function getGuardianQuestionnaireDashboardV2(params?: {
 
 export function searchPsychologistsV2(params?: {
     q?: string;
-    location?: string;
+    department?: string;
+    city?: string;
+    same_location?: boolean;
     page?: number;
     page_size?: number;
 }) {
@@ -1456,13 +1539,70 @@ export function searchPsychologistsV2(params?: {
     const pageSize = params?.page_size ?? defaultPageSize;
     const query = buildSearch({
         q: params?.q,
-        location: params?.location,
+        department: params?.same_location ? undefined : params?.department,
+        city: params?.same_location ? undefined : params?.city,
+        same_location: params?.same_location,
         page,
         page_size: pageSize
     });
     return apiGet<unknown>(`/api/v2/psychologists/search?${query}`, requestOptions).then((payload) =>
         normalizePsychologistSearchResponse(payload, page, pageSize)
     );
+}
+
+export function getPsychologistShareRequestsV2(params?: {
+    status?: 'pending' | 'accepted' | 'rejected' | 'all';
+    q?: string;
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    page_size?: number;
+}) {
+    const page = params?.page ?? 1;
+    const pageSize = params?.page_size ?? defaultPageSize;
+    const query = buildSearch({
+        status: params?.status,
+        q: params?.q,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        page,
+        page_size: pageSize
+    });
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions).then((payload) =>
+        normalizePsychologistShareRequestsResponse(payload, page, pageSize)
+    );
+}
+
+export function acceptPsychologistShareRequestV2(grantId: string, payload: AcceptShareRequestPayload) {
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, AcceptShareRequestPayload>(
+            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/accept`,
+            payload,
+            requestOptions
+        )
+        : apiPost<unknown, AcceptShareRequestPayload>(
+            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/accept`,
+            payload,
+            requestOptions
+        );
+
+    return request.then(normalizeShareWithPsychologistResponse);
+}
+
+export function rejectPsychologistShareRequestV2(grantId: string, payload: RejectShareRequestPayload) {
+    const request = sensitiveTransportEnabled
+        ? apiSecurePost<unknown, RejectShareRequestPayload>(
+            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/reject`,
+            payload,
+            requestOptions
+        )
+        : apiPost<unknown, RejectShareRequestPayload>(
+            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/reject`,
+            payload,
+            requestOptions
+        );
+
+    return request.then(normalizeShareWithPsychologistResponse);
 }
 
 export function getQuestionnaireHistoryDetailV2(sessionId: string) {

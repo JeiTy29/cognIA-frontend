@@ -25,6 +25,7 @@ const AyudaBase = lazy(() => import('./pages/Plataforma/Ayuda/AyudaBase'));
 const HistorialPsicologo = lazy(() => import('./pages/Plataforma/HistorialPsicologo/HistorialPsicologo'));
 const SeguimientoGuardian = lazy(() => import('./pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian'));
 const EvaluacionesCompartidas = lazy(() => import('./pages/Plataforma/EvaluacionesCompartidas/EvaluacionesCompartidas'));
+const SolicitudesRevisionPsicologo = lazy(() => import('./pages/Plataforma/SolicitudesRevisionPsicologo/SolicitudesRevisionPsicologo'));
 const SugerenciasPsicologo = lazy(() => import('./pages/Plataforma/SugerenciasPsicologo/SugerenciasPsicologo'));
 const Metricas = lazy(() => import('./pages/Administrador/Metricas/Metricas'));
 const Cuestionarios = lazy(() => import('./pages/Administrador/Cuestionarios/Cuestionarios'));
@@ -130,6 +131,7 @@ export default function App() {
                             <Route path="/psicologo" element={<ProtectedRoute allowedRoles={['psicologo']} />}>
                                 <Route index element={<Navigate to="/psicologo/evaluaciones" replace />} />
                                 <Route path="evaluaciones" element={<EvaluacionesCompartidas />} />
+                                <Route path="solicitudes" element={<SolicitudesRevisionPsicologo />} />
                                 <Route path="cuestionario" element={<Cuestionario />} />
                                 <Route path="historial" element={<HistorialPsicologo />} />
                                 <Route path="sugerencias" element={<SugerenciasPsicologo />} />

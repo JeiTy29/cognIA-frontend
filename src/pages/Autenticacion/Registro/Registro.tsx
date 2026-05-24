@@ -6,6 +6,8 @@ import { PasswordVisibilityIcon as SharedPasswordVisibilityIcon } from '../../..
 import { Modal } from '../../../components/Modal/Modal';
 import { TermsContent } from '../../../components/Legal/TermsContent';
 import { PrivacyContent } from '../../../components/Legal/PrivacyContent';
+import { ColombiaLocationSelect } from '../../../components/Location/ColombiaLocationSelect';
+import '../../../components/Location/ColombiaLocationSelect.css';
 import { validatePassword } from '../../../utils/passwordValidation';
 import { useRegister } from '../../../hooks/auth/useRegister';
 import { ApiError } from '../../../services/api/httpClient';
@@ -64,7 +66,9 @@ function getRegistrationValidationError(input: {
     acceptsTerms: boolean;
     openedTerms: boolean;
     openedPrivacy: boolean;
+    fullName: string;
     username: string;
+    department: string;
     city: string;
     password: string;
     confirmPassword: string;
@@ -79,13 +83,22 @@ function getRegistrationValidationError(input: {
         return { target: 'terms', message: 'Debes leer los términos de uso y políticas de privacidad antes de continuar' };
     }
 
+    if (!input.fullName?.trim()) {
+        return { target: 'submit', message: 'Ingresa tu nombre completo para continuar.' };
+    }
+
     if (!usernamePattern.test(input.username)) {
         return { target: 'submit', message: 'Revisa el nombre de usuario. Debe tener entre 3 y 32 caracteres válidos.' };
     }
 
+    const normalizedDepartment = input.department.trim();
+    if (normalizedDepartment.length < 2) {
+        return { target: 'submit', message: 'Selecciona un departamento.' };
+    }
+
     const normalizedCity = input.city.trim();
     if (normalizedCity.length < 2 || normalizedCity.length > 120 || /^[\d\s]+$/u.test(normalizedCity)) {
-        return { target: 'submit', message: 'Ingresa una ciudad válida para continuar.' };
+        return { target: 'submit', message: 'Selecciona una ciudad.' };
     }
 
     const passwordError = validatePassword(input.password);
@@ -215,7 +228,8 @@ export default function Registro() {
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
-    const [ciudad, setCiudad] = useState('');
+    const [department, setDepartment] = useState('');
+    const [city, setCity] = useState('');
     const [numeroOperador, setNumeroOperador] = useState('');
     const [contrasena, setContrasena] = useState('');
     const [confirmarContrasena, setConfirmarContrasena] = useState('');
@@ -245,7 +259,8 @@ export default function Registro() {
         setFullName('');
         setUsername('');
         setEmail('');
-        setCiudad('');
+        setDepartment('');
+        setCity('');
         setNumeroOperador('');
         setContrasena('');
         setConfirmarContrasena('');
@@ -308,8 +323,10 @@ export default function Registro() {
             acceptsTerms: aceptaTerminos,
             openedTerms: hasOpenedTerms,
             openedPrivacy: hasOpenedPrivacy,
+            fullName,
             username,
-            city: ciudad,
+            department,
+            city,
             password: contrasena,
             confirmPassword: confirmarContrasena
         });
@@ -331,8 +348,9 @@ export default function Registro() {
                 username,
                 email,
                 password: contrasena,
-                professional_city: ciudad.trim(),
-                professional_location: ciudad.trim()
+                full_name: fullName.trim(),
+                department: department.trim(),
+                city: city.trim()
             };
 
             if (rolSeleccionado === 'padre') {
@@ -344,7 +362,6 @@ export default function Registro() {
                 await submit({
                     ...payloadBase,
                     user_type: 'psychologist',
-                    full_name: fullName,
                     professional_card_number: numeroOperador
                 });
             }
@@ -459,6 +476,16 @@ export default function Registro() {
                                     <>
                                         <div className="form-group">
                                             <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Nombre completo"
+                                                value={fullName}
+                                                onChange={(event) => setFullName(event.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <input
                                                 id="username-padre"
                                                 type="text"
                                                 className="form-input"
@@ -480,16 +507,14 @@ export default function Registro() {
                                                 required
                                             />
                                         </div>
-                                        <div className="form-group">
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Ciudad"
-                                                value={ciudad}
-                                                onChange={(event) => setCiudad(event.target.value)}
-                                                required
-                                            />
-                                        </div>
+                                        <ColombiaLocationSelect
+                                            value={{ department, city }}
+                                            onChange={(nextValue) => {
+                                                setDepartment(nextValue.department);
+                                                setCity(nextValue.city);
+                                            }}
+                                            required
+                                        />
                                     </>
                                 )
                                 : renderRegistrationForm(
@@ -527,16 +552,14 @@ export default function Registro() {
                                                 required
                                             />
                                         </div>
-                                        <div className="form-group">
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Ciudad"
-                                                value={ciudad}
-                                                onChange={(event) => setCiudad(event.target.value)}
-                                                required
-                                            />
-                                        </div>
+                                        <ColombiaLocationSelect
+                                            value={{ department, city }}
+                                            onChange={(nextValue) => {
+                                                setDepartment(nextValue.department);
+                                                setCity(nextValue.city);
+                                            }}
+                                            required
+                                        />
                                         <div className="form-group">
                                             <input
                                                 type="text"

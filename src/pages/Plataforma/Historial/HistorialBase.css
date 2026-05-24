@@ -412,7 +412,7 @@
 
 .historial-v2-share-search-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 120px;
     gap: 10px;
 }
 
@@ -422,6 +422,23 @@
     border: 1px solid rgba(33, 95, 143, 0.22);
     padding: 9px 12px;
     color: #215f8f;
+}
+
+.historial-v2-share-location {
+    min-width: 0;
+}
+
+.historial-v2-inline-toggle {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #52677a;
+    font-size: 13px;
+}
+
+.historial-v2-inline-toggle input {
+    margin: 0;
 }
 
 .historial-v2-psychologist-list,

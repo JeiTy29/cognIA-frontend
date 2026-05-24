@@ -357,7 +357,7 @@ export default function EvaluacionesCompartidas() {
                 {emptyState ? (
                     <div className="evaluaciones-empty-card">
                         <h2>No tienes evaluaciones compartidas.</h2>
-                        <p>Cuando un padre o tutor comparta una evaluación contigo, aparecerá aquí para revisión profesional.</p>
+                        <p>Cuando aceptes solicitudes de revisión, aparecerán aquí para tu revisión profesional.</p>
                     </div>
                 ) : null}
 

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '../api/httpClient';
+import { apiGet, apiPatch, apiPost } from '../api/httpClient';
 import type {
     LoginRequest,
     LoginResponse,
@@ -22,7 +22,9 @@ import type {
     RegisterPayload,
     RegisterResponse,
     AuthMeResponse,
-    AuthMeErrorResponse
+    AuthMeErrorResponse,
+    UpdateProfilePayload,
+    UpdateProfileResponseDTO
 } from './auth.types';
 import { getCsrfToken } from '../../utils/auth/csrf';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
@@ -163,6 +165,13 @@ export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse>
         }
         return { error: 'unauthorized', status: 500 };
     }
+}
+
+export function updateMyProfile(payload: UpdateProfilePayload): Promise<UpdateProfileResponseDTO> {
+    return apiPatch<UpdateProfileResponseDTO, UpdateProfilePayload>('/api/auth/me/profile', payload, {
+        auth: true,
+        credentials: 'include'
+    });
 }
 
 export async function logout(accessTokenSnapshot?: string): Promise<LogoutResponse | LogoutErrorResponse> {

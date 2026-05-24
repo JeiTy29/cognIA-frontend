@@ -22,7 +22,7 @@ const BACKEND_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
     [/clinicas/gi, 'clínicas'],
     [/terapeuticas/gi, 'terapéuticas'],
     [/pagina/gi, 'página'],
-    [/m?tricas/gi, 'métricas']
+    [/metricas/gi, 'métricas']
 ];
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -70,6 +70,19 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
     closed: 'Cerrado'
 };
 
+const REQUEST_STATUS_LABELS: Record<string, string> = {
+    pending: 'Pendiente',
+    accepted: 'Aceptada',
+    rejected: 'Rechazada'
+};
+
+function formatFallbackLabel(value: string) {
+    return normalizeBackendText(
+        value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+        '--'
+    );
+}
+
 export function normalizeBackendText(value: unknown, fallback = '--') {
     const raw = readText(value);
     if (!raw) return fallback;
@@ -79,39 +92,46 @@ export function normalizeBackendText(value: unknown, fallback = '--') {
 export function normalizeDomainLabel(value: unknown) {
     const raw = readText(value).toLowerCase().replace(/[_-]+/g, '_');
     if (!raw) return 'General';
-    if (DOMAIN_LABELS[raw]) return DOMAIN_LABELS[raw];
-    return normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()), 'General');
+    return DOMAIN_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
 export function normalizeAlertLevel(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
-    return ALERT_LEVEL_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+    return ALERT_LEVEL_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
 export function normalizeSessionStatus(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
-    return SESSION_STATUS_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+    return SESSION_STATUS_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
 export function normalizeReviewStatus(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
-    return REVIEW_STATUS_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+    return REVIEW_STATUS_LABELS[raw] ?? formatFallbackLabel(raw);
+}
+
+export function normalizeRequestStatus(value: unknown) {
+    const raw = readText(value).toLowerCase();
+    if (!raw) return '--';
+    return REQUEST_STATUS_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
 export function normalizeCaseStatus(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
-    return CASE_STATUS_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+    return CASE_STATUS_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
 export function normalizeQuestionnaireMode(value: unknown) {
     const raw = readText(value).toLowerCase();
     if (!raw) return '--';
-    return QUESTIONNAIRE_MODE_LABELS[raw] ?? normalizeBackendText(raw.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()));
+    return QUESTIONNAIRE_MODE_LABELS[raw] ?? formatFallbackLabel(raw);
 }
+
+export const normalizeModeLabel = normalizeQuestionnaireMode;
 
 export function formatPercent(value: unknown, maximumFractionDigits = 1) {
     const numeric = Number(value);

@@ -1,0 +1,109 @@
+.notifications-bell {
+    position: relative;
+    border: 1px solid rgba(33, 95, 143, 0.16);
+    background: #ffffff;
+    color: #105384;
+    border-radius: 999px;
+    min-width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 12px 22px rgba(16, 83, 132, 0.08);
+}
+
+.notifications-bell__icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.notifications-bell__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d9485f;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+
+.notifications-modal {
+    display: grid;
+    gap: 14px;
+    color: #215f8f;
+}
+
+.notifications-modal__header,
+.notifications-modal__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.notifications-modal__header h2,
+.notifications-modal__item p,
+.notifications-modal__item strong {
+    margin: 0;
+}
+
+.notifications-modal__header button,
+.notifications-modal__actions button {
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 10px;
+    min-height: 36px;
+    padding: 0 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.notifications-modal__error,
+.notifications-modal__empty,
+.notifications-modal__item {
+    border-radius: 14px;
+    border: 1px solid rgba(33, 95, 143, 0.12);
+    background: #ffffff;
+}
+
+.notifications-modal__error {
+    background: #fff1f2;
+    color: #8b1e3f;
+    padding: 12px 14px;
+}
+
+.notifications-modal__empty {
+    padding: 18px;
+    text-align: center;
+    color: #52677a;
+}
+
+.notifications-modal__list {
+    display: grid;
+    gap: 10px;
+}
+
+.notifications-modal__item {
+    padding: 14px;
+    display: grid;
+    gap: 8px;
+}
+
+.notifications-modal__item.is-unread {
+    border-color: rgba(81, 194, 244, 0.36);
+    box-shadow: inset 3px 0 0 #51c2f4;
+}
+
+.notifications-modal__item p,
+.notifications-modal__item small {
+    color: #52677a;
+}

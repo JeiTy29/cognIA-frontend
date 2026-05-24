@@ -1,0 +1,36 @@
+.colombia-location-select {
+    display: grid;
+    gap: 12px;
+}
+
+.colombia-location-select__field {
+    display: grid;
+    gap: 6px;
+}
+
+.colombia-location-select__field span {
+    font-size: 13px;
+    font-weight: 700;
+    color: #215f8f;
+}
+
+.colombia-location-select__error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 30, 63, 0.2);
+    background: #fff1f2;
+    color: #8b1e3f;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+
+.colombia-location-select__error button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}

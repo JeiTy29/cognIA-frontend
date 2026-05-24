@@ -26,9 +26,27 @@
     min-width: 0;
 }
 
+.app-topbar {
+    position: fixed;
+    top: 18px;
+    left: 82px;
+    right: 32px;
+    z-index: 31;
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: none;
+}
+
+.app-topbar__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: auto;
+}
+
 .profile-context-indicator {
     position: fixed;
-    top: 22px;
+    top: 74px;
     left: 82px;
     right: 32px;
     z-index: 30;
@@ -82,8 +100,14 @@
         min-width: 0;
     }
 
+    .app-topbar {
+        top: calc(10px + env(safe-area-inset-top));
+        left: 12px;
+        right: 16px;
+    }
+
     .profile-context-indicator {
-        top: calc(12px + env(safe-area-inset-top));
+        top: calc(62px + env(safe-area-inset-top));
         left: 12px;
         right: 16px;
     }

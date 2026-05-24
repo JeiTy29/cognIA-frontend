@@ -89,7 +89,8 @@ describe('questionnaires.api secure endpoints', () => {
             '/api/v2/questionnaires/sessions/sess-1/answers',
             {
                 answers: [{ question_id: 'q-1', answer: 'valor' }],
-                include_answers: false
+                include_answers: false,
+                mark_final: false
             },
             expect.objectContaining({ auth: true, credentials: 'include' })
         );

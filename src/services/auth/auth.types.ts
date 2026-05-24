@@ -8,9 +8,8 @@ export interface RegisterPayload {
     user_type: UserType;
     full_name?: string;
     professional_card_number?: string;
-    professional_city?: string;
-    professional_department?: string;
-    professional_location?: string;
+    department: string;
+    city: string;
 }
 
 export interface RegisterResponse {
@@ -152,6 +151,8 @@ export interface AuthMeResponse {
     display_role?: string | null;
     full_name?: string | null;
     professional_card_number?: string | null;
+    city?: string | null;
+    department?: string | null;
     professional_city?: string | null;
     professional_department?: string | null;
     professional_location?: string | null;
@@ -161,6 +162,18 @@ export interface AuthMeResponse {
     mfa_method?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+}
+
+export interface UpdateProfilePayload {
+    full_name?: string;
+    username?: string;
+    email?: string;
+    department?: string;
+    city?: string;
+}
+
+export interface UpdateProfileResponseDTO {
+    user: AuthMeResponse;
 }
 
 export interface AuthMeErrorResponse {

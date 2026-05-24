@@ -3,6 +3,8 @@ import Sidebar from '../Sidebar/Sidebar';
 import type { Role } from '../Sidebar/SidebarConfig';
 import './SidebarLayout.css';
 import { useAuth } from '../../hooks/auth/useAuth';
+import { NotificationsBell } from '../Notifications/NotificationsBell';
+import '../Notifications/NotificationsBell.css';
 
 function resolveLayoutRole(primaryRole: string | null, pathname: string): Role {
     if (primaryRole === 'admin') return 'admin';
@@ -51,6 +53,11 @@ export default function SidebarLayout() {
         <div className="app-shell">
             <Sidebar role={role} />
             <div className="app-main">
+                <div className="app-topbar">
+                    <div className="app-topbar__actions">
+                        <NotificationsBell />
+                    </div>
+                </div>
                 <div className="app-content">
                     <Outlet />
                 </div>

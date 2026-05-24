@@ -260,6 +260,7 @@ export interface QuestionnaireSessionPageV2Response {
 
 export interface PatchSessionAnswersV2Payload {
     answers: QuestionnaireAnswerV2DTO[];
+    mark_final?: boolean;
     include_answers?: boolean;
 }
 
@@ -322,6 +323,7 @@ export interface ShareQuestionnairePayload {
 export interface QuestionnaireShareResponseDTO {
     questionnaire_id?: string;
     share_code?: string;
+    share_code_id?: string;
     shared_path?: string;
     shared_url?: string;
     url?: string;
@@ -331,6 +333,12 @@ export interface QuestionnaireShareResponseDTO {
     expires_at?: string | null;
     max_uses?: number | null;
     uses?: number | null;
+    case?: {
+        case_public_id?: string | null;
+        [key: string]: unknown;
+    } | null;
+    grantee?: QuestionnaireShareGranteeDTO | null;
+    grant?: QuestionnaireShareGrantDTO | null;
     [key: string]: unknown;
 }
 
@@ -516,6 +524,10 @@ export interface PsychologistSearchItemDTO {
     username?: string | null;
     full_name?: string | null;
     email?: string | null;
+    department?: string | null;
+    city?: string | null;
+    same_department?: boolean | null;
+    same_city?: boolean | null;
     professional_location?: string | null;
     colpsic_verified?: boolean | null;
     [key: string]: unknown;
@@ -524,6 +536,13 @@ export interface PsychologistSearchItemDTO {
 export interface PsychologistSearchResponseDTO {
     items: PsychologistSearchItemDTO[];
     pagination: PaginationDTO;
+    recommendation?: {
+        basis?: string | null;
+        department?: string | null;
+        city?: string | null;
+        [key: string]: unknown;
+    } | null;
+    warnings?: string[];
 }
 
 export interface ShareWithPsychologistPayload {
@@ -537,9 +556,13 @@ export interface ShareWithPsychologistPayload {
 
 export interface QuestionnaireShareGrantDTO {
     grant_id?: string | null;
+    request_status?: string | null;
     can_view?: boolean | null;
     can_download_pdf?: boolean | null;
     can_tag?: boolean | null;
+    requested_at?: string | null;
+    responded_at?: string | null;
+    response_message?: string | null;
     [key: string]: unknown;
 }
 
@@ -548,8 +571,56 @@ export interface QuestionnaireShareGranteeDTO {
     username?: string | null;
     full_name?: string | null;
     email?: string | null;
+    department?: string | null;
+    city?: string | null;
     professional_location?: string | null;
     [key: string]: unknown;
+}
+
+export interface PsychologistShareRequestDTO {
+    grant_id: string;
+    request_status?: 'pending' | 'accepted' | 'rejected' | (string & {}) | null;
+    requested_at?: string | null;
+    responded_at?: string | null;
+    case?: {
+        case_public_id?: string | null;
+        [key: string]: unknown;
+    } | null;
+    session?: QuestionnaireSessionV2DTO | null;
+    guardian?: {
+        user_id?: string | null;
+        display_name?: string | null;
+        [key: string]: unknown;
+    } | null;
+    summary?: {
+        needs_professional_review?: boolean | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        domains?: QuestionnaireEvaluationDomainDTO[];
+        result_summary?: string | null;
+        [key: string]: unknown;
+    } | null;
+    can_accept?: boolean | null;
+    can_reject?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistShareRequestsResponseDTO {
+    items: PsychologistShareRequestDTO[];
+    pagination: PaginationDTO;
+    summary?: {
+        pending_count?: number | null;
+        accepted_count?: number | null;
+        rejected_count?: number | null;
+        [key: string]: unknown;
+    } | null;
+}
+
+export interface AcceptShareRequestPayload {
+    message?: string;
+}
+
+export interface RejectShareRequestPayload {
+    message?: string;
 }
 
 export interface QuestionnaireDashboardAggregateDTO {
