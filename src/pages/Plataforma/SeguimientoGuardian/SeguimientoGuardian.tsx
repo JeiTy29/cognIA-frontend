@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
+import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import {
     createQuestionnaireCaseV2,
     getGuardianQuestionnaireDashboardV2,
@@ -108,7 +108,6 @@ function hasPeakProbability(domains: QuestionnaireCaseDomainSummaryDTO[]) {
 }
 
 export default function SeguimientoGuardian() {
-    const navigate = useNavigate();
     const [months, setMonths] = useState('3');
     const [caseId, setCaseId] = useState('');
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
@@ -126,6 +125,7 @@ export default function SeguimientoGuardian() {
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
     const [caseErrorById, setCaseErrorById] = useState<Record<string, string | null>>({});
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
+    const [reportSessionId, setReportSessionId] = useState<string | null>(null);
 
     const caseOptions = useMemo(
         () => [
@@ -250,20 +250,6 @@ export default function SeguimientoGuardian() {
             setCreateCaseWorking(false);
         }
     };
-
-    const handleOpenHistoryReport = useCallback(
-        (session: QuestionnaireSessionV2DTO) => {
-            const sessionId = resolveSessionKey(session);
-            if (!sessionId) return;
-
-            navigate('/padre/historial', {
-                state: {
-                    openHistorySessionId: sessionId
-                }
-            });
-        },
-        [navigate]
-    );
 
     return (
         <div className="plataforma-view">
@@ -507,7 +493,7 @@ export default function SeguimientoGuardian() {
                                                                             <button
                                                                                 type="button"
                                                                                 className="seguimiento-inline-btn"
-                                                                                onClick={() => handleOpenHistoryReport(session)}
+                                                                                onClick={() => setReportSessionId(sessionKey)}
                                                                                 disabled={!isSessionProcessed(session)}
                                                                                 title={isSessionProcessed(session) ? 'Ver reporte de sesión' : 'Reporte disponible cuando la sesión esté procesada.'}
                                                                             >
@@ -571,6 +557,13 @@ export default function SeguimientoGuardian() {
                     </div>
                 </div>
             </Modal>
+
+            <QuestionnaireReportDetailModal
+                isOpen={reportSessionId !== null}
+                sessionId={reportSessionId}
+                role="padre"
+                onClose={() => setReportSessionId(null)}
+            />
         </div>
     );
 }
