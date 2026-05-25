@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
-import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
+import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
+import { DashboardChartCard } from '../../../components/DashboardCharts';
+import { ActiveFilterChips } from '../../../components/ActiveFilterChips/ActiveFilterChips';
+import { useHistoryHasActiveFilters, useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
 import {
     addQuestionnaireHistoryTagV2,
     deleteQuestionnaireHistoryTagV2,
     downloadQuestionnaireHistoryPdfV2,
     generateQuestionnaireHistoryPdfV2,
+    getGuardianDashboardV2,
+    getPsychologistDashboardV2,
+    getQuestionnaireCaseDetailV2,
+    getQuestionnaireCasesV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryPdfV2,
@@ -14,10 +21,15 @@ import {
     shareQuestionnaireHistoryV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
+    QuestionnaireCaseDetailV2Response,
+    QuestionnaireCaseV2DTO,
     QuestionnaireClinicalSummaryV2DTO,
-    QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireDashboardChartPointDTO,
+    QuestionnaireGuardianDashboardV2Response,
+    QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
     QuestionnairePdfInfoV2DTO,
+    QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
@@ -32,21 +44,19 @@ import {
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
+    getDomainLabel,
     getModeLabel,
     getRoleLabel,
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
+import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
 
 interface HistorialBaseProps {
     role: HistorialRole;
-}
-
-function runHistoryTask(task: () => Promise<void>) {
-    task().catch(() => undefined);
 }
 
 const statusOptions = [
@@ -58,258 +68,97 @@ const statusOptions = [
     { value: 'failed', label: 'Fallido' },
     { value: 'archived', label: 'Archivado' }
 ];
-
-const pageSizeOptions = [
-    { value: '10', label: '10' },
-    { value: '20', label: '20' },
-    { value: '50', label: '50' }
-];
-
-const tagVisibilityOptions = [
-    { value: 'private', label: 'Privado' },
-    { value: 'shared', label: 'Compartido' }
-];
-
-const tagColorOptions = [
-    { value: '#215f8f', label: 'Azul' },
-    { value: '#198e50', label: 'Verde' },
-    { value: '#d97a1f', label: 'Naranja' },
-    { value: '#7b4bbf', label: 'Violeta' },
-    { value: '#c23f5a', label: 'Frambuesa' },
-    { value: '#4f7a6a', label: 'Oliva' },
-    { value: '#3e6ea8', label: 'Ãndigo' },
-    { value: '#6a6f7d', label: 'Gris' }
-];
-
+const pageSizeOptions = [{ value: '10', label: '10' }, { value: '20', label: '20' }, { value: '50', label: '50' }];
+const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'TDAH' }, { value: 'conduct', label: 'Conducta' }, { value: 'anxiety', label: 'Ansiedad' }, { value: 'depression', label: 'Depresion' }, { value: 'elimination', label: 'Eliminacion' }];
+const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revision prioritaria' }];
+const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revision' }, { value: 'false', label: 'Sin revision requerida' }];
+const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6 meses' }, { value: '12', label: '12 meses' }];
+const tagVisibilityOptions = [{ value: 'private', label: 'Privado' }, { value: 'shared', label: 'Compartido' }];
+const tagColorOptions = [{ value: '#215f8f', label: 'Azul' }, { value: '#1f7a46', label: 'Verde' }, { value: '#d97a1f', label: 'Naranja' }, { value: '#5f2a8f', label: 'Morado' }, { value: '#bd1f2d', label: 'Rojo' }];
 const defaultTagColor = tagColorOptions[0].value;
 
-const hiddenResultFields = [
-    'id',
-    'session_id',
-    'questionnaire_id',
-    'questionnaire_template_id',
-    'model_id',
-    'model_version',
-    'mode_key',
-    'raw',
-    'payload',
-    'metadata',
-    'download_url',
-    'file_id',
-    'mime_type'
-];
-
-const hiddenShareFields = [
-    'id',
-    'url',
-    'share_url',
-    'public_url',
-    'link',
-    'shared_url',
-    'shared_path',
-    'share_code',
-    'questionnaire_id',
-    'session_id',
-    'mode_key'
-];
-
-const hiddenPdfFields = [
-    'id',
-    'download_url',
-    'file_id',
-    'mime_type',
-    'session_id',
-    'questionnaire_id'
-];
-
+function toRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    return value as Record<string, unknown>;
+}
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
 }
-
-function toRecord(payload: unknown): Record<string, unknown> | null {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    return payload as Record<string, unknown>;
-}
-
 function resolveTagId(tag: QuestionnaireTagDTO) {
-    if (typeof tag.id === 'string' && tag.id.trim().length > 0) return tag.id;
-    if (typeof tag.tag_id === 'string' && tag.tag_id.trim().length > 0) return tag.tag_id;
+    if (typeof tag.id === 'string' && tag.id.trim()) return tag.id;
+    if (typeof tag.tag_id === 'string' && tag.tag_id.trim()) return tag.tag_id;
     return '';
 }
-
-function getTagVisibilityLabel(visibility: string | null | undefined) {
-    const normalized = (visibility ?? '').toLowerCase();
-    if (normalized === 'private') return 'Privado';
-    if (normalized === 'shared') return 'Compartido';
-    return '--';
+function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
+    return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
 }
-
-function normalizeTagColor(color: string | null | undefined) {
-    const value = (color ?? '').trim();
-    if (!value) return defaultTagColor;
-    return value;
+function defaultFilters(): QuestionnaireHistoryFiltersV2 {
+    return { status: '', q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
 }
-
-function buildActionErrorMessage(error: unknown, fallback: string) {
-    return mapApiErrorToUserMessage(error, fallback);
+function toMaybeBoolean(value: string) {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
 }
-
 function canLoadClinicalArtifacts(status: string | null | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
     return normalized === 'submitted' || normalized === 'processed';
 }
-
-function resolveQuestionnaireId(
-    detail: QuestionnaireHistoryDetailV2DTO | null,
-    sharePayload: QuestionnaireShareResponseDTO | null
-) {
-    const fromShare = sharePayload?.questionnaire_id;
-    if (typeof fromShare === 'string' && fromShare.trim().length > 0) return fromShare.trim();
-
-    const candidates: unknown[] = [
-        detail?.questionnaire_id,
-        detail?.questionnaire_template_id
-    ];
-
-    for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            return candidate.trim();
-        }
-    }
-
-    return null;
+function makeTitle(role: HistorialRole) {
+    return role === 'padre' ? 'Seguimiento por casos' : 'Evaluaciones recibidas e historial';
 }
-
-function downloadBlob(blob: Blob, filename: string) {
-    const href = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = href;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(href);
+function makeDescription(role: HistorialRole) {
+    return role === 'padre'
+        ? 'Consulta la evolucion de alertas orientativas por caso y dominio.'
+        : 'Visualiza evaluaciones compartidas, alertas y estado de revision.';
 }
-
-function getPdfStatusLabel(status: string | undefined) {
-    const normalized = (status ?? '').trim().toLowerCase();
-    if (!normalized) return 'Sin generar';
-    if (['ready', 'completed', 'generated', 'available', 'done'].includes(normalized)) return 'Listo para descargar';
-    if (['pending', 'queued', 'requested'].includes(normalized)) return 'En preparaciÃ³n';
-    if (['processing', 'running', 'building'].includes(normalized)) return 'GenerÃ¡ndose';
-    if (['failed', 'error'].includes(normalized)) return 'Error en generaciÃ³n';
-    return status ?? '--';
-}
-
-function resolveSessionTitle(item: QuestionnaireHistoryItemV2DTO, index: number) {
-    const named = getString(item.title ?? item.name, '');
-    if (named) return named;
-    const mode = getModeLabel(item.mode, '');
-    const status = getStatusLabel(item.status, '');
-    if (mode && status) return `${mode} Â· ${status}`;
-    return `Registro ${index + 1}`;
-}
-
-type HistoryDetailLoadResult =
-    | {
-        ok: true;
-        detail: QuestionnaireHistoryDetailV2DTO;
-        results: QuestionnaireSecureResultsV2DTO | null;
-        summary: QuestionnaireClinicalSummaryV2DTO | null;
-        notice: string | null;
-    }
-    | {
-        ok: false;
-        error: string;
+async function loadDetail(sessionId: string) {
+    const detail = await getQuestionnaireHistoryDetailV2(sessionId);
+    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null };
+    const [results, summary] = await Promise.allSettled([getQuestionnaireHistoryResultsV2(sessionId), getQuestionnaireClinicalSummaryV2(sessionId)]);
+    return {
+        detail,
+        results: results.status === 'fulfilled' ? results.value : null,
+        summary: summary.status === 'fulfilled' ? summary.value : null
     };
-
-async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadResult> {
-    try {
-        const detail = await getQuestionnaireHistoryDetailV2(sessionId);
-        if (!canLoadClinicalArtifacts(detail.status)) {
-            return {
-                ok: true,
-                detail,
-                results: null,
-                summary: null,
-                notice: null
-            };
-        }
-
-        const [resultsResponse, summaryResponse] = await Promise.allSettled([
-            getQuestionnaireHistoryResultsV2(sessionId),
-            getQuestionnaireClinicalSummaryV2(sessionId)
-        ]);
-
-        const results = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
-        const summary = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
-        const notice =
-            summaryResponse.status === 'fulfilled' || resultsResponse.status !== 'fulfilled'
-                ? null
-                : 'No fue posible generar el informe orientativo en este momento.';
-
-        return {
-            ok: true,
-            detail,
-            results,
-            summary,
-            notice
-        };
-    } catch (requestError) {
-        return {
-            ok: false,
-            error: mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesiÃ³n.')
-        };
-    }
 }
-
-function KeyValueRows({
-    data,
-    exclude = [],
-    includeTechnical = false,
-    emptyText
-}: Readonly<{
-    data: Record<string, unknown> | null;
-    exclude?: string[];
-    includeTechnical?: boolean;
-    emptyText: string;
-}>) {
-    if (!data) return <p>{emptyText}</p>;
-    const rows = buildSafeDisplayRows(data, {
-        includeTechnical,
-        hiddenFields: exclude,
-        includeEmpty: false
-    });
-    if (rows.length === 0) return <p>{emptyText}</p>;
-
-    return (
-        <div className="historial-v2-kv-grid">
-            {rows.map((row) => (
-                <div key={row.key}>
-                    <strong>{row.label}</strong>
-                    <span>{row.value}</span>
-                </div>
-            ))}
-        </div>
-    );
+function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
+    const rows = buildSafeDisplayRows(data, { includeTechnical: false, includeEmpty: false, hiddenFields: hidden });
+    if (rows.length === 0) return <p className="historial-dashboard-helper">{emptyText}</p>;
+    return <div className="historial-dashboard-kv-grid">{rows.map((row) => <div key={row.key}><strong>{row.label}</strong><span>{row.value}</span></div>)}</div>;
+}
+function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
+    return caseItem.display_label ?? caseItem.private_label ?? caseItem.case_public_id ?? caseItem.case_id;
+}
+function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
+    if (!summary) return 0;
+    for (const key of keys) {
+        const value = Number(summary[key]);
+        if (Number.isFinite(value)) return value;
+    }
+    return 0;
 }
 
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
-    const {
-        items,
-        page,
-        pageSize,
-        total,
-        pages,
-        statusFilter,
-        loading,
-        error,
-        setPage,
-        setStatusFilter,
-        changePageSize,
-        reload
-    } = useQuestionnaireHistoryV2();
+    const history = useQuestionnaireHistoryV2({ initialFilters: { page: 1, page_size: 10 } });
+    const [draftFilters, setDraftFilters] = useState<QuestionnaireHistoryFiltersV2>(() => defaultFilters());
+    const [period, setPeriod] = useState('6');
+
+    const [guardianDashboard, setGuardianDashboard] = useState<QuestionnaireGuardianDashboardV2Response | null>(null);
+    const [guardianCases, setGuardianCases] = useState<QuestionnaireCaseV2DTO[]>([]);
+    const [guardianError, setGuardianError] = useState<string | null>(null);
+    const [guardianLoading, setGuardianLoading] = useState(role === 'padre');
+
+    const [psychologistDashboard, setPsychologistDashboard] = useState<QuestionnairePsychologistDashboardV2Response | null>(null);
+    const [psychologistError, setPsychologistError] = useState<string | null>(null);
+    const [psychologistLoading, setPsychologistLoading] = useState(role === 'psicologo');
+
+    const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+    const [selectedCaseDetail, setSelectedCaseDetail] = useState<QuestionnaireCaseDetailV2Response | null>(null);
+    const [caseDetailLoading, setCaseDetailLoading] = useState(false);
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
-    const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
+    const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
@@ -321,132 +170,142 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
-
     const [shareExpiresHours, setShareExpiresHours] = useState('24');
     const [shareMaxUses, setShareMaxUses] = useState('');
     const [shareGranteeUserId, setShareGranteeUserId] = useState('');
     const [shareUrl, setShareUrl] = useState<string | null>(null);
 
-    const title = 'Historial de cuestionarios';
-    const historyContextLabel = role === 'psicologo' ? 'psicÃ³logo' : 'padre o tutor';
-    const totalPages = Math.max(1, pages);
-    const currentPage = Math.min(Math.max(page, 1), totalPages);
-    const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const showTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const hasActiveFilters = useHistoryHasActiveFilters(history.filters);
+    const filterChips = useMemo(() => buildActiveFilterChips(history.filters), [history.filters]);
+    const kpis = useMemo(() => buildHistoryKpis(history.items, history.summary, history.total), [history.items, history.summary, history.total]);
     const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
+    const clinicalSections = useMemo(() => buildClinicalSummarySections(clinicalSummaryPayload), [clinicalSummaryPayload]);
+    const clinicalRisk = useMemo(() => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null), [clinicalSummaryPayload?.overall_risk_level]);
+    const clinicalDisclaimer = useMemo(() => getSafeClinicalDisclaimer(clinicalSummaryPayload), [clinicalSummaryPayload]);
+    const clinicalComorbiditySummary = useMemo(() => getClinicalComorbiditySummary(clinicalSummaryPayload), [clinicalSummaryPayload]);
+    const isPdfReady = useMemo(() => ['ready', 'completed', 'generated', 'available', 'done'].includes(String(pdfPayload?.status ?? '').toLowerCase()), [pdfPayload?.status]);
 
-    const questionnaireIdForShare = useMemo(
-        () => resolveQuestionnaireId(detailPayload, sharePayload),
-        [detailPayload, sharePayload]
-    );
+    useEffect(() => {
+        setDraftFilters((previous) => ({ ...previous, ...history.filters }));
+    }, [history.filters]);
 
-    const internalReferenceRows = useMemo(
-        () =>
-            buildSafeDisplayRows(
-                {
-                    session_id: detailPayload?.id ?? detailSessionId,
-                    questionnaire_id: questionnaireIdForShare,
-                    mode_key: detailPayload?.mode_key ?? null,
-                    share_code: sharePayload?.share_code ?? null
-                },
-                {
-                    includeTechnical: true,
-                    includeEmpty: false,
-                    customLabels: {
-                        session_id: 'ID de sesiÃ³n',
-                        questionnaire_id: 'ID de cuestionario',
-                        mode_key: 'Clave interna de modo',
-                        share_code: 'CÃ³digo de acceso compartido'
-                    }
-                }
-            ),
-        [detailPayload?.id, detailPayload?.mode_key, detailSessionId, questionnaireIdForShare, sharePayload?.share_code]
-    );
+    useEffect(() => {
+        if (role !== 'padre') return;
+        const loadGuardian = async () => {
+            setGuardianLoading(true);
+            setGuardianError(null);
+            try {
+                const [dashboard, cases] = await Promise.all([
+                    getGuardianDashboardV2({
+                        months: Number(period),
+                        case_label: history.filters.case_label,
+                        case_public_id: history.filters.case_public_id,
+                        q: history.filters.q,
+                        domain: history.filters.domain,
+                        alert_level: history.filters.alert_level,
+                        date_from: history.filters.date_from,
+                        date_to: history.filters.date_to
+                    }),
+                    getQuestionnaireCasesV2({
+                        status: history.filters.status,
+                        q: history.filters.q,
+                        label: history.filters.case_label,
+                        case_public_id: history.filters.case_public_id,
+                        latest_alert_level: history.filters.alert_level,
+                        date_from: history.filters.date_from,
+                        date_to: history.filters.date_to,
+                        page: 1,
+                        page_size: 12
+                    })
+                ]);
+                setGuardianDashboard(dashboard);
+                setGuardianCases(cases.items);
+            } catch (error) {
+                setGuardianError(mapApiErrorToUserMessage(error, 'No fue posible cargar el dashboard de seguimiento.'));
+            } finally {
+                setGuardianLoading(false);
+            }
+        };
+        loadGuardian().catch(() => undefined);
+    }, [history.filters.alert_level, history.filters.case_label, history.filters.case_public_id, history.filters.date_from, history.filters.date_to, history.filters.domain, history.filters.q, history.filters.status, period, role]);
 
-    const isPdfReady = useMemo(() => {
-        if (!pdfPayload) return false;
-        const status = getString(pdfPayload.status, '').toLowerCase();
-        if (!status) return false;
-        return ['ready', 'completed', 'generated', 'available', 'done'].includes(status);
-    }, [pdfPayload]);
+    useEffect(() => {
+        if (role !== 'psicologo') return;
+        const loadPsychologist = async () => {
+            setPsychologistLoading(true);
+            setPsychologistError(null);
+            try {
+                const response = await getPsychologistDashboardV2({
+                    q: history.filters.q,
+                    case_public_id: history.filters.case_public_id,
+                    date_from: history.filters.date_from,
+                    date_to: history.filters.date_to,
+                    domain: history.filters.domain,
+                    alert_level: history.filters.alert_level,
+                    review_status: history.filters.needs_professional_review === true ? 'pending' : history.filters.needs_professional_review === false ? 'reviewed' : undefined,
+                    page: 1,
+                    page_size: 12
+                });
+                setPsychologistDashboard(response);
+            } catch (error) {
+                setPsychologistError(mapApiErrorToUserMessage(error, 'No fue posible cargar evaluaciones recibidas.'));
+            } finally {
+                setPsychologistLoading(false);
+            }
+        };
+        loadPsychologist().catch(() => undefined);
+    }, [history.filters.alert_level, history.filters.case_public_id, history.filters.date_from, history.filters.date_to, history.filters.domain, history.filters.needs_professional_review, history.filters.q, role]);
 
-    const shareLink = shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? null;
-    const shareAvailable = useMemo(() => Boolean(shareLink), [shareLink]);
-    const pdfStatusText = useMemo(() => getPdfStatusLabel(pdfPayload?.status), [pdfPayload]);
-    const clinicalSections = useMemo(
-        () => buildClinicalSummarySections(clinicalSummaryPayload),
-        [clinicalSummaryPayload]
-    );
-    const clinicalRisk = useMemo(
-        () => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null),
-        [clinicalSummaryPayload?.overall_risk_level]
-    );
-    const clinicalDisclaimer = useMemo(
-        () => getSafeClinicalDisclaimer(clinicalSummaryPayload),
-        [clinicalSummaryPayload]
-    );
-    const clinicalComorbiditySummary = useMemo(
-        () => getClinicalComorbiditySummary(clinicalSummaryPayload),
-        [clinicalSummaryPayload]
-    );
-    const historyRowsContent = (() => {
-        if (loading) {
-            return <div className="historial-v2-empty">Cargando historial...</div>;
-        }
-
-        if (items.length === 0) {
-            return <div className="historial-v2-empty">No hay sesiones para mostrar.</div>;
-        }
-
-        return items.map((item: QuestionnaireHistoryItemV2DTO, index) => {
-            const sessionTitle = resolveSessionTitle(item, index);
-            return (
-                <div className="historial-v2-row" key={item.id}>
-                    <div title={sessionTitle}>{sessionTitle}</div>
-                    <div>{getStatusLabel(item.status)}</div>
-                    <div>{getModeLabel(item.mode)}</div>
-                    <div>{getRoleLabel(item.role)}</div>
-                    <div>{formatDateTimeEsCO(item.created_at)}</div>
-                    <div>{formatDateTimeEsCO(item.updated_at)}</div>
-                    <div className="historial-v2-actions">
-                        <button type="button" className="historial-v2-btn" onClick={() => handleOpenDetail(item.id)}>
-                            Ver
-                        </button>
-                    </div>
-                </div>
-            );
-        });
-    })();
-
-    const openDetail = async (sessionId: string) => {
-        if (!sessionId || sessionId.trim().length === 0) {
-            setDetailError('No se encontró una referencia válida para esta sesión.');
+    useEffect(() => {
+        if (!selectedCaseId) {
+            setSelectedCaseDetail(null);
             return;
         }
+        const loadCase = async () => {
+            setCaseDetailLoading(true);
+            try {
+                setSelectedCaseDetail(await getQuestionnaireCaseDetailV2(selectedCaseId));
+            } catch {
+                setSelectedCaseDetail(null);
+            } finally {
+                setCaseDetailLoading(false);
+            }
+        };
+        loadCase().catch(() => undefined);
+    }, [selectedCaseId]);
+
+    const applyFilters = () => history.patchFilters({ ...draftFilters, page: 1, page_size: history.pageSize });
+    const clearFilters = () => {
+        const cleaned = defaultFilters();
+        setDraftFilters(cleaned);
+        history.resetFilters();
+    };
+    const removeFilterChip = (key: string) => {
+        history.patchFilters({ [key]: undefined, page: 1 } as Partial<QuestionnaireHistoryFiltersV2>);
+        setDraftFilters((previous) => {
+            const next = { ...previous } as Record<string, unknown>;
+            next[key] = '';
+            return next as QuestionnaireHistoryFiltersV2;
+        });
+    };
+
+    const openDetail = async (sessionId: string) => {
         setDetailSessionId(sessionId);
         setDetailLoading(true);
         setDetailError(null);
         setDetailNotice(null);
-        setShareUrl(null);
         setSharePayload(null);
         setPdfPayload(null);
-        setClinicalSummaryPayload(null);
-
-        const detailLoad = await loadHistoryDetail(sessionId);
-        if (!detailLoad.ok) {
-            setDetailError(detailLoad.error);
-            setDetailPayload(null);
-            setResultsPayload(null);
-            setClinicalSummaryPayload(null);
+        try {
+            const detail = await loadDetail(sessionId);
+            setDetailPayload(detail.detail);
+            setResultsPayload(detail.results);
+            setClinicalSummaryPayload(detail.summary);
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible cargar el detalle.'));
+        } finally {
             setDetailLoading(false);
-            return;
         }
-
-        setDetailPayload(detailLoad.detail);
-        setResultsPayload(detailLoad.results);
-        setClinicalSummaryPayload(detailLoad.summary);
-        setDetailNotice(detailLoad.notice);
-        setDetailLoading(false);
     };
 
     const closeDetail = () => {
@@ -454,435 +313,328 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(null);
         setResultsPayload(null);
         setClinicalSummaryPayload(null);
-        setPdfPayload(null);
         setSharePayload(null);
-        setDetailLoading(false);
+        setPdfPayload(null);
+        setShareUrl(null);
         setDetailError(null);
         setDetailNotice(null);
         setNewTag('');
-        setNewTagColor(defaultTagColor);
-        setNewTagVisibility('private');
         setShareExpiresHours('24');
         setShareMaxUses('');
         setShareGranteeUserId('');
-        setShareUrl(null);
     };
 
-    const handleOpenDetail = (nextSessionId: string) => {
-        runHistoryTask(() => openDetail(nextSessionId));
-    };
-
-    const handleAddTag = async () => {
-        if (!detailSessionId || newTag.trim().length === 0) return;
+    const addTag = async () => {
+        if (!detailSessionId || !newTag.trim()) return;
         try {
-            await addQuestionnaireHistoryTagV2(detailSessionId, {
-                tag: newTag.trim(),
-                color: normalizeTagColor(newTagColor),
-                visibility: newTagVisibility
-            });
-            const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
-            setDetailPayload(refreshed);
+            await addQuestionnaireHistoryTagV2(detailSessionId, { tag: newTag.trim(), color: newTagColor, visibility: newTagVisibility });
+            setDetailPayload(await getQuestionnaireHistoryDetailV2(detailSessionId));
             setNewTag('');
-            setNewTagColor(defaultTagColor);
-            setDetailNotice('Etiqueta agregada correctamente.');
-            await reload();
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible agregar la etiqueta.'));
+            setDetailNotice('Etiqueta agregada.');
+            await history.reload();
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible agregar etiqueta.'));
         }
     };
-
-    const handleDeleteTag = async (tagId: string) => {
+    const deleteTag = async (tagId: string) => {
         if (!detailSessionId) return;
         try {
             await deleteQuestionnaireHistoryTagV2(detailSessionId, tagId);
-            const refreshed = await getQuestionnaireHistoryDetailV2(detailSessionId);
-            setDetailPayload(refreshed);
+            setDetailPayload(await getQuestionnaireHistoryDetailV2(detailSessionId));
             setDetailNotice('Etiqueta eliminada.');
-            await reload();
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible eliminar la etiqueta.'));
+            await history.reload();
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible eliminar etiqueta.'));
         }
     };
-
-    const handleGenerateShare = async () => {
+    const generateShare = async () => {
         if (!detailSessionId) return;
         try {
-            const expiresCandidate = Number(shareExpiresHours);
-            const maxUsesCandidate = Number(shareMaxUses);
             const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
-                expires_in_hours: Number.isFinite(expiresCandidate) && expiresCandidate > 0 ? expiresCandidate : undefined,
-                max_uses: Number.isFinite(maxUsesCandidate) && maxUsesCandidate > 0 ? maxUsesCandidate : undefined,
+                expires_in_hours: Number(shareExpiresHours) > 0 ? Number(shareExpiresHours) : undefined,
+                max_uses: Number(shareMaxUses) > 0 ? Number(shareMaxUses) : undefined,
                 grantee_user_id: shareGranteeUserId.trim() || undefined
             });
+            const nextUrl = payload.shared_url ?? payload.shared_path ?? null;
             setSharePayload(payload);
-            const resolvedUrl = payload.shared_url ?? payload.shared_path ?? null;
-            setShareUrl(resolvedUrl);
-            setDetailNotice(
-                resolvedUrl
-                    ? 'Enlace compartido generado.'
-                    : 'El recurso compartido fue creado, pero no se pudo resolver la URL pÃºblica.'
-            );
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el enlace compartido.'));
+            setShareUrl(nextUrl);
+            setDetailNotice(nextUrl ? 'Enlace generado.' : 'Se genero enlace sin URL publica.');
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible generar enlace.'));
         }
     };
-
-    const handleGeneratePdf = async () => {
+    const generatePdf = async () => {
         if (!detailSessionId) return;
         try {
             await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setDetailNotice('GeneraciÃ³n de PDF solicitada correctamente.');
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible generar el PDF.'));
+            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId));
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible generar PDF.'));
         }
     };
-
-    const handleFetchPdfInfo = async () => {
+    const fetchPdf = async () => {
         if (!detailSessionId) return;
         try {
-            const payload = await getQuestionnaireHistoryPdfV2(detailSessionId);
-            setPdfPayload(payload);
-            setDetailNotice('InformaciÃ³n de PDF cargada.');
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible consultar el estado del PDF.'));
+            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId));
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible consultar PDF.'));
         }
     };
-
-    const handleDownloadPdf = async () => {
+    const downloadPdf = async () => {
         if (!detailSessionId) return;
         try {
-            const result = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
-            downloadBlob(result.blob, result.filename);
-            setDetailNotice('Descarga iniciada.');
-        } catch (actionError) {
-            setDetailError(buildActionErrorMessage(actionError, 'No fue posible descargar el PDF.'));
+            const file = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
+            const href = URL.createObjectURL(file.blob);
+            const anchor = document.createElement('a');
+            anchor.href = href;
+            anchor.download = file.filename;
+            anchor.click();
+            URL.revokeObjectURL(href);
+        } catch (error) {
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible descargar PDF.'));
         }
     };
 
-    const handleCopyShareLink = async () => {
-        if (!shareLink) {
-            setDetailError('AÃºn no hay un enlace compartido disponible para copiar.');
-            return;
-        }
-        try {
-            await navigator.clipboard.writeText(shareLink);
-            setDetailNotice('Enlace copiado al portapapeles.');
-        } catch {
-            setDetailError('No fue posible copiar el enlace automÃ¡ticamente.');
-        }
+    const historyCharts = {
+        byDate: toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month),
+        byCase: toChartData(history.charts?.history_by_case ?? history.charts?.sessions_by_case),
+        byDomain: toChartData(history.charts?.alerts_by_domain),
+        byLevel: toChartData(history.charts?.alerts_by_level)
     };
+    const guardianCharts = {
+        byMonth: toChartData(guardianDashboard?.charts?.alerts_by_month),
+        byDomain: toChartData(guardianDashboard?.charts?.alerts_by_domain),
+        byCase: toChartData(guardianDashboard?.charts?.sessions_by_case),
+        byAlert: toChartData(guardianDashboard?.charts?.cases_by_alert_level)
+    };
+    const psychologistCharts = {
+        byDomain: toChartData(psychologistDashboard?.charts?.alerts_by_domain ?? psychologistDashboard?.aggregates?.by_domain),
+        byLevel: toChartData(psychologistDashboard?.charts?.alerts_by_level ?? psychologistDashboard?.aggregates?.by_alert_level),
+        byStatus: toChartData(psychologistDashboard?.charts?.reviews_by_status ?? psychologistDashboard?.aggregates?.by_review_status),
+        byDate: toChartData(psychologistDashboard?.charts?.alerts_by_date ?? psychologistDashboard?.aggregates?.by_date)
+    };
+
+    const showFrom = history.total === 0 ? 0 : (history.page - 1) * history.pageSize + 1;
+    const showTo = history.total === 0 ? 0 : Math.min(history.page * history.pageSize, history.total);
 
     return (
-        <div className="plataforma-view">
-            <section className="historial-v2" aria-label={`Historial de cuestionarios para ${historyContextLabel}`}>
-                <div className="historial-v2-header">
-                    <h1>{title}</h1>
-                </div>
-
-                <div className="historial-v2-divider" />
-
-                <div className="historial-v2-controls">
-                    <label>
-                        Estado
-                        <CustomSelect
-                            value={statusFilter}
-                            options={statusOptions}
-                            onChange={setStatusFilter}
-                            ariaLabel="Filtrar historial por estado"
-                        />
-                    </label>
-                </div>
-
-                {error ? <div className="historial-v2-alert error">{error}</div> : null}
-
-                <div className="historial-v2-table">
-                    <div className="historial-v2-head">
-                        <div>SesiÃ³n</div>
-                        <div>Estado</div>
-                        <div>Modo</div>
-                        <div>Rol</div>
-                        <div>Creado</div>
-                        <div>Actualizado</div>
-                        <div>Acciones</div>
+        <div className="plataforma-view historial-dashboard-view">
+            <section className="historial-dashboard" aria-label={makeTitle(role)}>
+                <header className="historial-dashboard-header">
+                    <div><h1>{makeTitle(role)}</h1><p>{makeDescription(role)}</p></div>
+                    <div className="historial-dashboard-actions">
+                        <button type="button" className="historial-dashboard-btn" onClick={() => history.reload().catch(() => undefined)}>Actualizar</button>
+                        <button type="button" className="historial-dashboard-btn secondary" onClick={clearFilters}>Limpiar filtros</button>
                     </div>
-                    <div className="historial-v2-body">
-                        {historyRowsContent}
+                </header>
+
+                <section className="historial-dashboard-filters">
+                    <div className="historial-dashboard-filters-grid">
+                        <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: value }))} ariaLabel="Filtrar por estado" /></label>
+                        <label>Caso/etiqueta<input type="text" value={draftFilters.case_label ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_label: event.target.value }))} /></label>
+                        <label>Caso publico<input type="text" value={draftFilters.case_public_id ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_public_id: event.target.value }))} /></label>
+                        <label>Tag<input type="text" value={draftFilters.tag ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, tag: event.target.value }))} /></label>
+                        <label>Dominio<CustomSelect value={draftFilters.domain ?? ''} options={domainOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, domain: value }))} ariaLabel="Filtrar por dominio" /></label>
+                        <label>Alerta<CustomSelect value={draftFilters.alert_level ?? ''} options={alertOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, alert_level: value }))} ariaLabel="Filtrar por alerta" /></label>
+                        <label>Desde<input type="date" value={draftFilters.date_from ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, date_from: event.target.value }))} /></label>
+                        <label>Hasta<input type="date" value={draftFilters.date_to ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, date_to: event.target.value }))} /></label>
+                        <label>Buscar<input type="text" value={draftFilters.q ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, q: event.target.value }))} /></label>
+                        <label>Revision<CustomSelect value={draftFilters.needs_professional_review === undefined ? '' : String(draftFilters.needs_professional_review)} options={reviewOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, needs_professional_review: toMaybeBoolean(value) }))} ariaLabel="Filtrar por revision profesional" /></label>
+                        {role === 'padre' ? <label>Periodo<CustomSelect value={period} options={periodOptions} onChange={setPeriod} ariaLabel="Periodo" /></label> : null}
                     </div>
-                </div>
-
-                <div className="historial-v2-pagination">
-                    <div>Mostrando {showFrom}-{showTo} de {total}</div>
-                    <div className="historial-v2-pagination-right">
-                        <label>
-                            TamaÃ±o
-                            <CustomSelect
-                                value={String(pageSize)}
-                                options={pageSizeOptions}
-                                onChange={(value) => changePageSize(Number(value))}
-                                ariaLabel="Cambiar tamaÃ±o de pÃ¡gina de historial"
-                            />
-                        </label>
-                        <button
-                            type="button"
-                            className="historial-v2-page-btn"
-                            onClick={() => setPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage <= 1}
-                        >
-                            â€¹
-                        </button>
-                        <span>PÃ¡gina {currentPage} de {totalPages}</span>
-                        <button
-                            type="button"
-                            className="historial-v2-page-btn"
-                            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage >= totalPages}
-                        >
-                            â€º
-                        </button>
+                    <div className="historial-dashboard-filter-actions">
+                        <button type="button" className="historial-dashboard-btn" onClick={applyFilters}>Aplicar filtros</button>
+                        <button type="button" className="historial-dashboard-btn secondary" onClick={clearFilters}>Resetear</button>
                     </div>
-                </div>
-            </section>
+                    <ActiveFilterChips chips={filterChips} onRemove={removeFilterChip} />
+                </section>
 
-            <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
-                <div className="historial-v2-modal">
-                    <h2>Detalle de sesiÃ³n</h2>
-                    {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
-                    {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
-                    {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
+                <section className="historial-dashboard-kpis">
+                    <article className="historial-dashboard-kpi-card"><span>Total registros</span><strong>{kpis.total}</strong></article>
+                    <article className="historial-dashboard-kpi-card"><span>Procesados</span><strong>{kpis.processed}</strong></article>
+                    <article className="historial-dashboard-kpi-card"><span>Con alerta</span><strong>{kpis.withAlert}</strong></article>
+                    <article className="historial-dashboard-kpi-card"><span>Requieren revision</span><strong>{kpis.needsReview}</strong></article>
+                    <article className="historial-dashboard-kpi-card"><span>Sin caso asociado</span><strong>{kpis.withoutCase}</strong></article>
+                    <article className="historial-dashboard-kpi-card">
+                        <span>{role === 'padre' ? 'Casos con alerta' : 'Casos visibles'}</span>
+                        <strong>{role === 'padre' ? summaryNumber(guardianDashboard?.summary, ['cases_with_alerts', 'cases_alerts']) : summaryNumber(psychologistDashboard?.summary, ['cases_visible', 'total_cases'])}</strong>
+                    </article>
+                </section>
 
-                    {!detailLoading && detailPayload ? (
-                        <>
-                            <div className="historial-v2-modal-grid">
-                                <div><strong>Estado</strong><span>{getStatusLabel(getString(detailPayload.status, ''))}</span></div>
-                                <div><strong>Modo de evaluaciÃ³n</strong><span>{getModeLabel(getString(detailPayload.mode, ''))}</span></div>
-                                <div><strong>Perfil que respondiÃ³</strong><span>{getRoleLabel(getString(detailPayload.role, ''))}</span></div>
-                                <div><strong>Ãšltima actualizaciÃ³n</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
-                            </div>
+                <section className="historial-dashboard-charts">
+                    <DashboardChartCard title="Historico por fecha" data={historyCharts.byDate} loading={history.loading} variant="line" />
+                    <DashboardChartCard title="Historial por caso" data={historyCharts.byCase} loading={history.loading} />
+                    <DashboardChartCard title="Alertas por dominio" data={historyCharts.byDomain} loading={history.loading} />
+                    <DashboardChartCard title="Alertas por nivel" data={historyCharts.byLevel} loading={history.loading} />
+                </section>
 
-                            <div className="historial-v2-warning">
-                                Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnÃ³stico clÃ­nico definitivo.
-                            </div>
-
-                            <div className="historial-v2-section">
-                                <h3>Informe final orientativo</h3>
-                                {clinicalSummaryPayload ? (
+                {role === 'padre' ? (
+                    <section className="historial-dashboard-role-block">
+                        {guardianError ? <div className="historial-dashboard-alert error">{guardianError}</div> : null}
+                        <div className="historial-dashboard-charts">
+                            <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="line" />
+                            <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} loading={guardianLoading} />
+                            <DashboardChartCard title="Sesiones por caso" data={guardianCharts.byCase} loading={guardianLoading} />
+                            <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} />
+                        </div>
+                        <div className="historial-dashboard-cases-grid">
+                            {guardianCases.map((caseItem) => (
+                                <article className="historial-dashboard-case-card" key={caseItem.case_id}>
+                                    <h3>{resolveCaseLabel(caseItem)}</h3>
+                                    <div><strong>ID publico:</strong> {getString(caseItem.case_public_id)}</div>
+                                    <div><strong>Sesiones:</strong> {caseItem.sessions_count ?? 0}</div>
+                                    <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
+                                    <div className="historial-dashboard-card-inline"><strong>Ultima alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
+                                    <div><strong>Dominio:</strong> {getDomainLabel(caseItem.latest_domain)}</div>
+                                    <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>Ver detalle</button>
+                                </article>
+                            ))}
+                        </div>
+                        {selectedCaseId ? (
+                            <div className="historial-dashboard-case-detail">
+                                <div className="historial-dashboard-case-detail-header">
+                                    <h3>Detalle del caso</h3>
+                                    <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
+                                </div>
+                                {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
+                                {!caseDetailLoading && selectedCaseDetail ? (
                                     <>
-                                        <div className="historial-v2-modal-grid">
-                                            <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
-                                            <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
+                                        <div className="historial-dashboard-charts">
+                                            <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDetail.domain_summary)} />
+                                            <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseDetail.trend)} variant="line" />
                                         </div>
-                                        {clinicalComorbiditySummary ? (
-                                            <div className="historial-v2-warning">
-                                                <strong>Posible coexistencia de seÃ±ales.</strong> {clinicalComorbiditySummary}
-                                            </div>
-                                        ) : null}
-                                        <div className="historial-v2-kv-grid">
-                                            {clinicalSections.map((section) => (
-                                                <div key={section.key}>
-                                                    <strong>{section.title}</strong>
-                                                    <span>{section.content}</span>
-                                                </div>
+                                        <div className="historial-dashboard-session-list">
+                                            {selectedCaseDetail.sessions.map((item) => (
+                                                <article className="historial-dashboard-session-card" key={item.id}>
+                                                    <div className="historial-dashboard-card-inline"><strong>{item.case_display_label ?? item.case_public_id ?? item.id}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                                    <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
+                                                    <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
+                                                    <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
+                                                    <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
+                                                </article>
                                             ))}
                                         </div>
                                     </>
-                                ) : (
-                                    <p>No fue posible cargar el informe orientativo completo para esta sesiÃ³n.</p>
-                                )}
-                            </div>
-
-                            <div className="historial-v2-section">
-                                <h3>Resultados estructurados complementarios</h3>
-                                <KeyValueRows
-                                    data={toRecord(resultsPayload?.result ?? resultsPayload)}
-                                    exclude={hiddenResultFields}
-                                    emptyText="Sin resultados estructurados adicionales."
-                                />
-                                {clinicalSummaryPayload ? (
-                                    <p className="historial-v2-helper-text">{clinicalDisclaimer}</p>
                                 ) : null}
                             </div>
+                        ) : null}
+                    </section>
+                ) : (
+                    <section className="historial-dashboard-role-block">
+                        {psychologistError ? <div className="historial-dashboard-alert error">{psychologistError}</div> : null}
+                        <div className="historial-dashboard-charts">
+                            <DashboardChartCard title="Alertas por dominio" data={psychologistCharts.byDomain} loading={psychologistLoading} />
+                            <DashboardChartCard title="Alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} />
+                            <DashboardChartCard title="Revisiones por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} />
+                            <DashboardChartCard title="Alertas por fecha" data={psychologistCharts.byDate} loading={psychologistLoading} variant="line" />
+                        </div>
+                    </section>
+                )}
 
-                            {internalReferenceRows.length > 0 ? (
-                                <div className="historial-v2-section">
-                                    <h3>Referencia interna</h3>
-                                    <div className="historial-v2-kv-grid">
-                                        {internalReferenceRows.map((row) => (
-                                            <div key={row.key}>
-                                                <strong>{row.label}</strong>
-                                                <span>{row.value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : null}
+                <section className="historial-dashboard-list">
+                    <div className="historial-dashboard-list-header"><h2>Listado detallado</h2><div>Mostrando {showFrom}-{showTo} de {history.total}</div></div>
+                    {history.error ? <div className="historial-dashboard-alert error">{history.error}</div> : null}
+                    {history.loading ? <div className="historial-dashboard-empty">Cargando registros...</div> : null}
+                    {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aun no hay sesiones registradas.'}</div> : null}
+                    <div className="historial-dashboard-session-list">
+                        {history.items.map((item) => (
+                            <article className="historial-dashboard-session-card" key={item.id}>
+                                <div className="historial-dashboard-card-inline"><strong>{item.case_display_label ?? item.case_public_id ?? item.title ?? item.id}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
+                                <div><strong>Modo:</strong> {getModeLabel(item.mode)}</div>
+                                <div><strong>Rol:</strong> {getRoleLabel(item.role)}</div>
+                                <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
+                                <div><strong>Creado:</strong> {formatDateTimeEsCO(item.created_at)}</div>
+                                <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver detalle</button>
+                            </article>
+                        ))}
+                    </div>
+                    <div className="historial-dashboard-pagination">
+                        <label>Tamano<CustomSelect value={String(history.pageSize)} options={pageSizeOptions} onChange={(value) => history.changePageSize(Number(value))} ariaLabel="Cambiar tamano de pagina" /></label>
+                        <button type="button" className="historial-dashboard-btn secondary" onClick={() => history.setPage(Math.max(1, history.page - 1))} disabled={history.page <= 1}>Anterior</button>
+                        <span>Pagina {history.page} de {Math.max(1, history.pages)}</span>
+                        <button type="button" className="historial-dashboard-btn secondary" onClick={() => history.setPage(Math.min(Math.max(1, history.pages), history.page + 1))} disabled={history.page >= Math.max(1, history.pages)}>Siguiente</button>
+                    </div>
+                </section>
+            </section>
 
-                            <div className="historial-v2-section">
+            <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
+                <div className="historial-dashboard-modal">
+                    <h2>Detalle de sesion</h2>
+                    {detailLoading ? <div className="historial-dashboard-empty">Cargando detalle...</div> : null}
+                    {detailError ? <div className="historial-dashboard-alert error">{detailError}</div> : null}
+                    {detailNotice ? <div className="historial-dashboard-alert success">{detailNotice}</div> : null}
+                    {!detailLoading && detailPayload ? (
+                        <>
+                            <div className="historial-dashboard-kv-grid">
+                                <div><strong>Estado</strong><span>{getStatusLabel(detailPayload.status)}</span></div>
+                                <div><strong>Modo</strong><span>{getModeLabel(detailPayload.mode)}</span></div>
+                                <div><strong>Rol</strong><span>{getRoleLabel(detailPayload.role)}</span></div>
+                                <div><strong>Actualizado</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
+                            </div>
+                            <div className="historial-dashboard-warning">Este resultado es orientativo y no constituye diagnostico clinico definitivo.</div>
+                            <div className="historial-dashboard-modal-section">
+                                <h3>Informe orientativo</h3>
+                                {clinicalSummaryPayload ? (
+                                    <>
+                                        <div className="historial-dashboard-kv-grid">
+                                            <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
+                                            <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
+                                        </div>
+                                        {clinicalComorbiditySummary ? <div className="historial-dashboard-warning"><strong>Posible coexistencia de senales.</strong> {clinicalComorbiditySummary}</div> : null}
+                                        <div className="historial-dashboard-kv-grid">{clinicalSections.map((section) => <div key={section.key}><strong>{section.title}</strong><span>{section.content}</span></div>)}</div>
+                                    </>
+                                ) : <p className="historial-dashboard-helper">No hay informe orientativo disponible.</p>}
+                            </div>
+                            <div className="historial-dashboard-modal-section">
+                                <h3>Resultados estructurados</h3>
+                                <KeyValueRows data={toRecord(resultsPayload?.result ?? resultsPayload)} hidden={['id', 'session_id', 'questionnaire_id', 'metadata']} emptyText="Sin resultados complementarios." />
+                                <p className="historial-dashboard-helper">{clinicalDisclaimer}</p>
+                            </div>
+                            <div className="historial-dashboard-modal-section">
                                 <h3>Etiquetas</h3>
-                                {tags.length === 0 ? <p>Sin etiquetas.</p> : (
-                                    <div className="historial-v2-tags">
-                                        {tags.map((tag) => {
-                                            const tagName = getString(tag.label ?? tag.tag, '--');
-                                            const tagId = resolveTagId(tag);
-                                            const tagColor = normalizeTagColor(tag.color);
-                                            const visibilityLabel = getString(tag.visibility_label, getTagVisibilityLabel(tag.visibility));
-                                            const tagKey = tagId || `${tagName}-${visibilityLabel}-${tagColor}`;
-                                            return (
-                                                <div
-                                                    className="historial-v2-tag"
-                                                    key={tagKey}
-                                                    style={{ borderLeftColor: tagColor }}
-                                                >
-                                                    <span className="historial-v2-tag-name">{tagName}</span>
-                                                    <span className="historial-v2-tag-meta">{visibilityLabel}</span>
-                                                    {tagId.length > 0 ? (
-                                                        <button type="button" onClick={() => { runHistoryTask(() => handleDeleteTag(tagId)); }}>
-                                                            Eliminar
-                                                        </button>
-                                                    ) : null}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                {tags.length === 0 ? <p className="historial-dashboard-helper">Sin etiquetas.</p> : (
+                                    <div className="historial-dashboard-tags">{tags.map((tag, index) => {
+                                        if (typeof tag === 'string') return <div className="historial-dashboard-tag" key={`${tag}-${index}`}><span>{tag}</span></div>;
+                                        const tagId = resolveTagId(tag);
+                                        return <div className="historial-dashboard-tag" key={tagId || `${tag.label}-${index}`} style={{ borderLeftColor: tag.color ?? defaultTagColor }}><span>{tag.label}</span>{tagId ? <button type="button" onClick={() => deleteTag(tagId).catch(() => undefined)}>Eliminar</button> : null}</div>;
+                                    })}</div>
                                 )}
-
-                                <div className="historial-v2-tag-form">
-                                    <input
-                                        type="text"
-                                        placeholder="Etiqueta"
-                                        value={newTag}
-                                        onChange={(event) => setNewTag(event.target.value)}
-                                    />
-                                    <CustomSelect
-                                        value={newTagVisibility}
-                                        options={tagVisibilityOptions}
-                                        onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)}
-                                        ariaLabel="Visibilidad de etiqueta"
-                                    />
-                                    <div className="historial-v2-color-palette" role="radiogroup" aria-label="Color de etiqueta">
-                                        {tagColorOptions.map((option) => (
-                                            <button
-                                                key={option.value}
-                                                type="button"
-                                                className={`historial-v2-color-swatch ${newTagColor === option.value ? 'is-selected' : ''}`}
-                                                role="radio"
-                                                aria-checked={newTagColor === option.value}
-                                                aria-label={option.label}
-                                                title={option.label}
-                                                style={{ backgroundColor: option.value }}
-                                                onClick={() => setNewTagColor(option.value)}
-                                            />
-                                        ))}
-                                    </div>
-                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleAddTag); }}>
-                                        Agregar
-                                    </button>
+                                <div className="historial-dashboard-tag-form">
+                                    <input type="text" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Nueva etiqueta" />
+                                    <CustomSelect value={newTagVisibility} options={tagVisibilityOptions} onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)} ariaLabel="Visibilidad de etiqueta" />
+                                    <div className="historial-dashboard-colors" role="radiogroup" aria-label="Color de etiqueta">{tagColorOptions.map((option) => <button key={option.value} type="button" className={`historial-dashboard-color ${newTagColor === option.value ? 'is-selected' : ''}`} role="radio" aria-checked={newTagColor === option.value} style={{ backgroundColor: option.value }} onClick={() => setNewTagColor(option.value)} />)}</div>
+                                    <button type="button" className="historial-dashboard-btn" onClick={() => addTag().catch(() => undefined)}>Agregar</button>
                                 </div>
                             </div>
-
-                            <div className="historial-v2-section">
-                                <h3>Compartir y documento PDF</h3>
-
-                                <div className="historial-v2-actions-group">
-                                    <div className="historial-v2-actions-card">
-                                        <h4>Compartir resultado</h4>
-                                        <div className="historial-v2-share-form">
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                placeholder="Expira en horas"
-                                                value={shareExpiresHours}
-                                                onChange={(event) => setShareExpiresHours(event.target.value)}
-                                            />
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                placeholder="LÃ­mite de usos (opcional)"
-                                                value={shareMaxUses}
-                                                onChange={(event) => setShareMaxUses(event.target.value)}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="ID de destinatario (opcional)"
-                                                value={shareGranteeUserId}
-                                                onChange={(event) => setShareGranteeUserId(event.target.value)}
-                                            />
+                            <div className="historial-dashboard-modal-section">
+                                <h3>Compartir y PDF</h3>
+                                <div className="historial-dashboard-actions-grid">
+                                    <article>
+                                        <h4>Compartir</h4>
+                                        <div className="historial-dashboard-share-form">
+                                            <input type="number" min={1} value={shareExpiresHours} onChange={(event) => setShareExpiresHours(event.target.value)} placeholder="Expira en horas" />
+                                            <input type="number" min={1} value={shareMaxUses} onChange={(event) => setShareMaxUses(event.target.value)} placeholder="Max usos" />
+                                            <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="ID destinatario" />
                                         </div>
-                                        <div className="historial-v2-section-actions">
-                                            {shareAvailable ? (
-                                                <>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleCopyShareLink); }}>
-                                                        Copiar enlace
-                                                    </button>
-                                                    <a
-                                                        className="historial-v2-btn historial-v2-btn-link"
-                                                        href={shareLink ?? undefined}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        Abrir enlace
-                                                    </a>
-                                                    <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
-                                                        Generar nuevo enlace
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGenerateShare); }}>
-                                                    Generar enlace para compartir
-                                                </button>
-                                            )}
+                                        <button type="button" className="historial-dashboard-btn" onClick={() => generateShare().catch(() => undefined)}>Generar enlace</button>
+                                        {(shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path) ? <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? undefined} target="_blank" rel="noreferrer">{shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}</a> : <p className="historial-dashboard-helper">Aun no hay enlace compartido.</p>}
+                                    </article>
+                                    <article>
+                                        <h4>PDF</h4>
+                                        <p className="historial-dashboard-helper">Estado: {getString(pdfPayload?.status, 'Sin generar')}</p>
+                                        <div className="historial-dashboard-inline-actions">
+                                            <button type="button" className="historial-dashboard-btn" onClick={() => generatePdf().catch(() => undefined)}>Generar PDF</button>
+                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => fetchPdf().catch(() => undefined)}>Consultar estado</button>
+                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf().catch(() => undefined)} disabled={!isPdfReady}>Descargar</button>
                                         </div>
-                                        {shareAvailable ? (
-                                            <div className="historial-v2-share">
-                                                <span>Enlace disponible</span>
-                                                <a href={shareLink ?? undefined} target="_blank" rel="noreferrer">
-                                                    {shareLink}
-                                                </a>
-                                            </div>
-                                        ) : (
-                                            <p className="historial-v2-helper-text">AÃºn no has generado un enlace compartido para esta sesiÃ³n.</p>
-                                        )}
-                                        <KeyValueRows
-                                            data={toRecord(sharePayload)}
-                                            exclude={hiddenShareFields}
-                                            emptyText="Sin informaciÃ³n adicional del enlace."
-                                        />
-                                    </div>
-
-                                    <div className="historial-v2-actions-card">
-                                        <h4>Documento PDF</h4>
-                                        <p className="historial-v2-helper-text">Estado actual: <strong>{pdfStatusText}</strong></p>
-                                        <div className="historial-v2-section-actions">
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleGeneratePdf); }}>
-                                                Generar PDF
-                                            </button>
-                                            <button type="button" className="historial-v2-btn" onClick={() => { runHistoryTask(handleFetchPdfInfo); }}>
-                                                Consultar estado
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="historial-v2-btn"
-                                                onClick={() => { runHistoryTask(handleDownloadPdf); }}
-                                                disabled={!isPdfReady}
-                                            >
-                                                Descargar PDF
-                                            </button>
-                                        </div>
-                                        <KeyValueRows
-                                            data={toRecord(pdfPayload)}
-                                            exclude={hiddenPdfFields}
-                                            emptyText="TodavÃ­a no hay informaciÃ³n del PDF."
-                                        />
-                                    </div>
+                                        <KeyValueRows data={toRecord(pdfPayload)} hidden={['download_url', 'file_id', 'mime_type']} emptyText="Sin metadatos adicionales del PDF." />
+                                    </article>
                                 </div>
                             </div>
                         </>
                     ) : null}
-
-                    <div className="historial-v2-modal-actions">
-                        <button type="button" className="historial-v2-btn" onClick={closeDetail}>
-                            Cerrar
-                        </button>
-                    </div>
+                    <div className="historial-dashboard-modal-actions"><button type="button" className="historial-dashboard-btn secondary" onClick={closeDetail}>Cerrar</button></div>
                 </div>
             </Modal>
         </div>
