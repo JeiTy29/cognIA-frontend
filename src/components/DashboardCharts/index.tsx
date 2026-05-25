@@ -44,7 +44,7 @@ interface CompatChartProps {
     items?: Array<Record<string, unknown>>;
     ariaLabel?: string;
     formatter?: (value: number) => string;
-    xLabelFormatter?: (value: any) => string;
+    xLabelFormatter?: (value: string) => string;
     maxValue?: number;
     emptyMessage?: string;
     series?: Array<Record<string, unknown>>;
