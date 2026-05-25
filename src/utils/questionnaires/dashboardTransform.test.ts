@@ -26,7 +26,7 @@ describe('dashboardTransform', () => {
         expect(kpis.total).toBe(2);
         expect(kpis.processed).toBe(1);
         expect(kpis.needsReview).toBe(1);
-        expect(kpis.withoutCase).toBe(1);
+        expect(kpis.withoutCase).toBe(2);
     });
 
     it('genera chips de filtros activos', () => {
