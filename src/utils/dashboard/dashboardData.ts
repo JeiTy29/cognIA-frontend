@@ -8,7 +8,8 @@ import {
     normalizeRequestStatus,
     normalizeReviewStatus,
     normalizeSessionStatus,
-    safeDisplayText
+    safeDisplayText,
+    formatDateTime
 } from '../questionnaires/presentation';
 import {
     daysBetween,
@@ -568,10 +569,12 @@ export function buildGuardianCaseDashboardViewModel(options: {
     caseDetail?: QuestionnaireCaseDetailDTO | null;
     domainLabels: string[];
 }) : GuardianCaseDashboardViewModel {
-    const sessionsAsc = [...(options.caseDetail?.sessions ?? [])]
+    const allSessionsAsc = [...(options.caseDetail?.sessions ?? [])]
+        .sort((left, right) => compareDateAsc(resolveSessionTimelineDate(left), resolveSessionTimelineDate(right)));
+    const sessionsAsc = allSessionsAsc
         .filter((session) => resolveSessionDomains(session).length > 0)
         .sort((left, right) => compareDateAsc(resolveSessionTimelineDate(left), resolveSessionTimelineDate(right)));
-    const sessionsDesc = [...sessionsAsc].reverse();
+    const allSessionsDesc = [...allSessionsAsc].reverse();
     const domainBreakdown = Array.isArray(options.caseEntry?.domain_breakdown) && options.caseEntry.domain_breakdown.length > 0
         ? options.caseEntry.domain_breakdown
         : options.caseDetail?.domain_summary ?? [];
@@ -648,7 +651,7 @@ export function buildGuardianCaseDashboardViewModel(options: {
             domain.sessionsWithAlert > 0
         );
 
-    const timelineItems = buildTimelineItems(sessionsAsc, {
+    const timelineItems = buildTimelineItems(allSessionsAsc, {
         getDate: (session) => resolveSessionTimelineDate(session),
         getTitle: (session) => `${normalizeModeLabel(session.mode)} · ${normalizeSessionStatus(session.status)}`,
         getDescription: (session) => {
@@ -684,16 +687,16 @@ export function buildGuardianCaseDashboardViewModel(options: {
             'Caso sin etiqueta',
         casePublicId: safeDisplayText(options.caseItem.case_public_id, ''),
         statusLabel: normalizeCaseStatus(options.caseItem.status),
-        sessionsSortedAsc: sessionsAsc,
-        sessionsSortedDesc: sessionsDesc,
+        sessionsSortedAsc: allSessionsAsc,
+        sessionsSortedDesc: allSessionsDesc,
         domains,
         trendPoints,
         timelineItems,
         latestSessionAt:
-            resolveSessionTimelineDate(sessionsDesc[0]) ??
+            resolveSessionTimelineDate(allSessionsDesc[0]) ??
             safeDisplayText(options.caseItem.latest_processed_at, '') ??
             safeDisplayText(options.caseEntry?.latest_session?.processed_at, ''),
-        sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? sessionsAsc.length,
+        sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? allSessionsAsc.length,
         highestAlertLabel
     };
 }
@@ -774,12 +777,18 @@ export function formatGuardianTrendAxisLabel(value: string) {
     if (!raw) return 'Fecha no disponible';
     const parsed = new Date(raw);
     if (Number.isNaN(parsed.getTime())) return raw;
-    return new Intl.DateTimeFormat('es-CO', {
-        day: '2-digit',
-        month: 'short',
+    const day = new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(parsed);
+    const month = new Intl.DateTimeFormat('es-CO', { month: 'short' }).format(parsed).replace('.', '');
+    const hour = new Intl.DateTimeFormat('es-CO', {
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
     }).format(parsed);
+    return `${day} ${month} ${hour}`;
+}
+
+export function formatGuardianTrendTooltipLabel(value: string) {
+    return formatDateTime(value);
 }
 
 export function buildAgingBuckets(

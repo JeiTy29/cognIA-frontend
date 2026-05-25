@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import './DashboardCharts.css';
 import { createLinearTicks, getLabelStride, getSymmetricExtent, sumValues } from '../../utils/dashboard/chartScales';
-import { formatChartCount, formatChartDate, formatChartPercent, formatShortDate, formatShortDateTime, truncateChartLabel } from '../../utils/dashboard/chartFormatters';
+import { formatChartCount, formatChartDate, formatChartDateTime, formatChartPercent, formatShortDate, formatShortDateTime, truncateChartLabel } from '../../utils/dashboard/chartFormatters';
 
 export const DEFAULT_DASHBOARD_EMPTY_MESSAGE = 'No hay datos suficientes para generar esta gráfica en el periodo seleccionado.';
 
@@ -88,6 +88,8 @@ type LineChartProps = Readonly<{
     maxY?: number;
     formatter?: (value: number) => string;
     xLabelFormatter?: (value: string) => string;
+    xTooltipFormatter?: (value: string) => string;
+    xAxisFontSize?: number;
 }>;
 
 type AreaChartProps = Readonly<{
@@ -431,7 +433,9 @@ export function LineChart({
     minY = 0,
     maxY = 100,
     formatter = formatChartPercent,
-    xLabelFormatter = formatShortDateTime
+    xLabelFormatter = formatShortDateTime,
+    xTooltipFormatter = formatChartDateTime,
+    xAxisFontSize = 9
 }: LineChartProps) {
     const [hiddenSeriesKeys, setHiddenSeriesKeys] = useState<string[]>([]);
     const [hoveredSeriesKey, setHoveredSeriesKey] = useState<string | null>(null);
@@ -461,7 +465,7 @@ export function LineChart({
                     return (
                         <g key={`tick-${tick}`}>
                             <line x1={chartLeft} y1={y} x2={chartLeft + chartWidth} y2={y} stroke="#eef3f8" strokeWidth="1" />
-                            <text x={chartLeft - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#526476">
+                            <text x={chartLeft - 8} y={y + 4} textAnchor="end" fontSize="9" fill="#526476">
                                 {formatter(tick)}
                             </text>
                         </g>
@@ -501,7 +505,7 @@ export function LineChart({
                                     strokeWidth="1.5"
                                     opacity={hoveredSeriesKey && hoveredSeriesKey !== line.key ? 0.24 : 1}
                                 >
-                                    <title>{`${line.label} · ${xLabelFormatter(data[pointIndex].label)}: ${formatter(Number(data[pointIndex].values[line.key] ?? 0))}`}</title>
+                                    <title>{`${line.label} · ${xTooltipFormatter(data[pointIndex].label)}: ${formatter(Number(data[pointIndex].values[line.key] ?? 0))}`}</title>
                                 </circle>
                             ))}
                         </g>
@@ -530,7 +534,7 @@ export function LineChart({
                             height={chartHeight}
                             fill="transparent"
                         >
-                            <title>{`${xLabelFormatter(point.label)}\n${visibleSummary.join('\n')}`}</title>
+                            <title>{`${xTooltipFormatter(point.label)}\n${visibleSummary.join('\n')}`}</title>
                         </rect>
                     );
                 })}
@@ -538,7 +542,7 @@ export function LineChart({
                 {data.map((point, index) => {
                     const x = chartLeft + (index / Math.max(1, data.length - 1)) * chartWidth;
                     return (
-                        <text key={`xlabel-${point.label}-${index}`} x={x} y="232" textAnchor="middle" fontSize="10" fill="#526476">
+                        <text key={`xlabel-${point.label}-${index}`} x={x} y="232" textAnchor="middle" fontSize={xAxisFontSize} fill="#526476">
                             {index % labelStride === 0 ? xLabelFormatter(point.label) : ''}
                         </text>
                     );
@@ -888,3 +892,4 @@ export function MatrixAvailabilityChart({ rows, columns, values, ariaLabel, empt
         </div>
     );
 }
+

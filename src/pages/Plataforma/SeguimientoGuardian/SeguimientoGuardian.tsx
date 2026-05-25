@@ -29,7 +29,8 @@ import type {
 } from '../../../services/questionnaires/questionnaires.types';
 import {
     buildGuardianCaseDashboardViewModel,
-    formatGuardianTrendAxisLabel
+    formatGuardianTrendAxisLabel,
+    formatGuardianTrendTooltipLabel
 } from '../../../utils/dashboard/dashboardData';
 import { formatChartPercent } from '../../../utils/dashboard/chartFormatters';
 import { domainProbabilityToPercent } from '../../../utils/dashboard/chartScales';
@@ -739,6 +740,8 @@ export default function SeguimientoGuardian() {
                                                         maxY={100}
                                                         formatter={formatChartPercent}
                                                         xLabelFormatter={formatGuardianTrendAxisLabel}
+                                                        xTooltipFormatter={formatGuardianTrendTooltipLabel}
+                                                        xAxisFontSize={8}
                                                     />
                                                 </DashboardSection>
 
