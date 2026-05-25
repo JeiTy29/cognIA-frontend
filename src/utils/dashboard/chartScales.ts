@@ -27,6 +27,47 @@ export function normalizeMaybeNegativePercentValue(value: unknown) {
     return clamp(scaled, -100, 100);
 }
 
+export type DashboardProbabilityScale = 'ratio' | 'percent' | 'auto';
+
+export function normalizeDashboardProbability(
+    value: unknown,
+    options?: {
+        scale?: DashboardProbabilityScale;
+        allowNegative?: boolean;
+    }
+) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+
+    const scale = options?.scale ?? 'auto';
+    const allowNegative = options?.allowNegative ?? false;
+    const min = allowNegative ? -100 : 0;
+    const max = 100;
+
+    let normalized = numeric;
+    if (scale === 'ratio') {
+        normalized = numeric * 100;
+    } else if (scale === 'percent') {
+        normalized = numeric;
+    } else {
+        normalized = numeric >= -1 && numeric <= 1 ? numeric * 100 : numeric;
+    }
+
+    return clamp(normalized, min, max);
+}
+
+export function normalizeDashboardDelta(
+    value: unknown,
+    options?: {
+        scale?: DashboardProbabilityScale;
+    }
+) {
+    return normalizeDashboardProbability(value, {
+        scale: options?.scale ?? 'auto',
+        allowNegative: true
+    });
+}
+
 export function createLinearTicks(min: number, max: number, count = 5) {
     if (!Number.isFinite(min) || !Number.isFinite(max) || count <= 1) {
         return [0, 25, 50, 75, 100];

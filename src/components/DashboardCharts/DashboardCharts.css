@@ -138,11 +138,26 @@
     gap: 8px;
 }
 
+.dashboard-chart-legend-button {
+    border: 1px solid rgba(15, 95, 159, 0.14);
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.dashboard-chart-legend-button[data-active='false'] {
+    opacity: 0.45;
+}
+
 .dashboard-chart-legend-swatch {
     width: 10px;
     height: 10px;
     border-radius: 999px;
     flex: 0 0 auto;
+    border-width: 2px;
+    border-color: currentColor;
+    border-style: solid;
 }
 
 .dashboard-chart-bar-list,
@@ -223,6 +238,70 @@
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 16px;
     min-width: 0;
+}
+
+.dashboard-chart-delta-wrap,
+.dashboard-chart-delta-list {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.dashboard-chart-delta-row {
+    display: grid;
+    grid-template-columns: minmax(0, 160px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.dashboard-chart-delta-label,
+.dashboard-chart-delta-value,
+.dashboard-chart-delta-helper {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-chart-delta-label {
+    color: #0b2540;
+    font-size: 0.9rem;
+}
+
+.dashboard-chart-delta-track {
+    position: relative;
+    min-height: 24px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.08) 0%, rgba(82, 100, 118, 0.08) 50%, rgba(31, 157, 85, 0.08) 100%);
+}
+
+.dashboard-chart-delta-axis {
+    position: absolute;
+    inset-block: 0;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: rgba(11, 37, 64, 0.18);
+}
+
+.dashboard-chart-delta-fill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #7cb4ff 0%, #0f5f9f 100%);
+}
+
+.dashboard-chart-delta-fill[data-tone='danger'] {
+    background: linear-gradient(90deg, #f97066 0%, #dc3545 100%);
+}
+
+.dashboard-chart-delta-fill[data-tone='neutral'] {
+    background: linear-gradient(90deg, #c3ceda 0%, #97a4b4 100%);
+}
+
+.dashboard-chart-delta-value,
+.dashboard-chart-delta-helper {
+    color: #526476;
+    font-size: 0.84rem;
 }
 
 .dashboard-chart-timeline {
@@ -431,12 +510,14 @@
 
 @media (max-width: 720px) {
     .dashboard-chart-bar-row,
-    .dashboard-chart-funnel-row {
+    .dashboard-chart-funnel-row,
+    .dashboard-chart-delta-row {
         grid-template-columns: 1fr;
         gap: 8px;
     }
 
-    .dashboard-chart-bar-value {
+    .dashboard-chart-bar-value,
+    .dashboard-chart-delta-value {
         text-align: left;
     }
 }

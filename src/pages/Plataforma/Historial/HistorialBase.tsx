@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     AreaChart,
@@ -12,13 +12,27 @@ import {
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
-import type { QuestionnaireHistoryItemV2DTO } from '../../../services/questionnaires/questionnaires.types';
+import {
+    getQuestionnaireHistoryResultsV2,
+    getQuestionnaireHistoryV2,
+    getQuestionnaireReportPreviewV2
+} from '../../../services/questionnaires/questionnaires.api';
+import type {
+    QuestionnaireHistoryItemV2DTO,
+    QuestionnaireHistoryStatusFilter,
+    QuestionnaireReportPreviewDTO,
+    QuestionnaireSecureResultsV2DTO
+} from '../../../services/questionnaires/questionnaires.types';
 import {
     buildCountsMap,
     buildMonthlyCountItems,
     buildTimelineItems,
-    mapCountsToItems
+    formatHistoryTimelineDescription,
+    mapCountsToItems,
+    resolveHistoryItemAlert,
+    resolveHistoryTimelineDate
 } from '../../../utils/dashboard/dashboardData';
+import { formatMonthLabel } from '../../../utils/dashboard/chartFormatters';
 import {
     formatDateTimeEsCO,
     getModeLabel,
@@ -33,6 +47,9 @@ type HistorialRole = 'padre' | 'psicologo';
 interface HistorialBaseProps {
     role: HistorialRole;
 }
+
+const DASHBOARD_HISTORY_PAGE_SIZE = 100;
+const ALERT_DETAILS_CONCURRENCY = 4;
 
 const statusOptions = [
     { value: '', label: 'Todos' },
@@ -77,6 +94,14 @@ function resolveHistoryCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
     return label ? `Caso: ${label}` : 'Sin caso asociado';
 }
 
+function resolveHistorySessionKey(item: QuestionnaireHistoryItemV2DTO) {
+    return item.session_id ?? item.questionnaire_session_id ?? item.id;
+}
+
+function mapDashboardHistoryError() {
+    return 'No fue posible cargar el resumen analítico del historial.';
+}
+
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -97,6 +122,59 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     } = useQuestionnaireHistoryV2();
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(initialLocationState?.openHistorySessionId ?? null);
+    const [dashboardHistoryItems, setDashboardHistoryItems] = useState<QuestionnaireHistoryItemV2DTO[]>([]);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
+    const [dashboardError, setDashboardError] = useState<string | null>(null);
+    const [dashboardLoadedAllPages, setDashboardLoadedAllPages] = useState(true);
+    const [dashboardAlertSources, setDashboardAlertSources] = useState<Record<string, QuestionnaireSecureResultsV2DTO | QuestionnaireReportPreviewDTO | null>>({});
+
+    const dashboardCacheRef = useRef<Record<string, QuestionnaireHistoryItemV2DTO[]>>({});
+    const dashboardAlertCacheRef = useRef<Record<string, QuestionnaireSecureResultsV2DTO | QuestionnaireReportPreviewDTO | null>>({});
+
+    const loadAllHistoryItemsForDashboard = useCallback(async (nextStatusFilter: QuestionnaireHistoryStatusFilter | '') => {
+        const cacheKey = nextStatusFilter || 'all';
+        const cached = dashboardCacheRef.current[cacheKey];
+        if (cached) {
+            setDashboardHistoryItems(cached);
+            setDashboardLoadedAllPages(true);
+            setDashboardError(null);
+            setDashboardLoading(false);
+            return;
+        }
+
+        setDashboardLoading(true);
+        setDashboardError(null);
+        try {
+            const firstPage = await getQuestionnaireHistoryV2({
+                status: nextStatusFilter || undefined,
+                page: 1,
+                page_size: DASHBOARD_HISTORY_PAGE_SIZE
+            });
+            const totalPages = Math.max(1, firstPage.pagination.pages ?? 1);
+            const additionalPages = totalPages > 1
+                ? await Promise.all(
+                    Array.from({ length: totalPages - 1 }, (_, index) =>
+                        getQuestionnaireHistoryV2({
+                            status: nextStatusFilter || undefined,
+                            page: index + 2,
+                            page_size: DASHBOARD_HISTORY_PAGE_SIZE
+                        })
+                    )
+                )
+                : [];
+
+            const allItems = [firstPage, ...additionalPages].flatMap((response) => response.items ?? []);
+            dashboardCacheRef.current[cacheKey] = allItems;
+            setDashboardHistoryItems(allItems);
+            setDashboardLoadedAllPages(true);
+        } catch {
+            setDashboardHistoryItems([]);
+            setDashboardLoadedAllPages(false);
+            setDashboardError(mapDashboardHistoryError());
+        } finally {
+            setDashboardLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         const locationState = (location.state ?? {}) as { openHistorySessionId?: string } | null;
@@ -104,22 +182,88 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         navigate(location.pathname, { replace: true, state: {} });
     }, [location.pathname, location.state, navigate]);
 
+    useEffect(() => {
+        loadAllHistoryItemsForDashboard(statusFilter).catch(() => undefined);
+    }, [loadAllHistoryItemsForDashboard, statusFilter]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const missingAlertItems = dashboardHistoryItems.filter((item) => {
+            if (resolveHistoryItemAlert(item)) return false;
+            const status = normalizeBackendText(item.status, '').toLowerCase();
+            if (status !== 'processed') return false;
+            const sessionKey = resolveHistorySessionKey(item);
+            return Boolean(sessionKey) && !(sessionKey in dashboardAlertCacheRef.current);
+        });
+
+        if (missingAlertItems.length === 0) {
+            setDashboardAlertSources((previous) => ({ ...previous, ...dashboardAlertCacheRef.current }));
+            return undefined;
+        }
+
+        async function worker(queue: QuestionnaireHistoryItemV2DTO[]) {
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (!current) return;
+                const sessionKey = resolveHistorySessionKey(current);
+                if (!sessionKey || sessionKey in dashboardAlertCacheRef.current) continue;
+
+                try {
+                    const results = await getQuestionnaireHistoryResultsV2(sessionKey);
+                    const hasDomains = Array.isArray(results.domains) && results.domains.length > 0;
+                    dashboardAlertCacheRef.current[sessionKey] = hasDomains ? results : await getQuestionnaireReportPreviewV2(sessionKey);
+                } catch {
+                    try {
+                        dashboardAlertCacheRef.current[sessionKey] = await getQuestionnaireReportPreviewV2(sessionKey);
+                    } catch {
+                        dashboardAlertCacheRef.current[sessionKey] = null;
+                    }
+                }
+            }
+        }
+
+        const queue = [...missingAlertItems];
+        Promise.all(
+            Array.from({ length: Math.min(ALERT_DETAILS_CONCURRENCY, queue.length) }, () => worker(queue))
+        ).then(() => {
+            if (cancelled) return;
+            setDashboardAlertSources((previous) => ({ ...previous, ...dashboardAlertCacheRef.current }));
+        }).catch(() => undefined);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dashboardHistoryItems]);
+
     const title = 'Historial de cuestionarios';
     const historyContextLabel = role === 'psicologo' ? 'psicólogo' : 'padre o tutor';
     const totalPages = Math.max(1, pages);
     const currentPage = Math.min(Math.max(page, 1), totalPages);
     const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const showTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const dashboardNote = dashboardLoadedAllPages
+        ? 'Resumen calculado sobre todo el historial disponible.'
+        : 'Resumen calculado sobre los registros cargados para el dashboard.';
+
     const statusSummaryItems = useMemo(
-        () => mapCountsToItems(buildCountsMap(items.map((item) => item.status), (value) => normalizeBackendText(getStatusLabel(value), 'No disponible'))),
-        [items]
+        () =>
+            mapCountsToItems(
+                buildCountsMap(
+                    dashboardHistoryItems.map((item) => item.status),
+                    (value) => normalizeBackendText(getStatusLabel(value), 'No disponible')
+                )
+            ),
+        [dashboardHistoryItems]
     );
+
     const sessionsByMonth = useMemo(
-        () => buildMonthlyCountItems(items.map((item) => item.updated_at ?? item.created_at ?? null)),
-        [items]
+        () => buildMonthlyCountItems(dashboardHistoryItems.map((item) => resolveHistoryTimelineDate(item))),
+        [dashboardHistoryItems]
     );
+
     const caseSummaryItems = useMemo(() => {
-        const labels = items.map((item) => {
+        const labels = dashboardHistoryItems.map((item) => {
             const rawLabel =
                 item.case?.display_label ??
                 item.case?.private_label ??
@@ -131,23 +275,39 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             return normalizeBackendText(rawLabel, 'Sin caso');
         });
         return mapCountsToItems(buildCountsMap(labels));
-    }, [items]);
+    }, [dashboardHistoryItems]);
+
     const alertTimelineItems = useMemo(() => {
-        const candidateItems = items.filter((item) => {
-            const record = item as Record<string, unknown>;
-            return Boolean(record.alert_level ?? record.highest_alert_level ?? record.latest_alert_level);
-        });
+        const candidateItems = dashboardHistoryItems
+            .map((item, index) => ({
+                item,
+                index,
+                alert: resolveHistoryItemAlert(item, dashboardAlertSources[resolveHistorySessionKey(item)] ?? null)
+            }))
+            .filter((entry) => Boolean(entry.alert));
+
         return buildTimelineItems(candidateItems, {
-            getDate: (item) => item.updated_at ?? item.created_at,
-            getTitle: (item) => normalizeBackendText(resolveSessionTitle(item, 0), 'Sesión'),
-            getDescription: (item) => {
-                const record = item as Record<string, unknown>;
-                return `${resolveHistoryCaseLabel(item)} · ${normalizeBackendText(getStatusLabel(item.status), '--')} · ${normalizeBackendText(String(record.alert_level ?? record.highest_alert_level ?? record.latest_alert_level ?? '--'), '--')}`;
+            getDate: ({ item }) => resolveHistoryTimelineDate(item),
+            getTitle: ({ item, index }) => normalizeBackendText(resolveSessionTitle(item, index), 'Sesión'),
+            getDescription: ({ item, alert }) => formatHistoryTimelineDescription({ item, alert }),
+            getTone: ({ alert }) => {
+                const alertLabel = alert?.alertLabel.toLowerCase() ?? '';
+                if (alertLabel.includes('alto') || alertLabel.includes('prioritaria')) return 'danger';
+                if (alertLabel.includes('elevado') || alertLabel.includes('moderado')) return 'warning';
+                if (alertLabel.includes('bajo')) return 'success';
+                return 'info';
             }
         });
-    }, [items]);
-    const processedCount = useMemo(() => items.filter((item) => item.status === 'processed').length, [items]);
-    const sessionsWithoutCase = useMemo(() => items.filter((item) => !item.case && !item.case_id && !item.case_public_id).length, [items]);
+    }, [dashboardAlertSources, dashboardHistoryItems]);
+
+    const processedCount = useMemo(
+        () => dashboardHistoryItems.filter((item) => normalizeBackendText(item.status, '').toLowerCase() === 'processed').length,
+        [dashboardHistoryItems]
+    );
+    const sessionsWithoutCase = useMemo(
+        () => dashboardHistoryItems.filter((item) => !item.case && !item.case_id && !item.case_public_id).length,
+        [dashboardHistoryItems]
+    );
 
     const historyRowsContent = useMemo(() => {
         if (loading) {
@@ -194,49 +354,70 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                 <div className="historial-v2-dashboard">
                     <div className="historial-v2-dashboard-metrics">
-                        <DashboardMetricCard label="Sesiones cargadas" value={items.length} helper="Resumen calculado sobre los resultados cargados." tone="info" />
-                        <DashboardMetricCard label="Procesadas" value={processedCount} helper="Estado procesado dentro de la muestra visible." tone="success" />
+                        <DashboardMetricCard label="Sesiones del dashboard" value={dashboardHistoryItems.length} helper={dashboardNote} tone="info" />
+                        <DashboardMetricCard label="Procesadas" value={processedCount} helper="Sesiones procesadas dentro del historial filtrado." tone="success" />
                         <DashboardMetricCard label="Sin caso" value={sessionsWithoutCase} helper="Registros sin asociación visible a un caso." tone="warning" />
+                        <DashboardMetricCard label="Con alerta visible" value={alertTimelineItems.length} helper="Sesiones con alerta o dominio dominante identificable." tone="neutral" />
                     </div>
+
                     <DashboardSection
                         title="Sesiones por estado"
                         description="Distribuye las sesiones del historial según su estado actual."
-                        note="Resumen calculado sobre los resultados cargados."
+                        note={dashboardNote}
                     >
-                        <DonutChart
-                            data={statusSummaryItems}
-                            ariaLabel="Distribución de sesiones por estado"
-                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                        />
+                        {dashboardLoading ? (
+                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                        ) : (
+                            <DonutChart
+                                data={statusSummaryItems}
+                                ariaLabel="Distribución de sesiones por estado"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        )}
                     </DashboardSection>
+
                     <DashboardSection
                         title="Sesiones realizadas por mes"
                         description="Muestra la frecuencia de registros realizados a lo largo del tiempo."
-                        note="Resumen calculado sobre los resultados cargados."
+                        note={dashboardNote}
                     >
-                        <AreaChart
-                            data={sessionsByMonth}
-                            ariaLabel="Frecuencia de sesiones realizadas por mes"
-                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                        />
+                        {dashboardLoading ? (
+                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                        ) : (
+                            <AreaChart
+                                data={sessionsByMonth}
+                                ariaLabel="Frecuencia de sesiones realizadas por mes"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                xLabelFormatter={formatMonthLabel}
+                            />
+                        )}
                     </DashboardSection>
+
                     <DashboardSection
                         title="Historial por caso"
                         description="Permite identificar si las evaluaciones se encuentran organizadas por casos o si existen sesiones sin asociación."
-                        note="Resumen calculado sobre los resultados cargados."
+                        note={dashboardNote}
                     >
-                        <TreemapChart
-                            data={caseSummaryItems}
-                            ariaLabel="Distribución del historial por caso"
-                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                        />
+                        {dashboardLoading ? (
+                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                        ) : (
+                            <TreemapChart
+                                data={caseSummaryItems}
+                                ariaLabel="Distribución del historial por caso"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        )}
                     </DashboardSection>
+
                     <DashboardSection
+                        className="historial-v2-dashboard-wide"
                         title="Línea de alertas históricas"
                         description="Resume los momentos en los que se registraron alertas más relevantes."
-                        note="Solo se grafica si las sesiones cargadas exponen datos de alerta."
+                        note={dashboardNote}
                     >
-                        {alertTimelineItems.length > 0 ? (
+                        {dashboardLoading ? (
+                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                        ) : alertTimelineItems.length > 0 ? (
                             <TimelineChart
                                 items={alertTimelineItems}
                                 ariaLabel="Línea de alertas históricas"
@@ -260,6 +441,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     </label>
                 </div>
 
+                {dashboardError ? <div className="historial-v2-alert error">{dashboardError}</div> : null}
                 {error ? <div className="historial-v2-alert error">{error}</div> : null}
 
                 <div className="historial-v2-table">

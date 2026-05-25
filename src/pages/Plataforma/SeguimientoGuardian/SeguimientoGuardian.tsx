@@ -4,6 +4,7 @@ import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import {
     DashboardEmptyState,
+    DivergingDeltaChart,
     DashboardMetricCard,
     DashboardSection,
     HorizontalBarChart,
@@ -24,17 +25,18 @@ import type {
     GuardianDashboardDTO,
     QuestionnaireCaseDTO,
     QuestionnaireCaseDetailDTO,
-    QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireSessionV2DTO
 } from '../../../services/questionnaires/questionnaires.types';
 import {
-    buildDeltaItems,
-    buildPercentItems,
+    buildGuardianCaseDomainSummary,
+    buildGuardianCaseDomainTrend,
+    buildProbabilityDeltaItems,
+    buildProbabilityItems,
     buildTimelineItems,
-    normalizeDashboardDomain
+    formatGuardianTrendAxisLabel
 } from '../../../utils/dashboard/dashboardData';
 import { formatChartPercent } from '../../../utils/dashboard/chartFormatters';
-import { normalizePercentValue } from '../../../utils/dashboard/chartScales';
+import { normalizeDashboardProbability } from '../../../utils/dashboard/chartScales';
 import {
     formatDateTime,
     normalizeAlertLevel,
@@ -104,6 +106,12 @@ function parseSortableDate(...candidates: Array<string | null | undefined>) {
     return 0;
 }
 
+function resolveOptionalSessionTimestamp(session: QuestionnaireSessionV2DTO, key: 'submitted_at') {
+    const record = session as Record<string, unknown>;
+    const value = record[key];
+    return typeof value === 'string' ? value : null;
+}
+
 function resolveSessionKey(session: QuestionnaireSessionV2DTO) {
     return session.session_id ?? session.id ?? '';
 }
@@ -111,13 +119,17 @@ function resolveSessionKey(session: QuestionnaireSessionV2DTO) {
 function sortCaseSessions(sessions: QuestionnaireSessionV2DTO[]) {
     return [...sessions].sort(
         (left, right) =>
-            parseSortableDate(right.processed_at, right.updated_at, right.created_at) -
-            parseSortableDate(left.processed_at, left.updated_at, left.created_at)
+            parseSortableDate(right.processed_at, resolveOptionalSessionTimestamp(right, 'submitted_at'), right.updated_at, right.created_at) -
+            parseSortableDate(left.processed_at, resolveOptionalSessionTimestamp(left, 'submitted_at'), left.updated_at, left.created_at)
     );
 }
 
 function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
-    const domains = Array.isArray(session.domains) ? session.domains : [];
+    const domains = Array.isArray(session.domains)
+        ? session.domains
+        : Array.isArray(session.result?.domains)
+            ? session.result.domains
+            : [];
     if (domains.length === 0) return null;
 
     const topDomain = [...domains].sort(
@@ -128,12 +140,7 @@ function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
     return {
         domainLabel: normalizeDomainLabel(topDomain.domain),
         alertLabel: normalizeAlertLevel(topDomain.alert_level),
-        probabilityLabel:
-            typeof topDomain.probability === 'number'
-                ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                    topDomain.probability <= 1 ? topDomain.probability * 100 : topDomain.probability
-                )} %`
-                : '--'
+        probabilityLabel: formatChartPercent(normalizeDashboardProbability(topDomain.probability, { scale: 'ratio' }))
     };
 }
 
@@ -147,10 +154,6 @@ function getDashboardEntryMap(entries: GuardianDashboardCaseDTO[]) {
             .map((entry) => [entry.case?.case_id ?? '', entry] as const)
             .filter(([nextCaseId]) => nextCaseId.length > 0)
     );
-}
-
-function hasPeakProbability(domains: QuestionnaireCaseDomainSummaryDTO[]) {
-    return domains.some((domain) => typeof domain.max_probability === 'number');
 }
 
 function resolveCaseDomainBreakdown(caseEntry: GuardianDashboardCaseDTO | null, caseDetail: QuestionnaireCaseDetailDTO | null) {
@@ -313,58 +316,63 @@ export default function SeguimientoGuardian() {
         () => resolveCaseDomainBreakdown(selectedCaseEntry, selectedCaseDetail),
         [selectedCaseDetail, selectedCaseEntry]
     );
+    const selectedDomainSummary = useMemo(
+        () =>
+            buildGuardianCaseDomainSummary({
+                sessions: selectedCaseSessions,
+                domainBreakdown: selectedDomainBreakdown,
+                domainLabels: guardianDomainSeries.map((series) => series.label)
+            }),
+        [selectedCaseSessions, selectedDomainBreakdown]
+    );
     const selectedTrendData = useMemo(() => {
-        const source = (selectedCaseEntry?.trend?.length ? selectedCaseEntry.trend : selectedCaseDetail?.trend) ?? [];
-        return source
-            .filter((point) => point.date && Array.isArray(point.domains) && point.domains.length > 0)
-            .map((point) => ({
-                label: point.date ?? '',
-                values: guardianDomainSeries.reduce<Record<string, number | null>>((accumulator, series) => {
-                    const domainEntry = (point.domains ?? []).find(
-                        (domainItem) => normalizeDashboardDomain(domainItem.domain) === series.label
-                    );
-                    accumulator[series.key] = normalizePercentValue(domainEntry?.probability);
-                    return accumulator;
-                }, {})
-            }));
-    }, [selectedCaseDetail?.trend, selectedCaseEntry?.trend]);
+        return buildGuardianCaseDomainTrend({
+            caseEntry: selectedCaseEntry,
+            caseDetail: selectedCaseDetail,
+            sessions: selectedCaseSessions,
+            domainLabels: guardianDomainSeries.map((series) => series.label)
+        });
+    }, [selectedCaseDetail, selectedCaseEntry, selectedCaseSessions]);
     const selectedLatestBars = useMemo(
         () =>
-            buildPercentItems(
-                selectedDomainBreakdown.map((item) => ({
-                    label: normalizeDashboardDomain(item.domain),
-                    value: item.latest_probability
-                }))
+            buildProbabilityItems(
+                selectedDomainSummary.map((item) => ({
+                    label: item.label,
+                    value: item.latestValue
+                })),
+                { scale: 'percent' }
             ),
-        [selectedDomainBreakdown]
+        [selectedDomainSummary]
     );
     const selectedPeakBars = useMemo(
         () =>
-            buildPercentItems(
-                selectedDomainBreakdown
-                    .filter((item) => typeof item.max_probability === 'number')
+            buildProbabilityItems(
+                selectedDomainSummary
+                    .filter((item) => typeof item.peakValue === 'number')
                     .map((item) => ({
-                        label: normalizeDashboardDomain(item.domain),
-                        value: item.max_probability
-                    }))
+                        label: item.label,
+                        value: item.peakValue
+                    })),
+                { scale: 'percent' }
             ),
-        [selectedDomainBreakdown]
+        [selectedDomainSummary]
     );
     const selectedDeltaBars = useMemo(() => {
         if (selectedTrendData.length < 2) return [];
         const previousPoint = selectedTrendData[selectedTrendData.length - 2];
         const currentPoint = selectedTrendData[selectedTrendData.length - 1];
-        return buildDeltaItems(
+        return buildProbabilityDeltaItems(
             guardianDomainSeries.map((series) => ({
                 label: series.label,
                 value: Number(currentPoint.values[series.key] ?? 0) - Number(previousPoint.values[series.key] ?? 0)
-            }))
+            })),
+            { scale: 'percent' }
         );
     }, [selectedTrendData]);
     const selectedTimelineItems = useMemo(
         () =>
             buildTimelineItems(selectedCaseSessions, {
-                getDate: (session) => session.processed_at ?? session.updated_at ?? session.created_at,
+                getDate: (session) => session.processed_at ?? resolveOptionalSessionTimestamp(session, 'submitted_at') ?? session.updated_at ?? session.created_at,
                 getTitle: (session) => {
                     const mode = normalizeQuestionnaireMode(session.mode);
                     const status = normalizeSessionStatus(session.status);
@@ -648,6 +656,7 @@ export default function SeguimientoGuardian() {
                                         value={formatDateTime(
                                             selectedCaseEntry?.latest_session?.processed_at ??
                                             selectedCaseSessions[0]?.processed_at ??
+                                            (selectedCaseSessions[0] ? resolveOptionalSessionTimestamp(selectedCaseSessions[0], 'submitted_at') : null) ??
                                             selectedCaseSessions[0]?.updated_at ??
                                             selectedCaseSessions[0]?.created_at
                                         )}
@@ -686,6 +695,7 @@ export default function SeguimientoGuardian() {
                                         minY={0}
                                         maxY={100}
                                         formatter={formatChartPercent}
+                                        xLabelFormatter={formatGuardianTrendAxisLabel}
                                     />
                                 </DashboardSection>
 
@@ -725,13 +735,12 @@ export default function SeguimientoGuardian() {
                                     title="Cambio frente a la sesión anterior"
                                     description="Muestra el aumento o disminución de cada dominio respecto a la sesión anterior."
                                 >
-                                    <HorizontalBarChart
+                                    <DivergingDeltaChart
                                         data={selectedDeltaBars}
                                         ariaLabel="Cambio por dominio frente a la sesión anterior"
                                         emptyMessage="No hay suficientes sesiones para comparar el cambio frente a la sesión anterior."
                                         formatter={formatChartPercent}
-                                        minValue={-100}
-                                        maxValue={100}
+                                        helper="Valores positivos indican aumento frente a la sesión anterior; valores negativos indican disminución."
                                     />
                                 </DashboardSection>
 
@@ -758,7 +767,12 @@ export default function SeguimientoGuardian() {
                                 const caseIsLoading = caseLoadingById[caseItem.case_id] === true;
                                 const caseLoadError = caseErrorById[caseItem.case_id] ?? null;
                                 const domainBreakdown = resolveCaseDomainBreakdown(caseEntry, caseDetail);
-                                const showPeakProbability = hasPeakProbability(domainBreakdown);
+                                const domainSummaryRows = buildGuardianCaseDomainSummary({
+                                    sessions: caseSessions,
+                                    domainBreakdown,
+                                    domainLabels: guardianDomainSeries.map((series) => series.label)
+                                });
+                                const showPeakProbability = domainSummaryRows.some((item) => typeof item.peakValue === 'number');
                                 const sessionsCount = caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
 
@@ -824,7 +838,7 @@ export default function SeguimientoGuardian() {
                                             <p>
                                                 Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico.
                                             </p>
-                                            {domainBreakdown.length > 0 ? (
+                                            {domainSummaryRows.length > 0 ? (
                                                 <div className="seguimiento-domain-table">
                                                     <div className={`seguimiento-domain-row seguimiento-domain-head ${showPeakProbability ? 'has-peak' : ''}`}>
                                                         <strong>Dominio</strong>
@@ -832,29 +846,29 @@ export default function SeguimientoGuardian() {
                                                         {showPeakProbability ? <strong>Mayor registrada</strong> : null}
                                                         <strong>Alerta actual</strong>
                                                     </div>
-                                                    {domainBreakdown.map((domain) => (
+                                                    {domainSummaryRows.map((domain) => (
                                                         <div
-                                                            key={`${caseItem.case_id}-${domain.domain}`}
+                                                            key={`${caseItem.case_id}-${domain.label}`}
                                                             className={`seguimiento-domain-row ${showPeakProbability ? 'has-peak' : ''}`}
                                                         >
-                                                            <span className="seguimiento-domain-cell heading">{normalizeDomainLabel(domain.domain)}</span>
+                                                            <span className="seguimiento-domain-cell heading">{domain.label}</span>
                                                             <span className="seguimiento-domain-cell">
-                                                                {typeof domain.latest_probability === 'number'
+                                                                {typeof domain.latestValue === 'number'
                                                                     ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                                                                        domain.latest_probability <= 1 ? domain.latest_probability * 100 : domain.latest_probability
+                                                                        domain.latestValue
                                                                     )} %`
                                                                     : '--'}
                                                             </span>
                                                             {showPeakProbability ? (
                                                                 <span className="seguimiento-domain-cell">
-                                                                    {typeof domain.max_probability === 'number'
+                                                                    {typeof domain.peakValue === 'number'
                                                                         ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                                                                            domain.max_probability <= 1 ? domain.max_probability * 100 : domain.max_probability
+                                                                            domain.peakValue
                                                                         )} %`
                                                                         : '—'}
                                                                 </span>
                                                             ) : null}
-                                                            <span className="seguimiento-domain-cell">{normalizeAlertLevel(domain.latest_alert_level)}</span>
+                                                            <span className="seguimiento-domain-cell">{domain.latestAlertLabel}</span>
                                                         </div>
                                                     ))}
                                                 </div>

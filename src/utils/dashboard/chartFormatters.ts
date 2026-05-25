@@ -29,6 +29,19 @@ export function formatShortDate(value: unknown) {
     }).format(parsed);
 }
 
+export function formatShortDateTime(value: unknown) {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (!raw) return 'Fecha no disponible';
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+    return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(parsed);
+}
+
 export function formatMonthLabel(value: unknown) {
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return 'Sin fecha';

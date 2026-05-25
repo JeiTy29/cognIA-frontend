@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import './DashboardCharts.css';
-import { createLinearTicks, getLabelStride, sumValues } from '../../utils/dashboard/chartScales';
-import { formatChartCount, formatChartDate, formatChartPercent, formatShortDate, truncateChartLabel } from '../../utils/dashboard/chartFormatters';
+import { createLinearTicks, getLabelStride, getSymmetricExtent, sumValues } from '../../utils/dashboard/chartScales';
+import { formatChartCount, formatChartDate, formatChartPercent, formatShortDate, formatShortDateTime, truncateChartLabel } from '../../utils/dashboard/chartFormatters';
 
 export const DEFAULT_DASHBOARD_EMPTY_MESSAGE = 'No hay datos suficientes para generar esta gráfica en el periodo seleccionado.';
 
@@ -60,6 +60,14 @@ type HorizontalBarChartProps = Readonly<{
     formatter?: (value: number) => string;
     maxValue?: number;
     minValue?: number;
+}>;
+
+type DivergingDeltaChartProps = Readonly<{
+    data: DashboardChartDatum[];
+    ariaLabel: string;
+    emptyMessage?: string;
+    formatter?: (value: number) => string;
+    helper?: string;
 }>;
 
 type VerticalBarChartProps = Readonly<{
@@ -159,6 +167,11 @@ const DEFAULT_PALETTE = ['#0f5f9f', '#1f9d55', '#f0ad4e', '#dc3545', '#6a6f7d', 
 
 function resolveColor(index: number, explicit?: string) {
     return explicit ?? DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+}
+
+function resolveLinePattern(index: number) {
+    const patterns = ['', '7 4', '3 3', '10 4 2 4', '2 5'];
+    return patterns[index % patterns.length];
 }
 
 function getToneFromValue(value: number): Tone {
@@ -305,6 +318,50 @@ export function HorizontalBarChart({
     );
 }
 
+export function DivergingDeltaChart({
+    data,
+    ariaLabel,
+    emptyMessage,
+    formatter = formatChartPercent,
+    helper
+}: DivergingDeltaChartProps) {
+    const sanitized = data.filter((item) => Number.isFinite(item.value));
+    if (sanitized.length === 0) return renderEmpty(emptyMessage);
+
+    const extent = getSymmetricExtent(sanitized.map((item) => item.value), 100);
+
+    return (
+        <div className="dashboard-chart-delta-wrap">
+            <div className="dashboard-chart-delta-list" role="img" aria-label={ariaLabel}>
+                {sanitized.map((item, index) => {
+                    const clampedValue = Math.max(-extent, Math.min(extent, item.value));
+                    const width = `${(Math.abs(clampedValue) / Math.max(1, extent)) * 50}%`;
+                    const left = clampedValue < 0 ? `${50 - (Math.abs(clampedValue) / Math.max(1, extent)) * 50}%` : '50%';
+                    const tone = getToneFromValue(clampedValue);
+                    const valueLabel = clampedValue === 0 ? 'Sin cambio' : `${clampedValue > 0 ? '+' : ''}${formatter(clampedValue)}`;
+
+                    return (
+                        <div key={`${item.label}-${index}`} className="dashboard-chart-delta-row">
+                            <span className="dashboard-chart-delta-label" title={item.label}>{truncateChartLabel(item.label, 30)}</span>
+                            <div className="dashboard-chart-delta-track">
+                                <span className="dashboard-chart-delta-axis" />
+                                <span
+                                    className="dashboard-chart-delta-fill"
+                                    data-tone={tone}
+                                    style={{ width, left }}
+                                    title={`${item.label}: ${valueLabel}`}
+                                />
+                            </div>
+                            <span className="dashboard-chart-delta-value">{valueLabel}</span>
+                        </div>
+                    );
+                })}
+            </div>
+            {helper ? <p className="dashboard-chart-delta-helper">{helper}</p> : null}
+        </div>
+    );
+}
+
 export function VerticalBarChart({
     data,
     ariaLabel,
@@ -374,9 +431,20 @@ export function LineChart({
     minY = 0,
     maxY = 100,
     formatter = formatChartPercent,
-    xLabelFormatter = formatShortDate
+    xLabelFormatter = formatShortDateTime
 }: LineChartProps) {
+    const [hiddenSeriesKeys, setHiddenSeriesKeys] = useState<string[]>([]);
+    const [hoveredSeriesKey, setHoveredSeriesKey] = useState<string | null>(null);
+    const visibleSeries = useMemo(
+        () => series.filter((line) => !hiddenSeriesKeys.includes(line.key)),
+        [hiddenSeriesKeys, series]
+    );
+
     if (data.length < 2 || series.length === 0) return renderEmpty(emptyMessage);
+
+    if (visibleSeries.length === 0) {
+        return renderEmpty('Activa al menos un dominio para visualizar la evolución.');
+    }
 
     const ticks = createLinearTicks(minY, maxY, 5);
     const labelStride = getLabelStride(data.length, 6);
@@ -400,7 +468,7 @@ export function LineChart({
                     );
                 })}
 
-                {series.map((line, seriesIndex) => {
+                {visibleSeries.map((line, seriesIndex) => {
                     const points = data.map((point, pointIndex) => {
                         const raw = point.values[line.key];
                         const numeric = typeof raw === 'number' ? raw : Number(raw);
@@ -413,13 +481,57 @@ export function LineChart({
 
                     return (
                         <g key={line.key}>
-                            <path d={buildSeriesPath(points)} fill="none" stroke={resolveColor(seriesIndex, line.color)} strokeWidth="3" strokeLinecap="round" />
+                            <path
+                                d={buildSeriesPath(points)}
+                                fill="none"
+                                stroke={resolveColor(seriesIndex, line.color)}
+                                strokeWidth={hoveredSeriesKey === line.key ? '4' : '3'}
+                                strokeDasharray={resolveLinePattern(seriesIndex)}
+                                strokeLinecap="round"
+                                opacity={hoveredSeriesKey && hoveredSeriesKey !== line.key ? 0.22 : 1}
+                            />
                             {points.map((point, pointIndex) => (
-                                <circle key={`${line.key}-${pointIndex}`} cx={point.x} cy={point.y} r="3" fill={resolveColor(seriesIndex, line.color)}>
+                                <circle
+                                    key={`${line.key}-${pointIndex}`}
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={hoveredSeriesKey === line.key ? '4.5' : '4'}
+                                    fill={resolveColor(seriesIndex, line.color)}
+                                    stroke="#ffffff"
+                                    strokeWidth="1.5"
+                                    opacity={hoveredSeriesKey && hoveredSeriesKey !== line.key ? 0.24 : 1}
+                                >
                                     <title>{`${line.label} · ${xLabelFormatter(data[pointIndex].label)}: ${formatter(Number(data[pointIndex].values[line.key] ?? 0))}`}</title>
                                 </circle>
                             ))}
                         </g>
+                    );
+                })}
+
+                {data.map((point, index) => {
+                    const x = chartLeft + (index / Math.max(1, data.length - 1)) * chartWidth;
+                    const previousX = index === 0 ? chartLeft : chartLeft + ((index - 1) / Math.max(1, data.length - 1)) * chartWidth;
+                    const nextX = index === data.length - 1 ? chartLeft + chartWidth : chartLeft + ((index + 1) / Math.max(1, data.length - 1)) * chartWidth;
+                    const hotspotWidth = Math.max(14, (nextX - previousX) / 2);
+                    const visibleSummary = visibleSeries
+                        .map((line) => {
+                            const raw = point.values[line.key];
+                            const numeric = typeof raw === 'number' ? raw : Number(raw);
+                            return Number.isFinite(numeric) ? `${line.label}: ${formatter(numeric)}` : null;
+                        })
+                        .filter((entry): entry is string => Boolean(entry));
+
+                    return (
+                        <rect
+                            key={`hotspot-${point.label}-${index}`}
+                            x={Math.max(chartLeft, x - hotspotWidth / 2)}
+                            y={chartTop}
+                            width={Math.min(hotspotWidth, chartLeft + chartWidth - Math.max(chartLeft, x - hotspotWidth / 2))}
+                            height={chartHeight}
+                            fill="transparent"
+                        >
+                            <title>{`${xLabelFormatter(point.label)}\n${visibleSummary.join('\n')}`}</title>
+                        </rect>
                     );
                 })}
 
@@ -434,10 +546,31 @@ export function LineChart({
             </svg>
             <div className="dashboard-chart-legend">
                 {series.map((line, index) => (
-                    <span key={`${line.key}-legend`} className="dashboard-chart-legend-item">
-                        <i className="dashboard-chart-legend-swatch" style={{ backgroundColor: resolveColor(index, line.color) }} />
+                    <button
+                        key={`${line.key}-legend`}
+                        type="button"
+                        className="dashboard-chart-legend-item dashboard-chart-legend-button"
+                        data-active={!hiddenSeriesKeys.includes(line.key)}
+                        onClick={() =>
+                            setHiddenSeriesKeys((current) =>
+                                current.includes(line.key)
+                                    ? current.filter((key) => key !== line.key)
+                                    : [...current, line.key]
+                            )
+                        }
+                        onMouseEnter={() => setHoveredSeriesKey(line.key)}
+                        onMouseLeave={() => setHoveredSeriesKey(null)}
+                        title={hiddenSeriesKeys.includes(line.key) ? `Mostrar ${line.label}` : `Ocultar ${line.label}`}
+                    >
+                        <i
+                            className="dashboard-chart-legend-swatch"
+                            style={{
+                                backgroundColor: resolveColor(index, line.color),
+                                borderStyle: resolveLinePattern(index) ? 'dashed' : 'solid'
+                            }}
+                        />
                         {line.label}
-                    </span>
+                    </button>
                 ))}
             </div>
         </div>

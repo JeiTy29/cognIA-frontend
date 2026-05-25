@@ -1,4 +1,5 @@
 import {
+    normalizeBackendText,
     normalizeAlertLevel,
     normalizeBooleanLabel,
     normalizeCaseStatus,
@@ -11,11 +12,24 @@ import {
 } from '../questionnaires/presentation';
 import {
     daysBetween,
+    normalizeDashboardDelta,
+    normalizeDashboardProbability,
     normalizeMaybeNegativePercentValue,
     normalizePercentValue,
     toFiniteNumber,
     toPositiveNumber
 } from './chartScales';
+import type {
+    GuardianDashboardCaseDTO,
+    QuestionnaireCaseDetailDTO,
+    QuestionnaireCaseDomainSummaryDTO,
+    QuestionnaireCaseTrendPointDTO,
+    QuestionnaireEvaluationDomainDTO,
+    QuestionnaireHistoryItemV2DTO,
+    QuestionnaireReportPreviewDTO,
+    QuestionnaireSecureResultsV2DTO,
+    QuestionnaireSessionV2DTO
+} from '../../services/questionnaires/questionnaires.types';
 
 export type DashboardCountItem = {
     label: string;
@@ -262,6 +276,310 @@ export function buildDeltaItems(items: Array<{ label: string; value: unknown }>)
             value: normalizeMaybeNegativePercentValue(item.value)
         }))
         .filter((item): item is { label: string; value: number } => typeof item.value === 'number');
+}
+
+export function buildProbabilityItems(
+    items: Array<{ label: string; value: unknown; meta?: string }>,
+    options?: { scale?: 'ratio' | 'percent' | 'auto' }
+) {
+    return items
+        .map((item) => ({
+            label: item.label,
+            value: normalizeDashboardProbability(item.value, { scale: options?.scale ?? 'auto' }),
+            meta: item.meta
+        }))
+        .filter((item) => typeof item.value === 'number') as Array<{ label: string; value: number; meta?: string }>;
+}
+
+export function buildProbabilityDeltaItems(
+    items: Array<{ label: string; value: unknown; meta?: string }>,
+    options?: { scale?: 'ratio' | 'percent' | 'auto' }
+) {
+    return items
+        .map((item) => ({
+            label: item.label,
+            value: normalizeDashboardDelta(item.value, { scale: options?.scale ?? 'auto' }),
+            meta: item.meta
+        }))
+        .filter((item) => typeof item.value === 'number') as Array<{ label: string; value: number; meta?: string }>;
+}
+
+export function resolveSessionTimelineDate(session: QuestionnaireSessionV2DTO | null | undefined) {
+    const record = session as Record<string, unknown> | null | undefined;
+    const submittedAt = typeof record?.submitted_at === 'string' ? record.submitted_at : null;
+    return (
+        session?.processed_at ??
+        submittedAt ??
+        session?.updated_at ??
+        session?.created_at ??
+        null
+    );
+}
+
+export function resolveHistoryTimelineDate(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
+    if (!item) return null;
+    const record = item as Record<string, unknown>;
+    return (
+        safeDisplayText(record.submitted_at, '') ||
+        safeDisplayText(record.processed_at, '') ||
+        safeDisplayText(item.created_at, '') ||
+        safeDisplayText(item.updated_at, '') ||
+        null
+    );
+}
+
+function resolveSessionDomains(session: QuestionnaireSessionV2DTO | null | undefined) {
+    if (Array.isArray(session?.domains) && session.domains.length > 0) return session.domains;
+    if (Array.isArray(session?.result?.domains) && session.result.domains.length > 0) return session.result.domains;
+    return [];
+}
+
+function resolveTrendTimestamp(
+    point: QuestionnaireCaseTrendPointDTO | null | undefined,
+    sessionById: Map<string, QuestionnaireSessionV2DTO>
+) {
+    const sessionId = safeDisplayText(point?.session_id, '');
+    if (sessionId) {
+        const matchingSession = sessionById.get(sessionId);
+        const matchingTimestamp = resolveSessionTimelineDate(matchingSession);
+        if (matchingTimestamp) return matchingTimestamp;
+    }
+    return safeDisplayText(point?.date, '');
+}
+
+function mapDomainsToSeriesValues(
+    domains: Array<{ domain?: unknown; probability?: unknown }> | null | undefined,
+    domainLabels: string[]
+) {
+    return domainLabels.reduce<Record<string, number | null>>((accumulator, label) => {
+        const match = (domains ?? []).find((domainItem) => normalizeDashboardDomain(domainItem.domain) === label);
+        accumulator[label] = normalizeDashboardProbability(match?.probability, { scale: 'ratio' });
+        return accumulator;
+    }, {});
+}
+
+type GuardianDomainSummaryRow = {
+    label: string;
+    latestValue: number | null;
+    latestAlertLabel: string;
+    peakValue: number | null;
+    sessionsWithAlert: number;
+};
+
+export function buildGuardianCaseDomainSummary(options: {
+    sessions?: QuestionnaireSessionV2DTO[] | null;
+    domainBreakdown?: QuestionnaireCaseDomainSummaryDTO[] | null;
+    domainLabels?: string[];
+}) {
+    const fallbackBreakdown = Array.isArray(options.domainBreakdown) ? options.domainBreakdown : [];
+    const configuredLabels = Array.isArray(options.domainLabels) ? options.domainLabels.filter(Boolean) : [];
+    const fallbackLabels = fallbackBreakdown.map((item) => normalizeDashboardDomain(item.domain));
+    const sessionLabels = (options.sessions ?? []).flatMap((session) =>
+        resolveSessionDomains(session).map((domainItem) => normalizeDashboardDomain(domainItem.domain))
+    );
+    const labels = [...new Set([...configuredLabels, ...fallbackLabels, ...sessionLabels])];
+
+    const sessionsAsc = [...(options.sessions ?? [])]
+        .map((session) => {
+            const timestamp = resolveSessionTimelineDate(session);
+            return {
+                session,
+                timestamp: typeof timestamp === 'string' ? timestamp : ''
+            };
+        })
+        .filter((item) => item.timestamp.length > 0 && resolveSessionDomains(item.session).length > 0)
+        .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp));
+
+    if (sessionsAsc.length > 0) {
+        const latestSession = sessionsAsc[sessionsAsc.length - 1]?.session;
+
+        return labels
+            .map((label): GuardianDomainSummaryRow => {
+                const latestDomain = resolveSessionDomains(latestSession).find(
+                    (domainItem) => normalizeDashboardDomain(domainItem.domain) === label
+                );
+                const values = sessionsAsc
+                    .map((entry) =>
+                        normalizeDashboardProbability(
+                            resolveSessionDomains(entry.session).find(
+                                (domainItem) => normalizeDashboardDomain(domainItem.domain) === label
+                            )?.probability,
+                            { scale: 'ratio' }
+                        )
+                    )
+                    .filter((value): value is number => typeof value === 'number');
+
+                return {
+                    label,
+                    latestValue: normalizeDashboardProbability(latestDomain?.probability, { scale: 'ratio' }),
+                    latestAlertLabel: normalizeAlertLevel(latestDomain?.alert_level),
+                    peakValue: values.length > 0 ? Math.max(...values) : null,
+                    sessionsWithAlert: sessionsAsc.filter((entry) => {
+                        const currentDomain = resolveSessionDomains(entry.session).find(
+                            (domainItem) => normalizeDashboardDomain(domainItem.domain) === label
+                        );
+                        return normalizeAlertLevel(currentDomain?.alert_level) !== '--';
+                    }).length
+                };
+            })
+            .filter((item) => item.latestValue !== null || item.peakValue !== null || item.sessionsWithAlert > 0);
+    }
+
+    return labels
+        .map((label): GuardianDomainSummaryRow => {
+            const breakdownItem = fallbackBreakdown.find(
+                (domainItem) => normalizeDashboardDomain(domainItem.domain) === label
+            );
+            return {
+                label,
+                latestValue: normalizeDashboardProbability(breakdownItem?.latest_probability, { scale: 'ratio' }),
+                latestAlertLabel: normalizeAlertLevel(breakdownItem?.latest_alert_level),
+                peakValue: normalizeDashboardProbability(breakdownItem?.max_probability, { scale: 'ratio' }),
+                sessionsWithAlert: toPositiveNumber(breakdownItem?.sessions_with_alert)
+            };
+        })
+        .filter((item) => item.latestValue !== null || item.peakValue !== null || item.sessionsWithAlert > 0);
+}
+
+export function buildGuardianCaseDomainTrend(options: {
+    caseEntry?: GuardianDashboardCaseDTO | null;
+    caseDetail?: QuestionnaireCaseDetailDTO | null;
+    sessions?: QuestionnaireSessionV2DTO[] | null;
+    domainLabels: string[];
+}): Array<{ label: string; timestamp: number; values: Record<string, number | null>; meta: string }> {
+    const sessions = Array.isArray(options.sessions) ? options.sessions : [];
+    const sessionById = new Map(
+        sessions
+            .map((session) => [safeDisplayText(session.session_id ?? session.id, ''), session] as const)
+            .filter(([sessionId]) => sessionId.length > 0)
+    );
+
+    const sessionPoints = sessions
+        .map((session) => {
+            const timestamp = resolveSessionTimelineDate(session);
+            const timestampLabel = typeof timestamp === 'string' ? timestamp : '';
+            const parsed = timestampLabel ? Date.parse(timestampLabel) : Number.NaN;
+            const domains = Array.isArray(session.domains)
+                ? session.domains
+                : Array.isArray(session.result?.domains)
+                    ? session.result?.domains
+                    : [];
+            if (!timestampLabel || Number.isNaN(parsed) || domains.length === 0) return null;
+            return {
+                label: timestampLabel,
+                timestamp: parsed,
+                values: mapDomainsToSeriesValues(domains, options.domainLabels),
+                meta: normalizeBackendText(session.questionnaire_id ?? session.session_id ?? session.id, '')
+            };
+        })
+        .filter((point): point is NonNullable<typeof point> => Boolean(point))
+        .sort((left, right) => left.timestamp - right.timestamp);
+
+    if (sessionPoints.length > 0) {
+        return sessionPoints;
+    }
+
+    const trendSource = (options.caseEntry?.trend?.length ? options.caseEntry.trend : options.caseDetail?.trend) ?? [];
+    return trendSource
+        .map((point) => {
+            const timestamp = resolveTrendTimestamp(point, sessionById);
+            const timestampLabel = typeof timestamp === 'string' ? timestamp : '';
+            const parsed = timestampLabel ? Date.parse(timestampLabel) : Number.NaN;
+            if (!timestampLabel || Number.isNaN(parsed) || !Array.isArray(point?.domains) || point.domains.length === 0) {
+                return null;
+            }
+            return {
+                label: timestampLabel,
+                timestamp: parsed,
+                values: mapDomainsToSeriesValues(point.domains, options.domainLabels),
+                meta: safeDisplayText(point?.session_id, '')
+            };
+        })
+        .filter((point): point is NonNullable<typeof point> => Boolean(point))
+        .sort((left, right) => left.timestamp - right.timestamp);
+}
+
+function resolveAlertFromDomains(
+    domains: Array<{ domain?: unknown; probability?: unknown; alert_level?: unknown }> | null | undefined
+) {
+    if (!Array.isArray(domains) || domains.length === 0) return null;
+    const sorted = [...domains].sort((left, right) => toFiniteNumber(right.probability, -1) - toFiniteNumber(left.probability, -1));
+    const topDomain = sorted[0];
+    if (!topDomain) return null;
+    return {
+        domainLabel: normalizeDashboardDomain(topDomain.domain),
+        alertLabel: normalizeAlertLevel(topDomain.alert_level),
+        probabilityValue: normalizeDashboardProbability(topDomain.probability, { scale: 'ratio' }),
+        probabilityLabel:
+            normalizeDashboardProbability(topDomain.probability, { scale: 'ratio' }) !== null
+                ? `${normalizeDashboardProbability(topDomain.probability, { scale: 'ratio' })?.toLocaleString('es-CO', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 1
+                })} %`
+                : '--'
+    };
+}
+
+export function resolveHistoryItemAlert(
+    item: QuestionnaireHistoryItemV2DTO,
+    source?: QuestionnaireSecureResultsV2DTO | QuestionnaireReportPreviewDTO | null
+) {
+    const directAlert = normalizeAlertLevel(
+        (item as Record<string, unknown>).highest_alert_level ??
+        (item as Record<string, unknown>).latest_alert_level ??
+        (item as Record<string, unknown>).alert_level
+    );
+    if (directAlert && directAlert !== '--') {
+        return {
+            alertLabel: directAlert,
+            domainLabel: getDominantDomain((item as Record<string, unknown>).domains as Array<{ domain?: unknown; probability?: unknown }> | undefined) ?? 'General',
+            probabilityLabel: '--'
+        };
+    }
+
+    const candidateDomainSources = [
+        (item as Record<string, unknown>).domains,
+        (item as Record<string, unknown>).result && typeof (item as Record<string, unknown>).result === 'object'
+            ? ((item as Record<string, unknown>).result as Record<string, unknown>).domains
+            : null,
+        source?.domains,
+        source?.result?.domains
+    ];
+
+    for (const candidate of candidateDomainSources) {
+        const resolved = resolveAlertFromDomains(candidate as QuestionnaireEvaluationDomainDTO[] | null | undefined);
+        if (resolved) return resolved;
+    }
+
+    return null;
+}
+
+export function formatHistoryTimelineDescription(options: {
+    item: QuestionnaireHistoryItemV2DTO;
+    alert: ReturnType<typeof resolveHistoryItemAlert>;
+}) {
+    const caseLabel = getCaseOrEvaluationTitle(
+        options.item.case_public_id ?? options.item.case?.case_public_id,
+        options.item.questionnaire_id,
+        'Sesión sin caso'
+    );
+    if (!options.alert) {
+        return `${caseLabel} · ${normalizeSessionStatus(options.item.status)} · Sin alerta visible`;
+    }
+    return `${caseLabel} · ${options.alert.domainLabel}: ${options.alert.alertLabel} (${options.alert.probabilityLabel})`;
+}
+
+export function formatGuardianTrendAxisLabel(value: string) {
+    const raw = safeDisplayText(value, '');
+    if (!raw) return 'Fecha no disponible';
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(parsed);
 }
 
 export function buildAgingBuckets(
