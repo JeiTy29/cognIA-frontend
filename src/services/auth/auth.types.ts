@@ -8,6 +8,8 @@ export interface RegisterPayload {
     user_type: UserType;
     full_name?: string;
     professional_card_number?: string;
+    department: string;
+    city: string;
 }
 
 export interface RegisterResponse {
@@ -24,12 +26,17 @@ export interface LoginSuccessResponse {
     access_token: string;
     token_type: string;
     expires_in: number;
+    accessToken?: string;
+    tokenType?: string;
+    expiresIn?: number;
 }
 
 export interface MFALoginChallengeResponse {
     mfa_required: true;
     challenge_id: string;
     expires_in: number;
+    challengeId?: string;
+    expiresIn?: number;
     msg?: string;
     error?: string;
 }
@@ -39,15 +46,21 @@ export interface MFAEnrollmentRequiredResponse {
     enrollment_token: string;
     token_type: string;
     expires_in: number;
+    enrollmentToken?: string;
+    tokenType?: string;
+    expiresIn?: number;
     msg?: string;
     error?: string;
 }
 
 export type LoginResponse = LoginSuccessResponse | MFALoginChallengeResponse | MFAEnrollmentRequiredResponse;
 
+export type LoginErrorCode = 'invalid_credentials' | 'request_failed' | 'colpsic_pending';
+
 export interface LoginErrorResponse {
-    error: 'invalid_credentials' | 'request_failed';
+    error: LoginErrorCode;
     status: number;
+    msg?: string;
 }
 
 export interface MFALoginRequest {
@@ -135,14 +148,32 @@ export interface AuthMeResponse {
     email?: string;
     roles?: string[];
     user_type?: string;
+    display_role?: string | null;
     full_name?: string | null;
     professional_card_number?: string | null;
+    city?: string | null;
+    department?: string | null;
+    professional_city?: string | null;
+    professional_department?: string | null;
+    professional_location?: string | null;
     is_active?: boolean;
     mfa_enabled?: boolean;
     mfa_confirmed_at?: string | null;
     mfa_method?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+}
+
+export interface UpdateProfilePayload {
+    full_name?: string;
+    username?: string;
+    email?: string;
+    department?: string;
+    city?: string;
+}
+
+export interface UpdateProfileResponseDTO {
+    user: AuthMeResponse;
 }
 
 export interface AuthMeErrorResponse {

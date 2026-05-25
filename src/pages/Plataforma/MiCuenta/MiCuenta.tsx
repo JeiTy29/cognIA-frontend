@@ -5,12 +5,15 @@ import { validatePassword } from '../../../utils/passwordValidation';
 import { PASSWORD_RULES } from '../../../utils/passwordRules';
 import './MiCuenta.css';
 import '../../../styles/password-ui.css';
-import { changePassword, logout, mfaDisable } from '../../../services/auth/auth.api';
+import { changePassword, mfaDisable } from '../../../services/auth/auth.api';
+import { updateMyProfile } from '../../../services/auth/auth.api';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { getAccountTypeLabel, isAdminProfile, isGuardianProfile, isPsychologistProfile } from '../../../utils/auth/profileMapper';
 import { Modal } from '../../../components/Modal/Modal';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
 import { ApiError } from '../../../services/api/httpClient';
+import { ColombiaLocationSelect } from '../../../components/Location/ColombiaLocationSelect';
+import '../../../components/Location/ColombiaLocationSelect.css';
 
 const passwordRules = PASSWORD_RULES;
 
@@ -121,7 +124,7 @@ type RunDisableMfaFlowArgs = Readonly<{
     disableMode: 'totp' | 'recovery';
     disablePassword: string;
     disableCode: string;
-    clearSession: (reason: 'manual' | 'expired') => void;
+    logoutSessionAsync: (reason: 'manual' | 'expired') => Promise<void>;
     navigate: ReturnType<typeof useNavigate>;
     setDisableLoading: (value: boolean) => void;
     setDisableError: (value: string | null) => void;
@@ -134,7 +137,7 @@ async function runDisableMfaFlow({
     disableMode,
     disablePassword,
     disableCode,
-    clearSession,
+    logoutSessionAsync,
     navigate,
     setDisableLoading,
     setDisableError,
@@ -158,8 +161,9 @@ async function runDisableMfaFlow({
         setDisableSuccess('MFA desactivado. Para evitar confusiones, elimina la entrada correspondiente en tu app de autenticación.');
         globalThis.setTimeout(() => {
             setShowMfaDisable(false);
-            clearSession('manual');
-            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            void logoutSessionAsync('manual').finally(() => {
+                navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
+            });
         }, 600);
     } catch (error) {
         if (error instanceof ApiError) {
@@ -228,7 +232,7 @@ function PasswordVisibilityInputField({
 
 export default function MiCuenta() {
     const navigate = useNavigate();
-    const { logout: clearSession, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
+    const { logout: logoutSession, logoutAsync, profile, profileStatus, profileErrorStatus, devAuthActive, devLogout, accessToken, reloadProfile, isAuthenticated } = useAuth();
     const [openPanel, setOpenPanel] = useState<'contrasena' | null>(null);
 
     const [contrasenaActual, setContrasenaActual] = useState('');
@@ -253,6 +257,17 @@ export default function MiCuenta() {
     const [disableLoading, setDisableLoading] = useState(false);
     const [disableError, setDisableError] = useState<string | null>(null);
     const [disableSuccess, setDisableSuccess] = useState<string | null>(null);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileSaving, setProfileSaving] = useState(false);
+    const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+    const [profileSaveNotice, setProfileSaveNotice] = useState<string | null>(null);
+    const [profileForm, setProfileForm] = useState({
+        fullName: '',
+        username: '',
+        email: '',
+        department: '',
+        city: ''
+    });
     const passwordChecks = useMemo(() => (
         passwordRules.map(rule => ({
             id: rule.id,
@@ -271,6 +286,8 @@ export default function MiCuenta() {
     const username = profile?.username ?? '—';
     const nombreCompleto = profile?.full_name ?? '—';
     const tarjetaProfesional = profile?.professional_card_number ?? '—';
+    const departamento = profile?.department ?? profile?.professional_department ?? '—';
+    const ciudad = profile?.city ?? profile?.professional_city ?? profile?.professional_location ?? '—';
     const mfaEnabled = profile?.mfa_enabled ?? false;
     const openMfaDisableModal = () => {
         setDisableError(null);
@@ -280,10 +297,48 @@ export default function MiCuenta() {
 
     useEffect(() => {
         if (profileStatus === 'error' && profileErrorStatus === 401) {
-            clearSession('manual');
+            logoutSession('manual');
             navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
-    }, [profileStatus, profileErrorStatus, clearSession, navigate]);
+    }, [profileStatus, profileErrorStatus, logoutSession, navigate]);
+
+    useEffect(() => {
+        if (isEditingProfile) return;
+        setProfileForm({
+            fullName: profile?.full_name ?? '',
+            username: profile?.username ?? '',
+            email: profile?.email ?? '',
+            department: profile?.department ?? profile?.professional_department ?? '',
+            city: profile?.city ?? profile?.professional_city ?? ''
+        });
+    }, [isEditingProfile, profile]);
+
+    const profileChanges = useMemo(() => {
+        const changes: Record<string, string> = {};
+        const nextUsername = profileForm.username.trim();
+        const nextEmail = profileForm.email.trim();
+        const nextDepartment = profileForm.department.trim();
+        const nextCity = profileForm.city.trim();
+        const nextFullName = profileForm.fullName.trim();
+
+        if (nextUsername && nextUsername !== (profile?.username ?? '')) {
+            changes.username = nextUsername;
+        }
+        if (nextEmail && nextEmail !== (profile?.email ?? '')) {
+            changes.email = nextEmail;
+        }
+        if (nextDepartment && nextDepartment !== (profile?.department ?? profile?.professional_department ?? '')) {
+            changes.department = nextDepartment;
+        }
+        if (nextCity && nextCity !== (profile?.city ?? profile?.professional_city ?? '')) {
+            changes.city = nextCity;
+        }
+        if (isPsychologist && nextFullName && nextFullName !== (profile?.full_name ?? '')) {
+            changes.full_name = nextFullName;
+        }
+
+        return changes;
+    }, [isPsychologist, profile?.city, profile?.department, profile?.email, profile?.full_name, profile?.professional_city, profile?.professional_department, profile?.username, profileForm.city, profileForm.department, profileForm.email, profileForm.fullName, profileForm.username]);
 
     const profileMessage = useMemo(() => {
         if (profileStatus !== 'error') return null;
@@ -379,7 +434,7 @@ export default function MiCuenta() {
         } catch (error) {
             const submitFailure = resolvePasswordSubmitFailure(error);
             if (submitFailure.type === 'redirect') {
-                clearSession('expired');
+                logoutSession('expired');
                 navigate('/inicio-sesion', {
                     replace: true,
                     state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
@@ -401,22 +456,14 @@ export default function MiCuenta() {
         setLogoutMessage(null);
         setLogoutError(false);
         try {
-            const response = await logout();
-            if ('error' in response) {
-                setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
-                setLogoutError(true);
-            } else {
-                setLogoutMessage('Sesión cerrada.');
-            }
+            await logoutAsync('manual');
+            setLogoutMessage('Sesión cerrada.');
         } catch {
             setLogoutMessage('No fue posible cerrar sesión. Inicia sesión de nuevo.');
             setLogoutError(true);
         } finally {
-            clearSession('manual');
             setLogoutLoading(false);
-            globalThis.setTimeout(() => {
-                navigate('/inicio-sesion', { replace: true });
-            }, 500);
+            navigate('/inicio-sesion', { replace: true, state: { reason: 'unauthenticated' } });
         }
     };
 
@@ -431,13 +478,90 @@ export default function MiCuenta() {
             disableMode,
             disablePassword,
             disableCode,
-            clearSession,
+            logoutSessionAsync: logoutAsync,
             navigate,
             setDisableLoading,
             setDisableError,
             setDisableSuccess,
             setShowMfaDisable
         }).catch(() => undefined);
+    };
+
+    const handleProfileSave = async (event: FormEvent) => {
+        event.preventDefault();
+        const fullName = profileForm.fullName.trim();
+        const nextUsername = profileForm.username.trim();
+        const nextEmail = profileForm.email.trim();
+        const nextDepartment = profileForm.department.trim();
+        const nextCity = profileForm.city.trim();
+
+        if (Object.keys(profileChanges).length === 0) {
+            setProfileSaveNotice('No hay cambios por guardar.');
+            setProfileSaveError(null);
+            return;
+        }
+
+        if ('username' in profileChanges && !nextUsername) {
+            setProfileSaveError('Ingresa un nombre de usuario válido.');
+            return;
+        }
+        if ('email' in profileChanges && !nextEmail) {
+            setProfileSaveError('Ingresa un correo válido.');
+            return;
+        }
+        if ('email' in profileChanges && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+            setProfileSaveError('Ingresa un correo válido.');
+            return;
+        }
+        if ('department' in profileChanges && !nextDepartment) {
+            setProfileSaveError('Selecciona un departamento.');
+            return;
+        }
+        if ('city' in profileChanges && !nextCity) {
+            setProfileSaveError('Selecciona una ciudad.');
+            return;
+        }
+        if (('department' in profileChanges || 'city' in profileChanges) && (!nextDepartment || !nextCity)) {
+            setProfileSaveError('Selecciona departamento y ciudad para actualizar la ubicación.');
+            return;
+        }
+        if (isPsychologist && 'full_name' in profileChanges && !fullName) {
+            setProfileSaveError('Ingresa tu nombre completo.');
+            return;
+        }
+
+        setProfileSaving(true);
+        setProfileSaveError(null);
+        setProfileSaveNotice(null);
+        try {
+            await updateMyProfile(profileChanges);
+            await reloadProfile();
+            setIsEditingProfile(false);
+            setProfileSaveNotice('Tu perfil se actualizó correctamente.');
+        } catch (error) {
+            if (error instanceof ApiError) {
+                const payload = typeof error.payload === 'object' && error.payload ? error.payload as Record<string, unknown> : null;
+                const errorCode = typeof payload?.error === 'string' ? payload.error : '';
+                const message = typeof payload?.msg === 'string' ? payload.msg : '';
+                if (errorCode === 'profile_update_validation_error') {
+                    setProfileSaveError('Revisa los datos ingresados.');
+                } else if (errorCode === 'profile_update_failed') {
+                    setProfileSaveError('No fue posible actualizar tu perfil.');
+                } else if (/username|usuario/i.test(message)) {
+                    setProfileSaveError('Este nombre de usuario ya está en uso.');
+                } else if (/email|correo/i.test(message)) {
+                    setProfileSaveError('Este correo ya está registrado.');
+                } else if (error.status === 409) {
+                    setProfileSaveError('El nombre de usuario o correo ya está registrado.');
+                } else {
+                    setProfileSaveError('No fue posible actualizar tu perfil.');
+                }
+            } else {
+                setProfileSaveError('No fue posible actualizar tu perfil.');
+            }
+        } finally {
+            setProfileSaving(false);
+        }
     };
 
     return (
@@ -458,15 +582,13 @@ export default function MiCuenta() {
                         <span className="mi-cuenta-value">{username}</span>
                     </div>
                     <div className="mi-cuenta-field">
+                        <span className="mi-cuenta-label">Nombre completo</span>
+                        <span className="mi-cuenta-value">{nombreCompleto}</span>
+                    </div>
+                    <div className="mi-cuenta-field">
                         <span className="mi-cuenta-label">Tipo de cuenta</span>
                         <span className="mi-cuenta-value">{tipoCuenta}</span>
                     </div>
-                    {isPsychologist && (
-                        <div className="mi-cuenta-field">
-                            <span className="mi-cuenta-label">Nombre completo</span>
-                            <span className="mi-cuenta-value">{nombreCompleto}</span>
-                        </div>
-                    )}
                     {isPsychologist && (
                         <div className="mi-cuenta-field">
                             <span className="mi-cuenta-label">Tarjeta profesional</span>
@@ -476,6 +598,28 @@ export default function MiCuenta() {
                     <div className="mi-cuenta-field">
                         <span className="mi-cuenta-label">Correo</span>
                         <span className="mi-cuenta-value">{correo}</span>
+                    </div>
+                    <div className="mi-cuenta-field">
+                        <span className="mi-cuenta-label">Departamento</span>
+                        <span className="mi-cuenta-value">{departamento}</span>
+                    </div>
+                    <div className="mi-cuenta-field">
+                        <span className="mi-cuenta-label">Ciudad</span>
+                        <span className="mi-cuenta-value">{ciudad}</span>
+                    </div>
+                    {profileSaveNotice ? <div className="mi-cuenta-success">{profileSaveNotice}</div> : null}
+                    <div className="mi-cuenta-actions mi-cuenta-profile-actions">
+                        <button
+                            type="button"
+                            className="mi-cuenta-btn ghost"
+                            onClick={() => {
+                                setProfileSaveError(null);
+                                setProfileSaveNotice(null);
+                                setIsEditingProfile(true);
+                            }}
+                        >
+                            Editar perfil
+                        </button>
                     </div>
                 </section>
 
@@ -643,6 +787,81 @@ export default function MiCuenta() {
                             reloadProfile().catch(() => undefined);
                         }}
                     />
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isEditingProfile}
+                onClose={() => {
+                    if (profileSaving) return;
+                    setIsEditingProfile(false);
+                    setProfileSaveError(null);
+                }}
+            >
+                <div className="mi-cuenta-modal mi-cuenta-profile-modal" aria-labelledby="profile-edit-title">
+                    <h2 className="mi-cuenta-section-title" id="profile-edit-title">Editar perfil</h2>
+                    <p className="mi-cuenta-section-note mi-cuenta-modal-note">
+                        Actualiza tus datos personales y tu ubicación registrada.
+                    </p>
+                    <form className="mi-cuenta-form mi-cuenta-profile-form" onSubmit={handleProfileSave}>
+                        {isPsychologist ? (
+                            <label className="mi-cuenta-input-group">
+                                <span className="mi-cuenta-input-label">Nombre completo</span>
+                                <input
+                                    className="mi-cuenta-input"
+                                    value={profileForm.fullName}
+                                    disabled={profileSaving}
+                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                                />
+                            </label>
+                        ) : null}
+                        <label className="mi-cuenta-input-group">
+                            <span className="mi-cuenta-input-label">Nombre de usuario</span>
+                            <input
+                                className="mi-cuenta-input"
+                                value={profileForm.username}
+                                disabled={profileSaving}
+                                onChange={(event) => setProfileForm((prev) => ({ ...prev, username: event.target.value }))}
+                            />
+                        </label>
+                        <label className="mi-cuenta-input-group">
+                            <span className="mi-cuenta-input-label">Correo</span>
+                            <input
+                                className="mi-cuenta-input"
+                                type="email"
+                                value={profileForm.email}
+                                disabled={profileSaving}
+                                onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
+                            />
+                        </label>
+                        <ColombiaLocationSelect
+                            value={{ department: profileForm.department, city: profileForm.city }}
+                            onChange={(nextValue) => setProfileForm((prev) => ({
+                                ...prev,
+                                department: nextValue.department,
+                                city: nextValue.city
+                            }))}
+                            disabled={profileSaving}
+                            required
+                        />
+                        {profileSaveError ? <div className="mi-cuenta-error">{profileSaveError}</div> : null}
+                        <div className="mi-cuenta-actions">
+                            <button
+                                type="button"
+                                className="mi-cuenta-btn ghost"
+                                disabled={profileSaving}
+                                onClick={() => {
+                                    setIsEditingProfile(false);
+                                    setProfileSaveError(null);
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button type="submit" className="mi-cuenta-btn primary" disabled={profileSaving || Object.keys(profileChanges).length === 0}>
+                                {profileSaving ? 'Guardando...' : 'Guardar cambios'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </Modal>
 

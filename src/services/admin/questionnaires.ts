@@ -60,16 +60,27 @@ export interface CreateQuestionnaireTemplateResponse {
 
 export interface QuestionnaireQuestionOptionPayload {
     label: string;
-    value: string | number | boolean;
+    value: string;
 }
+
+export type QuestionnaireQuestionResponseType =
+    | 'likert_0_4'
+    | 'likert_1_5'
+    | 'boolean'
+    | 'frequency_0_3'
+    | 'intensity_0_10'
+    | 'count'
+    | 'ordinal'
+    | 'text_context';
 
 export interface CreateQuestionnaireQuestionPayload {
     code: string;
     text: string;
-    response_type: string;
+    response_type: QuestionnaireQuestionResponseType;
     position: number;
     response_min?: number;
     response_max?: number;
+    response_step?: number;
     response_options?: QuestionnaireQuestionOptionPayload[];
 }
 
@@ -166,8 +177,14 @@ export function createQuestionnaireTemplate(payload: CreateQuestionnaireTemplate
     );
 }
 
-export function createQuestionnaireQuestion(templateId: string, payload: CreateQuestionnaireQuestionPayload) {
-    return apiPost<CreateQuestionnaireQuestionResponse, CreateQuestionnaireQuestionPayload>(
+export function createQuestionnaireQuestion(
+    templateId: string,
+    payload: CreateQuestionnaireQuestionPayload | CreateQuestionnaireQuestionPayload[]
+) {
+    return apiPost<
+        CreateQuestionnaireQuestionResponse | CreateQuestionnaireQuestionResponse[],
+        CreateQuestionnaireQuestionPayload | CreateQuestionnaireQuestionPayload[]
+    >(
         `/api/v1/questionnaires/${templateId}/questions`,
         payload,
         requestOptions

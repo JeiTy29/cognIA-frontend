@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPostNoBody } from '../api/httpClient';
+import { apiGet, apiPatch, apiPost, apiPostNoBody } from '../api/httpClient';
 
 export interface User {
     id: string;
@@ -30,18 +30,35 @@ export interface PaginatedUsersResponse {
 }
 
 export interface UpdateUserRequest {
-    email?: string;
-    password?: string | null;
-    full_name?: string | null;
     is_active?: boolean;
     roles?: string[];
-    user_type?: 'guardian' | 'teacher' | 'psychologist' | 'admin';
+    user_type?: 'guardian' | 'psychologist' | 'admin';
     professional_card_number?: string | null;
 }
 
-interface UsersListParams {
+export interface UsersListParams {
     page: number;
     page_size: number;
+    q?: string;
+    email?: string;
+    username?: string;
+    role?: string;
+    user_type?: string;
+    is_active?: boolean;
+    colpsic_verified?: boolean;
+    sort?: string;
+    order?: 'asc' | 'desc';
+}
+
+export interface CreateUserRequest {
+    username: string;
+    email: string;
+    password: string;
+    full_name?: string | null;
+    user_type: 'guardian' | 'psychologist';
+    professional_card_number?: string | null;
+    roles?: string[];
+    is_active?: boolean;
 }
 
 export interface AdminPasswordResetResponse {
@@ -59,11 +76,34 @@ const requestOptions = {
     credentials: 'include' as const
 };
 
+function appendStringParam(search: URLSearchParams, key: string, value: string | undefined) {
+    if (value && value.trim().length > 0) {
+        search.set(key, value.trim());
+    }
+}
+
+function appendBooleanParam(search: URLSearchParams, key: string, value: boolean | undefined) {
+    if (typeof value === 'boolean') {
+        search.set(key, String(value));
+    }
+}
+
 export function getUsers(params: UsersListParams) {
     const search = new URLSearchParams({
         page: String(params.page),
         page_size: String(params.page_size)
     });
+
+    appendStringParam(search, 'q', params.q);
+    appendStringParam(search, 'email', params.email);
+    appendStringParam(search, 'username', params.username);
+    appendStringParam(search, 'role', params.role);
+    appendStringParam(search, 'user_type', params.user_type);
+    appendBooleanParam(search, 'is_active', params.is_active);
+    appendBooleanParam(search, 'colpsic_verified', params.colpsic_verified);
+    appendStringParam(search, 'sort', params.sort);
+    appendStringParam(search, 'order', params.order);
+
     return apiGet<PaginatedUsersResponse>(`/api/admin/users?${search.toString()}`, requestOptions);
 }
 
@@ -95,6 +135,10 @@ export async function getAllUsers() {
     return collected;
 }
 
+export function createUser(payload: CreateUserRequest) {
+    return apiPost<User, CreateUserRequest>('/api/v1/users', payload, requestOptions);
+}
+
 export function updateUser(userId: string, payload: UpdateUserRequest) {
     return apiPatch<User, UpdateUserRequest>(`/api/admin/users/${userId}`, payload, requestOptions);
 }
@@ -103,6 +147,14 @@ export function deactivateUser(userId: string) {
     return apiPatch<User, UpdateUserRequest>(
         `/api/admin/users/${userId}`,
         { is_active: false },
+        requestOptions
+    );
+}
+
+export function reactivateUser(userId: string) {
+    return apiPatch<User, UpdateUserRequest>(
+        `/api/admin/users/${userId}`,
+        { is_active: true },
         requestOptions
     );
 }

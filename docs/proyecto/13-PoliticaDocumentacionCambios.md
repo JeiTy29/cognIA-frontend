@@ -1,4 +1,4 @@
-# Política de documentación de cambios (frontend)
+-# Política de documentación de cambios (frontend)
 
 ## Regla obligatoria
 

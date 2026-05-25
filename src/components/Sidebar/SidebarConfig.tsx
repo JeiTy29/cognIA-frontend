@@ -22,12 +22,6 @@ const IconHistory = (
     </svg>
 );
 
-const IconLightbulb = (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 21h6v-1H9v1Zm3-20a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.26A7 7 0 0 0 12 1Zm2 11.1-1 1V16h-2v-2.9l-1-1A5 5 0 1 1 14 12.1Z" />
-    </svg>
-);
-
 const IconUser = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z" />
@@ -40,27 +34,21 @@ const IconSupport = (
     </svg>
 );
 
+const IconCases = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v2H4V5Zm0 5h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Zm4 3h4v2H8v-2Zm6 0h2v2h-2v-2Z" />
+    </svg>
+);
+
 const IconMetrics = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 19h16v2H2V3h2v16Zm4-6h3v5H8v-5Zm5-5h3v10h-3V8Zm5-3h3v13h-3V5Z" />
     </svg>
 );
 
-const IconDashboard = (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 3h8v8H3V3Zm10 0h8v5h-8V3ZM3 13h5v8H3v-8Zm7 0h11v8H10v-8Z" />
-    </svg>
-);
-
 const IconAdminQuestionnaires = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h12V5H6Zm2 3h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
-    </svg>
-);
-
-const IconEvaluations = (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" />
     </svg>
 );
 
@@ -84,13 +72,40 @@ const IconAudit = (
 
 export const sidebarItems: SidebarItem[] = [
     {
+        id: 'evaluaciones-recibidas',
+        label: 'Evaluaciones recibidas',
+        icon: IconCases,
+        roles: ['psicologo'],
+        paths: {
+            psicologo: '/psicologo/evaluaciones'
+        }
+    },
+    {
+        id: 'solicitudes-revision',
+        label: 'Solicitudes de revisión',
+        icon: IconHistory,
+        roles: ['psicologo'],
+        paths: {
+            psicologo: '/psicologo/solicitudes'
+        }
+    },
+    {
         id: 'cuestionario',
-        label: 'Cuestionario',
+        label: 'Cuestionarios',
         icon: IconClipboard,
         roles: ['padre', 'psicologo'],
         paths: {
             padre: '/padre/cuestionario',
             psicologo: '/psicologo/cuestionario'
+        }
+    },
+    {
+        id: 'casos',
+        label: 'Casos',
+        icon: IconCases,
+        roles: ['padre'],
+        paths: {
+            padre: '/padre/casos'
         }
     },
     {
@@ -101,15 +116,6 @@ export const sidebarItems: SidebarItem[] = [
         paths: {
             padre: '/padre/historial',
             psicologo: '/psicologo/historial'
-        }
-    },
-    {
-        id: 'sugerencias',
-        label: 'Sugerencias',
-        icon: IconLightbulb,
-        roles: ['psicologo'],
-        paths: {
-            psicologo: '/psicologo/sugerencias'
         }
     },
     {
@@ -145,30 +151,12 @@ const adminItems: SidebarItem[] = [
         }
     },
     {
-        id: 'dashboard-admin',
-        label: 'Dashboard',
-        icon: IconDashboard,
-        roles: ['admin'],
-        paths: {
-            admin: '/admin/dashboard'
-        }
-    },
-    {
         id: 'cuestionarios-admin',
         label: 'Cuestionarios',
         icon: IconAdminQuestionnaires,
         roles: ['admin'],
         paths: {
             admin: '/admin/cuestionarios'
-        }
-    },
-    {
-        id: 'evaluaciones-admin',
-        label: 'Evaluaciones',
-        icon: IconEvaluations,
-        roles: ['admin'],
-        paths: {
-            admin: '/admin/evaluaciones'
         }
     },
     {

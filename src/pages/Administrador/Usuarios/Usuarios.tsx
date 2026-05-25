@@ -1,27 +1,61 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import {
+    AreaChart,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    TreemapChart,
+    WaffleChart
+} from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
-import type { User } from '../../../services/admin/users';
+import { fetchUsersForReport } from '../../../services/admin/adminReportData';
+import type { CreateUserRequest, User } from '../../../services/admin/users';
+import {
+    buildHeatmapCells,
+    buildMonthlyCountItems,
+    mapCountsToItems
+} from '../../../utils/dashboard/dashboardData';
+import { downloadUsersReportPdf } from '../../../utils/reports/admin/usersReport';
+import '../AdminShared.css';
 import './Usuarios.css';
+
+type ManagedUserType = 'guardian' | 'psychologist';
 
 type EditFormState = {
     id: string;
-    email: string;
-    full_name: string;
-    user_type: 'guardian' | 'teacher' | 'psychologist' | 'admin';
+    user_type: ManagedUserType;
     professional_card_number: string;
-    role: string;
     is_active: boolean;
 };
 
-type FormErrors = Partial<Record<keyof EditFormState, string>>;
-type UserConfirmationKind = 'deactivate' | 'password-reset' | 'mfa-reset';
+type CreateFormState = {
+    username: string;
+    email: string;
+    password: string;
+    full_name: string;
+    user_type: ManagedUserType;
+    professional_card_number: string;
+};
+
+type UsersReportLimit = '10' | '20' | '50' | '100' | 'all';
+type UsersReportOrder = 'recent' | 'oldest' | 'username' | 'email';
+type UsersReportModalState = {
+    limit: UsersReportLimit;
+    order: UsersReportOrder;
+    role: 'all' | 'ADMIN' | 'GUARDIAN' | 'PSYCHOLOGIST';
+    status: 'all' | 'active' | 'inactive';
+    includeGrowthSummary: boolean;
+    includeDetailedTable: boolean;
+};
+
+type FormErrors = Partial<Record<keyof EditFormState | keyof CreateFormState, string>>;
+type UserConfirmationKind = 'deactivate' | 'reactivate' | 'password-reset' | 'mfa-reset';
 type UserActionButtonProps = Readonly<{
     tooltip: string;
     ariaLabel?: string;
     onClick: () => void;
-    disabled?: boolean;
     children: ReactNode;
 }>;
 type UserConfirmationModalProps = Readonly<{
@@ -35,18 +69,26 @@ type UserConfirmationModalProps = Readonly<{
     onConfirm: () => void;
 }>;
 
-const roleOptions: CustomSelectOption[] = [
-    { value: 'GUARDIAN', label: 'Padre/Tutor' },
-    { value: 'TEACHER', label: 'Docente' },
-    { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
-    { value: 'ADMIN', label: 'Administrador' }
+const USER_ROLE_BY_TYPE: Record<ManagedUserType, string> = {
+    guardian: 'GUARDIAN',
+    psychologist: 'PSYCHOLOGIST'
+};
+
+const editableUserTypeOptions: CustomSelectOption[] = [
+    { value: 'guardian', label: 'Padre/Tutor' },
+    { value: 'psychologist', label: 'Psicólogo' }
 ];
 
-const typeOptions: CustomSelectOption[] = [
+const createUserTypeOptions: CustomSelectOption[] = [
     { value: 'guardian', label: 'Padre/Tutor' },
-    { value: 'teacher', label: 'Docente' },
-    { value: 'psychologist', label: 'Psicólogo' },
-    { value: 'admin', label: 'Administrador' }
+    { value: 'psychologist', label: 'Psicólogo' }
+];
+
+const roleFilterOptions: CustomSelectOption[] = [
+    { value: 'all', label: 'Todos los roles' },
+    { value: 'GUARDIAN', label: 'Padre/Tutor' },
+    { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
+    { value: 'ADMIN', label: 'Administrador' }
 ];
 
 const statusOptions: CustomSelectOption[] = [
@@ -55,94 +97,115 @@ const statusOptions: CustomSelectOption[] = [
     { value: 'inactive', label: 'Inactivos' }
 ];
 
-const roleFilterOptions: CustomSelectOption[] = [
-    { value: 'all', label: 'Todos los roles' },
-    ...roleOptions
-];
-
-const typeFilterOptions: CustomSelectOption[] = [
-    { value: 'all', label: 'Todos los tipos' },
-    ...typeOptions
-];
-
 const pageSizeOptions: CustomSelectOption[] = [
     { value: '10', label: '10 por página' },
     { value: '20', label: '20 por página' },
     { value: '50', label: '50 por página' }
 ];
 
+const usersReportLimitOptions: CustomSelectOption[] = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: 'all', label: 'Todos' }
+];
+
+const usersReportOrderOptions: CustomSelectOption[] = [
+    { value: 'recent', label: 'Más recientes primero' },
+    { value: 'oldest', label: 'Más antiguos primero' },
+    { value: 'username', label: 'Nombre de usuario A-Z' },
+    { value: 'email', label: 'Correo A-Z' }
+];
+
 const emptyEditForm = (): EditFormState => ({
     id: '',
-    email: '',
-    full_name: '',
     user_type: 'guardian',
     professional_card_number: '',
-    role: 'GUARDIAN',
     is_active: true
 });
+
+const emptyCreateForm = (): CreateFormState => ({
+    username: '',
+    email: '',
+    password: '',
+    full_name: '',
+    user_type: 'guardian',
+    professional_card_number: ''
+});
+
+const defaultUsersReportModal = (): UsersReportModalState => ({
+    limit: '20',
+    order: 'recent',
+    role: 'all',
+    status: 'all',
+    includeGrowthSummary: true,
+    includeDetailedTable: true
+});
+
+function getUsersReportOrderLabel(value: UsersReportOrder) {
+    if (value === 'oldest') return 'Más antiguos primero';
+    if (value === 'username') return 'Nombre de usuario A-Z';
+    if (value === 'email') return 'Correo A-Z';
+    return 'Más recientes primero';
+}
+
+function getUsersReportRoleLabel(value: UsersReportModalState['role']) {
+    if (value === 'ADMIN') return 'Administrador';
+    if (value === 'GUARDIAN') return 'Padre o tutor';
+    if (value === 'PSYCHOLOGIST') return 'Psicólogo';
+    return 'Todos';
+}
+
+function getUsersReportStatusLabel(value: UsersReportModalState['status']) {
+    if (value === 'active') return 'Activos';
+    if (value === 'inactive') return 'Inactivos';
+    return 'Todos';
+}
 
 function runUserTask(task: () => Promise<void>) {
     task().catch(() => undefined);
 }
 
-function resolveRoleForUserTypeChange(nextUserType: EditFormState['user_type'], previousRole: string) {
-    if (nextUserType === 'admin') return 'ADMIN';
-    if (nextUserType === 'psychologist' && previousRole === 'GUARDIAN') return 'PSYCHOLOGIST';
-    if (nextUserType === 'teacher' && previousRole === 'GUARDIAN') return 'TEACHER';
-    return previousRole;
+function deriveRoles(userType: ManagedUserType) {
+    return [USER_ROLE_BY_TYPE[userType]];
 }
 
-function mapUserTypeLabel(userType: User['user_type']) {
-    const normalized = String(userType).trim().toLowerCase();
-    if (normalized === 'psychologist') return 'Psicólogo';
-    if (normalized === 'teacher') return 'Docente';
-    if (normalized === 'admin') return 'Administrador';
-    return 'Padre/Tutor';
+function normalizeEditableUserType(user: User): ManagedUserType {
+    const normalized = String(user.user_type).trim().toLowerCase();
+    if (normalized === 'psychologist') return 'psychologist';
+    return 'guardian';
+}
+
+function hasAdminRole(user: User) {
+    return user.roles.some((role) => role.trim().toUpperCase() === 'ADMIN');
 }
 
 function mapRoleLabel(role: string) {
     const normalized = role.trim().toUpperCase();
     if (normalized === 'ADMIN') return 'Administrador';
     if (normalized === 'PSYCHOLOGIST') return 'Psicólogo';
-    if (normalized === 'TEACHER') return 'Docente';
     if (normalized === 'GUARDIAN') return 'Padre/Tutor';
-    return normalized;
+    if (normalized === 'TEACHER') return 'Docente (legacy)';
+    return 'No contemplado';
 }
 
-function getPrimaryRole(user: User) {
-    if (user.roles.includes('ADMIN')) return 'ADMIN';
-    if (user.roles.includes('PSYCHOLOGIST')) return 'PSYCHOLOGIST';
-    if (user.roles.includes('TEACHER')) return 'TEACHER';
-    if (user.roles.includes('GUARDIAN')) return 'GUARDIAN';
-
-    const normalizedType = String(user.user_type).trim().toLowerCase();
-    if (normalizedType === 'admin') return 'ADMIN';
-    if (normalizedType === 'psychologist') return 'PSYCHOLOGIST';
-    if (normalizedType === 'teacher') return 'TEACHER';
-    return 'GUARDIAN';
-}
-
-function normalizeUserType(value: User['user_type']): EditFormState['user_type'] {
-    const normalized = String(value).trim().toLowerCase();
-    if (normalized === 'admin') return 'admin';
-    if (normalized === 'psychologist') return 'psychologist';
-    if (normalized === 'teacher') return 'teacher';
-    return 'guardian';
-}
-
-function validateUserForm(values: EditFormState) {
-    const errors: FormErrors = {};
-
-    if (!values.email.trim()) {
-        errors.email = 'El correo es obligatorio.';
+function getVisibleRoles(user: User) {
+    if (user.roles.length === 0) {
+        return ['Sin rol asignado'];
     }
+    return user.roles.map(mapRoleLabel);
+}
+
+function validateEmail(value: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function validateEditForm(values: EditFormState) {
+    const errors: FormErrors = {};
 
     if (!values.user_type) {
         errors.user_type = 'Selecciona un tipo de usuario.';
-    }
-
-    if (!values.role) {
-        errors.role = 'Selecciona un rol.';
     }
 
     if (values.user_type === 'psychologist' && !values.professional_card_number.trim()) {
@@ -152,10 +215,53 @@ function validateUserForm(values: EditFormState) {
     return errors;
 }
 
+function validateCreateForm(values: CreateFormState) {
+    const errors: FormErrors = {};
+
+    if (!values.username.trim()) {
+        errors.username = 'El usuario es obligatorio.';
+    }
+
+    if (!values.email.trim()) {
+        errors.email = 'El correo es obligatorio.';
+    } else if (!validateEmail(values.email)) {
+        errors.email = 'Ingresa un correo válido.';
+    }
+
+    if (!values.password.trim()) {
+        errors.password = 'La contraseña es obligatoria.';
+    } else if (values.password.trim().length < 8) {
+        errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+    }
+
+    if (!values.user_type) {
+        errors.user_type = 'Selecciona un tipo de usuario.';
+    }
+
+    if (values.user_type === 'psychologist') {
+        if (!values.full_name.trim()) {
+            errors.full_name = 'El nombre completo es obligatorio para psicólogos.';
+        }
+        if (!values.professional_card_number.trim()) {
+            errors.professional_card_number = 'La tarjeta profesional es obligatoria para psicólogos.';
+        }
+    }
+
+    return errors;
+}
+
 function SearchIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M10.5 4a6.5 6.5 0 0 1 5.131 10.49l3.439 3.44-1.06 1.06-3.44-3.439A6.5 6.5 0 1 1 10.5 4Zm0 1.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" />
+        </svg>
+    );
+}
+
+function PlusIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
 }
@@ -172,6 +278,14 @@ function LockUserIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-7a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v2h6V7a3 3 0 0 0-3-3Zm-4 7h8v7a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-7Z" />
+        </svg>
+    );
+}
+
+function UnlockUserIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2a5 5 0 0 1 5 5h-2a3 3 0 0 0-6 0v2h7a2 2 0 0 1 2 2v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-7a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm-4 9v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-7H8Z" />
         </svg>
     );
 }
@@ -208,27 +322,10 @@ function EmptyIcon() {
     );
 }
 
-function ArrowLeftIcon() {
-    return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15 6 9 12l6 6" />
-        </svg>
-    );
-}
-
-function ArrowRightIcon() {
-    return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9 6 6 6-6 6" />
-        </svg>
-    );
-}
-
 function UserActionButton({
     tooltip,
     ariaLabel,
     onClick,
-    disabled = false,
     children
 }: UserActionButtonProps) {
     return (
@@ -238,7 +335,6 @@ function UserActionButton({
             data-tooltip={tooltip}
             aria-label={ariaLabel}
             onClick={onClick}
-            disabled={disabled}
         >
             {children}
         </button>
@@ -249,6 +345,13 @@ function buildConfirmationMessage(user: User | null, kind: UserConfirmationKind)
     if (!user) return '';
     if (kind === 'deactivate') {
         return `Se desactivará a ${user.full_name || user.username}.`;
+    }
+    if (kind === 'reactivate') {
+        const note =
+            String(user.user_type).trim().toLowerCase() === 'psychologist' && user.colpsic_verified === false
+                ? ' Si es psicólogo, también debe estar aprobado para poder iniciar sesión.'
+                : '';
+        return `Se reactivará a ${user.full_name || user.username}. Podrá volver a iniciar sesión si cumple los demás requisitos de acceso.${note}`;
     }
     if (kind === 'password-reset') {
         return `Se enviará el restablecimiento a ${user.email}.`;
@@ -295,78 +398,235 @@ export default function Usuarios() {
         page,
         pageSize,
         total,
+        visibleCount,
+        filters,
         loading,
         error,
         notice,
+        submittingCreate,
         submittingUpdate,
         submittingDeactivate,
+        submittingReactivate,
         submittingPasswordReset,
         submittingMfaReset,
         goToPage,
         changePageSize,
+        setSearchQuery,
+        setRoleFilter,
+        setStatusFilter,
+        createUser,
         updateUser,
         deactivateUser,
+        reactivateUser,
         resetUserPassword,
         resetUserMfa,
         clearMessages
     } = useUsers();
 
-    const [searchTerm, setSearchTerm] = useState('');
-    const [roleFilter, setRoleFilter] = useState('all');
-    const [typeFilter, setTypeFilter] = useState('all');
-    const [statusFilter, setStatusFilter] = useState('all');
-
-    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [searchDraft, setSearchDraft] = useState(filters.q);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [creatingUser, setCreatingUser] = useState(false);
     const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+    const [userToReactivate, setUserToReactivate] = useState<User | null>(null);
     const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
     const [userToResetMfa, setUserToResetMfa] = useState<User | null>(null);
-
     const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
+    const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
     const [formErrors, setFormErrors] = useState<FormErrors>({});
+    const [createModalError, setCreateModalError] = useState<string | null>(null);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<UsersReportModalState>(defaultUsersReportModal);
+    const [dashboardSample, setDashboardSample] = useState<User[]>([]);
+    const [dashboardSampleTotal, setDashboardSampleTotal] = useState<number>(0);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const dashboardNote = useMemo(
+        () => (dashboardSampleTotal > dashboardSample.length ? 'Resumen calculado sobre los usuarios cargados.' : undefined),
+        [dashboardSample.length, dashboardSampleTotal]
+    );
+    const usersByRoleChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const label = hasAdminRole(user)
+                        ? 'Administrador'
+                        : normalizeEditableUserType(user) === 'psychologist'
+                            ? 'Psicólogo'
+                            : 'Padre/Tutor';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const usersByStateChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const label = user.is_active ? 'Activos' : 'Inactivos';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const usersByMonthChart = useMemo(
+        () => buildMonthlyCountItems(dashboardSample.map((user) => user.created_at)),
+        [dashboardSample]
+    );
+    const usersByDepartmentChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const department = (user as User & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Administrador'], []);
+    const roleStateColumns = useMemo(() => ['Activos', 'Inactivos'], []);
+    const roleStateCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                dashboardSample.map((user) => ({
+                    role: hasAdminRole(user)
+                        ? 'Administrador'
+                        : normalizeEditableUserType(user) === 'psychologist'
+                            ? 'Psicólogo'
+                            : 'Padre/Tutor',
+                    state: user.is_active ? 'Activos' : 'Inactivos'
+                })),
+                roleStateRows,
+                roleStateColumns,
+                (entry) => entry.role,
+                (entry) => entry.state
+            ),
+        [dashboardSample, roleStateColumns, roleStateRows]
+    );
 
-    const filteredItems = useMemo(() => {
-        const query = searchTerm.trim().toLowerCase();
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportError(null);
+        setCreateModalError(null);
+        setReportNotice(null);
+        try {
+            const result = await fetchUsersForReport({
+                limit: reportForm.limit === 'all' ? 'all' : Number(reportForm.limit),
+                role: reportForm.role === 'all' ? undefined : reportForm.role,
+                isActive:
+                    reportForm.status === 'all'
+                        ? undefined
+                        : reportForm.status === 'active',
+                orderBy: reportForm.order
+            });
 
-        return items.filter((user) => {
-            const matchesSearch =
-                !query ||
-                user.username.toLowerCase().includes(query) ||
-                user.email.toLowerCase().includes(query) ||
-                (user.full_name ?? '').toLowerCase().includes(query);
+            await downloadUsersReportPdf({
+                items: result.items,
+                totalIncluded: result.items.length,
+                totalAvailable: result.totalAvailable,
+                truncated: result.truncated,
+                filters: [
+                    `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
+                    `Orden: ${getUsersReportOrderLabel(reportForm.order)}`,
+                    `Rol: ${getUsersReportRoleLabel(reportForm.role)}`,
+                    `Estado: ${getUsersReportStatusLabel(reportForm.status)}`
+                ],
+                options: {
+                    includeGrowthSummary: reportForm.includeGrowthSummary,
+                    includeDetailedTable: reportForm.includeDetailedTable,
+                    limitLabel: reportForm.limit === 'all' ? 'Todos' : reportForm.limit,
+                    orderLabel: getUsersReportOrderLabel(reportForm.order)
+                }
+            });
+            setIsReportModalOpen(false);
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
 
-            const matchesRole =
-                roleFilter === 'all' || user.roles.some((role) => role.toUpperCase() === roleFilter);
+    useEffect(() => {
+        const timeoutId = globalThis.setTimeout(() => {
+            setSearchQuery(searchDraft);
+        }, 300);
 
-            const matchesType =
-                typeFilter === 'all' || String(user.user_type).toLowerCase() === typeFilter.toLowerCase();
+        return () => {
+            globalThis.clearTimeout(timeoutId);
+        };
+    }, [searchDraft, setSearchQuery]);
 
-            const matchesStatus =
-                statusFilter === 'all' ||
-                (statusFilter === 'active' ? user.is_active : !user.is_active);
+    useEffect(() => {
+        let cancelled = false;
 
-            return matchesSearch && matchesRole && matchesType && matchesStatus;
-        });
-    }, [items, roleFilter, searchTerm, statusFilter, typeFilter]);
+        const loadDashboardSample = async () => {
+            try {
+                const result = await fetchUsersForReport({
+                    limit: 100,
+                    role: filters.role === 'all' ? undefined : filters.role,
+                    isActive:
+                        filters.is_active === 'all'
+                            ? undefined
+                            : filters.is_active === 'active',
+                    orderBy: 'recent',
+                    q: filters.q
+                });
+                if (cancelled) return;
+                setDashboardSample(result.items);
+                setDashboardSampleTotal(result.totalAvailable);
+            } catch {
+                if (cancelled) return;
+                setDashboardSample([]);
+                setDashboardSampleTotal(0);
+            }
+        };
+
+        loadDashboardSample().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [filters.is_active, filters.q, filters.role]);
+
+    const createPayload = useMemo<CreateUserRequest>(() => ({
+        username: createForm.username.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        full_name: createForm.user_type === 'psychologist' ? createForm.full_name.trim() || null : null,
+        user_type: createForm.user_type,
+        roles: deriveRoles(createForm.user_type),
+        professional_card_number:
+            createForm.user_type === 'psychologist'
+                ? createForm.professional_card_number.trim() || null
+                : null
+    }), [createForm]);
 
     const closeEditModal = () => {
-        setEditingUserId(null);
+        setEditingUser(null);
         setEditForm(emptyEditForm());
         setFormErrors({});
+    };
+
+    const closeCreateModal = () => {
+        setCreatingUser(false);
+        setCreateForm(emptyCreateForm());
+        setFormErrors({});
+        setCreateModalError(null);
     };
 
     const openEditModal = (user: User) => {
         clearMessages();
         setFormErrors({});
-        setEditingUserId(user.id);
+        setEditingUser(user);
         setEditForm({
             id: user.id,
-            email: user.email ?? '',
-            full_name: user.full_name ?? '',
-            user_type: normalizeUserType(user.user_type),
+            user_type: normalizeEditableUserType(user),
             professional_card_number: user.professional_card_number ?? '',
-            role: getPrimaryRole(user),
             is_active: user.is_active
         });
     };
@@ -385,28 +645,50 @@ export default function Usuarios() {
 
     const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const errors = validateUserForm(editForm);
+        const errors = validateEditForm(editForm);
         setFormErrors(errors);
 
-        if (Object.keys(errors).length > 0 || !editForm.id) {
+        if (Object.keys(errors).length > 0 || !editForm.id || !editingUser) {
             return;
         }
 
-        const success = await updateUser(editForm.id, {
-            email: editForm.email.trim(),
-            full_name: editForm.full_name.trim() || null,
-            user_type: editForm.user_type,
-            roles: [editForm.role],
-            is_active: editForm.is_active,
-            professional_card_number:
-                editForm.user_type === 'psychologist'
-                    ? editForm.professional_card_number.trim()
-                    : null
-        });
+        const payload =
+            hasAdminRole(editingUser)
+                ? { is_active: editForm.is_active }
+                : {
+                      user_type: editForm.user_type,
+                      roles: deriveRoles(editForm.user_type),
+                      is_active: editForm.is_active,
+                      professional_card_number:
+                          editForm.user_type === 'psychologist'
+                              ? editForm.professional_card_number.trim()
+                              : null
+                  };
+
+        const success = await updateUser(editForm.id, payload);
 
         if (success) {
             closeEditModal();
         }
+    };
+
+    const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const errors = validateCreateForm(createForm);
+        setFormErrors(errors);
+        setCreateModalError(null);
+
+        if (Object.keys(errors).length > 0) {
+            return;
+        }
+
+        const result = await createUser(createPayload);
+        if (result.success) {
+            closeCreateModal();
+            return;
+        }
+
+        setCreateModalError(result.error ?? 'No se pudo crear el usuario.');
     };
 
     const confirmDeactivate = async () => {
@@ -414,6 +696,14 @@ export default function Usuarios() {
         const success = await deactivateUser(userToDeactivate.id);
         if (success) {
             setUserToDeactivate(null);
+        }
+    };
+
+    const confirmReactivate = async () => {
+        if (!userToReactivate) return;
+        const success = await reactivateUser(userToReactivate.id);
+        if (success) {
+            setUserToReactivate(null);
         }
     };
 
@@ -444,14 +734,23 @@ export default function Usuarios() {
             <UserActionButton tooltip="Resetear MFA" onClick={() => setUserToResetMfa(user)}>
                 <ShieldIcon />
             </UserActionButton>
-            <UserActionButton
-                tooltip="Desactivar"
-                ariaLabel="Desactivar usuario"
-                onClick={() => setUserToDeactivate(user)}
-                disabled={!user.is_active}
-            >
-                <LockUserIcon />
-            </UserActionButton>
+            {user.is_active ? (
+                <UserActionButton
+                    tooltip="Desactivar"
+                    ariaLabel="Desactivar usuario"
+                    onClick={() => setUserToDeactivate(user)}
+                >
+                    <LockUserIcon />
+                </UserActionButton>
+            ) : (
+                <UserActionButton
+                    tooltip="Reactivar"
+                    ariaLabel="Reactivar usuario"
+                    onClick={() => setUserToReactivate(user)}
+                >
+                    <UnlockUserIcon />
+                </UserActionButton>
+            )}
         </div>
     );
 
@@ -461,7 +760,7 @@ export default function Usuarios() {
                 <div className="usuarios-skeleton">
                     {Array.from({ length: 6 }, (_, rowIndex) => (
                         <div className="usuarios-skeleton-row" key={`skeleton-row-${rowIndex + 1}`}>
-                            {Array.from({ length: 7 }, (_, columnIndex) => (
+                            {Array.from({ length: 6 }, (_, columnIndex) => (
                                 <span key={`skeleton-cell-${rowIndex + 1}-${columnIndex + 1}`} />
                             ))}
                         </div>
@@ -470,7 +769,7 @@ export default function Usuarios() {
             );
         }
 
-        if (filteredItems.length === 0) {
+        if (items.length === 0) {
             return (
                 <div className="usuarios-empty">
                     <div className="usuarios-empty-icon">
@@ -481,53 +780,54 @@ export default function Usuarios() {
             );
         }
 
-        return filteredItems.map((user) => (
-            <div className="usuarios-row" key={user.id}>
-                <div className="usuarios-cell">
-                    <div className="usuarios-name">{user.full_name || user.username}</div>
-                    <div className="usuarios-sub">{user.created_at ? 'Registrado' : 'Sin fecha registrada'}</div>
-                </div>
+        return items.map((user) => {
+            const visibleRoles = getVisibleRoles(user);
 
-                <div className="usuarios-cell id">
-                    <div className="usuarios-name">{user.username}</div>
-                    <div className="usuarios-id-wrap">
-                        <button
-                            type="button"
-                            className="icon-btn usuarios-id-copy has-tooltip"
-                            data-tooltip="Copiar ID"
-                            onClick={() => handleCopyIdAction(user.id)}
-                        >
-                            <CopyIcon />
-                        </button>
-                        <span className="usuarios-id-value" title={user.id}>
-                            {user.id}
-                        </span>
+            return (
+                <div className="usuarios-row" key={user.id}>
+                    <div className="usuarios-cell">
+                        <div className="usuarios-name">{user.full_name || user.username}</div>
+                        <div className="usuarios-sub">{user.created_at ? 'Registrado' : 'Sin fecha registrada'}</div>
                     </div>
-                </div>
 
-                <div className="usuarios-cell">
-                    <div>{user.email}</div>
-                </div>
+                    <div className="usuarios-cell id">
+                        <div className="usuarios-name">{user.username}</div>
+                        <div className="usuarios-id-wrap">
+                            <button
+                                type="button"
+                                className="icon-btn usuarios-id-copy has-tooltip"
+                                data-tooltip="Copiar ID"
+                                onClick={() => handleCopyIdAction(user.id)}
+                            >
+                                <CopyIcon />
+                            </button>
+                            <span className="usuarios-id-value" title={user.id}>
+                                {user.id}
+                            </span>
+                        </div>
+                    </div>
 
-                <div className="usuarios-cell">
-                    <div className="usuarios-type">{mapUserTypeLabel(user.user_type)}</div>
-                    {String(user.user_type).toLowerCase() === 'psychologist' && user.professional_card_number ? (
-                        <div className="usuarios-sub">{user.professional_card_number}</div>
-                    ) : null}
-                </div>
+                    <div className="usuarios-cell">
+                        <div>{user.email}</div>
+                    </div>
 
-                <div className="usuarios-cell">
-                    {user.roles.length > 0 ? user.roles.map(mapRoleLabel).join(', ') : '-'}
-                </div>
+                    <div className="usuarios-cell">
+                        <div className="usuarios-profile-main">{visibleRoles.join(', ')}</div>
+                        {user.roles.length === 0 ? <div className="usuarios-sub">Sin rol asignado</div> : null}
+                        {visibleRoles.includes('Psicólogo') && user.professional_card_number ? (
+                            <div className="usuarios-sub">Tarjeta: {user.professional_card_number}</div>
+                        ) : null}
+                    </div>
 
-                <div className="usuarios-cell status">
-                    <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} />
-                    <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
-                </div>
+                    <div className="usuarios-cell status">
+                        <span className={`status-dot ${user.is_active ? 'active' : 'inactive'}`} />
+                        <span>{user.is_active ? 'Activo' : 'Inactivo'}</span>
+                    </div>
 
-                {renderUserActions(user)}
-            </div>
-        ));
+                    {renderUserActions(user)}
+                </div>
+            );
+        });
     };
 
     return (
@@ -536,6 +836,32 @@ export default function Usuarios() {
                 <div className="usuarios-title">
                     <h1>Usuarios</h1>
                     <p>Gestión de usuarios del sistema.</p>
+                </div>
+
+                <div className="usuarios-actions">
+                    <button
+                        type="button"
+                        className="usuarios-btn ghost"
+                        onClick={() => setIsReportModalOpen(true)}
+                        disabled={reportWorking || loading}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
+                    <button
+                        type="button"
+                        className="usuarios-btn primary usuarios-btn-create"
+                        onClick={() => {
+                            clearMessages();
+                            setFormErrors({});
+                            setCreateModalError(null);
+                            setCreatingUser(true);
+                        }}
+                    >
+                        <span className="usuarios-btn-create-icon" aria-hidden="true">
+                            <PlusIcon />
+                        </span>
+                        Crear usuario
+                    </button>
                 </div>
             </div>
 
@@ -558,6 +884,82 @@ export default function Usuarios() {
                     </button>
                 </div>
             ) : null}
+            {reportNotice ? (
+                <div className="usuarios-alert success">
+                    <span>{reportNotice}</span>
+                    <button type="button" className="usuarios-btn ghost" onClick={() => setReportNotice(null)}>
+                        Cerrar
+                    </button>
+                </div>
+            ) : null}
+            {reportError ? (
+                <div className="usuarios-alert error">
+                    <span>{reportError}</span>
+                    <button type="button" className="usuarios-btn ghost" onClick={() => setReportError(null)}>
+                        Cerrar
+                    </button>
+                </div>
+            ) : null}
+
+            <div className="usuarios-dashboard-grid">
+                <DashboardSection
+                    title="Usuarios por rol"
+                    description="Muestra la composición de usuarios según rol."
+                    note={dashboardNote}
+                >
+                    <DonutChart
+                        data={usersByRoleChart}
+                        ariaLabel="Distribución de usuarios por rol"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Usuarios por estado"
+                    description="Resume el estado operativo de las cuentas."
+                    note={dashboardNote}
+                >
+                    <WaffleChart
+                        data={usersByStateChart}
+                        ariaLabel="Distribución de usuarios por estado"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros en el tiempo"
+                    description="Permite observar el crecimiento de usuarios registrados."
+                    note={dashboardNote}
+                >
+                    <AreaChart
+                        data={usersByMonthChart}
+                        ariaLabel="Crecimiento de usuarios registrados"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Usuarios por departamento"
+                    description="Presenta la distribución territorial de usuarios registrados."
+                    note={dashboardNote}
+                >
+                    <TreemapChart
+                        data={usersByDepartmentChart}
+                        ariaLabel="Distribución territorial de usuarios"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Composición rol + estado"
+                    description="Cruza rol y estado para identificar segmentos que requieren revisión."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={roleStateRows}
+                        columns={roleStateColumns}
+                        cells={roleStateCells}
+                        ariaLabel="Cruce entre rol y estado de usuario"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+            </div>
 
             <div className="usuarios-controls">
                 <div className="usuarios-search">
@@ -566,9 +968,9 @@ export default function Usuarios() {
                     </span>
                     <input
                         type="search"
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                        placeholder="Buscar por nombre, usuario o correo"
+                        value={searchDraft}
+                        onChange={(event) => setSearchDraft(event.target.value)}
+                        placeholder="Buscar por usuario o correo"
                         aria-label="Buscar usuarios"
                     />
                 </div>
@@ -577,7 +979,7 @@ export default function Usuarios() {
                     <label>
                         Rol
                         <CustomSelect
-                            value={roleFilter}
+                            value={filters.role}
                             options={roleFilterOptions}
                             onChange={setRoleFilter}
                             ariaLabel="Filtrar por rol"
@@ -585,21 +987,11 @@ export default function Usuarios() {
                     </label>
 
                     <label>
-                        Tipo
-                        <CustomSelect
-                            value={typeFilter}
-                            options={typeFilterOptions}
-                            onChange={setTypeFilter}
-                            ariaLabel="Filtrar por tipo"
-                        />
-                    </label>
-
-                    <label>
                         Estado
                         <CustomSelect
-                            value={statusFilter}
+                            value={filters.is_active}
                             options={statusOptions}
-                            onChange={setStatusFilter}
+                            onChange={(value) => setStatusFilter(value as 'all' | 'active' | 'inactive')}
                             ariaLabel="Filtrar por estado"
                         />
                     </label>
@@ -611,20 +1003,17 @@ export default function Usuarios() {
                     <div>Nombre</div>
                     <div>Usuario</div>
                     <div>Correo</div>
-                    <div>Tipo</div>
                     <div>Rol</div>
                     <div>Estado</div>
                     <div>Acciones</div>
                 </div>
 
-                <div className="usuarios-table-body">
-                    {renderUsersTableContent()}
-                </div>
+                <div className="usuarios-table-body">{renderUsersTableContent()}</div>
             </div>
 
             <div className="usuarios-pagination">
                 <div>
-                    Mostrando {filteredItems.length} de {total} registros.
+                    Mostrando {visibleCount} de {total} registros.
                 </div>
 
                 <div className="usuarios-pagination-controls">
@@ -635,7 +1024,7 @@ export default function Usuarios() {
                                 value={String(pageSize)}
                                 options={pageSizeOptions}
                                 onChange={(value) => {
-                                    changePageSize(Number(value)).catch(() => undefined);
+                                    void changePageSize(Number(value));
                                 }}
                                 ariaLabel="Cambiar tamaño de página"
                             />
@@ -646,12 +1035,12 @@ export default function Usuarios() {
                         type="button"
                         className="usuarios-btn ghost usuarios-page-nav-btn"
                         onClick={() => {
-                            goToPage(Math.max(1, page - 1)).catch(() => undefined);
+                            void goToPage(Math.max(1, page - 1));
                         }}
                         disabled={page <= 1 || loading}
                         aria-label="Página anterior"
                     >
-                        <ArrowLeftIcon />
+                        <span className="usuarios-page-arrow" aria-hidden="true">‹</span>
                     </button>
 
                     <span className="usuarios-page">
@@ -662,75 +1051,284 @@ export default function Usuarios() {
                         type="button"
                         className="usuarios-btn ghost usuarios-page-nav-btn"
                         onClick={() => {
-                            goToPage(Math.min(totalPages, page + 1)).catch(() => undefined);
+                            void goToPage(Math.min(totalPages, page + 1));
                         }}
                         disabled={page >= totalPages || loading}
                         aria-label="Página siguiente"
                     >
-                        <ArrowRightIcon />
+                        <span className="usuarios-page-arrow" aria-hidden="true">›</span>
                     </button>
                 </div>
             </div>
 
-            <Modal isOpen={Boolean(editingUserId)} onClose={closeEditModal}>
-                <form className="usuarios-modal" onSubmit={handleEditSubmit}>
-                    <h2>Editar usuario</h2>
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de usuarios</h2>
+                    <p>
+                        Configura la cantidad, el orden y los filtros del reporte sin modificar la tabla visible del frontend.
+                    </p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Cantidad de usuarios</span>
+                            <CustomSelect
+                                value={reportForm.limit}
+                                options={usersReportLimitOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, limit: value as UsersReportLimit }))
+                                }
+                                ariaLabel="Cantidad de usuarios para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Orden</span>
+                            <CustomSelect
+                                value={reportForm.order}
+                                options={usersReportOrderOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, order: value as UsersReportOrder }))
+                                }
+                                ariaLabel="Orden de usuarios para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Rol</span>
+                            <CustomSelect
+                                value={reportForm.role}
+                                options={roleFilterOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, role: value as UsersReportModalState['role'] }))
+                                }
+                                ariaLabel="Rol para el reporte"
+                            />
+                        </label>
+
+                        <label>
+                            <span>Estado</span>
+                            <CustomSelect
+                                value={reportForm.status}
+                                options={statusOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, status: value as UsersReportModalState['status'] }))
+                                }
+                                ariaLabel="Estado para el reporte"
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="users-report-growth"
+                            type="checkbox"
+                            checked={reportForm.includeGrowthSummary}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeGrowthSummary: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="users-report-growth">
+                            <strong>Incluir resumen de crecimiento</strong>
+                            <span>Usa datos agregados de dashboard solo dentro del PDF.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="users-report-table"
+                            type="checkbox"
+                            checked={reportForm.includeDetailedTable}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeDetailedTable: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="users-report-table">
+                            <strong>Incluir tabla detallada</strong>
+                            <span>Agrega usuario, correo, rol, estado y fecha de creación.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="usuarios-btn secondary"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="usuarios-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={creatingUser} onClose={closeCreateModal}>
+                <form className="usuarios-modal" onSubmit={handleCreateSubmit}>
+                    <h2>Crear usuario</h2>
+
+                    {createModalError ? (
+                        <div className="usuarios-alert error usuarios-modal-alert">
+                            <span>{createModalError}</span>
+                        </div>
+                    ) : null}
+
+                    <label>
+                        <span>Usuario</span>
+                        <input
+                            type="text"
+                            value={createForm.username}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, username: event.target.value }))
+                            }
+                        />
+                        {formErrors.username ? <span className="usuarios-sub">{formErrors.username}</span> : null}
+                    </label>
 
                     <label>
                         <span>Correo</span>
                         <input
                             type="email"
-                            value={editForm.email}
-                            onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
+                            value={createForm.email}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, email: event.target.value }))
+                            }
                         />
                         {formErrors.email ? <span className="usuarios-sub">{formErrors.email}</span> : null}
                     </label>
 
                     <label>
-                        <span>Nombre completo</span>
+                        <span>Contraseña</span>
                         <input
-                            type="text"
-                            value={editForm.full_name}
-                            onChange={(event) => setEditForm((prev) => ({ ...prev, full_name: event.target.value }))}
+                            type="password"
+                            value={createForm.password}
+                            onChange={(event) =>
+                                setCreateForm((prev) => ({ ...prev, password: event.target.value }))
+                            }
                         />
+                        {formErrors.password ? <span className="usuarios-sub">{formErrors.password}</span> : null}
                     </label>
 
                     <label>
                         Tipo de usuario
                         <CustomSelect
-                            value={editForm.user_type}
-                            options={typeOptions}
+                            value={createForm.user_type}
+                            options={createUserTypeOptions}
                             onChange={(value) =>
-                                setEditForm((prev) => {
-                                    const nextUserType = value as EditFormState['user_type'];
-                                    return {
-                                        ...prev,
-                                        user_type: nextUserType,
-                                        role: resolveRoleForUserTypeChange(nextUserType, prev.role),
-                                        professional_card_number:
-                                            nextUserType === 'psychologist' ? prev.professional_card_number : ''
-                                    };
-                                })
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    user_type: value as ManagedUserType,
+                                    full_name: value === 'psychologist' ? prev.full_name : '',
+                                    professional_card_number:
+                                        value === 'psychologist' ? prev.professional_card_number : ''
+                                }))
                             }
-                            ariaLabel="Seleccionar tipo de usuario para edición"
+                            ariaLabel="Seleccionar tipo de usuario para creación"
                         />
-                        {formErrors.user_type ? (
-                            <span className="usuarios-sub">{formErrors.user_type}</span>
-                        ) : null}
+                        {formErrors.user_type ? <span className="usuarios-sub">{formErrors.user_type}</span> : null}
                     </label>
 
-                    <label>
-                        Rol
-                        <CustomSelect
-                            value={editForm.role}
-                            options={roleOptions}
-                            onChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}
-                            ariaLabel="Seleccionar rol para edición"
-                        />
-                        {formErrors.role ? <span className="usuarios-sub">{formErrors.role}</span> : null}
-                    </label>
+                    {createForm.user_type === 'psychologist' ? (
+                        <>
+                            <label>
+                                <span>Nombre completo</span>
+                                <input
+                                    type="text"
+                                    value={createForm.full_name}
+                                    onChange={(event) =>
+                                        setCreateForm((prev) => ({ ...prev, full_name: event.target.value }))
+                                    }
+                                />
+                                {formErrors.full_name ? <span className="usuarios-sub">{formErrors.full_name}</span> : null}
+                            </label>
 
-                    {editForm.user_type === 'psychologist' ? (
+                            <label>
+                                <span>Tarjeta profesional</span>
+                                <input
+                                    type="text"
+                                    value={createForm.professional_card_number}
+                                    onChange={(event) =>
+                                        setCreateForm((prev) => ({
+                                            ...prev,
+                                            professional_card_number: event.target.value
+                                        }))
+                                    }
+                                />
+                                {formErrors.professional_card_number ? (
+                                    <span className="usuarios-sub">{formErrors.professional_card_number}</span>
+                                ) : null}
+                            </label>
+                        </>
+                    ) : null}
+
+                    <div className="usuarios-modal-actions">
+                        <button type="button" className="usuarios-btn secondary" onClick={closeCreateModal}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className="usuarios-btn primary" disabled={submittingCreate}>
+                            {submittingCreate ? 'Creando...' : 'Crear usuario'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal isOpen={Boolean(editingUser)} onClose={closeEditModal}>
+                <form className="usuarios-modal" onSubmit={handleEditSubmit}>
+                    <h2>Editar usuario</h2>
+
+                    {editingUser ? (
+                        <div className="usuarios-edit-summary">
+                            <div><strong>Usuario:</strong> {editingUser.username}</div>
+                            <div><strong>Correo:</strong> {editingUser.email}</div>
+                            {editingUser.full_name ? <div><strong>Nombre completo:</strong> {editingUser.full_name}</div> : null}
+                            {hasAdminRole(editingUser) ? (
+                                <div><strong>Rol actual:</strong> Administrador</div>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    {!editingUser || !hasAdminRole(editingUser) ? (
+                        <label>
+                            Tipo de usuario
+                            <CustomSelect
+                                value={editForm.user_type}
+                                options={editableUserTypeOptions}
+                                onChange={(value) =>
+                                    setEditForm((prev) => ({
+                                        ...prev,
+                                        user_type: value as ManagedUserType,
+                                        professional_card_number:
+                                            value === 'psychologist' ? prev.professional_card_number : ''
+                                    }))
+                                }
+                                ariaLabel="Seleccionar tipo de usuario para edición"
+                            />
+                            {formErrors.user_type ? <span className="usuarios-sub">{formErrors.user_type}</span> : null}
+                        </label>
+                    ) : null}
+
+                    {!editingUser || !hasAdminRole(editingUser) ? (
+                        <label>
+                            <span>Rol derivado</span>
+                            <input type="text" value={mapRoleLabel(USER_ROLE_BY_TYPE[editForm.user_type])} readOnly />
+                        </label>
+                    ) : null}
+
+                    {(!editingUser || !hasAdminRole(editingUser)) && editForm.user_type === 'psychologist' ? (
                         <label>
                             <span>Tarjeta profesional</span>
                             <input
@@ -781,6 +1379,19 @@ export default function Usuarios() {
                 onClose={() => setUserToDeactivate(null)}
                 onConfirm={() => {
                     runUserTask(confirmDeactivate);
+                }}
+            />
+
+            <UserConfirmationModal
+                isOpen={Boolean(userToReactivate)}
+                title="Reactivar usuario"
+                description={buildConfirmationMessage(userToReactivate, 'reactivate')}
+                confirmLabel="Reactivar"
+                loadingLabel="Procesando..."
+                isSubmitting={submittingReactivate}
+                onClose={() => setUserToReactivate(null)}
+                onConfirm={() => {
+                    runUserTask(confirmReactivate);
                 }}
             />
 

@@ -1,4 +1,4 @@
-const AUTH_NOTICE_KEY = 'cognia_auth_notice';
+import { AUTH_NOTICE_KEY } from '../utils/auth/sessionLifecycle';
 
 export function consumeAuthNotice() {
     const notice = sessionStorage.getItem(AUTH_NOTICE_KEY);

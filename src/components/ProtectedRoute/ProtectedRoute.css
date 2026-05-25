@@ -16,9 +16,32 @@
     text-align: center;
 }
 
+.auth-guard-shell {
+    background: #ffffff;
+}
+
+.auth-guard-shell-content {
+    min-height: calc(100vh - 48px);
+}
+
 .auth-guard-content-loading p {
     margin: 0;
     font-size: 14px;
+}
+
+.auth-guard-retry {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: #0b6fb8;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.auth-guard-retry:focus-visible {
+    outline: 3px solid rgba(23, 144, 233, 0.3);
+    outline-offset: 2px;
 }
 
 .auth-guard-content-loading-dot {

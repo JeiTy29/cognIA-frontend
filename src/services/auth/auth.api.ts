@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '../api/httpClient';
+import { apiGet, apiPatch, apiPost } from '../api/httpClient';
 import type {
     LoginRequest,
     LoginResponse,
@@ -22,10 +22,11 @@ import type {
     RegisterPayload,
     RegisterResponse,
     AuthMeResponse,
-    AuthMeErrorResponse
+    AuthMeErrorResponse,
+    UpdateProfilePayload,
+    UpdateProfileResponseDTO
 } from './auth.types';
 import { getCsrfToken } from '../../utils/auth/csrf';
-import { getStoredToken } from '../../utils/auth/storage';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 import { joinApiUrl } from '../api/url';
 
@@ -50,11 +51,35 @@ export async function login(payload: LoginRequest): Promise<LoginResponse | Logi
             return data as LoginResponse;
         }
 
-        if (response.status === 400 || response.status === 401) {
-            return { error: 'invalid_credentials', status: response.status };
+        if (data && typeof data === 'object' && 'error' in data) {
+            const backendError = (data as { error?: unknown }).error;
+            const backendMessage = (data as { msg?: unknown }).msg;
+            if (backendError === 'colpsic_pending') {
+                return {
+                    error: 'colpsic_pending',
+                    status: response.status,
+                    msg: typeof backendMessage === 'string' ? backendMessage : undefined
+                };
+            }
         }
 
-        return { error: 'request_failed', status: response.status };
+        if (response.status === 400 || response.status === 401) {
+            return {
+                error: 'invalid_credentials',
+                status: response.status,
+                msg: data && typeof data === 'object' && typeof (data as { msg?: unknown }).msg === 'string'
+                    ? (data as { msg: string }).msg
+                    : undefined
+            };
+        }
+
+        return {
+            error: 'request_failed',
+            status: response.status,
+            msg: data && typeof data === 'object' && typeof (data as { msg?: unknown }).msg === 'string'
+                ? (data as { msg: string }).msg
+                : undefined
+        };
     } catch {
         return { error: 'request_failed', status: 0 };
     }
@@ -103,32 +128,35 @@ export function changePassword(payload: ChangePasswordRequest): Promise<ChangePa
 export function requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
     const payload: ForgotPasswordRequest = { email };
     return apiPost<ForgotPasswordResponse, ForgotPasswordRequest>('/api/auth/password/forgot', payload, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
 export function verifyResetToken(token: string): Promise<VerifyResetTokenResponse> {
     const encodedToken = encodeURIComponent(token);
     return apiGet<VerifyResetTokenResponse>(`/api/auth/password/reset/verify?token=${encodedToken}`, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
 export function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswordResponse> {
     return apiPost<ResetPasswordResponse, ResetPasswordRequest>('/api/auth/password/reset', payload, {
-        credentials: 'include'
+        credentials: 'include',
+        auth: false,
+        retryAuth: false
     });
 }
 
 export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse> {
-    const token = getStoredToken();
-    if (!token) {
-        return { error: 'missing_token', status: 401 };
-    }
     try {
         return await apiGet<AuthMeResponse>('/api/auth/me', {
             auth: true,
-            credentials: 'include'
+            credentials: 'include',
+            retryAuth: false
         });
     } catch (error) {
         if (error instanceof Error && 'status' in error) {
@@ -139,19 +167,59 @@ export async function getAuthMe(): Promise<AuthMeResponse | AuthMeErrorResponse>
     }
 }
 
-export async function logout(): Promise<LogoutResponse | LogoutErrorResponse> {
+export function updateMyProfile(payload: UpdateProfilePayload): Promise<UpdateProfileResponseDTO> {
+    return apiPatch<UpdateProfileResponseDTO, UpdateProfilePayload>('/api/auth/me/profile', payload, {
+        auth: true,
+        credentials: 'include'
+    });
+}
+
+export async function logout(accessTokenSnapshot?: string): Promise<LogoutResponse | LogoutErrorResponse> {
     const csrfToken = getCsrfToken();
-    try {
-        return await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
-            headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-            credentials: 'include'
+    if (import.meta.env.DEV && !csrfToken) {
+        console.warn('[auth] logout:csrf-missing', {
+            csrfCookieName: 'csrf_refresh_token'
         });
+    }
+    const headers: Record<string, string> = {};
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+    const authorization = accessTokenSnapshot
+        ? buildAuthorizationHeader(accessTokenSnapshot)
+        : null;
+    if (authorization) {
+        headers.Authorization = authorization;
+    }
+    try {
+        const response = await apiPost<LogoutResponse, Record<string, never>>('/api/auth/logout', {}, {
+            headers: Object.keys(headers).length > 0 ? headers : undefined,
+            credentials: 'include',
+            retryAuth: false,
+            auth: !accessTokenSnapshot
+        });
+        if (import.meta.env.DEV) {
+            console.debug('[auth] logout:api:ok', response);
+        }
+        return response;
     } catch (error) {
         if (error instanceof Error && 'status' in error) {
             const status = (error as { status?: number }).status;
             if (status === 401) {
+                if (import.meta.env.DEV) {
+                    console.debug('[auth] logout:api:unauthorized', { status });
+                }
                 return { error: 'invalid_credentials', status: status ?? 401 };
             }
+        }
+        if (import.meta.env.DEV) {
+            const status = error instanceof Error && 'status' in error
+                ? (error as { status?: number }).status
+                : undefined;
+            const payload = error instanceof Error && 'payload' in error
+                ? (error as { payload?: unknown }).payload
+                : undefined;
+            console.debug('[auth] logout:api:error', { status, payload });
         }
         throw error;
     }

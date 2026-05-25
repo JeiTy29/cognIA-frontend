@@ -8,14 +8,11 @@ import type {
     DashboardSeriesResponse
 } from './dashboard.types';
 import { ApiError } from '../api/httpClient';
+import { extractDashboardSeries } from '../../utils/reports/dashboardSeries';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     return value as Record<string, unknown>;
-}
-
-function asArray(value: unknown) {
-    return Array.isArray(value) ? value : [];
 }
 
 function toNumberOrNull(value: unknown) {
@@ -54,24 +51,11 @@ function sanitizeNode(value: unknown, depth = 0): DashboardMetricNode {
 }
 
 export function normalizeSeriesResponse(payload: unknown): DashboardSeriesResponse {
-    const root = asRecord(payload);
-    const parsed: DashboardSeriesPoint[] = asArray(root?.series)
-        .map((item, index) => {
-            const row = asRecord(item);
-            if (!row) return null;
-            const rawPeriod = row.period;
-            const period =
-                typeof rawPeriod === 'string' && rawPeriod.trim().length > 0
-                    ? rawPeriod.trim()
-                    : `Periodo ${index + 1}`;
-            const rawValue = toRawScalar(row.value);
-            return {
-                period,
-                value: toNumberOrNull(row.value),
-                raw_value: rawValue
-            } as DashboardSeriesPoint;
-        })
-        .filter((row): row is DashboardSeriesPoint => Boolean(row));
+    const parsed: DashboardSeriesPoint[] = extractDashboardSeries(payload).map((item) => ({
+        period: item.periodLabel,
+        value: item.value,
+        raw_value: toRawScalar(item.value)
+    }));
 
     return {
         series: parsed

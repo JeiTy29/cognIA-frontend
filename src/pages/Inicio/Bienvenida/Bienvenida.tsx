@@ -1,4 +1,7 @@
 import { Link } from 'react-router-dom';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
+import conocerMasImage from '../../../assets/branding/bienvenida-conocer-mas.png';
+import empezarCuestionarioImage from '../../../assets/branding/bienvenida-empezar-cuestionario.png';
 import './Bienvenida.css';
 
 export default function BienvenidaInicio() {
@@ -12,7 +15,14 @@ export default function BienvenidaInicio() {
 
             <div className="bienvenida-content">
                 <div className="bienvenida-brand">
-                    <div className="logo-placeholder">Logo aqu&iacute;</div>
+                    <img
+                        className="bienvenida-logo"
+                        src={cogniaLogo}
+                        alt="CognIA"
+                        width={1280}
+                        height={1280}
+                        decoding="async"
+                    />
                     <span className="brand-text">cognIA</span>
                 </div>
 
@@ -25,7 +35,14 @@ export default function BienvenidaInicio() {
 
                 <div className="cta-grid">
                     <article className="cta-card">
-                        <div className="cta-image-placeholder">Imagen aqu&iacute;</div>
+                        <img
+                            className="bienvenida-card-image"
+                            src={conocerMasImage}
+                            alt="Ilustración de exploración del sistema CognIA"
+                            width={2172}
+                            height={724}
+                            decoding="async"
+                        />
                         <h2 className="cta-title">Conocer m&aacute;s</h2>
                         <p className="cta-text">
                             Explora c&oacute;mo funciona el sistema, nuestro equipo de trabajo y los trastornos relacionados.
@@ -37,7 +54,14 @@ export default function BienvenidaInicio() {
                     </article>
 
                     <article className="cta-card">
-                        <div className="cta-image-placeholder">Imagen aqu&iacute;</div>
+                        <img
+                            className="bienvenida-card-image"
+                            src={empezarCuestionarioImage}
+                            alt="Ilustración de inicio del cuestionario CognIA"
+                            width={2172}
+                            height={724}
+                            decoding="async"
+                        />
                         <h2 className="cta-title">Empezar cuestionario</h2>
                         <p className="cta-text">
                             Inicia sesi&oacute;n para diligenciar el cuestionario y consultar tus resultados.

@@ -60,22 +60,27 @@
     border-radius: 12px;
     margin-bottom: 24px;
     flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.role-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    padding: 6px;
 }
 
 /* Brand Icon for Authentication Header */
-.brand-icon {
-    width: 36px;
-    height: 36px;
-    background-color: #51C2F4;
-    border-radius: 6px;
+.auth-brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
     flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    color: #111827;
-    font-size: 24px;
-    font-weight: 600;
-    font-family: 'Segoe UI', sans-serif;
-    line-height: 1;
+    display: block;
 }
 
 .brand-link {
@@ -159,6 +164,17 @@
 
 .registro-inline-message {
     margin-bottom: 16px;
+}
+
+.register-location-section {
+    margin-top: 16px;
+    margin-bottom: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.register-location-section .colombia-location-select {
+    gap: 14px;
 }
 
 /* Forms layout */

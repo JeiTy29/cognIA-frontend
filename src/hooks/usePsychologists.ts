@@ -94,10 +94,7 @@ export function usePsychologists() {
     }, [handleUnauthorized]);
 
     useEffect(() => {
-        const timeoutId = globalThis.setTimeout(() => {
-            loadPsychologists().catch(() => undefined);
-        }, 0);
-        return () => globalThis.clearTimeout(timeoutId);
+        void loadPsychologists().catch(() => undefined);
     }, [loadPsychologists]);
 
     const approveAction = useCallback(async (userId: string) => {

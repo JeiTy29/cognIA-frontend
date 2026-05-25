@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 import './Bienvenida.css';
 
 export default function Bienvenida() {
@@ -10,7 +11,7 @@ export default function Bienvenida() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>

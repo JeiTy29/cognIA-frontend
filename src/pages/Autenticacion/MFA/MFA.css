@@ -1,3 +1,13 @@
+@import '../InicioSesion/InicioSesion.css';
+
+.auth-brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    flex-shrink: 0;
+    display: block;
+}
+
 .auth-2fa .auth-subtitle {
     max-width: 420px;
 }

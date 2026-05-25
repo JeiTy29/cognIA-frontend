@@ -4,7 +4,20 @@ type FlexibleString<T extends string> = T | (string & {});
 export type QuestionnaireRiskLevel = FlexibleString<'baja' | 'intermedia' | 'relevante' | 'alta'>;
 export type QuestionnaireV2Status =
     FlexibleString<'draft' | 'in_progress' | 'submitted' | 'processed' | 'failed' | 'archived'>;
-export type QuestionnaireResponseType = FlexibleString<'likert' | 'boolean' | 'integer' | 'number' | 'text'>;
+export type QuestionnaireResponseType = FlexibleString<
+    | 'likert'
+    | 'boolean'
+    | 'integer'
+    | 'number'
+    | 'text'
+    | 'likert_0_4'
+    | 'likert_1_5'
+    | 'frequency_0_3'
+    | 'intensity_0_10'
+    | 'count'
+    | 'ordinal'
+    | 'text_context'
+>;
 export type QuestionnaireResponseValue = string | number | boolean | null;
 export type QuestionnaireTagVisibility = 'private' | 'shared';
 export type QuestionnairePrimitive = string | number | boolean | null;
@@ -42,13 +55,43 @@ export interface QuestionnaireQuestionV2DTO {
     response_min?: number | null;
     response_max?: number | null;
     response_step?: number | null;
+    min_value?: number | null;
+    max_value?: number | null;
+    min?: number | null;
+    max?: number | null;
+    minimum?: number | null;
+    maximum?: number | null;
+    step?: number | null;
+    increment?: number | null;
     response_options?: unknown[] | null;
+    answer?: QuestionnaireResponseValue;
+    answer_value?: string | null;
+    answer_updated_at?: string | null;
+    answered?: boolean;
+    help_text?: string | null;
+    context?: string | null;
+    description?: string | null;
+    guidance?: string | null;
+    hint?: string | null;
+    instructions?: string | null;
+    explanation?: string | null;
+    section_title?: string | null;
+    question_id?: string;
+    question_code?: string;
+    session_item_id?: string;
+    section?: string | null;
+    feature?: string | null;
     [key: string]: unknown;
 }
 
 export interface QuestionnaireAnswerV2DTO {
     question_id: string;
+    question_code?: string | null;
+    section?: string | null;
     answer: QuestionnaireResponseValue;
+    answer_value?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
 }
 
 export interface QuestionnaireOptionDTO {
@@ -172,6 +215,9 @@ export interface CreateQuestionnaireSessionV2Payload {
     role: QuestionnaireV2Role;
     child_age_years?: 6 | 7 | 8 | 9 | 10 | 11;
     child_sex_assigned_at_birth?: string;
+    case_id?: string;
+    case_public_id?: string;
+    case_label?: string;
     metadata?: Record<string, unknown>;
 }
 
@@ -185,14 +231,24 @@ export interface QuestionnaireSessionV2DTO {
     role?: QuestionnaireV2Role;
     mode_key?: string | null;
     progress_pct?: number | null;
+    progress_percent?: number | null;
+    total_questions?: number | null;
+    answered_count?: number | null;
     version?: string | null;
     result?: QuestionnaireEvaluationResultDTO | null;
     domains?: QuestionnaireEvaluationDomainDTO[];
     comorbidity?: QuestionnaireEvaluationComorbidityDTO[];
     metadata?: Record<string, unknown> | null;
     title?: string | null;
+    case?: QuestionnaireCaseDTO | null;
+    case_id?: string | null;
+    case_public_id?: string | null;
+    case_label?: string | null;
+    case_private_label?: string | null;
+    case_display_label?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+    processed_at?: string | null;
     answers?: QuestionnaireAnswerV2DTO[] | Record<string, QuestionnaireResponseValue>;
     [key: string]: unknown;
 }
@@ -204,6 +260,8 @@ export interface QuestionnaireSessionPageV2Response {
 
 export interface PatchSessionAnswersV2Payload {
     answers: QuestionnaireAnswerV2DTO[];
+    mark_final?: boolean;
+    include_answers?: boolean;
 }
 
 export interface QuestionnaireHistoryItemV2DTO {
@@ -227,6 +285,8 @@ export interface QuestionnaireHistoryItemV2DTO {
     role?: QuestionnaireV2Role;
     title?: string | null;
     name?: string | null;
+    case?: QuestionnaireCaseDTO | null;
+    case_label?: string | null;
     version?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
@@ -450,11 +510,13 @@ export interface ShareQuestionnairePayload {
     grantee_user_id?: string;
     grant_can_tag?: boolean;
     grant_can_download_pdf?: boolean;
+    share_scope?: 'session' | 'case';
 }
 
 export interface QuestionnaireShareResponseDTO {
     questionnaire_id?: string;
     share_code?: string;
+    share_code_id?: string;
     shared_path?: string;
     shared_url?: string;
     url?: string;
@@ -464,6 +526,12 @@ export interface QuestionnaireShareResponseDTO {
     expires_at?: string | null;
     max_uses?: number | null;
     uses?: number | null;
+    case?: {
+        case_public_id?: string | null;
+        [key: string]: unknown;
+    } | null;
+    grantee?: QuestionnaireShareGranteeDTO | null;
+    grant?: QuestionnaireShareGrantDTO | null;
     [key: string]: unknown;
 }
 
@@ -545,4 +613,309 @@ export interface QuestionnaireSharedDataV2DTO {
 export interface DownloadPdfResult {
     blob: Blob;
     filename: string;
+}
+
+export type QuestionnaireCaseStatus = FlexibleString<'active' | 'archived'>;
+export type QuestionnaireAlertLevel =
+    FlexibleString<'low' | 'moderate' | 'elevated' | 'high' | 'critical_review'>;
+export type QuestionnaireReviewStatus =
+    FlexibleString<'pending' | 'in_review' | 'reviewed' | 'orientation_recommended' | 'closed'>;
+
+export interface QuestionnaireCaseDTO {
+    case_id: string;
+    case_public_id?: string | null;
+    private_label?: string | null;
+    display_label?: string | null;
+    status?: QuestionnaireCaseStatus | null;
+    sessions_count?: number | null;
+    latest_session_id?: string | null;
+    latest_processed_at?: string | null;
+    latest_alert_level?: QuestionnaireAlertLevel | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseDomainSummaryDTO {
+    domain?: string | null;
+    latest_probability?: number | null;
+    latest_alert_level?: QuestionnaireAlertLevel | null;
+    max_probability?: number | null;
+    sessions_with_alert?: number | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseTrendDomainDTO {
+    domain?: string | null;
+    probability?: number | null;
+    alert_level?: QuestionnaireAlertLevel | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseTrendPointDTO {
+    date?: string | null;
+    session_id?: string | null;
+    domains?: QuestionnaireCaseTrendDomainDTO[];
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseDetailDTO {
+    case: QuestionnaireCaseDTO | null;
+    sessions: QuestionnaireSessionV2DTO[];
+    domain_summary: QuestionnaireCaseDomainSummaryDTO[];
+    trend: QuestionnaireCaseTrendPointDTO[];
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireCaseListResponseDTO {
+    items: QuestionnaireCaseDTO[];
+    pagination: PaginationDTO;
+}
+
+export interface CreateQuestionnaireCasePayload {
+    private_label: string;
+    metadata?: Record<string, unknown>;
+}
+
+export interface UpdateQuestionnaireCasePayload {
+    private_label?: string;
+    status?: QuestionnaireCaseStatus;
+}
+
+export interface GuardianDashboardCaseDTO {
+    case: QuestionnaireCaseDTO | null;
+    sessions_count?: number | null;
+    latest_session?: QuestionnaireSessionV2DTO | null;
+    domain_breakdown?: QuestionnaireCaseDomainSummaryDTO[];
+    trend?: QuestionnaireCaseTrendPointDTO[];
+    chart_data?: Record<string, unknown> | null;
+    [key: string]: unknown;
+}
+
+export interface GuardianDashboardDTO {
+    period?: {
+        months?: number | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        [key: string]: unknown;
+    } | null;
+    summary?: {
+        total_cases?: number | null;
+        total_sessions?: number | null;
+        processed_sessions?: number | null;
+        cases_needing_professional_review?: number | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        [key: string]: unknown;
+    } | null;
+    cases: GuardianDashboardCaseDTO[];
+    warnings?: string[];
+    [key: string]: unknown;
+}
+
+export interface PsychologistSearchItemDTO {
+    user_id: string;
+    username?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+    department?: string | null;
+    city?: string | null;
+    same_department?: boolean | null;
+    same_city?: boolean | null;
+    professional_location?: string | null;
+    colpsic_verified?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistSearchResponseDTO {
+    items: PsychologistSearchItemDTO[];
+    pagination: PaginationDTO;
+    recommendation?: {
+        basis?: string | null;
+        department?: string | null;
+        city?: string | null;
+        [key: string]: unknown;
+    } | null;
+    warnings?: string[];
+}
+
+export interface ShareWithPsychologistPayload {
+    grantee_user_id: string;
+    grant_can_tag: boolean;
+    grant_can_download_pdf: boolean;
+    share_scope: 'session';
+    expires_in_hours?: number;
+    max_uses?: number;
+}
+
+export interface QuestionnaireShareGrantDTO {
+    grant_id?: string | null;
+    request_status?: string | null;
+    can_view?: boolean | null;
+    can_download_pdf?: boolean | null;
+    can_tag?: boolean | null;
+    requested_at?: string | null;
+    responded_at?: string | null;
+    response_message?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireShareGranteeDTO {
+    user_id?: string | null;
+    username?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+    department?: string | null;
+    city?: string | null;
+    professional_location?: string | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistShareRequestDTO {
+    grant_id: string;
+    request_status?: 'pending' | 'accepted' | 'rejected' | (string & {}) | null;
+    requested_at?: string | null;
+    responded_at?: string | null;
+    case?: {
+        case_public_id?: string | null;
+        [key: string]: unknown;
+    } | null;
+    session?: QuestionnaireSessionV2DTO | null;
+    guardian?: {
+        user_id?: string | null;
+        display_name?: string | null;
+        [key: string]: unknown;
+    } | null;
+    summary?: {
+        needs_professional_review?: boolean | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        domains?: QuestionnaireEvaluationDomainDTO[];
+        result_summary?: string | null;
+        [key: string]: unknown;
+    } | null;
+    can_accept?: boolean | null;
+    can_reject?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistShareRequestsResponseDTO {
+    items: PsychologistShareRequestDTO[];
+    pagination: PaginationDTO;
+    summary?: {
+        pending_count?: number | null;
+        accepted_count?: number | null;
+        rejected_count?: number | null;
+        [key: string]: unknown;
+    } | null;
+}
+
+export interface AcceptShareRequestPayload {
+    message?: string;
+}
+
+export interface RejectShareRequestPayload {
+    message?: string;
+}
+
+export interface QuestionnaireDashboardAggregateDTO {
+    domain?: string | null;
+    alert_level?: QuestionnaireAlertLevel | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    count?: number | null;
+    max_probability?: number | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistDashboardItemDTO {
+    session_id: string;
+    case_public_id?: string | null;
+    status?: QuestionnaireV2Status | null;
+    processed_at?: string | null;
+    guardian?: {
+        user_id?: string | null;
+        display_name?: string | null;
+        [key: string]: unknown;
+    } | null;
+    domains?: QuestionnaireEvaluationDomainDTO[];
+    needs_professional_review?: boolean | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    latest_review?: QuestionnaireProfessionalReviewDTO | null;
+    can_review?: boolean | null;
+    can_download_pdf?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface PsychologistDashboardDTO {
+    filters?: Record<string, unknown> | null;
+    summary?: {
+        total_shared_sessions?: number | null;
+        total_cases?: number | null;
+        pending_reviews?: number | null;
+        reviewed_cases?: number | null;
+        cases_needing_professional_review?: number | null;
+        highest_alert_level?: QuestionnaireAlertLevel | null;
+        [key: string]: unknown;
+    } | null;
+    aggregates?: {
+        by_domain?: QuestionnaireDashboardAggregateDTO[];
+        by_alert_level?: QuestionnaireDashboardAggregateDTO[];
+        by_review_status?: QuestionnaireDashboardAggregateDTO[];
+        [key: string]: unknown;
+    } | null;
+    items: PsychologistDashboardItemDTO[];
+    pagination: PaginationDTO;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireProfessionalReviewDTO {
+    review_id: string;
+    session_id?: string | null;
+    case_id?: string | null;
+    owner_user_id?: string | null;
+    psychologist_user_id?: string | null;
+    review_status?: QuestionnaireReviewStatus | null;
+    initial_concept?: string | null;
+    recommendation?: string | null;
+    visible_to_guardian?: boolean | null;
+    is_diagnostic?: boolean | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
+}
+
+export interface ProfessionalReviewPayload {
+    review_status: QuestionnaireReviewStatus;
+    initial_concept?: string;
+    recommendation?: string;
+    visible_to_guardian?: boolean;
+}
+
+export interface QuestionnaireReportPreviewAnswerDTO {
+    question_id?: string | null;
+    question_code?: string | null;
+    prompt?: string | null;
+    raw_answer?: QuestionnaireResponseValue;
+    raw_answer_display?: string | null;
+    normalized_answer?: string | null;
+    domain?: string | null;
+    section_title?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireReportPreviewPdfDTO {
+    available?: boolean | null;
+    file_name?: string | null;
+    download_url?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireReportPreviewDTO {
+    session?: QuestionnaireSessionV2DTO | null;
+    result?: QuestionnaireEvaluationResultDTO | null;
+    domains: QuestionnaireEvaluationDomainDTO[];
+    comorbidity: QuestionnaireEvaluationComorbidityDTO[];
+    answers: QuestionnaireReportPreviewAnswerDTO[];
+    professional_reviews: QuestionnaireProfessionalReviewDTO[];
+    pdf?: QuestionnaireReportPreviewPdfDTO | null;
+    disclaimer?: string | null;
+    [key: string]: unknown;
 }

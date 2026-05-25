@@ -1,13 +1,27 @@
 import { joinApiUrl } from '../api/url';
 import { getCsrfToken } from '../../utils/auth/csrf';
 import type { RefreshErrorResponse, RefreshResponse } from './auth.types';
+import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
 
 export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErrorResponse> {
-    const csrfToken = getCsrfToken();
-    if (!csrfToken) {
+    if (hasManualLogoutFlag()) {
+        if (import.meta.env.DEV) {
+            console.debug('[auth] refresh:blocked:manual-logout');
+        }
         return { error: 'invalid_session', status: 401 };
     }
 
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        if (import.meta.env.DEV) {
+            console.debug('[auth] refresh:blocked:csrf-missing');
+        }
+        return { error: 'invalid_session', status: 401 };
+    }
+
+    if (import.meta.env.DEV) {
+        console.debug('[auth] refresh:request:start');
+    }
     const response = await fetch(joinApiUrl('/api/auth/refresh'), {
         method: 'POST',
         headers: {
@@ -16,6 +30,9 @@ export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErr
         },
         credentials: 'include'
     });
+    if (import.meta.env.DEV) {
+        console.debug('[auth] refresh:request:status', response.status);
+    }
 
     const data = await response.json().catch(() => null);
     if (response.ok) {

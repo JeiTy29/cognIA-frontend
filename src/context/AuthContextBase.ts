@@ -8,8 +8,11 @@ export interface AuthContextValue {
     roles: string[];
     userId: string | null;
     expiresAt: number | null;
+    authStatus: 'checking' | 'authenticated' | 'anonymous';
+    sessionVerified: boolean;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
+    isSessionRefreshing: boolean;
     primaryRole: AppRole | null;
     profile: AuthMeResponse | null;
     profileStatus: 'idle' | 'loading' | 'success' | 'error';
@@ -22,8 +25,10 @@ export interface AuthContextValue {
     setDevRole: (role: DevRole) => void;
     setSession: (token: string, expiresIn?: number) => void;
     logout: (reason?: LogoutReason) => void;
+    logoutAsync: (reason?: LogoutReason) => Promise<void>;
     devLogout: () => void;
     refreshSession: (options?: { silent?: boolean }) => Promise<boolean>;
+    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean; force?: boolean }) => Promise<boolean>;
     reloadProfile: () => Promise<void>;
 }
 

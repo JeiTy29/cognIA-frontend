@@ -45,7 +45,7 @@ const blockConfigs: {
 } = {
     executiveSummary: {
         key: 'executiveSummary',
-        title: 'Executive Summary',
+        title: 'Resumen ejecutivo',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/executive-summary',
         load: getDashboardExecutiveSummary,
@@ -61,7 +61,7 @@ const blockConfigs: {
     },
     funnel: {
         key: 'funnel',
-        title: 'Funnel',
+        title: 'Embudo de cuestionarios',
         family: 'funnel',
         endpoint: '/api/v2/dashboard/funnel',
         load: getDashboardFunnel,
@@ -69,7 +69,7 @@ const blockConfigs: {
     },
     productivity: {
         key: 'productivity',
-        title: 'Productivity',
+        title: 'Productividad',
         family: 'funnel',
         endpoint: '/api/v2/dashboard/productivity',
         load: getDashboardProductivity,
@@ -77,7 +77,7 @@ const blockConfigs: {
     },
     humanReview: {
         key: 'humanReview',
-        title: 'Human Review',
+        title: 'Revisión profesional',
         family: 'funnel',
         endpoint: '/api/v2/dashboard/human-review',
         load: getDashboardHumanReview,
@@ -85,7 +85,7 @@ const blockConfigs: {
     },
     userGrowth: {
         key: 'userGrowth',
-        title: 'User Growth',
+        title: 'Crecimiento de usuarios',
         family: 'series',
         endpoint: '/api/v2/dashboard/user-growth',
         load: getDashboardUserGrowth,
@@ -93,7 +93,7 @@ const blockConfigs: {
     },
     questionnaireVolume: {
         key: 'questionnaireVolume',
-        title: 'Questionnaire Volume',
+        title: 'Volumen de cuestionarios',
         family: 'series',
         endpoint: '/api/v2/dashboard/questionnaire-volume',
         load: getDashboardQuestionnaireVolume,
@@ -101,7 +101,7 @@ const blockConfigs: {
     },
     questionnaireQuality: {
         key: 'questionnaireQuality',
-        title: 'Questionnaire Quality',
+        title: 'Calidad de respuestas',
         family: 'series',
         endpoint: '/api/v2/dashboard/questionnaire-quality',
         load: getDashboardQuestionnaireQuality,
@@ -109,7 +109,7 @@ const blockConfigs: {
     },
     apiHealth: {
         key: 'apiHealth',
-        title: 'API Health',
+        title: 'Estado de servicios',
         family: 'series',
         endpoint: '/api/v2/dashboard/api-health',
         load: getDashboardApiHealth,
@@ -117,7 +117,7 @@ const blockConfigs: {
     },
     dataQuality: {
         key: 'dataQuality',
-        title: 'Data Quality',
+        title: 'Calidad de datos',
         family: 'series',
         endpoint: '/api/v2/dashboard/data-quality',
         load: getDashboardDataQuality,
@@ -141,7 +141,7 @@ const blockConfigs: {
     },
     modelMonitoring: {
         key: 'modelMonitoring',
-        title: 'Model Monitoring',
+        title: 'Seguimiento de modelos',
         family: 'adoption_history',
         endpoint: '/api/v2/dashboard/model-monitoring',
         load: getDashboardModelMonitoring,

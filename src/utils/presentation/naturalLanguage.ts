@@ -119,7 +119,7 @@ const MIME_LABELS: Record<string, string> = {
 const SOURCE_MODULE_LABELS: Record<string, string> = {
     questionnaire: 'Cuestionario',
     history: 'Historial',
-    dashboard: 'Dashboard',
+    dashboard: 'Panel general',
     metrics: 'Métricas',
     account: 'Mi cuenta',
     audit: 'Auditoría',
@@ -233,6 +233,41 @@ const PERCENT_KEYS = [
     'score'
 ];
 
+const MOJIBAKE_REPLACEMENTS: Array<[RegExp, string]> = [
+    [/sesi\?n/gi, 'sesión'],
+    [/acci\?n/gi, 'acción'],
+    [/evaluaci\?n/gi, 'evaluación'],
+    [/auditor\?a/gi, 'auditoría'],
+    [/psic\?logo/gi, 'psicólogo'],
+    [/contrase\?a/gi, 'contraseña'],
+    [/c\?digo/gi, 'código'],
+    [/m\?dulo/gi, 'módulo'],
+    [/descripci\?n/gi, 'descripción'],
+    [/direcci\?n/gi, 'dirección'],
+    [/paginaci\?n/gi, 'paginación'],
+    [/p\?gina/gi, 'página'],
+    [/tama\?o/gi, 'tamaño'],
+    [/pol\?tica/gi, 'política'],
+    [/t\?rminos/gi, 'términos'],
+    [/opci\?n/gi, 'opción'],
+    [/v\?lida/gi, 'válida'],
+    [/est\? /gi, 'está '],
+    [/vac\?o/gi, 'vacío'],
+    [/m\?ximo/gi, 'máximo'],
+    [/m\?s/gi, 'más'],
+    [/cl\?nica/gi, 'clínica'],
+    [/diagn\?stico/gi, 'diagnóstico'],
+    [/informaci\?n/gi, 'información'],
+    [/secci\?n/gi, 'sección'],
+    [/\bQu\?/g, 'Qué'],
+    [/\bC\?mo/g, 'Cómo'],
+    [/\bD\?nde/g, 'Dónde'],
+    [/seg\?n/gi, 'según'],
+    [/an\?lisis/gi, 'análisis'],
+    [/m\?ltiples/gi, 'múltiples'],
+    [/\bS\?/g, 'Sí']
+];
+
 function normalizeKey(value: string) {
     return value.trim().toLowerCase();
 }
@@ -245,6 +280,17 @@ function normalizeText(value: string) {
         .replaceAll('.', ' ')
         .replaceAll(/\s+/g, ' ')
         .trim();
+}
+
+export function normalizeMojibakeText(value: string) {
+    if (!value.trim()) return value;
+
+    let next = value;
+    for (const [pattern, replacement] of MOJIBAKE_REPLACEMENTS) {
+        next = next.replace(pattern, replacement);
+    }
+
+    return next;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -373,7 +419,16 @@ export function getStatusLabel(value: unknown, fallback = FALLBACK_VALUE) {
 export function getResponseTypeLabel(value: unknown, fallback = FALLBACK_VALUE) {
     if (typeof value !== 'string') return fallback;
     const normalized = normalizeKey(value);
-    return RESPONSE_TYPE_LABELS[normalized] ?? value;
+    const extendedLabels: Record<string, string> = {
+        likert_0_4: 'Likert 0–4',
+        likert_1_5: 'Likert 1–5',
+        frequency_0_3: 'Frecuencia 0–3',
+        intensity_0_10: 'Intensidad 0–10',
+        count: 'Conteo',
+        ordinal: 'Opciones ordenadas',
+        text_context: 'Texto contextual'
+    };
+    return RESPONSE_TYPE_LABELS[normalized] ?? extendedLabels[normalized] ?? value;
 }
 
 export function getDomainLabel(value: unknown, fallback = FALLBACK_VALUE) {
@@ -502,7 +557,7 @@ function resolveStringValueByKnownKey(normalizedKey: string, trimmed: string, fa
 }
 
 function formatNaturalStringValue(normalizedKey: string, value: string, fallback: string) {
-    const trimmed = value.trim();
+    const trimmed = normalizeMojibakeText(value).trim();
     if (!trimmed) return fallback;
 
     if (isDateLikeKey(normalizedKey) || isDateString(trimmed)) {
