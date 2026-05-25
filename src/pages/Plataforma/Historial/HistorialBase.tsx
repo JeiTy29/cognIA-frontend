@@ -28,6 +28,7 @@ import type {
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnaireHistoryStatusFilter,
     QuestionnairePdfInfoV2DTO,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
@@ -76,6 +77,7 @@ const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6
 const tagVisibilityOptions = [{ value: 'private', label: 'Privado' }, { value: 'shared', label: 'Compartido' }];
 const tagColorOptions = [{ value: '#215f8f', label: 'Azul' }, { value: '#1f7a46', label: 'Verde' }, { value: '#d97a1f', label: 'Naranja' }, { value: '#5f2a8f', label: 'Morado' }, { value: '#bd1f2d', label: 'Rojo' }];
 const defaultTagColor = tagColorOptions[0].value;
+const validHistoryStatuses: QuestionnaireHistoryStatusFilter[] = ['draft', 'in_progress', 'submitted', 'processed', 'failed', 'archived'];
 
 function toRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -93,7 +95,12 @@ function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | unde
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
 }
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
-    return { status: '', q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
+    return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
+}
+function toHistoryStatusFilter(value: string): QuestionnaireHistoryStatusFilter | undefined {
+    return validHistoryStatuses.includes(value as QuestionnaireHistoryStatusFilter)
+        ? (value as QuestionnaireHistoryStatusFilter)
+        : undefined;
 }
 function toMaybeBoolean(value: string) {
     if (value === 'true') return true;
@@ -284,7 +291,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         history.patchFilters({ [key]: undefined, page: 1 } as Partial<QuestionnaireHistoryFiltersV2>);
         setDraftFilters((previous) => {
             const next = { ...previous } as Record<string, unknown>;
-            next[key] = '';
+            next[key] = key === 'status' || key === 'needs_professional_review' ? undefined : '';
             return next as QuestionnaireHistoryFiltersV2;
         });
     };
@@ -430,7 +437,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                 <section className="historial-dashboard-filters">
                     <div className="historial-dashboard-filters-grid">
-                        <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: value }))} ariaLabel="Filtrar por estado" /></label>
+                        <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: toHistoryStatusFilter(value) }))} ariaLabel="Filtrar por estado" /></label>
                         <label>Caso/etiqueta<input type="text" value={draftFilters.case_label ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_label: event.target.value }))} /></label>
                         <label>Caso publico<input type="text" value={draftFilters.case_public_id ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_public_id: event.target.value }))} /></label>
                         <label>Tag<input type="text" value={draftFilters.tag ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, tag: event.target.value }))} /></label>
