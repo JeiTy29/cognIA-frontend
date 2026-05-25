@@ -11,6 +11,7 @@ import {
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuth } from '../../../hooks/auth/useAuth';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import {
     createQuestionnaireProfessionalReviewV2,
     downloadQuestionnaireHistoryPdfV2,
@@ -218,14 +219,16 @@ export default function EvaluacionesCompartidas() {
     const [recommendation, setRecommendation] = useState('');
     const [visibleToGuardian, setVisibleToGuardian] = useState(true);
     const locationState = (location.state ?? {}) as { openEvaluationSessionId?: string } | null;
+    const debouncedQuery = useDebouncedValue(query, 350);
+    const debouncedCasePublicId = useDebouncedValue(casePublicId, 350);
 
     const loadDashboard = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await getPsychologistQuestionnaireDashboardV2({
-                q: query || undefined,
-                case_public_id: casePublicId || undefined,
+                q: debouncedQuery.trim() || undefined,
+                case_public_id: debouncedCasePublicId.trim() || undefined,
                 date_from: dateFrom || undefined,
                 date_to: dateTo || undefined,
                 domain: domain || undefined,
@@ -248,7 +251,7 @@ export default function EvaluacionesCompartidas() {
         } finally {
             setLoading(false);
         }
-    }, [alertLevel, casePublicId, dateFrom, dateTo, domain, query, reviewStatus]);
+    }, [alertLevel, dateFrom, dateTo, debouncedCasePublicId, debouncedQuery, domain, reviewStatus]);
 
     useEffect(() => {
         loadDashboard().catch(() => undefined);

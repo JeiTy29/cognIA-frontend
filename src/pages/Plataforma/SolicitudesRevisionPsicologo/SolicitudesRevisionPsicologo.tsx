@@ -10,6 +10,7 @@ import {
     HistogramChart
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import {
     acceptPsychologistShareRequestV2,
     getPsychologistShareRequestsV2,
@@ -157,6 +158,7 @@ export default function SolicitudesRevisionPsicologo() {
     const [actionMessage, setActionMessage] = useState('');
     const [actionWorking, setActionWorking] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+    const debouncedQuery = useDebouncedValue(query, 350);
 
     const loadRequests = useCallback(async () => {
         setLoading(true);
@@ -164,7 +166,7 @@ export default function SolicitudesRevisionPsicologo() {
         try {
             const response = await getPsychologistShareRequestsV2({
                 status,
-                q: query.trim() || undefined,
+                q: debouncedQuery.trim() || undefined,
                 date_from: dateFrom || undefined,
                 date_to: dateTo || undefined,
                 page: 1,
@@ -186,7 +188,7 @@ export default function SolicitudesRevisionPsicologo() {
         } finally {
             setLoading(false);
         }
-    }, [dateFrom, dateTo, query, status]);
+    }, [dateFrom, dateTo, debouncedQuery, status]);
 
     useEffect(() => {
         loadRequests().catch(() => undefined);
@@ -197,7 +199,7 @@ export default function SolicitudesRevisionPsicologo() {
             try {
                 const response = await getPsychologistShareRequestsV2({
                     status: 'all',
-                    q: query.trim() || undefined,
+                    q: debouncedQuery.trim() || undefined,
                     date_from: dateFrom || undefined,
                     date_to: dateTo || undefined,
                     page: 1,
@@ -214,7 +216,7 @@ export default function SolicitudesRevisionPsicologo() {
         };
 
         loadDashboardSample().catch(() => undefined);
-    }, [dateFrom, dateTo, query]);
+    }, [dateFrom, dateTo, debouncedQuery]);
 
     useEffect(() => {
         const locationState = (location.state ?? {}) as { notificationGrantId?: string; status?: string } | null;

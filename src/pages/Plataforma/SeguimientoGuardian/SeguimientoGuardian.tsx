@@ -43,6 +43,7 @@ import {
     normalizeQuestionnaireMode,
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
+import { resolveCaseCompositeLabel } from '../../../utils/questionnaires/dashboardLabels';
 import { downloadGuardianFollowUpReportPdf } from '../../../utils/reports/guardianFollowUpPdf';
 
 const periodOptions = [
@@ -77,13 +78,10 @@ const guardianDomainSeries = [
 ] as const;
 
 function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
-    const label = item.display_label ?? item.private_label ?? 'Caso sin etiqueta';
-    const publicId = item.case_public_id ? ` · ${item.case_public_id}` : '';
-    return `${label}${publicId}`;
+    return resolveCaseCompositeLabel(item);
 }
-
 function resolveCaseLabel(item: QuestionnaireCaseDTO | null | undefined) {
-    return item?.display_label ?? item?.private_label ?? item?.case_public_id ?? 'Caso sin etiqueta';
+    return resolveCaseCompositeLabel(item ?? null);
 }
 
 function validateCaseLabel(value: string) {
@@ -181,6 +179,8 @@ export default function SeguimientoGuardian() {
     const [caseDetailsById, setCaseDetailsById] = useState<Record<string, QuestionnaireCaseDetailDTO>>({});
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
     const [caseErrorById, setCaseErrorById] = useState<Record<string, string | null>>({});
+    const [loadedCaseDetailById, setLoadedCaseDetailById] = useState<Record<string, boolean>>({});
+    const [selectedCaseId, setSelectedCaseId] = useState<string>('');
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
     const [expandedDashboardByCaseId, setExpandedDashboardByCaseId] = useState<Record<string, boolean>>({});
     const [reportSessionId, setReportSessionId] = useState<string | null>(null);
@@ -257,6 +257,7 @@ export default function SeguimientoGuardian() {
                 const sortedSessions = sortCaseSessions((detail.sessions ?? []) as QuestionnaireSessionV2DTO[]);
                 const normalizedDetail = { ...detail, sessions: sortedSessions };
                 setCaseDetailsById((prev) => ({ ...prev, [nextCaseId]: normalizedDetail }));
+                setLoadedCaseDetailById((prev) => ({ ...prev, [nextCaseId]: true }));
                 setExpandedSessionByCaseId((prev) => {
                     if (prev[nextCaseId] || sortedSessions.length === 0) return prev;
                     return { ...prev, [nextCaseId]: resolveSessionKey(sortedSessions[0]) };
@@ -264,6 +265,7 @@ export default function SeguimientoGuardian() {
                 return normalizedDetail;
             } catch {
                 setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: 'No fue posible cargar las sesiones de este caso.' }));
+                setLoadedCaseDetailById((prev) => ({ ...prev, [nextCaseId]: true }));
                 return null;
             } finally {
                 setCaseLoadingById((prev) => ({ ...prev, [nextCaseId]: false }));
@@ -283,25 +285,20 @@ export default function SeguimientoGuardian() {
     }, [caseId, cases]);
 
     useEffect(() => {
-        visibleCases.forEach((item) => {
-            if (item.case_id) {
-                loadCaseDetail(item.case_id).catch(() => undefined);
-            }
-        });
-    }, [loadCaseDetail, visibleCases]);
+        if (visibleCases.length === 0) {
+            setSelectedCaseId('');
+            return;
+        }
+        if (!selectedCaseId || !visibleCases.some((item) => item.case_id === selectedCaseId)) {
+            setSelectedCaseId(visibleCases[0]?.case_id ?? '');
+        }
+    }, [selectedCaseId, visibleCases]);
 
     useEffect(() => {
-        setExpandedDashboardByCaseId((previous) => {
-            if (visibleCases.length === 0) return previous;
-            const nextState = { ...previous };
-            visibleCases.forEach((item, index) => {
-                if (!(item.case_id in nextState)) {
-                    nextState[item.case_id] = visibleCases.length === 1 || index === 0;
-                }
-            });
-            return nextState;
-        });
-    }, [visibleCases]);
+        if (!selectedCaseId) return;
+        if (loadedCaseDetailById[selectedCaseId] || caseLoadingById[selectedCaseId]) return;
+        loadCaseDetail(selectedCaseId).catch(() => undefined);
+    }, [caseLoadingById, loadCaseDetail, loadedCaseDetailById, selectedCaseId]);
 
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
@@ -583,9 +580,14 @@ export default function SeguimientoGuardian() {
                                 const sessionsCount = dashboardViewModel.sessionsCount;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
                                 const isDashboardExpanded = expandedDashboardByCaseId[caseItem.case_id] ?? false;
+                                const hasLoadedCaseDetail = loadedCaseDetailById[caseItem.case_id] === true;
+                                const isCaseSelected = selectedCaseId === caseItem.case_id;
 
                                 return (
-                                    <article key={caseItem.case_id} className="seguimiento-case-card">
+                                    <article
+                                        key={caseItem.case_id}
+                                        className={`seguimiento-case-card ${isCaseSelected ? 'is-selected' : 'is-collapsed'}`}
+                                    >
                                         <div className="seguimiento-case-top">
                                             <div>
                                                 <h2>{resolveCaseLabel(caseItem)}</h2>
@@ -604,15 +606,33 @@ export default function SeguimientoGuardian() {
                                                     <button
                                                         type="button"
                                                         className="seguimiento-inline-btn ghost"
-                                                        onClick={() =>
-                                                            setExpandedDashboardByCaseId((previous) => ({
-                                                                ...previous,
-                                                                [caseItem.case_id]: !isDashboardExpanded
-                                                            }))
-                                                        }
+                                                        onClick={() => {
+                                                            if (isCaseSelected) {
+                                                                setSelectedCaseId('');
+                                                                return;
+                                                            }
+                                                            setSelectedCaseId(caseItem.case_id);
+                                                            if (!hasLoadedCaseDetail && !caseIsLoading) {
+                                                                loadCaseDetail(caseItem.case_id).catch(() => undefined);
+                                                            }
+                                                        }}
                                                     >
-                                                        {isDashboardExpanded ? 'Ocultar gráficas de seguimiento' : 'Ver gráficas de seguimiento'}
+                                                        {isCaseSelected ? 'Ocultar detalle' : 'Ver detalle'}
                                                     </button>
+                                                    {isCaseSelected ? (
+                                                        <button
+                                                            type="button"
+                                                            className="seguimiento-inline-btn ghost"
+                                                            onClick={() =>
+                                                                setExpandedDashboardByCaseId((previous) => ({
+                                                                    ...previous,
+                                                                    [caseItem.case_id]: !isDashboardExpanded
+                                                                }))
+                                                            }
+                                                        >
+                                                            {isDashboardExpanded ? 'Ocultar gráficas de seguimiento' : 'Ver gráficas de seguimiento'}
+                                                        </button>
+                                                    ) : null}
                                                     {isArchived ? (
                                                         <button
                                                             type="button"
@@ -653,7 +673,11 @@ export default function SeguimientoGuardian() {
                                             </div>
                                         </div>
 
-                                        <div className="seguimiento-domain-list">
+                                        {!isCaseSelected ? (
+                                            <p className="seguimiento-case-collapsed-copy">Selecciona este caso para ver dominios, sesiones y reportes.</p>
+                                        ) : (
+                                            <>
+                                                <div className="seguimiento-domain-list">
                                             <h3>Última medición por dominio</h3>
                                             <p>
                                                 Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico.
@@ -808,6 +832,15 @@ export default function SeguimientoGuardian() {
                                         <div className="seguimiento-sessions">
                                             <div className="seguimiento-sessions-header">
                                                 <h3>Sesiones del caso</h3>
+                                                {!hasLoadedCaseDetail && !caseIsLoading ? (
+                                                    <button
+                                                        type="button"
+                                                        className="seguimiento-inline-btn"
+                                                        onClick={() => loadCaseDetail(caseItem.case_id).catch(() => undefined)}
+                                                    >
+                                                        Cargar sesiones
+                                                    </button>
+                                                ) : null}
                                                 {caseLoadError ? (
                                                     <button
                                                         type="button"
@@ -819,13 +852,16 @@ export default function SeguimientoGuardian() {
                                                 ) : null}
                                             </div>
 
+                                            {!hasLoadedCaseDetail && !caseIsLoading ? (
+                                                <p className="seguimiento-session-empty">Carga las sesiones para ver el detalle de este caso.</p>
+                                            ) : null}
                                             {caseIsLoading ? <p className="seguimiento-session-empty">Cargando sesiones del caso...</p> : null}
-                                            {!caseIsLoading && caseLoadError ? <p className="seguimiento-session-empty error">{caseLoadError}</p> : null}
-                                            {!caseIsLoading && !caseLoadError && caseSessions.length === 0 ? (
+                                            {!caseIsLoading && hasLoadedCaseDetail && caseLoadError ? <p className="seguimiento-session-empty error">{caseLoadError}</p> : null}
+                                            {!caseIsLoading && hasLoadedCaseDetail && !caseLoadError && caseSessions.length === 0 ? (
                                                 <p className="seguimiento-session-empty">Este caso aún no tiene cuestionarios asociados.</p>
                                             ) : null}
 
-                                            {!caseIsLoading && !caseLoadError && caseSessions.length > 0 ? (
+                                            {!caseIsLoading && hasLoadedCaseDetail && !caseLoadError && caseSessions.length > 0 ? (
                                                 <div className="seguimiento-session-list">
                                                     {caseSessions.map((session) => {
                                                         const sessionKey = resolveSessionKey(session);
@@ -930,6 +966,8 @@ export default function SeguimientoGuardian() {
                                                 </div>
                                             ) : null}
                                         </div>
+                                            </>
+                                        )}
                                     </article>
                                 );
                             })}
