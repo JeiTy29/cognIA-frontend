@@ -28,7 +28,6 @@ import type {
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
-    QuestionnaireHistoryStatusFilter,
     QuestionnairePdfInfoV2DTO,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
@@ -45,13 +44,18 @@ import {
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
-    getDomainLabel,
     getModeLabel,
     getRoleLabel,
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
 import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
+import {
+    getDashboardDomainLabel,
+    resolveCaseCompositeLabel,
+    toHistoryStatusFilter,
+    toOptionalFilterText
+} from '../../../utils/questionnaires/dashboardLabels';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -77,7 +81,6 @@ const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6
 const tagVisibilityOptions = [{ value: 'private', label: 'Privado' }, { value: 'shared', label: 'Compartido' }];
 const tagColorOptions = [{ value: '#215f8f', label: 'Azul' }, { value: '#1f7a46', label: 'Verde' }, { value: '#d97a1f', label: 'Naranja' }, { value: '#5f2a8f', label: 'Morado' }, { value: '#bd1f2d', label: 'Rojo' }];
 const defaultTagColor = tagColorOptions[0].value;
-const validHistoryStatuses: QuestionnaireHistoryStatusFilter[] = ['draft', 'in_progress', 'submitted', 'processed', 'failed', 'archived'];
 
 function toRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -97,15 +100,24 @@ function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | unde
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
     return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
 }
-function toHistoryStatusFilter(value: string): QuestionnaireHistoryStatusFilter | undefined {
-    return validHistoryStatuses.includes(value as QuestionnaireHistoryStatusFilter)
-        ? (value as QuestionnaireHistoryStatusFilter)
-        : undefined;
-}
 function toMaybeBoolean(value: string) {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return undefined;
+}
+function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2): QuestionnaireHistoryFiltersV2 {
+    return {
+        status: filters.status,
+        q: toOptionalFilterText(filters.q ?? ''),
+        case_label: toOptionalFilterText(filters.case_label ?? ''),
+        case_public_id: toOptionalFilterText(filters.case_public_id ?? ''),
+        tag: toOptionalFilterText(filters.tag ?? ''),
+        domain: toOptionalFilterText(filters.domain ?? ''),
+        alert_level: toOptionalFilterText(filters.alert_level ?? ''),
+        date_from: toOptionalFilterText(filters.date_from ?? ''),
+        date_to: toOptionalFilterText(filters.date_to ?? ''),
+        needs_professional_review: filters.needs_professional_review
+    };
 }
 function canLoadClinicalArtifacts(status: string | null | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
@@ -135,7 +147,7 @@ function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<
     return <div className="historial-dashboard-kv-grid">{rows.map((row) => <div key={row.key}><strong>{row.label}</strong><span>{row.value}</span></div>)}</div>;
 }
 function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
-    return caseItem.display_label ?? caseItem.private_label ?? caseItem.case_public_id ?? caseItem.case_id;
+    return resolveCaseCompositeLabel(caseItem);
 }
 function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
     if (!summary) return 0;
@@ -281,7 +293,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         loadCase().catch(() => undefined);
     }, [selectedCaseId]);
 
-    const applyFilters = () => history.patchFilters({ ...draftFilters, page: 1, page_size: history.pageSize });
+    const applyFilters = () => history.patchFilters({ ...normalizeDraftFilters(draftFilters), page: 1, page_size: history.pageSize });
     const clearFilters = () => {
         const cleaned = defaultFilters();
         setDraftFilters(cleaned);
@@ -492,7 +504,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     <div><strong>Sesiones:</strong> {caseItem.sessions_count ?? 0}</div>
                                     <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
                                     <div className="historial-dashboard-card-inline"><strong>Ultima alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
-                                    <div><strong>Dominio:</strong> {getDomainLabel(caseItem.latest_domain)}</div>
+                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
                                     <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>Ver detalle</button>
                                 </article>
                             ))}
@@ -515,7 +527,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                 <article className="historial-dashboard-session-card" key={item.id}>
                                                     <div className="historial-dashboard-card-inline"><strong>{item.case_display_label ?? item.case_public_id ?? item.id}</strong><AlertBadge level={item.latest_alert_level} /></div>
                                                     <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
-                                                    <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
+                                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
                                                     <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
                                                     <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
                                                 </article>
@@ -550,7 +562,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
                                 <div><strong>Modo:</strong> {getModeLabel(item.mode)}</div>
                                 <div><strong>Rol:</strong> {getRoleLabel(item.role)}</div>
-                                <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
+                                <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
                                 <div><strong>Creado:</strong> {formatDateTimeEsCO(item.created_at)}</div>
                                 <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver detalle</button>
                             </article>
