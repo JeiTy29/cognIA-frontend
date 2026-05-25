@@ -3,6 +3,7 @@
     display: grid;
     gap: 18px;
     color: #215f8f;
+    min-width: 0;
 }
 
 .evaluaciones-header {
@@ -142,8 +143,23 @@
 
 .evaluaciones-dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 16px;
+    min-width: 0;
+}
+
+.evaluaciones-dashboard-wide {
+    grid-column: 1 / -1;
+}
+
+.evaluaciones-dashboard-large {
+    min-width: 0;
+}
+
+.evaluaciones-dashboard-large .dashboard-chart-svg-wrap,
+.evaluaciones-dashboard-large .dashboard-chart-treemap,
+.evaluaciones-dashboard-large .dashboard-chart-heatmap-table {
+    min-height: 360px;
 }
 
 .evaluaciones-aggregates section {
@@ -176,6 +192,7 @@
     padding: 18px;
     display: grid;
     gap: 14px;
+    min-width: 0;
 }
 
 .evaluaciones-card-top,
@@ -184,6 +201,7 @@
     display: flex;
     justify-content: space-between;
     gap: 12px;
+    min-width: 0;
 }
 
 .evaluaciones-card-top p {
@@ -225,6 +243,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    min-width: 0;
 }
 
 .evaluaciones-domain-pill {
@@ -235,6 +254,7 @@
     display: grid;
     gap: 4px;
     min-width: 120px;
+    max-width: 100%;
 }
 
 .evaluaciones-domain-pill small {

@@ -101,8 +101,22 @@
 
 .solicitudes-revision__dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 16px;
+    min-width: 0;
+}
+
+.solicitudes-revision__dashboard-wide {
+    grid-column: 1 / -1;
+}
+
+.solicitudes-revision__dashboard-large {
+    min-width: 0;
+}
+
+.solicitudes-revision__dashboard-large .dashboard-chart-svg-wrap,
+.solicitudes-revision__dashboard-large .dashboard-chart-heatmap-table {
+    min-height: 360px;
 }
 
 .solicitudes-revision__summary article,

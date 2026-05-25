@@ -7,8 +7,7 @@ import {
     DonutChart,
     HeatmapChart,
     HistogramChart,
-    TreemapChart,
-    VerticalBarChart
+    TreemapChart
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -109,6 +108,70 @@ function buildPsychologistReportPeriodLabel(period: ReportPeriodValue, dateFrom:
         return `Del ${fromLabel} al ${toLabel}`;
     }
     return `Últimos ${period} meses`;
+}
+
+type DashboardDomainCandidate = {
+    domain?: unknown;
+    probability?: unknown;
+    alert_level?: unknown;
+};
+
+type EvaluationDashboardInsight = {
+    item: PsychologistDashboardItemDTO;
+    dominantDomainLabel: string | null;
+    dominantAlertLabel: string;
+    reviewStatusLabel: string;
+    caseLabel: string;
+    agingDate: string | null;
+};
+
+function sortDomainsByProbability(domains: DashboardDomainCandidate[] | null | undefined) {
+    if (!Array.isArray(domains)) return [];
+    return [...domains].sort((left, right) => Number(right.probability ?? -1) - Number(left.probability ?? -1));
+}
+
+function inferAlertLevelFromProbability(probability: unknown) {
+    const numeric = Number(probability);
+    if (!Number.isFinite(numeric)) return 'Sin alerta disponible';
+    const ratio = numeric > 1 ? numeric / 100 : numeric;
+    if (ratio >= 0.75) return 'Alto';
+    if (ratio >= 0.55) return 'Elevado';
+    if (ratio >= 0.35) return 'Moderado';
+    if (ratio >= 0) return 'Bajo';
+    return 'Sin alerta disponible';
+}
+
+function resolveDominantDomainInfo(domains: DashboardDomainCandidate[] | null | undefined) {
+    const topDomain = sortDomainsByProbability(domains)[0];
+    if (!topDomain) return null;
+
+    const normalizedAlert = normalizeAlertLevel(topDomain.alert_level);
+    return {
+        domainLabel: normalizeDashboardDomain(topDomain.domain),
+        probability: Number(topDomain.probability),
+        alertLabel: normalizedAlert !== '--' ? normalizedAlert : inferAlertLevelFromProbability(topDomain.probability)
+    };
+}
+
+function resolveEvaluationAlertLabel(item: PsychologistDashboardItemDTO) {
+    const record = item as Record<string, unknown>;
+    const directAlert = normalizeAlertLevel(
+        record.highest_alert_level ??
+        record.latest_alert_level ??
+        record.alert_level
+    );
+
+    if (directAlert !== '--') return directAlert;
+    return resolveDominantDomainInfo(item.domains)?.alertLabel ?? 'Sin alerta disponible';
+}
+
+function resolveEvaluationAgingDate(item: PsychologistDashboardItemDTO) {
+    const record = item as Record<string, unknown>;
+    const acceptedAt = typeof record.accepted_at === 'string' ? record.accepted_at : null;
+    const requestedAt = typeof record.requested_at === 'string' ? record.requested_at : null;
+    const updatedAt = typeof record.updated_at === 'string' ? record.updated_at : null;
+
+    return acceptedAt ?? item.processed_at ?? requestedAt ?? updatedAt ?? null;
 }
 
 export default function EvaluacionesCompartidas() {
@@ -493,72 +556,92 @@ export default function EvaluacionesCompartidas() {
         const total = Number(dashboard?.pagination?.total ?? items.length);
         return total > items.length ? 'Resumen calculado sobre las evaluaciones cargadas.' : undefined;
     }, [dashboard?.pagination?.total, items.length]);
+    const evaluationInsights = useMemo<EvaluationDashboardInsight[]>(
+        () =>
+            items.map((item) => {
+                const dominantDomain = resolveDominantDomainInfo(item.domains);
+                return {
+                    item,
+                    dominantDomainLabel: dominantDomain?.domainLabel ?? null,
+                    dominantAlertLabel: resolveEvaluationAlertLabel(item),
+                    reviewStatusLabel: normalizeReviewStatus(item.review_status),
+                    caseLabel: normalizeBackendText(item.case_public_id, 'Sin caso'),
+                    agingDate: resolveEvaluationAgingDate(item)
+                };
+            }),
+        [items]
+    );
     const alertChartItems = useMemo(
         () =>
-            (dashboard?.aggregates?.by_alert_level ?? [])
-                .map((item) => ({
-                    label: normalizeAlertLevel(item.alert_level),
-                    value: Number(item.count ?? 0)
-                }))
-                .filter((item) => item.value > 0),
-        [dashboard?.aggregates?.by_alert_level]
+            mapCountsToItems(
+                evaluationInsights.reduce((accumulator, insight) => {
+                    accumulator.set(insight.dominantAlertLabel, (accumulator.get(insight.dominantAlertLabel) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [evaluationInsights]
     );
     const domainChartItems = useMemo(
         () =>
-            (dashboard?.aggregates?.by_domain ?? [])
-                .map((item) => ({
-                    label: normalizeDashboardDomain(item.domain),
-                    value: Number(item.count ?? 0),
-                    meta: typeof item.max_probability === 'number' ? `Máx: ${formatPercent(item.max_probability)}` : undefined
-                }))
-                .filter((item) => item.value > 0),
-        [dashboard?.aggregates?.by_domain]
+            mapCountsToItems(
+                evaluationInsights.reduce((accumulator, insight) => {
+                    if (!insight.dominantDomainLabel) return accumulator;
+                    accumulator.set(insight.dominantDomainLabel, (accumulator.get(insight.dominantDomainLabel) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [evaluationInsights]
     );
     const reviewChartItems = useMemo(
         () =>
-            (dashboard?.aggregates?.by_review_status ?? [])
-                .map((item) => ({
-                    label: normalizeReviewStatus(item.review_status),
-                    value: Number(item.count ?? 0)
-                }))
-                .filter((item) => item.value > 0),
-        [dashboard?.aggregates?.by_review_status]
+            mapCountsToItems(
+                evaluationInsights.reduce((accumulator, insight) => {
+                    accumulator.set(insight.reviewStatusLabel, (accumulator.get(insight.reviewStatusLabel) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [evaluationInsights]
     );
     const heatmapRows = useMemo(
-        () => Array.from(new Set(items.flatMap((item) => (item.domains ?? []).map((domainItem) => normalizeDashboardDomain(domainItem.domain))))),
-        [items]
+        () => Array.from(new Set(evaluationInsights.map((item) => item.dominantDomainLabel).filter(Boolean))) as string[],
+        [evaluationInsights]
     );
-    const heatmapColumns = useMemo(() => ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisi?n prioritaria'], []);
+    const heatmapColumns = useMemo(() => {
+        const columns = ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisión prioritaria'];
+        return evaluationInsights.some((item) => item.dominantAlertLabel === 'Sin alerta disponible')
+            ? [...columns, 'Sin alerta disponible']
+            : columns;
+    }, [evaluationInsights]);
     const heatmapCells = useMemo(
         () =>
             buildHeatmapCells(
-                items.flatMap((item) => (item.domains ?? []).map((domainItem) => ({ ...domainItem, session_id: item.session_id }))),
+                evaluationInsights.filter((item) => item.dominantDomainLabel),
                 heatmapRows,
                 heatmapColumns,
-                (domainItem) => normalizeDashboardDomain(domainItem.domain),
-                (domainItem) => normalizeAlertLevel(domainItem.alert_level)
+                (item) => item.dominantDomainLabel ?? 'Sin dominio predominante',
+                (item) => item.dominantAlertLabel
             ),
-        [heatmapColumns, heatmapRows, items]
+        [evaluationInsights, heatmapColumns, heatmapRows]
     );
     const pendingAgingItems = useMemo(
         () =>
             buildAgingBuckets(
-                items
-                    .filter((item) => ['pending', 'in_review'].includes(String(item.review_status ?? '').toLowerCase()))
-                    .map((item) => item.processed_at)
+                evaluationInsights
+                    .filter((item) => ['Pendiente', 'En revisión'].includes(item.reviewStatusLabel))
+                    .map((item) => item.agingDate)
             ),
-        [items]
+        [evaluationInsights]
     );
     const caseTreemapItems = useMemo(
         () =>
             mapCountsToItems(
-                items.reduce((accumulator, item) => {
-                    const label = normalizeBackendText(item.case_public_id, 'Sin caso');
+                evaluationInsights.reduce((accumulator, item) => {
+                    const label = item.caseLabel;
                     accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [items]
+        [evaluationInsights]
     );
 
     return (
@@ -614,38 +697,39 @@ export default function EvaluacionesCompartidas() {
                 {!loading ? (
                     <div className="evaluaciones-dashboard-grid">
                         <DashboardSection
-                            title="Distribuci?n por nivel de alerta"
-                            description="Permite priorizar las evaluaciones aceptadas seg?n su nivel de alerta."
+                            title="Distribución por nivel de alerta"
+                            description="Permite priorizar las evaluaciones aceptadas según su nivel de alerta."
                         >
                             <DonutChart
                                 data={alertChartItems}
-                                ariaLabel="Distribuci?n de evaluaciones aceptadas por nivel de alerta"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                ariaLabel="Distribución de evaluaciones aceptadas por nivel de alerta"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Evaluaciones por dominio"
-                            description="Muestra qu? dominios aparecen con mayor frecuencia en las evaluaciones aceptadas."
+                            title="Dominio predominante por evaluación"
+                            description="Identifica el dominio con mayor probabilidad en cada evaluación aceptada."
                         >
-                            <VerticalBarChart
+                            <DonutChart
                                 data={domainChartItems}
-                                ariaLabel="Frecuencia de dominios en evaluaciones aceptadas"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                ariaLabel="Distribución del dominio predominante por evaluación aceptada"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Estado de revisi?n profesional"
-                            description="Resume el avance del proceso de revisi?n profesional."
+                            title="Estado de revisión profesional"
+                            description="Resume el avance del proceso de revisión profesional."
                         >
                             <DonutChart
                                 data={reviewChartItems}
-                                ariaLabel="Distribuci?n por estado de revisi?n profesional"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                ariaLabel="Distribución por estado de revisión profesional"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Matriz de prioridad cl?nica-operativa"
-                            description="Cruza dominios y niveles de alerta para identificar combinaciones que requieren mayor atenci?n."
+                            className="evaluaciones-dashboard-wide evaluaciones-dashboard-large"
+                            title="Matriz dominio vs nivel de alerta"
+                            description="Cruza el dominio predominante de cada evaluación con su mayor nivel de alerta para identificar combinaciones que requieren mayor atención."
                             note={partialChartsNote}
                         >
                             <HeatmapChart
@@ -653,29 +737,31 @@ export default function EvaluacionesCompartidas() {
                                 columns={heatmapColumns}
                                 cells={heatmapCells}
                                 ariaLabel="Cruce entre dominios y niveles de alerta"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Antig?edad de evaluaciones pendientes de revisi?n"
-                            description="Identifica evaluaciones aceptadas que llevan m?s tiempo sin cierre de revisi?n."
+                            className="evaluaciones-dashboard-large"
+                            title="Antigüedad de evaluaciones pendientes de revisión"
+                            description="Identifica evaluaciones aceptadas que llevan más tiempo sin cierre de revisión."
                             note={partialChartsNote}
                         >
                             <HistogramChart
                                 data={pendingAgingItems}
-                                ariaLabel="Antig?edad de evaluaciones pendientes o en revisi?n"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                ariaLabel="Antigüedad de evaluaciones pendientes o en revisión"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                         <DashboardSection
+                            className="evaluaciones-dashboard-large"
                             title="Mapa de carga por caso"
-                            description="Muestra qu? casos concentran mayor cantidad de evaluaciones aceptadas."
+                            description="Muestra qué casos concentran mayor cantidad de evaluaciones aceptadas."
                             note={partialChartsNote}
                         >
                             <TreemapChart
                                 data={caseTreemapItems}
-                                ariaLabel="Distribuci?n de evaluaciones aceptadas por caso"
-                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                                ariaLabel="Distribución de evaluaciones aceptadas por caso"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
                     </div>

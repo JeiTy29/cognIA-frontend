@@ -7,8 +7,7 @@ import {
     DashboardSection,
     DonutChart,
     HeatmapChart,
-    HistogramChart,
-    HorizontalBarChart
+    HistogramChart
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import {
@@ -22,7 +21,6 @@ import {
     buildHeatmapCells,
     buildMonthlyCountItems,
     buildRequestStateItems,
-    getDominantDomain,
     mapCountsToItems
 } from '../../../utils/dashboard/dashboardData';
 import {
@@ -68,6 +66,75 @@ function resolveRequestMessage(request: PsychologistShareRequestDTO) {
     );
     if (responseMessage) return responseMessage;
     return 'No se registró un mensaje adicional.';
+}
+
+type RequestDomainCandidate = {
+    domain?: unknown;
+    probability?: unknown;
+    alert_level?: unknown;
+};
+
+type RequestDashboardInsight = {
+    request: PsychologistShareRequestDTO;
+    alertLabel: string;
+    dominantDomainLabel: string;
+    requestedAt: string | null;
+};
+
+function sortRequestDomainsByProbability(domains: RequestDomainCandidate[] | null | undefined) {
+    if (!Array.isArray(domains)) return [];
+    return [...domains].sort((left, right) => Number(right.probability ?? -1) - Number(left.probability ?? -1));
+}
+
+function inferAlertLevelFromProbability(probability: unknown) {
+    const numeric = Number(probability);
+    if (!Number.isFinite(numeric)) return 'Sin alerta disponible';
+    const ratio = numeric > 1 ? numeric / 100 : numeric;
+    if (ratio >= 0.75) return 'Alto';
+    if (ratio >= 0.55) return 'Elevado';
+    if (ratio >= 0.35) return 'Moderado';
+    if (ratio >= 0) return 'Bajo';
+    return 'Sin alerta disponible';
+}
+
+function resolveRequestDomains(request: PsychologistShareRequestDTO) {
+    const summaryDomains = request.summary?.domains;
+    if (Array.isArray(summaryDomains) && summaryDomains.length > 0) {
+        return summaryDomains as RequestDomainCandidate[];
+    }
+
+    const record = request as Record<string, unknown>;
+    return Array.isArray(record.domains) ? (record.domains as RequestDomainCandidate[]) : [];
+}
+
+function resolveRequestDominantDomainInfo(request: PsychologistShareRequestDTO) {
+    const topDomain = sortRequestDomainsByProbability(resolveRequestDomains(request))[0];
+    if (!topDomain) {
+        return {
+            domainLabel: 'Sin dominio principal',
+            alertLabel: 'Sin alerta disponible'
+        };
+    }
+
+    const normalizedAlert = normalizeAlertLevel(topDomain.alert_level);
+    return {
+        domainLabel: normalizeDomainLabel(topDomain.domain),
+        alertLabel: normalizedAlert !== '--' ? normalizedAlert : inferAlertLevelFromProbability(topDomain.probability)
+    };
+}
+
+function resolveRequestAlertLabel(request: PsychologistShareRequestDTO) {
+    const record = request as Record<string, unknown>;
+    const summaryRecord = (request.summary as Record<string, unknown> | null | undefined) ?? null;
+    const directAlert = normalizeAlertLevel(
+        summaryRecord?.highest_alert_level ??
+        record.highest_alert_level ??
+        record.latest_alert_level ??
+        record.alert_level
+    );
+
+    if (directAlert !== '--') return directAlert;
+    return resolveRequestDominantDomainInfo(request).alertLabel;
 }
 
 export default function SolicitudesRevisionPsicologo() {
@@ -219,54 +286,70 @@ export default function SolicitudesRevisionPsicologo() {
                 : undefined,
         [dashboardRequests.length, dashboardSampleTotal]
     );
+    const dashboardInsights = useMemo<RequestDashboardInsight[]>(
+        () =>
+            dashboardRequests.map((request) => {
+                const dominantDomain = resolveRequestDominantDomainInfo(request);
+                return {
+                    request,
+                    alertLabel: resolveRequestAlertLabel(request),
+                    dominantDomainLabel: dominantDomain.domainLabel,
+                    requestedAt: request.requested_at ?? null
+                };
+            }),
+        [dashboardRequests]
+    );
     const requestStateChartItems = useMemo(() => buildRequestStateItems(dashboardSummary), [dashboardSummary]);
     const requestsByAlertChartItems = useMemo(
         () =>
             mapCountsToItems(
-                dashboardRequests.reduce((accumulator, request) => {
-                    const label = normalizeAlertLevel(request.summary?.highest_alert_level);
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                dashboardInsights.reduce((accumulator, request) => {
+                    accumulator.set(request.alertLabel, (accumulator.get(request.alertLabel) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [dashboardRequests]
+        [dashboardInsights]
     );
     const requestsByDomainChartItems = useMemo(
         () =>
             mapCountsToItems(
-                dashboardRequests.reduce((accumulator, request) => {
-                    const label = getDominantDomain(request.summary?.domains) ?? 'Sin dominio principal';
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                dashboardInsights.reduce((accumulator, request) => {
+                    accumulator.set(request.dominantDomainLabel, (accumulator.get(request.dominantDomainLabel) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [dashboardRequests]
+        [dashboardInsights]
     );
     const requestTimelineItems = useMemo(
-        () => buildMonthlyCountItems(dashboardRequests.map((request) => request.requested_at ?? null)),
-        [dashboardRequests]
+        () => buildMonthlyCountItems(dashboardInsights.map((request) => request.requestedAt)),
+        [dashboardInsights]
     );
     const pendingRequestAging = useMemo(
         () =>
             buildAgingBuckets(
-                dashboardRequests
-                    .filter((request) => String(request.request_status ?? '').toLowerCase() === 'pending')
-                    .map((request) => request.requested_at)
+                dashboardInsights
+                    .filter((request) => String(request.request.request_status ?? '').toLowerCase() === 'pending')
+                    .map((request) => request.requestedAt)
             ),
-        [dashboardRequests]
+        [dashboardInsights]
     );
     const heatmapRows = useMemo(() => ['Pendiente', 'Aceptada', 'Rechazada'], []);
-    const heatmapColumns = useMemo(() => ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisi?n prioritaria'], []);
+    const heatmapColumns = useMemo(() => {
+        const columns = ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisión prioritaria'];
+        return dashboardInsights.some((request) => request.alertLabel === 'Sin alerta disponible')
+            ? [...columns, 'Sin alerta disponible']
+            : columns;
+    }, [dashboardInsights]);
     const requestHeatmapCells = useMemo(
         () =>
             buildHeatmapCells(
-                dashboardRequests,
+                dashboardInsights,
                 heatmapRows,
                 heatmapColumns,
-                (request) => normalizeRequestStatus(request.request_status),
-                (request) => normalizeAlertLevel(request.summary?.highest_alert_level)
+                (request) => normalizeRequestStatus(request.request.request_status),
+                (request) => request.alertLabel
             ),
-        [dashboardRequests, heatmapColumns, heatmapRows]
+        [dashboardInsights, heatmapColumns, heatmapRows]
     );
 
     return (
@@ -333,7 +416,7 @@ export default function SolicitudesRevisionPsicologo() {
                             description="Permite identificar solicitudes que pueden requerir atención prioritaria."
                             note={requestsPartialNote}
                         >
-                            <HorizontalBarChart
+                            <DonutChart
                                 data={requestsByAlertChartItems}
                                 ariaLabel="Solicitudes por nivel de alerta"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
@@ -351,6 +434,7 @@ export default function SolicitudesRevisionPsicologo() {
                             />
                         </DashboardSection>
                         <DashboardSection
+                            className="solicitudes-revision__dashboard-wide solicitudes-revision__dashboard-large"
                             title="Solicitudes recibidas en el tiempo"
                             description="Permite observar la carga de solicitudes recibidas en el tiempo."
                             note={requestsPartialNote}
@@ -362,6 +446,7 @@ export default function SolicitudesRevisionPsicologo() {
                             />
                         </DashboardSection>
                         <DashboardSection
+                            className="solicitudes-revision__dashboard-large"
                             title="Antigüedad de solicitudes pendientes"
                             description="Identifica solicitudes pendientes que llevan más tiempo sin respuesta."
                             note={requestsPartialNote}
@@ -373,6 +458,7 @@ export default function SolicitudesRevisionPsicologo() {
                             />
                         </DashboardSection>
                         <DashboardSection
+                            className="solicitudes-revision__dashboard-wide solicitudes-revision__dashboard-large"
                             title="Matriz de prioridad de solicitudes"
                             description="Cruza estado y alerta para ubicar solicitudes pendientes de mayor prioridad."
                             note={requestsPartialNote}
@@ -439,7 +525,7 @@ export default function SolicitudesRevisionPsicologo() {
                                             )}
                                         </p>
                                         <p>
-                                            <strong>Mayor alerta:</strong> {normalizeAlertLevel(request.summary.highest_alert_level)}
+                                            <strong>Mayor alerta:</strong> {resolveRequestAlertLabel(request)}
                                             {' · '}
                                             <strong>Requiere revisión:</strong> {normalizeBooleanLabel(request.summary.needs_professional_review)}
                                         </p>

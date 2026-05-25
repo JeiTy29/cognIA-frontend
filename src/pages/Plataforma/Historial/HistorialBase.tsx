@@ -491,6 +491,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     items={alertTimelineItems}
                                     ariaLabel="Línea de alertas históricas"
                                     emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                    newestFirst={role === 'psicologo'}
                                 />
                             ) : (
                                 <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />

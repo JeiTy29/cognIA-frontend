@@ -364,6 +364,7 @@
 
 .dashboard-chart-heatmap-table {
     gap: 8px;
+    overflow-x: auto;
 }
 
 .dashboard-chart-heatmap-head,
@@ -466,6 +467,7 @@
 
 .dashboard-chart-matrix {
     gap: 8px;
+    overflow-x: auto;
 }
 
 .dashboard-chart-matrix-head,

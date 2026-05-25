@@ -131,9 +131,11 @@ type TimelineChartProps = Readonly<{
         title: string;
         description?: string;
         tone?: Tone;
+        timestamp?: number;
     }>;
     ariaLabel: string;
     emptyMessage?: string;
+    newestFirst?: boolean;
 }>;
 
 type TreemapChartProps = Readonly<{
@@ -739,12 +741,26 @@ export function HistogramChart({ data, ariaLabel, emptyMessage, formatter = form
     );
 }
 
-export function TimelineChart({ items, ariaLabel, emptyMessage }: TimelineChartProps) {
-    if (items.length === 0) return renderEmpty(emptyMessage);
+export function TimelineChart({ items, ariaLabel, emptyMessage, newestFirst = false }: TimelineChartProps) {
+    const orderedItems = useMemo(() => {
+        const getTimestamp = (item: TimelineChartProps['items'][number]) => {
+            if (typeof item.timestamp === 'number' && Number.isFinite(item.timestamp)) return item.timestamp;
+            const parsed = Date.parse(item.date);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        return [...items].sort((left, right) =>
+            newestFirst
+                ? getTimestamp(right) - getTimestamp(left)
+                : getTimestamp(left) - getTimestamp(right)
+        );
+    }, [items, newestFirst]);
+
+    if (orderedItems.length === 0) return renderEmpty(emptyMessage);
 
     return (
         <div className="dashboard-chart-timeline" role="img" aria-label={ariaLabel}>
-            {items.map((item, index) => (
+            {orderedItems.map((item, index) => (
                 <div key={`${item.date}-${item.title}-${index}`} className="dashboard-chart-timeline-item">
                     <span className="dashboard-chart-timeline-dot" data-tone={item.tone ?? 'neutral'} />
                     <div>
