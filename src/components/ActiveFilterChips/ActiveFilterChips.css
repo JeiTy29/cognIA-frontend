@@ -1,0 +1,19 @@
+.active-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.active-filter-chip {
+    border: 1px solid rgba(24, 88, 136, 0.24);
+    border-radius: 999px;
+    background: #f4f9ff;
+    color: #215f8f;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.active-filter-chip strong {
+    font-weight: 700;
+}

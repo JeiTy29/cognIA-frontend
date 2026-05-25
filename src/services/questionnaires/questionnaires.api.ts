@@ -19,9 +19,17 @@ import type {
     CreateQuestionnaireSessionV2Payload,
     DownloadPdfResult,
     PatchSessionAnswersV2Payload,
+    QuestionnaireCaseDetailV2Response,
+    QuestionnaireCaseV2DTO,
+    QuestionnaireCasesFiltersV2,
+    QuestionnaireCasesListV2Response,
+    QuestionnaireDashboardChartPointDTO,
+    QuestionnaireGuardianDashboardFiltersV2,
+    QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryListV2Response,
-    QuestionnaireHistoryStatusFilter,
+    QuestionnaireNotificationsV2Response,
     QuestionnaireClinicalComorbidityV2DTO,
     QuestionnaireClinicalDomainV2DTO,
     QuestionnaireClinicalNarrativeV2DTO,
@@ -33,6 +41,10 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireSessionPageV2Response,
     QuestionnaireSessionV2DTO,
+    QuestionnairePsychologistDashboardFiltersV2,
+    QuestionnairePsychologistDashboardV2Response,
+    QuestionnairePsychologistShareRequestV2DTO,
+    QuestionnairePsychologistShareRequestsV2Response,
     QuestionnaireSharedComorbidityDTO,
     QuestionnaireSharedDomainDTO,
     QuestionnaireShareResponseDTO,
@@ -101,6 +113,17 @@ function toNumberOrNull(value: unknown) {
 function toBooleanOrNull(value: unknown) {
     if (typeof value === 'boolean') return value;
     return null;
+}
+
+function toBoolean(value: unknown, fallback = false) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value > 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['true', '1', 'yes', 'si'].includes(normalized)) return true;
+        if (['false', '0', 'no'].includes(normalized)) return false;
+    }
+    return fallback;
 }
 
 function normalizeTagVisibility(value: unknown): QuestionnaireTagDTO['visibility'] {
@@ -462,6 +485,264 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
     };
 }
 
+function normalizeChartPoint(value: unknown): QuestionnaireDashboardChartPointDTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+    return {
+        ...record,
+        key: firstNonEmptyString([record.key, record.id, record.case_id, record.case_public_id]),
+        label: firstNonEmptyString([record.label, record.name, record.domain, record.alert_level, record.month, record.date]),
+        name: firstNonEmptyString([record.name, record.label]),
+        date: firstNonEmptyString([record.date]),
+        month: firstNonEmptyString([record.month]),
+        domain: firstNonEmptyString([record.domain]),
+        alert_level: firstNonEmptyString([record.alert_level]),
+        value: toNumberOrNull(record.value ?? record.count ?? record.total ?? record.sessions),
+        count: toNumberOrNull(record.count ?? record.value ?? record.total),
+        sessions: toNumberOrNull(record.sessions),
+        total: toNumberOrNull(record.total ?? record.count ?? record.value)
+    } as QuestionnaireDashboardChartPointDTO;
+}
+
+function normalizeChartPoints(value: unknown) {
+    return asArray(value)
+        .map(normalizeChartPoint)
+        .filter((item): item is QuestionnaireDashboardChartPointDTO => Boolean(item));
+}
+
+function normalizeCase(value: unknown): QuestionnaireCaseV2DTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+    const caseId = firstNonEmptyString([record.case_id, record.id, record.case_public_id]);
+    if (!caseId) return null;
+
+    const tags = asArray(record.tags)
+        .map((item) => {
+            if (typeof item === 'string') return item.trim();
+            const tag = normalizeTag(item);
+            return tag ?? null;
+        })
+        .filter((item): item is QuestionnaireTagDTO | string => Boolean(item));
+
+    return {
+        ...record,
+        case_id: caseId,
+        case_public_id: firstNonEmptyString([record.case_public_id]),
+        private_label: firstNonEmptyString([record.private_label]),
+        display_label: firstNonEmptyString([record.display_label, record.case_label, record.private_label]),
+        status: firstNonEmptyString([record.status]),
+        sessions_count: toNumberOrNull(record.sessions_count),
+        processed_sessions_count: toNumberOrNull(record.processed_sessions_count),
+        draft_sessions_count: toNumberOrNull(record.draft_sessions_count),
+        in_progress_sessions_count: toNumberOrNull(record.in_progress_sessions_count),
+        latest_session_id: firstNonEmptyString([record.latest_session_id]),
+        latest_processed_at: firstNonEmptyString([record.latest_processed_at]),
+        latest_alert_level: firstNonEmptyString([record.latest_alert_level]),
+        latest_domain: firstNonEmptyString([record.latest_domain, record.dominant_domain]),
+        tags
+    };
+}
+
+function normalizeCasesResponse(payload: unknown, page: number, pageSize: number): QuestionnaireCasesListV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            items: [],
+            pagination: normalizePagination(null, page, pageSize),
+            warnings: []
+        };
+    }
+
+    const items = asArray(root.items ?? root.cases)
+        .map(normalizeCase)
+        .filter((item): item is QuestionnaireCaseV2DTO => Boolean(item));
+    return {
+        ...root,
+        items,
+        pagination: normalizePagination(root.pagination, page, pageSize),
+        warnings: asArray(root.warnings).map(String)
+    } as QuestionnaireCasesListV2Response;
+}
+
+function normalizeCaseDetailResponse(payload: unknown): QuestionnaireCaseDetailV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            case: null,
+            sessions: [],
+            domain_summary: [],
+            trend: [],
+            warnings: []
+        };
+    }
+
+    const sessions = asArray(root.sessions)
+        .map(normalizeHistoryItem)
+        .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
+
+    return {
+        ...root,
+        case: normalizeCase(root.case),
+        sessions,
+        domain_summary: normalizeChartPoints(root.domain_summary),
+        trend: normalizeChartPoints(root.trend),
+        warnings: asArray(root.warnings).map(String)
+    };
+}
+
+function normalizeGuardianDashboardResponse(payload: unknown): QuestionnaireGuardianDashboardV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            period: null,
+            filters: null,
+            summary: null,
+            charts: null,
+            cases: [],
+            warnings: []
+        };
+    }
+
+    const charts = asRecord(root.charts);
+    return {
+        ...root,
+        period: asRecord(root.period),
+        filters: asRecord(root.filters),
+        summary: asRecord(root.summary),
+        charts: charts
+            ? {
+                alerts_by_month: normalizeChartPoints(charts.alerts_by_month),
+                alerts_by_domain: normalizeChartPoints(charts.alerts_by_domain),
+                alerts_by_level: normalizeChartPoints(charts.alerts_by_level),
+                sessions_by_case: normalizeChartPoints(charts.sessions_by_case),
+                cases_by_alert_level: normalizeChartPoints(charts.cases_by_alert_level)
+            }
+            : null,
+        cases: asArray(root.cases).map(normalizeCase).filter((item): item is QuestionnaireCaseV2DTO => Boolean(item)),
+        warnings: asArray(root.warnings).map(String)
+    };
+}
+
+function normalizePsychologistDashboardResponse(payload: unknown): QuestionnairePsychologistDashboardV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            filters: null,
+            summary: null,
+            aggregates: null,
+            charts: null,
+            items: [],
+            pagination: normalizePagination(null),
+            warnings: []
+        };
+    }
+
+    const aggregates = asRecord(root.aggregates);
+    const charts = asRecord(root.charts);
+    const page = Number(root.page ?? asRecord(root.pagination)?.page ?? 1);
+    const pageSize = Number(root.page_size ?? asRecord(root.pagination)?.page_size ?? defaultPageSize);
+    const items = asArray(root.items)
+        .map(normalizeHistoryItem)
+        .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
+
+    return {
+        ...root,
+        filters: asRecord(root.filters),
+        summary: asRecord(root.summary),
+        aggregates: aggregates
+            ? {
+                by_domain: normalizeChartPoints(aggregates.by_domain),
+                by_alert_level: normalizeChartPoints(aggregates.by_alert_level),
+                by_review_status: normalizeChartPoints(aggregates.by_review_status),
+                by_date: normalizeChartPoints(aggregates.by_date),
+                by_case: normalizeChartPoints(aggregates.by_case)
+            }
+            : null,
+        charts: charts
+            ? {
+                alerts_by_domain: normalizeChartPoints(charts.alerts_by_domain),
+                alerts_by_level: normalizeChartPoints(charts.alerts_by_level),
+                reviews_by_status: normalizeChartPoints(charts.reviews_by_status),
+                alerts_by_date: normalizeChartPoints(charts.alerts_by_date),
+                cases_by_alert: normalizeChartPoints(charts.cases_by_alert)
+            }
+            : null,
+        items,
+        pagination: normalizePagination(root.pagination, page, pageSize),
+        warnings: asArray(root.warnings).map(String)
+    };
+}
+
+function normalizeShareRequest(value: unknown): QuestionnairePsychologistShareRequestV2DTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+    const grantId = firstNonEmptyString([record.grant_id, record.id]);
+    if (!grantId) return null;
+    return {
+        ...record,
+        grant_id: grantId,
+        status: firstNonEmptyString([record.status]),
+        case_id: firstNonEmptyString([record.case_id]),
+        case_public_id: firstNonEmptyString([record.case_public_id]),
+        case_display_label: firstNonEmptyString([record.case_display_label, record.display_label]),
+        case_private_label: firstNonEmptyString([record.case_private_label, record.private_label]),
+        latest_alert_level: firstNonEmptyString([record.latest_alert_level]),
+        dominant_domain: firstNonEmptyString([record.dominant_domain, record.latest_domain]),
+        needs_professional_review: toBooleanOrNull(record.needs_professional_review),
+        created_at: firstNonEmptyString([record.created_at]),
+        updated_at: firstNonEmptyString([record.updated_at]),
+        can_tag: toBoolean(record.can_tag, false),
+        can_download_pdf: toBoolean(record.can_download_pdf, false)
+    };
+}
+
+function normalizeShareRequestsResponse(payload: unknown, page: number, pageSize: number): QuestionnairePsychologistShareRequestsV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            items: [],
+            pagination: normalizePagination(null, page, pageSize),
+            warnings: []
+        };
+    }
+    const items = asArray(root.items)
+        .map(normalizeShareRequest)
+        .filter((item): item is QuestionnairePsychologistShareRequestV2DTO => Boolean(item));
+    return {
+        ...root,
+        items,
+        pagination: normalizePagination(root.pagination, page, pageSize),
+        warnings: asArray(root.warnings).map(String)
+    } as QuestionnairePsychologistShareRequestsV2Response;
+}
+
+function normalizeNotificationsResponse(payload: unknown): QuestionnaireNotificationsV2Response {
+    const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            items: [],
+            pagination: normalizePagination(null)
+        };
+    }
+    const items = asArray(root.items)
+        .map(asRecord)
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .map((item, index) => ({
+            ...item,
+            notification_id: firstNonEmptyString([item.notification_id, item.id]) ?? `notification-${index}`,
+            type: firstNonEmptyString([item.type]),
+            title: firstNonEmptyString([item.title]),
+            message: firstNonEmptyString([item.message, item.body]),
+            is_read: toBooleanOrNull(item.is_read),
+            created_at: firstNonEmptyString([item.created_at])
+        }));
+    return {
+        ...root,
+        items,
+        pagination: normalizePagination(root.pagination)
+    } as QuestionnaireNotificationsV2Response;
+}
+
 function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO | null {
     const record = pickRecord(value, ['session', 'history', 'item', 'data', 'result']);
     if (!record) return null;
@@ -478,12 +759,29 @@ function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO |
         }
     }
 
+    const tags = asArray(record.tags)
+        .map((item) => {
+            if (typeof item === 'string') return item.trim();
+            return normalizeTag(item);
+        })
+        .filter((item): item is QuestionnaireTagDTO | string => Boolean(item));
+
     return {
         ...record,
         id,
         session_id: resolveHistorySessionId(record, id),
         questionnaire_session_id: resolveHistoryQuestionnaireSessionId(record, id),
-        questionnaire_id: questionnaireId
+        questionnaire_id: questionnaireId,
+        case_id: firstNonEmptyString([record.case_id]),
+        case_public_id: firstNonEmptyString([record.case_public_id]),
+        case_display_label: firstNonEmptyString([record.case_display_label, record.display_label, record.case_label]),
+        case_private_label: firstNonEmptyString([record.case_private_label, record.private_label]),
+        tags,
+        latest_alert_level: firstNonEmptyString([record.latest_alert_level]),
+        dominant_domain: firstNonEmptyString([record.dominant_domain, record.latest_domain]),
+        needs_professional_review: toBooleanOrNull(record.needs_professional_review),
+        submitted_at: firstNonEmptyString([record.submitted_at]),
+        processed_at: firstNonEmptyString([record.processed_at])
     } as QuestionnaireHistoryDetailV2DTO;
 }
 
@@ -492,16 +790,29 @@ function normalizeHistoryResponse(payload: unknown, page: number, pageSize: numb
     if (!root) {
         return {
             items: [],
-            pagination: normalizePagination(null, page, pageSize)
+            pagination: normalizePagination(null, page, pageSize),
+            filters: null,
+            summary: null,
+            charts: null
         };
     }
 
     const items = asArray(root.items)
         .map(normalizeHistoryItem)
         .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
+    const chartsRoot = asRecord(root.charts);
     return {
+        ...root,
         items: items as QuestionnaireHistoryListV2Response['items'],
-        pagination: normalizePagination(root.pagination, page, pageSize)
+        pagination: normalizePagination(root.pagination, page, pageSize),
+        filters: asRecord(root.filters),
+        summary: asRecord(root.summary),
+        charts: chartsRoot
+            ? Object.entries(chartsRoot).reduce<Record<string, QuestionnaireDashboardChartPointDTO[]>>((acc, [key, value]) => {
+                acc[key] = normalizeChartPoints(value);
+                return acc;
+            }, {})
+            : null
     };
 }
 
@@ -994,27 +1305,39 @@ export function submitQuestionnaireSessionV2(sessionId: string) {
     return request.then(normalizeSubmitResponse);
 }
 
-export function getQuestionnaireHistoryV2(params?: {
-    status?: QuestionnaireHistoryStatusFilter;
-    page?: number;
-    page_size?: number;
-}) {
+export function getQuestionnaireHistoryV2(params?: QuestionnaireHistoryFiltersV2) {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? defaultPageSize;
     const query = buildSearch({
         status: params?.status,
+        case_id: params?.case_id,
+        case_public_id: params?.case_public_id,
+        case_label: params?.case_label,
+        tag: params?.tag,
+        q: params?.q,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        domain: params?.domain,
+        alert_level: params?.alert_level,
+        needs_professional_review: params?.needs_professional_review,
         page,
         page_size: pageSize
     });
     const request = sensitiveTransportEnabled
-        ? apiSecurePost<unknown, {
-            status?: QuestionnaireHistoryStatusFilter;
-            page: number;
-            page_size: number;
-        }>(
+        ? apiSecurePost<unknown, QuestionnaireHistoryFiltersV2>(
             '/api/v2/questionnaires/history/secure',
             {
                 status: params?.status,
+                case_id: params?.case_id,
+                case_public_id: params?.case_public_id,
+                case_label: params?.case_label,
+                tag: params?.tag,
+                q: params?.q,
+                date_from: params?.date_from,
+                date_to: params?.date_to,
+                domain: params?.domain,
+                alert_level: params?.alert_level,
+                needs_professional_review: params?.needs_professional_review,
                 page,
                 page_size: pageSize
             },
@@ -1023,6 +1346,96 @@ export function getQuestionnaireHistoryV2(params?: {
         : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions);
 
     return request.then((payload) => normalizeHistoryResponse(payload, page, pageSize));
+}
+
+export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
+    const page = params?.page ?? 1;
+    const pageSize = params?.page_size ?? defaultPageSize;
+    const query = buildSearch({
+        status: params?.status,
+        q: params?.q,
+        label: params?.label,
+        case_public_id: params?.case_public_id,
+        has_sessions: params?.has_sessions,
+        latest_alert_level: params?.latest_alert_level,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        page,
+        page_size: pageSize
+    });
+    return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions).then((payload) =>
+        normalizeCasesResponse(payload, page, pageSize)
+    );
+}
+
+export function getQuestionnaireCaseDetailV2(caseId: string) {
+    return apiGet<unknown>(`/api/v2/questionnaires/cases/${caseId}`, requestOptions).then(normalizeCaseDetailResponse);
+}
+
+export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFiltersV2) {
+    const query = buildSearch({
+        months: params?.months,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        case_id: params?.case_id,
+        case_public_id: params?.case_public_id,
+        case_label: params?.case_label,
+        q: params?.q,
+        domain: params?.domain,
+        alert_level: params?.alert_level
+    });
+    const path = query.length > 0
+        ? `/api/v2/questionnaires/guardian/dashboard?${query}`
+        : '/api/v2/questionnaires/guardian/dashboard';
+    return apiGet<unknown>(path, requestOptions).then(normalizeGuardianDashboardResponse);
+}
+
+export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDashboardFiltersV2) {
+    const page = params?.page ?? 1;
+    const pageSize = params?.page_size ?? defaultPageSize;
+    const query = buildSearch({
+        q: params?.q,
+        case_public_id: params?.case_public_id,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        domain: params?.domain,
+        alert_level: params?.alert_level,
+        review_status: params?.review_status,
+        page,
+        page_size: pageSize
+    });
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions).then(
+        normalizePsychologistDashboardResponse
+    );
+}
+
+export function getPsychologistShareRequestsV2(params?: { page?: number; page_size?: number; status?: string }) {
+    const page = params?.page ?? 1;
+    const pageSize = params?.page_size ?? defaultPageSize;
+    const query = buildSearch({
+        page,
+        page_size: pageSize,
+        status: params?.status
+    });
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions).then(
+        (payload) => normalizeShareRequestsResponse(payload, page, pageSize)
+    );
+}
+
+export function acceptPsychologistShareRequestV2(grantId: string) {
+    return apiPostNoBody<unknown>(`/api/v2/questionnaires/psychologist/share-requests/${grantId}/accept`, requestOptions);
+}
+
+export function rejectPsychologistShareRequestV2(grantId: string) {
+    return apiPostNoBody<unknown>(`/api/v2/questionnaires/psychologist/share-requests/${grantId}/reject`, requestOptions);
+}
+
+export function getQuestionnaireNotificationsV2() {
+    return apiGet<unknown>('/api/v2/notifications', requestOptions).then(normalizeNotificationsResponse);
+}
+
+export function markQuestionnaireNotificationAsReadV2(notificationId: string) {
+    return apiPatch<unknown, Record<string, never>>(`/api/v2/notifications/${notificationId}/read`, {}, requestOptions);
 }
 
 export function getQuestionnaireHistoryDetailV2(sessionId: string) {

@@ -1,0 +1,139 @@
+.dashboard-chart-card {
+    border: 1px solid rgba(24, 88, 136, 0.14);
+    border-radius: 14px;
+    padding: 16px;
+    background: #ffffff;
+    display: grid;
+    gap: 12px;
+    min-height: 220px;
+}
+
+.dashboard-chart-card h3 {
+    margin: 0;
+    font-size: 15px;
+    color: #194a72;
+}
+
+.dashboard-chart-card p {
+    margin: 4px 0 0;
+    color: #4e6478;
+    font-size: 12px;
+}
+
+.dashboard-chart-skeleton {
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-chart-skeleton span {
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #e9eff5 0%, #dfe8f2 50%, #e9eff5 100%);
+    background-size: 180% 100%;
+    animation: dashboard-shimmer 1.3s linear infinite;
+}
+
+.dashboard-chart-empty {
+    margin: 0;
+    border: 1px dashed rgba(24, 88, 136, 0.24);
+    background: #f8fbff;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 13px;
+    color: #4e6478;
+}
+
+.dashboard-chart-bars {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-chart-bar-row {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) 2fr auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.dashboard-chart-bar-label {
+    font-size: 12px;
+    color: #274a68;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-chart-bar-track {
+    height: 10px;
+    border-radius: 999px;
+    background: #edf3f8;
+    overflow: hidden;
+}
+
+.dashboard-chart-bar-track i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    transition: width 220ms ease;
+}
+
+.dashboard-chart-bar-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: #194a72;
+}
+
+.dashboard-chart-line-wrap {
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-chart-line {
+    width: 100%;
+    height: 140px;
+    overflow: visible;
+}
+
+.dashboard-chart-line polyline {
+    fill: none;
+    stroke: #235ea8;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.dashboard-chart-line-footer {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dashboard-chart-line-footer span {
+    font-size: 11px;
+    color: #4e6478;
+    background: #f4f8fc;
+    border-radius: 999px;
+    padding: 4px 8px;
+    max-width: 120px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+@keyframes dashboard-shimmer {
+    0% {
+        background-position: 180% 0;
+    }
+    100% {
+        background-position: -20% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-chart-skeleton span,
+    .dashboard-chart-bar-track i {
+        animation: none;
+        transition: none;
+    }
+}

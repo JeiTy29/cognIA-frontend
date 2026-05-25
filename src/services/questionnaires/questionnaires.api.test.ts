@@ -89,4 +89,77 @@ describe('questionnaires.api secure endpoints', () => {
             expect.objectContaining({ auth: true, credentials: 'include' })
         );
     });
+
+    it('envia filtros avanzados en historial secure', async () => {
+        apiSecurePost.mockResolvedValueOnce({
+            items: [],
+            pagination: { page: 1, page_size: 10, total: 0, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.getQuestionnaireHistoryV2({
+            status: 'processed',
+            case_public_id: 'CASE-100',
+            case_label: 'familia',
+            tag: 'urgente',
+            domain: 'anxiety',
+            alert_level: 'high',
+            needs_professional_review: true,
+            page: 1,
+            page_size: 10
+        });
+
+        expect(apiSecurePost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/secure',
+            expect.objectContaining({
+                case_public_id: 'CASE-100',
+                case_label: 'familia',
+                tag: 'urgente',
+                domain: 'anxiety',
+                alert_level: 'high',
+                needs_professional_review: true
+            }),
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('consulta dashboard de guardian con query params', async () => {
+        apiGet.mockResolvedValueOnce({
+            charts: {
+                alerts_by_month: [{ month: '2026-01', value: 2 }]
+            }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.getGuardianDashboardV2({
+            months: 6,
+            case_label: 'Casa',
+            domain: 'anxiety'
+        });
+
+        expect(apiGet).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/guardian/dashboard?months=6&case_label=Casa&domain=anxiety',
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('normaliza dashboard de psicologo sin depender de items parciales', async () => {
+        apiGet.mockResolvedValueOnce({
+            charts: {
+                alerts_by_domain: [{ domain: 'anxiety', count: 4 }]
+            },
+            aggregates: {
+                by_alert_level: [{ alert_level: 'high', value: 3 }]
+            },
+            items: [{ id: 's1', session_id: 's1', status: 'processed' }],
+            pagination: { page: 1, page_size: 10, total: 1, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getPsychologistDashboardV2({ page: 1, page_size: 10 });
+
+        expect(response.charts?.alerts_by_domain?.[0].count).toBe(4);
+        expect(response.aggregates?.by_alert_level?.[0].value).toBe(3);
+        expect(response.items?.[0].id).toBe('s1');
+    });
 });
