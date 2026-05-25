@@ -1,1 +1,150 @@
-/* Archivo reservado para ajustes visuales especificos del modulo. */
+.share-requests {
+    width: min(1200px, 100%);
+    display: grid;
+    gap: 14px;
+    color: #1f4d75;
+}
+
+.share-requests-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.share-requests-header h1 {
+    margin: 0;
+}
+
+.share-requests-header p {
+    margin: 6px 0 0;
+    color: #5a6e82;
+}
+
+.share-requests-kpis {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.share-requests-kpis article {
+    border: 1px solid rgba(31, 77, 117, 0.14);
+    border-radius: 12px;
+    padding: 12px;
+    background: #ffffff;
+    display: grid;
+    gap: 6px;
+}
+
+.share-requests-kpis span {
+    font-size: 12px;
+    color: #5a6e82;
+}
+
+.share-requests-kpis strong {
+    font-size: 24px;
+}
+
+.share-requests-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.share-requests-tab,
+.share-requests-btn {
+    border: 1px solid rgba(31, 77, 117, 0.24);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #1f4d75;
+    font-weight: 700;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.share-requests-tab.is-active {
+    background: #eaf3ff;
+    border-color: rgba(31, 77, 117, 0.5);
+}
+
+.share-requests-btn.secondary {
+    background: #f8fbff;
+}
+
+.share-requests-alert {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.share-requests-alert.error {
+    background: #ffe9ed;
+    color: #7d1a2a;
+}
+
+.share-requests-alert.success {
+    background: #e8f7ee;
+    color: #1f7a46;
+}
+
+.share-requests-empty {
+    border: 1px dashed rgba(31, 77, 117, 0.24);
+    border-radius: 10px;
+    padding: 14px;
+    color: #5a6e82;
+    background: #f8fbff;
+}
+
+.share-requests-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.share-requests-card {
+    border: 1px solid rgba(31, 77, 117, 0.14);
+    border-radius: 12px;
+    padding: 12px;
+    background: #ffffff;
+    display: grid;
+    gap: 7px;
+}
+
+.share-requests-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+}
+
+.share-requests-status span {
+    text-transform: capitalize;
+}
+
+.share-requests-permissions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.share-requests-permissions span {
+    background: #eef5ff;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 12px;
+}
+
+.share-requests-actions {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 920px) {
+    .share-requests-header {
+        flex-direction: column;
+    }
+    .share-requests-kpis,
+    .share-requests-grid {
+        grid-template-columns: 1fr;
+    }
+}

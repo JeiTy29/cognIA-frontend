@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGet = vi.fn();
-const apiGetBlobWithMeta = vi.fn();
 const apiSecurePatch = vi.fn();
 const apiSecurePost = vi.fn();
 const apiSecurePostNoBody = vi.fn();
@@ -14,7 +13,7 @@ vi.mock('../api/policy', () => ({
 vi.mock('../api/httpClient', () => ({
     apiDelete: vi.fn(),
     apiGet,
-    apiGetBlobWithMeta,
+    apiGetBlobWithMeta: vi.fn(),
     apiPatch: vi.fn(),
     apiPost: vi.fn(),
     apiPostNoBody: vi.fn(),
@@ -76,8 +75,7 @@ describe('questionnaires.api secure endpoints', () => {
         const module = await import('./questionnaires.api');
         await module.createQuestionnaireSessionV2({ mode: 'complete', role: 'guardian' });
         await module.patchQuestionnaireSessionAnswersV2('sess-1', {
-            answers: [{ question_id: 'q-1', answer: 'valor' }],
-            include_answers: false
+            answers: [{ question_id: 'q-1', answer: 'valor' }]
         });
 
         expect(apiSecurePost).toHaveBeenCalledWith(
@@ -87,117 +85,81 @@ describe('questionnaires.api secure endpoints', () => {
         );
         expect(apiSecurePatch).toHaveBeenCalledWith(
             '/api/v2/questionnaires/sessions/sess-1/answers',
-            {
-                answers: [{ question_id: 'q-1', answer: 'valor' }],
-                include_answers: false,
-                mark_final: false
+            { answers: [{ question_id: 'q-1', answer: 'valor' }] },
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('envia filtros avanzados en historial secure', async () => {
+        apiSecurePost.mockResolvedValueOnce({
+            items: [],
+            pagination: { page: 1, page_size: 10, total: 0, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.getQuestionnaireHistoryV2({
+            status: 'processed',
+            case_public_id: 'CASE-100',
+            case_label: 'familia',
+            tag: 'urgente',
+            domain: 'anxiety',
+            alert_level: 'high',
+            needs_professional_review: true,
+            page: 1,
+            page_size: 10
+        });
+
+        expect(apiSecurePost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/secure',
+            expect.objectContaining({
+                case_public_id: 'CASE-100',
+                case_label: 'familia',
+                tag: 'urgente',
+                domain: 'anxiety',
+                alert_level: 'high',
+                needs_professional_review: true
+            }),
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('consulta dashboard de guardian con query params', async () => {
+        apiGet.mockResolvedValueOnce({
+            charts: {
+                alerts_by_month: [{ month: '2026-01', value: 2 }]
+            }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.getGuardianDashboardV2({
+            months: 6,
+            case_label: 'Casa',
+            domain: 'anxiety'
+        });
+
+        expect(apiGet).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/guardian/dashboard?months=6&case_label=Casa&domain=anxiety',
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('normaliza dashboard de psicologo sin depender de items parciales', async () => {
+        apiGet.mockResolvedValueOnce({
+            charts: {
+                alerts_by_domain: [{ domain: 'anxiety', count: 4 }]
             },
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-    });
-
-    it('usa transporte cifrado para crear casos, compartir con psicólogo y guardar revisiones profesionales', async () => {
-        apiSecurePost
-            .mockResolvedValueOnce({ case: { case_id: 'case-1', private_label: 'Hijo mayor' } })
-            .mockResolvedValueOnce({ share_code: 'abc123', grantee: { user_id: 'psy-1' } })
-            .mockResolvedValueOnce({ review_id: 'rev-1', review_status: 'in_review' });
-        apiSecurePatch.mockResolvedValueOnce({ review_id: 'rev-1', review_status: 'reviewed' });
-
-        const module = await import('./questionnaires.api');
-        await module.createQuestionnaireCaseV2({ private_label: 'Hijo mayor', metadata: {} });
-        await module.shareQuestionnaireWithPsychologistV2('sess-1', {
-            grantee_user_id: 'psy-1',
-            grant_can_tag: false,
-            grant_can_download_pdf: true,
-            share_scope: 'session',
-            expires_in_hours: 720,
-            max_uses: 100
-        });
-        await module.createQuestionnaireProfessionalReviewV2('sess-1', {
-            review_status: 'in_review',
-            initial_concept: 'Texto',
-            recommendation: 'Seguimiento',
-            visible_to_guardian: true
-        });
-        await module.updateQuestionnaireProfessionalReviewV2('sess-1', 'rev-1', {
-            review_status: 'reviewed',
-            initial_concept: 'Actualizado',
-            recommendation: 'Actualizado',
-            visible_to_guardian: true
-        });
-
-        expect(apiSecurePost).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/cases',
-            { private_label: 'Hijo mayor', metadata: {} },
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-        expect(apiSecurePost).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/history/sess-1/share',
-            expect.objectContaining({
-                grantee_user_id: 'psy-1',
-                share_scope: 'session'
-            }),
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-        expect(apiSecurePost).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/history/sess-1/professional-reviews',
-            expect.objectContaining({
-                review_status: 'in_review',
-                visible_to_guardian: true
-            }),
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-        expect(apiSecurePatch).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/history/sess-1/professional-reviews/rev-1',
-            expect.objectContaining({
-                review_status: 'reviewed'
-            }),
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-    });
-
-    it('usa POST cifrado para report-preview secure', async () => {
-        apiSecurePostNoBody.mockResolvedValueOnce({
-            session: { session_id: 'sess-1' },
-            result: null,
-            domains: [],
-            comorbidity: [],
-            answers: [],
-            professional_reviews: [],
-            pdf: { available: true }
+            aggregates: {
+                by_alert_level: [{ alert_level: 'high', value: 3 }]
+            },
+            items: [{ id: 's1', session_id: 's1', status: 'processed' }],
+            pagination: { page: 1, page_size: 10, total: 1, pages: 1 }
         });
 
         const module = await import('./questionnaires.api');
-        await module.getQuestionnaireReportPreviewV2('sess-1');
+        const response = await module.getPsychologistDashboardV2({ page: 1, page_size: 10 });
 
-        expect(apiSecurePostNoBody).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/history/sess-1/report-preview/secure',
-            expect.objectContaining({ auth: true, credentials: 'include' })
-        );
-    });
-
-    it('descarga el PDF del historial sin caché y conserva el nombre enviado por backend', async () => {
-        apiGetBlobWithMeta.mockResolvedValueOnce({
-            blob: new Blob(['pdf']),
-            headers: new Headers({
-                'content-disposition': 'attachment; filename="Reporte backend.pdf"'
-            })
-        });
-
-        const module = await import('./questionnaires.api');
-        const result = await module.downloadQuestionnaireHistoryPdfV2('sess-1');
-
-        expect(apiGetBlobWithMeta).toHaveBeenCalledWith(
-            '/api/v2/questionnaires/history/sess-1/pdf/download',
-            expect.objectContaining({
-                auth: true,
-                credentials: 'include',
-                headers: expect.objectContaining({
-                    'Cache-Control': 'no-cache',
-                    Pragma: 'no-cache'
-                })
-            })
-        );
-        expect(result.filename).toBe('Reporte backend.pdf');
+        expect(response.charts?.alerts_by_domain?.[0].count).toBe(4);
+        expect(response.aggregates?.by_alert_level?.[0].value).toBe(3);
+        expect(response.items?.[0].id).toBe('s1');
     });
 });
