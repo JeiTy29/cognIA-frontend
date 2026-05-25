@@ -3,8 +3,7 @@ import type {
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO
 } from '../../services/questionnaires/questionnaires.types';
-import { getAlertLevelMeta, normalizeAlertLevel } from '../dashboard/alerts';
-import { getDashboardDomainLabel } from './dashboardLabels';
+import { normalizeAlertLevel } from '../dashboard/alerts';
 
 export interface DashboardChartDatum {
     id: string;
@@ -33,16 +32,9 @@ function toNumber(value: unknown) {
 }
 
 function resolveLabel(point: QuestionnaireDashboardChartPointDTO, index: number) {
-    const label = point.label ?? point.name ?? point.key ?? point.date ?? point.month;
-    if (!label && point.domain) return getDashboardDomainLabel(point.domain);
-    if (!label && point.alert_level) return getAlertLevelMeta(point.alert_level).label;
+    const label = point.label ?? point.name ?? point.key ?? point.domain ?? point.alert_level ?? point.date ?? point.month;
     if (!label || !String(label).trim()) return `Dato ${index + 1}`;
-    const normalized = String(label).trim();
-    const domainLabel = getDashboardDomainLabel(normalized);
-    if (domainLabel !== normalized) return domainLabel;
-    const alertMeta = getAlertLevelMeta(normalized);
-    if (alertMeta.tone !== 'unknown') return alertMeta.label;
-    return normalized;
+    return String(label).trim();
 }
 
 export function normalizeChartSeries(points: QuestionnaireDashboardChartPointDTO[] | null | undefined): DashboardChartDatum[] {
@@ -108,7 +100,7 @@ export function buildActiveFilterChips(filters: QuestionnaireHistoryFiltersV2): 
                 return {
                     key: String(key),
                     label,
-                    value: value ? 'Si' : 'No'
+                    value: value ? 'Sí' : 'No'
                 };
             }
             if (typeof value === 'number') {
@@ -119,16 +111,10 @@ export function buildActiveFilterChips(filters: QuestionnaireHistoryFiltersV2): 
                 };
             }
             if (typeof value !== 'string' || value.trim().length === 0) return null;
-            const normalizedValue =
-                key === 'domain'
-                    ? getDashboardDomainLabel(value)
-                    : key === 'alert_level'
-                        ? getAlertLevelMeta(value).label
-                        : value.trim();
             return {
                 key: String(key),
                 label,
-                value: normalizedValue
+                value: value.trim()
             };
         })
         .filter((item): item is ActiveFilterChip => Boolean(item));

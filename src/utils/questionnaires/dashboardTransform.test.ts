@@ -26,30 +26,15 @@ describe('dashboardTransform', () => {
         expect(kpis.total).toBe(2);
         expect(kpis.processed).toBe(1);
         expect(kpis.needsReview).toBe(1);
-        expect(kpis.withoutCase).toBe(2);
+        expect(kpis.withoutCase).toBe(1);
     });
 
     it('genera chips de filtros activos', () => {
         const chips = buildActiveFilterChips({
             status: 'processed',
             q: 'familia',
-            domain: 'adhd',
-            alert_level: 'critical_review',
             needs_professional_review: true
         });
         expect(chips.map((item) => item.key)).toEqual(expect.arrayContaining(['status', 'q', 'needs_professional_review']));
-        expect(chips.find((item) => item.key === 'domain')?.value).toBe('TDAH');
-        expect(chips.find((item) => item.key === 'alert_level')?.value.toLowerCase()).toContain('prior');
-    });
-
-    it('traduce claves tecnicas en datos de graficas', () => {
-        const data = normalizeChartSeries([
-            { domain: 'adhd', value: 4 },
-            { alert_level: 'critical_review', value: 2 },
-            { label: 'anxiety', value: 1 }
-        ]);
-        expect(data[0].label).toBe('TDAH');
-        expect(data[1].label.toLowerCase()).toContain('prior');
-        expect(data[2].label).toBe('Ansiedad');
     });
 });

@@ -31,49 +31,6 @@
     gap: 10px;
 }
 
-.historial-dashboard-insight {
-    border: 1px solid rgba(31, 77, 117, 0.14);
-    border-radius: 22px;
-    background:
-        radial-gradient(circle at top left, rgba(15, 95, 159, 0.12), transparent 34%),
-        linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
-    box-shadow: 0 16px 32px rgba(21, 71, 112, 0.08);
-    padding: 22px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 260px);
-    gap: 18px;
-    align-items: center;
-}
-
-.historial-dashboard-insight span {
-    color: #0f5f9f;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.historial-dashboard-insight h2 {
-    margin: 6px 0 8px;
-    color: #183b57;
-    font-size: clamp(22px, 3vw, 34px);
-}
-
-.historial-dashboard-insight p {
-    margin: 0;
-    color: #5a6e82;
-    line-height: 1.6;
-}
-
-.historial-dashboard-insight > strong {
-    border: 1px solid rgba(15, 95, 159, 0.16);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.78);
-    padding: 18px;
-    color: #183b57;
-    text-align: center;
-}
-
 .historial-dashboard-btn {
     border: 1px solid rgba(31, 77, 117, 0.24);
     background: #ffffff;
@@ -104,35 +61,10 @@
 .historial-dashboard-filters {
     border: 1px solid rgba(31, 77, 117, 0.14);
     border-radius: 14px;
-    padding: 12px;
+    padding: 14px;
     background: linear-gradient(180deg, #f8fbff 0%, #ffffff 70%);
     display: grid;
     gap: 12px;
-}
-
-.historial-dashboard-filters.is-collapsed {
-    background: #ffffff;
-}
-
-.historial-dashboard-filters-summary {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-}
-
-.historial-dashboard-filters-summary div {
-    display: grid;
-    gap: 3px;
-}
-
-.historial-dashboard-filters-summary strong {
-    color: #1f4d75;
-}
-
-.historial-dashboard-filters-summary span {
-    color: #5a6e82;
-    font-size: 13px;
 }
 
 .historial-dashboard-filters-grid {
@@ -415,16 +347,11 @@
 
 @media (max-width: 920px) {
     .historial-dashboard-header,
-    .historial-dashboard-insight,
     .historial-dashboard-list-header,
     .historial-dashboard-pagination,
-    .historial-dashboard-filters-summary,
     .historial-dashboard-actions {
         flex-direction: column;
         align-items: flex-start;
-    }
-    .historial-dashboard-insight {
-        grid-template-columns: 1fr;
     }
     .historial-dashboard-kpis,
     .historial-dashboard-filters-grid,
