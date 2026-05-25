@@ -327,7 +327,9 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
         const results = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
         const summary = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
         const preview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
-        const visibleReviews = (preview?.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false);
+        const visibleReviews = (preview?.professional_reviews ?? []).filter(
+            (review: { visible_to_guardian?: boolean | null }) => review.visible_to_guardian !== false
+        );
         const notice =
             summaryResponse.status === 'fulfilled' || resultsResponse.status !== 'fulfilled'
                 ? null
