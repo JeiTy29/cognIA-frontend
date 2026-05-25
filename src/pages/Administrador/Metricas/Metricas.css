@@ -12,6 +12,12 @@
     gap: 24px;
 }
 
+.metricas-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .metricas-header h1 {
     font-size: 30px;
     margin: 0;
@@ -214,7 +220,7 @@
 .donut-ring {
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
-    stroke-linecap: round;
+    stroke-linecap: butt;
     animation: donut-draw 1s ease forwards;
 }
 
@@ -235,8 +241,10 @@
 }
 
 .legend-green { background: #1f9d55; }
+.legend-blue { background: #3e6ea8; }
 .legend-yellow { background: #f0ad4e; }
 .legend-red { background: #dc3545; }
+.legend-gray { background: #6a6f7d; }
 
 .metricas-note {
     font-size: 13px;
@@ -247,6 +255,13 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    margin-top: 24px;
+}
+
+.metricas-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
     margin-top: 24px;
 }
 
@@ -292,6 +307,7 @@
 .indicator.orange { background: #f0ad4e; }
 .indicator.yellow { background: #f0ad4e; }
 .indicator.red { background: #dc3545; }
+.indicator.gray { background: #6a6f7d; }
 
 .metricas-alert {
     margin-top: 16px;
@@ -300,6 +316,10 @@
     background: #fee2e2;
     color: #111827;
     font-size: 13px;
+}
+
+.metricas-alert-success {
+    background: #dcfce7;
 }
 
 .metricas-loading {

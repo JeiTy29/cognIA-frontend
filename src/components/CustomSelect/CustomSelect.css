@@ -25,6 +25,15 @@
     color: #215F8F;
     cursor: pointer;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.global-select-trigger > span:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .global-select-trigger:hover {
@@ -48,6 +57,7 @@
     justify-content: center;
     color: #215F8F;
     transition: transform 0.2s ease;
+    flex: 0 0 auto;
 }
 
 .global-select-icon svg {

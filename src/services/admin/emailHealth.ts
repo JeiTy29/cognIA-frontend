@@ -26,11 +26,46 @@ function firstText(candidates: unknown[]) {
     return null;
 }
 
+function getBooleanFlag(record: Record<string, unknown>, keys: string[]) {
+    for (const key of keys) {
+        if (typeof record[key] === 'boolean') {
+            return record[key] as boolean;
+        }
+    }
+    return null;
+}
+
 function normalizeStatus(value: unknown): 'ok' | 'error' {
     if (typeof value !== 'string') return 'error';
     const normalized = value.trim().toLowerCase();
-    if (normalized === 'ok' || normalized === 'healthy' || normalized === 'up' || normalized === 'ready') {
+    if ([
+        'ok',
+        'healthy',
+        'up',
+        'ready',
+        'available',
+        'enabled',
+        'configured',
+        'connected',
+        'active',
+        'operational',
+        'success',
+        'online'
+    ].includes(normalized)) {
         return 'ok';
+    }
+    if ([
+        'error',
+        'unavailable',
+        'disabled',
+        'not_available',
+        'not_configured',
+        'disconnected',
+        'down',
+        'failed',
+        'offline'
+    ].includes(normalized)) {
+        return 'error';
     }
     return 'error';
 }
@@ -46,28 +81,62 @@ export function resolveEmailHealthBlockState(payload: unknown): EmailHealthBlock
         };
     }
 
+    if (import.meta.env.DEV) {
+        console.debug('[metrics] email-health:payload', payload);
+    }
+
     const nested =
         asRecord(root.health) ??
         asRecord(root.data) ??
         asRecord(root.result) ??
+        asRecord(root.email) ??
+        asRecord(root.mail) ??
+        asRecord(root.smtp) ??
         root;
-    const status = normalizeStatus(nested.status ?? root.status);
+    const flagKeys = [
+        'available',
+        'enabled',
+        'configured',
+        'smtp_configured',
+        'email_enabled',
+        'mail_enabled',
+        'can_send',
+        'send_enabled',
+        'healthy',
+        'ready',
+        'ok'
+    ];
+    const directStatus = normalizeStatus(nested.status ?? root.status);
+    const nestedFlag = getBooleanFlag(nested, flagKeys);
+    const rootFlag = getBooleanFlag(root, flagKeys);
+    const status: 'ok' | 'error' =
+        directStatus === 'ok'
+            ? 'ok'
+            : nestedFlag === true || rootFlag === true
+                ? 'ok'
+                : 'error';
 
-    if (status === 'ok') {
-        return {
+    const resolved: EmailHealthBlockState = status === 'ok'
+        ? {
             status: 'ok',
             label: 'OK',
-            detail: firstText([nested.provider, nested.service, nested.message, 'Servicio operativo']) ?? 'Servicio operativo',
-            reason: firstText([nested.reason, nested.details, root.reason])
+            detail: firstText([nested.provider, nested.service, nested.message, root.message, 'Servicio operativo']) ?? 'Servicio operativo',
+            reason:
+                firstText([nested.reason, nested.details, root.reason, root.details]) ??
+                'Configuración de correo disponible'
+        }
+        : {
+            status: 'error',
+            label: 'No disponible',
+            detail: firstText([nested.message, root.message, 'Servicio no disponible']) ?? 'Servicio no disponible',
+            reason: firstText([nested.reason, nested.error, root.error, root.msg, root.details])
         };
+
+    if (import.meta.env.DEV) {
+        console.debug('[metrics] email-health:resolved', resolved);
     }
 
-    return {
-        status: 'error',
-        label: 'No disponible',
-        detail: firstText([nested.message, root.message, 'Servicio no disponible']) ?? 'Servicio no disponible',
-        reason: firstText([nested.reason, nested.error, root.error, root.msg])
-    };
+    return resolved;
 }
 
 export function getEmailHealth() {

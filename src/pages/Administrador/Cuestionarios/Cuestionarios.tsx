@@ -1,9 +1,19 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    AreaChart,
+    DashboardEmptyState,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminQuestionnaires } from '../../../hooks/useAdminQuestionnaires';
+import { fetchQuestionnairesForReport } from '../../../services/admin/adminReportData';
 import type { AdminQuestionnaireItem } from '../../../services/admin/questionnaires';
+import { buildHeatmapCells, buildMonthlyCountItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
+import { downloadQuestionnairesReportPdf } from '../../../utils/reports/admin/questionnairesReport';
 import '../AdminShared.css';
 import './Cuestionarios.css';
 
@@ -25,6 +35,12 @@ type PendingAction =
     | { type: 'publish'; item: AdminQuestionnaireItem }
     | { type: 'archive'; item: AdminQuestionnaireItem }
     | null;
+type QuestionnairesReportModalState = {
+    state: 'all' | 'active' | 'inactive' | 'archived';
+    includeDashboardSummary: boolean;
+    includeQuestionDetail: boolean;
+    source: 'visible' | 'all';
+};
 
 const activeOptions = [
     { value: 'all', label: 'Todos' },
@@ -53,6 +69,18 @@ const pageSizeOptions = [
     { value: '50', label: '50' }
 ];
 
+const questionnairesReportStateOptions = [
+    { value: 'all', label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' },
+    { value: 'archived', label: 'Archivados' }
+];
+
+const questionnairesReportSourceOptions = [
+    { value: 'visible', label: 'Solo plantillas visibles' },
+    { value: 'all', label: 'Todas las plantillas' }
+];
+
 const initialCloneForm = (): CloneFormState => ({
     version: '',
     name: '',
@@ -63,6 +91,13 @@ const initialCreateForm = (): CreateFormState => ({
     name: '',
     version: '',
     description: ''
+});
+
+const defaultQuestionnairesReportModal = (): QuestionnairesReportModalState => ({
+    state: 'all',
+    includeDashboardSummary: true,
+    includeQuestionDetail: false,
+    source: 'visible'
 });
 
 function formatDateTime(value: string | null) {
@@ -136,12 +171,107 @@ export default function Cuestionarios() {
     const [createError, setCreateError] = useState<string | null>(null);
     const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
     const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<QuestionnairesReportModalState>(defaultQuestionnairesReportModal);
 
     const currentPage = Math.min(page, Math.max(1, pages));
     const displayFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
     const orderValue = useMemo(() => getOrderValue(sort, order), [sort, order]);
+    const dashboardNote = useMemo(
+        () => (total > items.length ? 'Resumen calculado sobre las plantillas visibles.' : undefined),
+        [items.length, total]
+    );
+    const questionnaireStateChart = useMemo(
+        () =>
+            mapCountsToItems(
+                items.reduce((accumulator, item) => {
+                    const label = item.is_archived ? 'Archivados' : item.is_active ? 'Activos' : 'Inactivos';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [items]
+    );
+    const questionnaireCreatedByMonth = useMemo(
+        () => buildMonthlyCountItems(items.map((item) => item.created_at)),
+        [items]
+    );
+    const questionnaireAvailabilityRows = useMemo(() => ['Activos', 'Inactivos', 'Archivados'], []);
+    const questionnaireAvailabilityColumns = useMemo(() => ['Vigentes', 'Archivados'], []);
+    const questionnaireAvailabilityCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                items,
+                questionnaireAvailabilityRows,
+                questionnaireAvailabilityColumns,
+                (item) => (item.is_archived ? 'Archivados' : item.is_active ? 'Activos' : 'Inactivos'),
+                (item) => (item.is_archived ? 'Archivados' : 'Vigentes')
+            ),
+        [items, questionnaireAvailabilityColumns, questionnaireAvailabilityRows]
+    );
+
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+        try {
+            const stateFilteredVisibleItems = items.filter((item) => {
+                if (reportForm.state === 'active') return item.is_active;
+                if (reportForm.state === 'inactive') return !item.is_active;
+                if (reportForm.state === 'archived') return item.is_archived;
+                return true;
+            });
+
+            const reportResult = reportForm.source === 'visible'
+                ? {
+                    items: stateFilteredVisibleItems,
+                    totalAvailable: stateFilteredVisibleItems.length,
+                    truncated: false
+                }
+                : await fetchQuestionnairesForReport({
+                    limit: 'all',
+                    name: nameFilter,
+                    version: versionFilter,
+                    isActive:
+                        reportForm.state === 'active'
+                            ? true
+                            : reportForm.state === 'inactive'
+                                ? false
+                                : undefined,
+                    isArchived: reportForm.state === 'archived' ? true : undefined,
+                    sort,
+                    order
+                });
+
+            await downloadQuestionnairesReportPdf({
+                items: reportResult.items,
+                totalIncluded: reportResult.items.length,
+                totalAvailable: reportResult.totalAvailable,
+                filters: [
+                    `Estado: ${reportForm.state}`,
+                    `Origen: ${reportForm.source === 'visible' ? 'Solo visibles' : 'Todas las plantillas'}`,
+                    ...(nameFilter.trim() ? [`Nombre: ${nameFilter.trim()}`] : []),
+                    ...(versionFilter.trim() ? [`Versión: ${versionFilter.trim()}`] : [])
+                ],
+                options: {
+                    includeDashboardSummary: reportForm.includeDashboardSummary,
+                    includeQuestionDetail: reportForm.includeQuestionDetail,
+                    visibleOnly: reportForm.source === 'visible'
+                }
+            });
+            setIsReportModalOpen(false);
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
 
     useEffect(() => {
         if (!openActionsFor) return;
@@ -281,6 +411,14 @@ export default function Cuestionarios() {
                     <h1>Cuestionarios</h1>
                 </div>
                 <div className="admin-actions">
+                    <button
+                        type="button"
+                        className="admin-btn ghost"
+                        onClick={() => setIsReportModalOpen(true)}
+                        disabled={reportWorking || loading}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
                     <button type="button" className="admin-btn primary" onClick={openCreateModal}>
                         Crear plantilla
                     </button>
@@ -291,6 +429,43 @@ export default function Cuestionarios() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
+            {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
+            {reportError ? <div className="admin-alert error">{reportError}</div> : null}
+
+            <div className="admin-dashboard-grid">
+                <DashboardSection
+                    title="Plantillas por estado"
+                    description="Resume cu?ntas plantillas est?n activas, inactivas o archivadas en la vista actual."
+                    note={dashboardNote}
+                >
+                    <DonutChart data={questionnaireStateChart} ariaLabel="Plantillas por estado" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros en el tiempo"
+                    description="Muestra la evoluci?n de plantillas registradas en la vista actual."
+                    note={dashboardNote}
+                >
+                    <AreaChart data={questionnaireCreatedByMonth} ariaLabel="Registros de cuestionarios en el tiempo" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Disponibilidad operativa"
+                    description="Cruza el estado operativo con la condici?n de archivado."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={questionnaireAvailabilityRows}
+                        columns={questionnaireAvailabilityColumns}
+                        cells={questionnaireAvailabilityCells}
+                        ariaLabel="Disponibilidad operativa de cuestionarios"
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Cobertura por preguntas y modo"
+                    description="Requiere datos reales de preguntas por plantilla para construir esta gr?fica."
+                >
+                    <DashboardEmptyState message="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado." />
+                </DashboardSection>
+            </div>
 
             <section className="admin-controls" aria-label="Controles de cuestionarios">
                 <div className="admin-search">
@@ -382,7 +557,7 @@ export default function Cuestionarios() {
                             <div key={item.id} className="admin-row cuestionarios-grid">
                                 <div>
                                     <div className="cuestionarios-name">{item.name}</div>
-                                    <div className="admin-muted" title={item.description ?? undefined}>
+                                    <div className="admin-muted" title={item.description?.trim() ? item.description : undefined}>
                                         {item.description?.trim() ? item.description : '--'}
                                     </div>
                                 </div>
@@ -505,6 +680,96 @@ export default function Cuestionarios() {
                     </label>
                 </div>
             </footer>
+
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de cuestionarios</h2>
+                    <p>Selecciona el estado y el alcance del reporte sin modificar la tabla visible.</p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Estado</span>
+                            <CustomSelect
+                                ariaLabel="Estado de plantillas para el reporte"
+                                value={reportForm.state}
+                                options={questionnairesReportStateOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, state: value as QuestionnairesReportModalState['state'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Alcance</span>
+                            <CustomSelect
+                                ariaLabel="Origen de plantillas para el reporte"
+                                value={reportForm.source}
+                                options={questionnairesReportSourceOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, source: value as QuestionnairesReportModalState['source'] }))
+                                }
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="questionnaires-report-dashboard"
+                            type="checkbox"
+                            checked={reportForm.includeDashboardSummary}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeDashboardSummary: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="questionnaires-report-dashboard">
+                            <strong>Incluir resumen dashboard de volumen/calidad</strong>
+                            <span>Solo se usa dentro del PDF como contexto complementario.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input
+                            id="questionnaires-report-detail"
+                            type="checkbox"
+                            checked={reportForm.includeQuestionDetail}
+                            onChange={(event) =>
+                                setReportForm((prev) => ({ ...prev, includeQuestionDetail: event.target.checked }))
+                            }
+                        />
+                        <label htmlFor="questionnaires-report-detail">
+                            <strong>Incluir detalle de preguntas</strong>
+                            <span>Si el contrato actual no lo permite, el PDF lo indicará claramente.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="admin-btn ghost"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="admin-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={pendingAction !== null} onClose={closeConfirmAction}>
                 <div className="admin-modal">

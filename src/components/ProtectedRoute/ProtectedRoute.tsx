@@ -1,12 +1,16 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
-import './ProtectedRoute.css';
+import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
+import Sidebar from '../Sidebar/Sidebar';
+import type { Role } from '../Sidebar/SidebarConfig';
 import SupportContact from '../SupportContact/SupportContact';
+import './ProtectedRoute.css';
 
 type ProtectedRouteProps = Readonly<{
     allowedRoles?: string[];
+    preserveShell?: boolean;
 }>;
 
 const roleMap: Record<string, string[]> = {
@@ -17,6 +21,8 @@ const roleMap: Record<string, string[]> = {
     ADMIN: ['ADMIN']
 };
 
+const LOADER_TIMEOUT_MS = 9000;
+
 function normalizeRole(value: string) {
     return value.trim().toUpperCase();
 }
@@ -25,6 +31,7 @@ function hasAnyRole(userRoles: string[] | undefined, allowedRoles: string[] | un
     if (!allowedRoles || allowedRoles.length === 0) return true;
     if (allowedRoles.includes('*')) return true;
     if (!userRoles || userRoles.length === 0) return false;
+
     const normalizedUser = new Set(userRoles.map((role) => normalizeRole(role)));
     return allowedRoles.some((role) => {
         const normalized = normalizeRole(role);
@@ -41,47 +48,121 @@ function getRoleLabel(roles: string[] | undefined) {
     return 'Usuario';
 }
 
-export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-    const { isAuthenticated, roles, isAuthLoading, refreshSession, profileStatus } = useAuth();
-    const location = useLocation();
-    const navigate = useNavigate();
-    const refreshAttemptedRef = useRef(false);
+function resolveShellRole(primaryRole: string | null, pathname: string): Role {
+    if (primaryRole === 'admin') return 'admin';
+    if (primaryRole === 'psicologo') return 'psicologo';
+    if (primaryRole === 'padre') return 'padre';
+    if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/psicologo')) return 'psicologo';
+    return 'padre';
+}
+
+type ProtectedRouteLoaderProps = Readonly<{
+    onResetSession: () => void;
+    preserveShell?: boolean;
+    shellRole: Role;
+}>;
+
+function ProtectedRouteLoader({ onResetSession, preserveShell = false, shellRole }: ProtectedRouteLoaderProps) {
+    const [loaderTimedOut, setLoaderTimedOut] = useState(false);
 
     useEffect(() => {
-        if (!isAuthLoading && !isAuthenticated && !refreshAttemptedRef.current) {
-            refreshAttemptedRef.current = true;
-            refreshSession({ silent: true }).catch(() => false);
-        }
-    }, [isAuthLoading, isAuthenticated, refreshSession]);
+        const timeoutId = globalThis.setTimeout(() => {
+            setLoaderTimedOut(true);
+        }, LOADER_TIMEOUT_MS);
 
-    const shouldShowLoader = isAuthLoading || (isAuthenticated && profileStatus === 'loading');
-    const isRoleGuard = Array.isArray(allowedRoles) && allowedRoles.length > 0;
+        return () => {
+            globalThis.clearTimeout(timeoutId);
+        };
+    }, []);
 
-    if (shouldShowLoader) {
-        if (isAuthenticated && !isRoleGuard) {
-            return <Outlet />;
-        }
+    const loaderContent = (
+        <div className="auth-guard-content-loading" aria-live="polite">
+            <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
+            <p>{loaderTimedOut ? 'No se pudo completar la validación de sesión.' : 'Cargando vista...'}</p>
+            {loaderTimedOut ? (
+                <button
+                    type="button"
+                    className="auth-guard-retry"
+                    onClick={onResetSession}
+                >
+                    Volver a iniciar sesión
+                </button>
+            ) : null}
+        </div>
+    );
 
-        if (isAuthenticated && isRoleGuard) {
-            return (
-                <div className="auth-guard-content-loading" aria-live="polite">
-                    <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
-                    <p>Cargando vista...</p>
-                </div>
-            );
-        }
-
-        return null;
+    if (!preserveShell) {
+        return loaderContent;
     }
 
-    if (!isAuthenticated) {
+    return (
+        <div className="app-shell auth-guard-shell">
+            <Sidebar role={shellRole} />
+            <div className="app-main">
+                <div className="app-content auth-guard-shell-content">
+                    {loaderContent}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function ProtectedRoute({ allowedRoles, preserveShell = false }: ProtectedRouteProps) {
+    const {
+        authStatus,
+        sessionVerified,
+        roles,
+        isAuthLoading,
+        isSessionRefreshing,
+        profileStatus,
+        verifySession,
+        logoutAsync,
+        primaryRole
+    } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const shellRole = resolveShellRole(primaryRole, location.pathname);
+
+    useEffect(() => {
+        const alreadyVerified =
+            authStatus === 'authenticated' &&
+            sessionVerified &&
+            profileStatus === 'success';
+
+        if (alreadyVerified) {
+            return;
+        }
+
+        const allowRefresh = !hasManualLogoutFlag();
+        void verifySession({ silent: true, allowRefresh }).catch(() => false);
+    }, [authStatus, location.key, profileStatus, sessionVerified, verifySession]);
+
+    const shouldShowLoader =
+        (isAuthLoading || authStatus === 'checking') &&
+        !(authStatus === 'authenticated' && sessionVerified && isSessionRefreshing);
+
+    if (shouldShowLoader) {
         return (
-            <Navigate
-                to="/inicio-sesion"
-                replace
-                state={{ message: 'Debes iniciar sesión para acceder a esta sección.', from: location.pathname }}
+            <ProtectedRouteLoader
+                key={location.key}
+                preserveShell={preserveShell}
+                shellRole={shellRole}
+                onResetSession={() => {
+                    void logoutAsync('manual').finally(() => {
+                        navigate('/inicio-sesion', { replace: true });
+                    });
+                }}
             />
         );
+    }
+
+    if (authStatus !== 'authenticated' || !sessionVerified) {
+        const nextState = hasManualLogoutFlag()
+            ? { message: 'Debes iniciar sesión para acceder a esta sección.' }
+            : { message: 'Debes iniciar sesión para acceder a esta sección.', from: location.pathname };
+
+        return <Navigate to="/inicio-sesion" replace state={nextState} />;
     }
 
     const isAllowed = hasAnyRole(roles, allowedRoles);

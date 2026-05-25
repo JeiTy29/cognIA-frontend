@@ -1,0 +1,264 @@
+.solicitudes-revision {
+    width: min(1180px, 100%);
+    display: grid;
+    gap: 18px;
+    color: #215f8f;
+}
+
+.solicitudes-revision__card,
+.solicitudes-revision__card * {
+    min-width: 0;
+}
+
+.solicitudes-revision__header,
+.solicitudes-revision__card-top,
+.solicitudes-revision__actions,
+.solicitudes-revision__modal-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.solicitudes-revision__header h1,
+.solicitudes-revision__card-top h2,
+.solicitudes-revision__card p {
+    margin: 0;
+}
+
+.solicitudes-revision__header p,
+.solicitudes-revision__card-top p,
+.solicitudes-revision__summary-block p {
+    margin: 6px 0 0;
+    color: #52677a;
+    line-height: 1.6;
+}
+
+.solicitudes-revision__header button,
+.solicitudes-revision__actions button,
+.solicitudes-revision__modal-actions button {
+    border: 1px solid rgba(33, 95, 143, 0.22);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 10px;
+    min-height: 40px;
+    padding: 0 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.solicitudes-revision__filters,
+.solicitudes-revision__summary,
+.solicitudes-revision__meta {
+    display: grid;
+    gap: 12px;
+}
+
+.solicitudes-revision__filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.solicitudes-revision__status-tabs {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.solicitudes-revision__status-tab {
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 999px;
+    min-height: 38px;
+    padding: 0 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.solicitudes-revision__status-tab.is-active {
+    background: #0f5f9f;
+    color: #ffffff;
+    border-color: #0f5f9f;
+}
+
+.solicitudes-revision__filters input,
+.solicitudes-revision__filters select,
+.solicitudes-revision__modal textarea {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(33, 95, 143, 0.2);
+    min-height: 42px;
+    padding: 10px 12px;
+    font: inherit;
+    color: #215f8f;
+    background: #ffffff;
+}
+
+.solicitudes-revision__summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.solicitudes-revision__dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    min-width: 0;
+}
+
+.solicitudes-revision__dashboard-wide {
+    grid-column: 1 / -1;
+}
+
+.solicitudes-revision__dashboard-large {
+    min-width: 0;
+}
+
+.solicitudes-revision__dashboard-large .dashboard-chart-svg-wrap,
+.solicitudes-revision__dashboard-large .dashboard-chart-heatmap-table {
+    min-height: 360px;
+}
+
+.solicitudes-revision__summary article,
+.solicitudes-revision__notice,
+.solicitudes-revision__empty,
+.solicitudes-revision__card {
+    border-radius: 16px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    background: #ffffff;
+}
+
+.solicitudes-revision__summary article {
+    padding: 16px;
+    display: grid;
+    gap: 6px;
+}
+
+.solicitudes-revision__summary strong,
+.solicitudes-revision__meta strong {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.solicitudes-revision__summary span {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.solicitudes-revision__notice {
+    padding: 12px 14px;
+}
+
+.solicitudes-revision__notice.error {
+    background: #fff1f2;
+    color: #8b1e3f;
+}
+
+.solicitudes-revision__notice.success {
+    background: #ecfdf3;
+    color: #0f5132;
+}
+
+.solicitudes-revision__empty {
+    padding: 22px;
+    text-align: center;
+    color: #52677a;
+}
+
+.solicitudes-revision__list {
+    display: grid;
+    gap: 14px;
+}
+
+.solicitudes-revision__card {
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+}
+
+.solicitudes-revision__card-top span {
+    align-self: flex-start;
+    border-radius: 999px;
+    background: rgba(81, 194, 244, 0.14);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.solicitudes-revision__meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.solicitudes-revision__meta > div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.solicitudes-revision__summary-block {
+    display: grid;
+    gap: 10px;
+}
+
+.solicitudes-revision__summary-block p,
+.solicitudes-revision__protected-text {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.solicitudes-revision__domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.solicitudes-revision__domain-pill {
+    border-radius: 12px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    background: #fbfdff;
+    padding: 10px 12px;
+    display: grid;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.solicitudes-revision__domain-pill small {
+    color: #52677a;
+}
+
+.solicitudes-revision__modal {
+    display: grid;
+    gap: 12px;
+    color: #215f8f;
+}
+
+.solicitudes-revision__modal textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+@media (max-width: 960px) {
+    .solicitudes-revision__filters,
+    .solicitudes-revision__summary,
+    .solicitudes-revision__meta {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .solicitudes-revision__header,
+    .solicitudes-revision__card-top,
+    .solicitudes-revision__actions,
+    .solicitudes-revision__modal-actions {
+        flex-direction: column;
+    }
+
+    .solicitudes-revision__filters,
+    .solicitudes-revision__summary,
+    .solicitudes-revision__meta {
+        grid-template-columns: 1fr;
+    }
+}

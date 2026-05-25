@@ -3,6 +3,7 @@
     max-width: 1600px;
     margin: 0 auto;
     width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -37,6 +38,7 @@
 
 .circle-diagram-wrapper {
     width: 900px;
+    max-width: 100%;
     display: flex;
     justify-content: center;
     transition: transform 0.7s ease;
@@ -93,6 +95,7 @@
     border: none;
     appearance: none;
     font: inherit;
+    min-width: 0;
 }
 
 .disorder-circle.hovered {
@@ -187,6 +190,7 @@
     text-justify: inter-word;
     text-align-last: center;
     hyphens: auto;
+    overflow-wrap: anywhere;
 }
 
 .disorder-circle.expanded .disorder-title {
@@ -238,85 +242,85 @@
    ======================================== */
 
 @media (max-width: 1024px) {
-    .circle-diagram {
-        width: 640px;
-        height: 640px;
+    .circle-section {
+        min-height: auto;
+        margin-bottom: 32px;
     }
 
+    .circle-dismiss-layer,
     .large-circle {
-        width: 520px;
-        height: 520px;
+        display: none;
     }
 
-    .circle-diagram-wrapper {
-        width: 760px;
-        transform: translateX(0);
-    }
-
+    .circle-diagram-wrapper,
     .circle-diagram-wrapper.is-expanded {
-        transform: translateX(-160px);
+        width: 100%;
+        max-width: 100%;
+        padding-right: 0;
+        transform: none !important;
     }
 
-    .disorder-circle {
-        width: 180px;
-        min-height: 180px;
-        padding: 18px 14px;
+    .circle-diagram {
+        position: static;
+        width: 100%;
+        height: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        gap: 20px;
+        align-items: stretch;
     }
 
-    .disorder-circle.hovered {
-        width: 200px;
-        height: 200px;
-    }
-
-    .disorder-circle[data-position="0"] {
-        transform: translate(-50%, -50%) translateX(230px) translateY(0px);
-    }
-
-    .disorder-circle[data-position="1"] {
-        transform: translate(-50%, -50%) translateX(71px) translateY(-218px);
-    }
-
-    .disorder-circle[data-position="2"] {
-        transform: translate(-50%, -50%) translateX(-186px) translateY(-135px);
-    }
-
-    .disorder-circle[data-position="3"] {
-        transform: translate(-50%, -50%) translateX(-186px) translateY(135px);
-    }
-
-    .disorder-circle[data-position="4"] {
-        transform: translate(-50%, -50%) translateX(71px) translateY(218px);
-    }
-
-    .disorder-circle.hovered[data-position="0"] {
-        transform: translate(-50%, -50%) translateX(230px) translateY(0px);
-    }
-
-    .disorder-circle.hovered[data-position="1"] {
-        transform: translate(-50%, -50%) translateX(71px) translateY(-218px);
-    }
-
-    .disorder-circle.hovered[data-position="2"] {
-        transform: translate(-50%, -50%) translateX(-186px) translateY(-135px);
-    }
-
-    .disorder-circle.hovered[data-position="3"] {
-        transform: translate(-50%, -50%) translateX(-186px) translateY(135px);
-    }
-
-    .disorder-circle.hovered[data-position="4"] {
-        transform: translate(-50%, -50%) translateX(71px) translateY(218px);
+    .disorder-circle,
+    .disorder-circle.hovered,
+    .disorder-circle.expanded {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: auto;
+        min-height: 0;
+        aspect-ratio: auto;
+        padding: 24px 20px;
+        border-radius: 28px;
+        gap: 14px;
+        justify-content: flex-start;
+        transform: none !important;
+        overflow: hidden;
     }
 
     .disorder-circle.expanded {
-        width: 420px;
-        height: 420px;
-        padding: 36px;
-        transform: translate(-50%, -50%) translateX(520px) translateY(0px);
+        box-shadow: 0 16px 32px rgba(81, 194, 244, 0.42);
     }
 
-    .disorder-title {
-        font-size: 18px;
+    .disorder-icon,
+    .disorder-circle.expanded .disorder-icon {
+        width: clamp(120px, 32vw, 180px);
+        height: auto;
+        max-width: 100%;
+        display: block;
+    }
+
+    .disorder-title,
+    .disorder-circle.expanded .disorder-title {
+        font-size: clamp(1.125rem, 2vw, 1.5rem);
+        overflow-wrap: anywhere;
+    }
+
+    .disorder-full-description,
+    .disorder-circle.expanded .disorder-full-description {
+        display: block;
+        max-width: 100%;
+        font-size: 14px;
+        text-align: left;
+        text-align-last: auto;
+        hyphens: none;
+        overflow-wrap: anywhere;
+    }
+
+    .info-banner {
+        padding: 18px 20px;
     }
 }
 
@@ -328,62 +332,18 @@
     .circle-section {
         margin-bottom: 40px;
     }
-
-    .circle-diagram-wrapper {
-        width: 100%;
-        transform: none !important;
-    }
-
-    /* Hide large circle on mobile */
-    .large-circle {
-        display: none;
-    }
-
-    /* Reset circle diagram for vertical layout */
-    .circle-diagram {
-        position: static;
-        width: 100%;
-        height: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-        align-items: center;
-    }
-
-    /* Reset disorder circles to static vertical layout */
-    .disorder-circle {
-        position: static;
-        width: 100%;
-        max-width: 400px;
-        height: auto;
-        min-height: auto;
-        aspect-ratio: auto;
-        padding: 28px 24px;
-        transform: none !important;
-    }
-
-    .disorder-circle:hover {
-        transform: scale(1.02) !important;
-    }
-
-    .disorder-full-description {
-        display: block;
-    }
-
-    .disorder-icon {
-        width: 150px;
-        height: 150px;
-        border-radius: 0;
-    }
-
-    .info-banner {
-        padding: 18px 20px;
-    }
 }
 
 @media (max-width: 480px) {
     .trastornos-container {
         padding: 40px 16px;
+    }
+
+    .disorder-circle,
+    .disorder-circle.hovered,
+    .disorder-circle.expanded {
+        padding: 20px 18px;
+        border-radius: 24px;
     }
 
     .disorder-title {

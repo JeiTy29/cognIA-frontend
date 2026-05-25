@@ -1,12 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    AreaChart,
+    DashboardEmptyState,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    TreemapChart,
+    WaffleChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
 import type { PsychologistAdminItem } from '../../../hooks/usePsychologists';
+import { fetchPsychologistsForReport } from '../../../services/admin/adminReportData';
+import type { ReportPsychologistRecord } from '../../../services/admin/adminReportData';
+import { buildHeatmapCells, buildMonthlyCountItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
+import { downloadPsychologistsReportPdf } from '../../../utils/reports/admin/psychologistsReport';
 import '../AdminShared.css';
 import './Psicologos.css';
 
 type ReviewFilter = 'Todos' | 'Pendientes' | 'Rechazados';
+type PsychologistsReportModalState = {
+    verification: 'all' | 'pending' | 'approved' | 'rejected';
+    accountStatus: 'all' | 'active' | 'inactive';
+    limit: '10' | '20' | '50' | '100' | 'all';
+    includeProfessionalCard: true;
+};
 
 const reviewOptions = [
     { value: 'Todos', label: 'Todos' },
@@ -20,6 +39,34 @@ const pageSizeOptions = [
     { value: '50', label: '50' }
 ];
 
+const psychologistsReportLimitOptions = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+    { value: '100', label: '100' },
+    { value: 'all', label: 'Todos' }
+];
+
+const psychologistsVerificationOptions = [
+    { value: 'all', label: 'Todos' },
+    { value: 'pending', label: 'Pendientes' },
+    { value: 'approved', label: 'Aprobados' },
+    { value: 'rejected', label: 'Rechazados' }
+];
+
+const psychologistsAccountStatusOptions = [
+    { value: 'all', label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' }
+];
+
+const defaultPsychologistsReportModal = (): PsychologistsReportModalState => ({
+    verification: 'all',
+    accountStatus: 'all',
+    limit: '20',
+    includeProfessionalCard: true
+});
+
 function formatDate(value: string | null) {
     if (!value) return '--';
     const date = new Date(value);
@@ -27,8 +74,13 @@ function formatDate(value: string | null) {
     return date.toLocaleDateString('es-CO');
 }
 
-function getDisplayName(item: PsychologistAdminItem) {
+function getDisplayName(item: Pick<PsychologistAdminItem, 'full_name'> & { username?: string }) {
     return item.full_name && item.full_name.trim().length > 0 ? item.full_name : 'Sin nombre';
+}
+
+function formatProfessionalCard(value: string | null | undefined) {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    return normalized.length > 0 ? normalized : 'Sin registrar';
 }
 
 export default function Psicologos() {
@@ -37,6 +89,7 @@ export default function Psicologos() {
         loading,
         error,
         notice,
+        statusUnavailable,
         submittingApprove,
         submittingReject,
         approvePsychologist,
@@ -51,6 +104,13 @@ export default function Psicologos() {
     const [rejectReason, setRejectReason] = useState('');
     const [selectedPsychologist, setSelectedPsychologist] = useState<PsychologistAdminItem | null>(null);
     const [isRejectOpen, setIsRejectOpen] = useState(false);
+    const [reportWorking, setReportWorking] = useState(false);
+    const [reportNotice, setReportNotice] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState<PsychologistsReportModalState>(defaultPsychologistsReportModal);
+    const [dashboardSample, setDashboardSample] = useState<ReportPsychologistRecord[]>([]);
+    const [dashboardSampleTotal, setDashboardSampleTotal] = useState(0);
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -60,6 +120,7 @@ export default function Psicologos() {
                 item.username.toLowerCase().includes(normalizedSearch) ||
                 item.email.toLowerCase().includes(normalizedSearch) ||
                 item.id.toLowerCase().includes(normalizedSearch) ||
+                item.professional_card_number?.toLowerCase().includes(normalizedSearch) ||
                 getDisplayName(item).toLowerCase().includes(normalizedSearch);
 
             const matchesReview =
@@ -69,7 +130,93 @@ export default function Psicologos() {
 
             return matchesSearch && matchesReview;
         });
-    }, [items, searchTerm, reviewFilter]);
+    }, [items, reviewFilter, searchTerm]);
+    const dashboardNote = useMemo(
+        () => (dashboardSampleTotal > dashboardSample.length ? 'Resumen calculado sobre los registros cargados.' : undefined),
+        [dashboardSample.length, dashboardSampleTotal]
+    );
+    const approvalChartItems = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, item) => {
+                    const label = item.reviewState === 'approved' ? 'Aprobados' : item.reviewState === 'rejected' ? 'Rechazados' : 'Pendientes';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const psychologistsByMonth = useMemo(
+        () => buildMonthlyCountItems(dashboardSample.map((item) => item.created_at)),
+        [dashboardSample]
+    );
+    const psychologistsByDepartment = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, item) => {
+                    const department = (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const verificationChartItems = useMemo(
+        () => [
+            { label: 'Verificados', value: dashboardSample.filter((item) => item.colpsic_verified === true).length },
+            { label: 'Sin verificaci?n visible', value: dashboardSample.filter((item) => item.colpsic_verified !== true).length }
+        ].filter((item) => item.value > 0),
+        [dashboardSample]
+    );
+    const coverageRows = useMemo(
+        () => Array.from(new Set(dashboardSample.map((item) => (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento'))),
+        [dashboardSample]
+    );
+    const coverageColumns = useMemo(() => ['Activos', 'Inactivos'], []);
+    const coverageCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                dashboardSample.map((item) => ({
+                    department: (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento',
+                    availability: item.is_active ? 'Activos' : 'Inactivos'
+                })),
+                coverageRows,
+                coverageColumns,
+                (entry) => entry.department,
+                (entry) => entry.availability
+            ),
+        [coverageColumns, coverageRows, dashboardSample]
+    );
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDashboardSample = async () => {
+            try {
+                const result = await fetchPsychologistsForReport({
+                    limit: 100,
+                    verification:
+                        reviewFilter === 'Todos'
+                            ? 'all'
+                            : reviewFilter === 'Pendientes'
+                                ? 'pending'
+                                : 'rejected'
+                });
+                if (cancelled) return;
+                setDashboardSample(result.items);
+                setDashboardSampleTotal(result.totalAvailable);
+            } catch {
+                if (cancelled) return;
+                setDashboardSample([]);
+                setDashboardSampleTotal(0);
+            }
+        };
+
+        loadDashboardSample().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [reviewFilter]);
 
     const total = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -104,11 +251,59 @@ export default function Psicologos() {
         }
     };
 
+    const handleDownloadReport = async () => {
+        setReportWorking(true);
+        setReportNotice(null);
+        setReportError(null);
+
+        try {
+            const result = await fetchPsychologistsForReport({
+                limit: reportForm.limit === 'all' ? 'all' : Number(reportForm.limit),
+                verification: reportForm.verification,
+                isActive:
+                    reportForm.accountStatus === 'all'
+                        ? undefined
+                        : reportForm.accountStatus === 'active'
+            });
+
+            await downloadPsychologistsReportPdf({
+                items: result.items,
+                totalIncluded: result.items.length,
+                totalAvailable: result.totalAvailable,
+                filters: [
+                    `Cantidad: ${reportForm.limit === 'all' ? 'Todos' : reportForm.limit}`,
+                    `Verificación: ${reportForm.verification === 'all' ? 'Todos' : reportForm.verification}`,
+                    `Estado de cuenta: ${reportForm.accountStatus === 'all' ? 'Todos' : reportForm.accountStatus}`
+                ],
+                options: {
+                    includeDashboardSummary: true,
+                    quantityLabel: reportForm.limit === 'all' ? 'Todos' : reportForm.limit
+                }
+            });
+            setIsReportModalOpen(false);
+            setReportNotice('Reporte descargado correctamente.');
+        } catch {
+            setReportError('No se pudo generar el reporte. Intenta nuevamente.');
+        } finally {
+            setReportWorking(false);
+        }
+    };
+
     return (
         <div className="admin-page psicologos-page">
             <header className="admin-header">
                 <div className="admin-title">
-                    <h1>Psicologos</h1>
+                    <h1>Psicólogos</h1>
+                </div>
+                <div className="admin-actions">
+                    <button
+                        type="button"
+                        className="admin-btn ghost"
+                        onClick={() => setIsReportModalOpen(true)}
+                        disabled={reportWorking}
+                    >
+                        {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
+                    </button>
                 </div>
             </header>
 
@@ -116,16 +311,90 @@ export default function Psicologos() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
+            {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
+            {reportError ? <div className="admin-alert error">{reportError}</div> : null}
+            {statusUnavailable ? (
+                <div className="admin-alert warning">
+                    Se encontraron psicólogos, pero ninguno tenía un estado de revisión visible. Se mostraron como pendientes o rechazados cuando el backend entregó señales compatibles.
+                </div>
+            ) : null}
+            <div className="psicologos-dashboard-grid">
+                <DashboardSection
+                    title="Estado de aprobaci?n"
+                    description="Resume el estado del proceso de validaci?n de psic?logos."
+                    note={dashboardNote}
+                >
+                    <DonutChart
+                        data={approvalChartItems}
+                        ariaLabel="Distribuci?n por estado de aprobaci?n"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros de psic?logos en el tiempo"
+                    description="Muestra la evoluci?n de registros de psic?logos."
+                    note={dashboardNote}
+                >
+                    <AreaChart
+                        data={psychologistsByMonth}
+                        ariaLabel="Registros de psic?logos en el tiempo"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Psic?logos por departamento"
+                    description="Permite observar cobertura territorial de profesionales registrados."
+                    note={dashboardNote}
+                >
+                    <TreemapChart
+                        data={psychologistsByDepartment}
+                        ariaLabel="Distribuci?n territorial de psic?logos"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Verificaci?n profesional"
+                    description="Resume la proporci?n de psic?logos con verificaci?n profesional registrada."
+                    note={dashboardNote}
+                >
+                    <WaffleChart
+                        data={verificationChartItems}
+                        ariaLabel="Proporci?n de psic?logos verificados"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Solicitudes atendidas por psic?logos"
+                    description="Relaciona la carga de solicitudes con la respuesta de los psic?logos."
+                >
+                    <DashboardEmptyState message="No hay datos agregados suficientes para generar esta gr?fica." />
+                </DashboardSection>
+                <DashboardSection
+                    title="Cobertura territorial vs demanda"
+                    description="Permite identificar diferencias entre disponibilidad profesional y demanda de revisi?n."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={coverageRows}
+                        columns={coverageColumns}
+                        cells={coverageCells}
+                        ariaLabel="Cobertura territorial seg?n disponibilidad"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+            </div>
 
-            <section className="admin-controls" aria-label="Controles de psicologos">
+
+
+            <section className="admin-controls" aria-label="Controles de psicólogos">
                 <div className="admin-search">
                     <span className="admin-search-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 1-4.95 11.95l-3.5 3.5 1.4 1.4 3.5-3.5A7 7 0 0 1 11 4Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
                     </span>
                     <input
                         type="search"
-                        placeholder="Buscar por ID, usuario o correo..."
-                        aria-label="Buscar psicologos"
+                        placeholder="Buscar por ID, usuario, correo o tarjeta..."
+                        aria-label="Buscar psicólogos"
                         value={searchTerm}
                         onChange={(event) => {
                             setSearchTerm(event.target.value);
@@ -137,7 +406,7 @@ export default function Psicologos() {
                     <label>
                         <span>Estado</span>
                         <CustomSelect
-                            ariaLabel="Estado de revision"
+                            ariaLabel="Estado de revisión"
                             value={reviewFilter}
                             options={reviewOptions}
                             onChange={(value) => {
@@ -149,25 +418,26 @@ export default function Psicologos() {
                 </div>
             </section>
 
-            <section className="admin-table" aria-label="Listado de psicologos">
+            <section className="admin-table" aria-label="Listado de psicólogos">
                 <div className="admin-table-head psicologos-grid">
                     <span>Usuario</span>
                     <span>Correo</span>
+                    <span>Tarjeta profesional</span>
                     <span>Estado</span>
                     <span>Motivo</span>
                     <span>Creado</span>
                     <span>Acciones</span>
                 </div>
 
-                {loading ? <div className="admin-loading">Cargando psicologos...</div> : null}
+                {loading ? <div className="admin-loading">Cargando psicólogos...</div> : null}
 
                 {!loading && paginatedRows.length === 0 ? (
                     <output className="admin-empty" aria-live="polite">
                         <span className="admin-empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" /></svg>
                         </span>
-                        <strong>Sin psicologos por revisar</strong>
-                        <span>No hay psicologos pendientes o rechazados con los filtros actuales.</span>
+                        <strong>Sin psicólogos por revisar</strong>
+                        <span>No hay psicólogos pendientes o rechazados con los filtros actuales.</span>
                     </output>
                 ) : null}
 
@@ -180,6 +450,7 @@ export default function Psicologos() {
                                     <div className="admin-muted">{item.username}</div>
                                 </div>
                                 <div>{item.email}</div>
+                                <div>{formatProfessionalCard(item.professional_card_number)}</div>
                                 <div>
                                     <span className={`admin-status-badge ${item.reviewState}`}>
                                         {item.reviewState === 'pending' ? 'Pendiente' : 'Rechazado'}
@@ -212,7 +483,7 @@ export default function Psicologos() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginacion de psicologos">
+            <footer className="admin-pagination" aria-label="Paginación de psicólogos">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -220,17 +491,17 @@ export default function Psicologos() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina anterior"
+                        aria-label="Página anterior"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Pagina {currentPage}</span>
+                    <span className="admin-page-current">Página {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina siguiente"
+                        aria-label="Página siguiente"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage >= totalPages}
                     >
@@ -241,7 +512,7 @@ export default function Psicologos() {
                     <label>
                         <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de pagina"
+                            ariaLabel="Tamaño de página"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => {
@@ -253,18 +524,101 @@ export default function Psicologos() {
                 </div>
             </footer>
 
+            <Modal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    if (reportWorking) return;
+                    setIsReportModalOpen(false);
+                }}
+            >
+                <div className="admin-report-modal">
+                    <h2>Configurar reporte de psicólogos</h2>
+                    <p>Selecciona el alcance del reporte sin alterar el listado visible en pantalla.</p>
+
+                    <div className="admin-report-grid">
+                        <label>
+                            <span>Estado de verificación</span>
+                            <CustomSelect
+                                ariaLabel="Estado de verificación del reporte"
+                                value={reportForm.verification}
+                                options={psychologistsVerificationOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, verification: value as PsychologistsReportModalState['verification'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Estado de cuenta</span>
+                            <CustomSelect
+                                ariaLabel="Estado de cuenta del reporte"
+                                value={reportForm.accountStatus}
+                                options={psychologistsAccountStatusOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, accountStatus: value as PsychologistsReportModalState['accountStatus'] }))
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span>Cantidad</span>
+                            <CustomSelect
+                                ariaLabel="Cantidad de psicólogos para el reporte"
+                                value={reportForm.limit}
+                                options={psychologistsReportLimitOptions}
+                                onChange={(value) =>
+                                    setReportForm((prev) => ({ ...prev, limit: value as PsychologistsReportModalState['limit'] }))
+                                }
+                            />
+                        </label>
+                    </div>
+
+                    <div className="admin-report-checkbox">
+                        <input id="psych-report-card" type="checkbox" checked readOnly />
+                        <label htmlFor="psych-report-card">
+                            <strong>Incluir tarjeta profesional</strong>
+                            <span>La tarjeta profesional se mantiene como dato obligatorio del reporte.</span>
+                        </label>
+                    </div>
+
+                    <div className="admin-report-actions">
+                        <button
+                            type="button"
+                            className="admin-btn ghost"
+                            onClick={() => setIsReportModalOpen(false)}
+                            disabled={reportWorking}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="admin-btn primary"
+                            onClick={() => {
+                                handleDownloadReport().catch(() => undefined);
+                            }}
+                            disabled={reportWorking}
+                        >
+                            {reportWorking ? 'Generando reporte...' : 'Generar PDF'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal isOpen={isRejectOpen} onClose={closeRejectModal}>
                 <div className="admin-modal">
-                    <h2>Rechazar psicologo</h2>
+                    <h2>{'Rechazar psic\u00f3logo'}</h2>
                     <p>
-                        Indica la razon del rechazo para <strong>{selectedPsychologist?.username ?? ''}</strong>.
+                        {'Indica la raz\u00f3n del rechazo para '}<strong>{selectedPsychologist?.username ?? ''}</strong>.
+                    </p>
+                    <p className="admin-muted">
+                        Tarjeta profesional: {formatProfessionalCard(selectedPsychologist?.professional_card_number)}
                     </p>
                     <label>
-                        <span>Razon</span>
+                        <span>{'Raz\u00f3n'}</span>
                         <textarea
                             value={rejectReason}
                             onChange={(event) => setRejectReason(event.target.value)}
-                            placeholder="Escribe la razon del rechazo"
+                            placeholder="Escribe la razón del rechazo"
                         />
                     </label>
                     <div className="admin-modal-actions">

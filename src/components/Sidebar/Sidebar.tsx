@@ -1,8 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 import type { Role } from './SidebarConfig';
 import { getItemsForRole } from './SidebarConfig';
-import { useEffect, useRef, useState } from 'react';
 
 type SidebarProps = Readonly<{
     role: Role;

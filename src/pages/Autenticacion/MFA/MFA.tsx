@@ -7,15 +7,19 @@ import { useAuth } from '../../../hooks/auth/useAuth';
 import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { getDefaultRouteForRoles } from '../../../utils/auth/roles';
 import { MfaSetupView } from '../../../components/MFA/MfaSetupView';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 type MFAMode = 'setup' | 'challenge';
 
 type MFANavigationState = {
     mode?: MFAMode;
     challengeId?: string;
+    challenge_id?: string;
     enrollmentToken?: string;
+    enrollment_token?: string;
     username?: string;
     expiresIn?: number;
+    expires_in?: number;
 };
 
 type InputRefList = { current: Array<HTMLInputElement | null> };
@@ -23,6 +27,20 @@ type InputRef = { current: HTMLInputElement | null };
 
 function resolveMfaMode(state: MFANavigationState | null): MFAMode {
     return state?.mode ?? 'challenge';
+}
+
+function readMfaStateString(
+    state: MFANavigationState | null,
+    ...keys: Array<keyof MFANavigationState>
+) {
+    if (!state) return undefined;
+
+    for (const key of keys) {
+        const value = state[key];
+        if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+
+    return undefined;
 }
 
 const MFA_CODE_LENGTH = 6;
@@ -41,9 +59,9 @@ function requiresLoginRedirect(
 
 function resolveMfaVerificationError(status: number | null) {
     if (status === 403) {
-        return 'Debes configurar MFA antes de verificar. Inicia sesion nuevamente.';
+        return 'Debes configurar MFA antes de verificar. Inicia sesión nuevamente.';
     }
-    return 'El codigo ingresado no es valido. Intenta nuevamente.';
+    return 'El código ingresado no es válido. Intenta nuevamente.';
 }
 
 function validateMfaSubmitInput(
@@ -54,10 +72,10 @@ function validateMfaSubmitInput(
 ) {
     if (!challengeId) return '';
     if (useRecovery && !recoveryCode.trim()) {
-        return 'Ingresa el codigo de recuperacion.';
+        return 'Ingresa el código de recuperación.';
     }
     if (!useRecovery && code.length !== MFA_CODE_LENGTH) {
-        return 'Ingresa un codigo de 6 digitos.';
+        return 'Ingresa un código de 6 dígitos.';
     }
     return null;
 }
@@ -132,12 +150,12 @@ export default function MFA() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
     const location = useLocation();
-    const { setSession } = useAuth();
+    const { setSession, verifySession } = useAuth();
     const state = location.state as MFANavigationState | null;
     const mode: MFAMode = useMemo(() => resolveMfaMode(state), [state]);
-    const challengeId = state?.challengeId;
-    const enrollmentToken = state?.enrollmentToken;
-    const username = state?.username;
+    const challengeId = useMemo(() => readMfaStateString(state, 'challengeId', 'challenge_id'), [state]);
+    const enrollmentToken = useMemo(() => readMfaStateString(state, 'enrollmentToken', 'enrollment_token'), [state]);
+    const username = useMemo(() => readMfaStateString(state, 'username'), [state]);
     const navigate = useNavigate();
     const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
     const recoveryInputRef = useRef<HTMLInputElement | null>(null);
@@ -228,6 +246,12 @@ export default function MFA() {
             const payload = buildMfaPayload(safeChallengeId, useRecovery, recoveryCode, code);
             const response = await loginMfa(payload);
             setSession(response.access_token, response.expires_in);
+            const verified = await verifySession({ silent: true, allowRefresh: false });
+            if (!verified) {
+                setSubmitError('No se pudo validar la sesión MFA. Intenta iniciar sesión nuevamente.');
+                return;
+            }
+
             const jwtPayload = decodeJwtPayload(response.access_token);
             navigate(getDefaultRouteForRoles(jwtPayload?.roles), { replace: true });
         } catch (error) {
@@ -246,13 +270,13 @@ export default function MFA() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>
 
                     <h1 className="auth-title">
-                        {mode === 'setup' ? 'Configurar verificacion en dos pasos' : 'Verificacion requerida'}
+                        {mode === 'setup' ? 'Configurar verificación en dos pasos' : 'Verificación requerida'}
                     </h1>
 
                     {mode === 'setup' ? (
@@ -267,7 +291,7 @@ export default function MFA() {
                     ) : (
                         <>
                             <p className="auth-subtitle">
-                                Abre tu aplicacion de autenticacion y escribe el codigo de 6 digitos que se muestra alli.
+                                Abre tu aplicación de autenticación y escribe el código de 6 dígitos que se muestra allí.
                             </p>
                             <form className="auth-form" onSubmit={handleVerify}>
                                 {submitError ? <div className="validation-error">{submitError}</div> : null}
@@ -276,7 +300,7 @@ export default function MFA() {
                                 {isTotpMode ? (
                                     <div className="form-group">
                                         <fieldset className="mfa-code-fieldset">
-                                            <legend className="mfa-code-legend">Codigo MFA de 6 digitos</legend>
+                                            <legend className="mfa-code-legend">Código MFA de 6 dígitos</legend>
                                             <div className="mfa-code-grid">
                                                 {codeDigits.map((digit, index) => (
                                                     <input
@@ -294,7 +318,7 @@ export default function MFA() {
                                                         onChange={(event) => handleDigitChange(index, event.target.value)}
                                                         onKeyDown={(event) => handleDigitKeyDown(index, event)}
                                                         onPaste={handleDigitPaste}
-                                                        aria-label={`Digito ${index + 1} de 6`}
+                                                        aria-label={`Dígito ${index + 1} de 6`}
                                                         required
                                                     />
                                                 ))}
@@ -304,7 +328,7 @@ export default function MFA() {
                                 ) : null}
 
                                 <div className="form-group">
-                                    <div className="mfa-mode-toggle" role="tablist" aria-label="Modo de verificacion MFA">
+                                    <div className="mfa-mode-toggle" role="tablist" aria-label="Modo de verificación MFA">
                                         <button
                                             type="button"
                                             role="tab"
@@ -312,7 +336,7 @@ export default function MFA() {
                                             className={`mfa-mode-toggle-btn ${isTotpMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(false)}
                                         >
-                                            Codigo TOTP
+                                            Código TOTP
                                         </button>
                                         <button
                                             type="button"
@@ -321,7 +345,7 @@ export default function MFA() {
                                             className={`mfa-mode-toggle-btn ${isRecoveryMode ? 'is-active' : ''}`}
                                             onClick={() => setUseRecovery(true)}
                                         >
-                                            Codigo de recuperacion
+                                            Código de recuperación
                                         </button>
                                     </div>
                                     {isRecoveryMode ? (
@@ -329,7 +353,7 @@ export default function MFA() {
                                             ref={recoveryInputRef}
                                             type="text"
                                             className="form-input"
-                                            placeholder="Codigo de recuperacion"
+                                            placeholder="Código de recuperación"
                                             value={recoveryCode}
                                             onChange={(event) => setRecoveryCode(event.target.value.trim())}
                                             required
@@ -346,7 +370,7 @@ export default function MFA() {
 
                     {mode === 'setup' ? (
                         <p className="auth-mfa-note">
-                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el codigo.
+                            Si no puedes escanear el QR, utiliza la app para ingresar manualmente el código.
                         </p>
                     ) : null}
 

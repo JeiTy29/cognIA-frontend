@@ -10,6 +10,7 @@ import { decodeJwtPayload } from '../../../utils/auth/jwt';
 import { Modal } from '../../../components/Modal/Modal';
 import { ApiError } from '../../../services/api/httpClient';
 import type { LoginErrorResponse, LoginResponse } from '../../../services/auth/auth.types';
+import cogniaLogo from '../../../assets/branding/cognia-logo-light.png';
 
 function isValidEmail(value: string) {
     const trimmed = value.trim();
@@ -38,6 +39,21 @@ type InicioSesionLocationState = {
     message?: string;
     openForgot?: boolean;
     forgotEmail?: string;
+};
+
+type SuccessfulLoginResponse = {
+    accessToken: string;
+    expiresIn: number;
+};
+
+type MfaChallengeLoginResponse = {
+    challengeId: string | null;
+    expiresIn: number | null;
+};
+
+type MfaEnrollmentLoginResponse = {
+    enrollmentToken: string | null;
+    expiresIn: number | null;
 };
 
 function resolveInfoMessage(
@@ -78,54 +94,156 @@ function resolveInfoMessage(
 }
 
 function isLoginErrorResponse(response: LoginResponse | LoginErrorResponse): response is LoginErrorResponse {
-    return 'error' in response;
+    const candidate = response as Partial<LoginErrorResponse>;
+
+    return (
+        typeof candidate.status === 'number' &&
+        (
+            candidate.error === 'invalid_credentials' ||
+            candidate.error === 'request_failed' ||
+            candidate.error === 'colpsic_pending'
+        )
+    );
 }
 
-function resolveLoginErrorMessage(errorCode: LoginErrorResponse['error']) {
-    if (errorCode === 'invalid_credentials') {
+function resolveLoginErrorMessage(response: LoginErrorResponse) {
+    if (response.error === 'invalid_credentials') {
         return 'Usuario o contraseña incorrectos.';
+    }
+    if (response.error === 'colpsic_pending') {
+        return 'Tu cuenta de psicólogo está pendiente de aprobación por un administrador. Debes esperar a que sea verificada para poder ingresar.';
     }
     return 'Ocurrió un error al iniciar sesión. Intenta nuevamente.';
 }
 
-function handleSuccessfulLoginResponse(
+function readStringProperty(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return null;
+
+    const record = source as Record<string, unknown>;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+
+    return null;
+}
+
+function readNumberProperty(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return null;
+
+    const record = source as Record<string, unknown>;
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+    }
+
+    return null;
+}
+
+function hasTrueFlag(source: unknown, ...keys: string[]) {
+    if (!source || typeof source !== 'object') return false;
+
+    const record = source as Record<string, unknown>;
+    return keys.some((key) => record[key] === true);
+}
+
+function normalizeDirectLoginResponse(response: LoginResponse): SuccessfulLoginResponse | null {
+    const accessToken = readStringProperty(response, 'access_token', 'accessToken');
+    const expiresIn = readNumberProperty(response, 'expires_in', 'expiresIn');
+
+    if (!accessToken || expiresIn === null) return null;
+
+    return { accessToken, expiresIn };
+}
+
+function normalizeMfaChallengeResponse(response: LoginResponse): MfaChallengeLoginResponse | null {
+    if (!hasTrueFlag(response, 'mfa_required', 'mfaRequired')) return null;
+
+    return {
+        challengeId: readStringProperty(response, 'challenge_id', 'challengeId'),
+        expiresIn: readNumberProperty(response, 'expires_in', 'expiresIn')
+    };
+}
+
+function normalizeMfaEnrollmentResponse(response: LoginResponse): MfaEnrollmentLoginResponse | null {
+    if (!hasTrueFlag(response, 'mfa_enrollment_required', 'mfaEnrollmentRequired')) return null;
+
+    return {
+        enrollmentToken: readStringProperty(response, 'enrollment_token', 'enrollmentToken'),
+        expiresIn: readNumberProperty(response, 'expires_in', 'expiresIn')
+    };
+}
+
+type LoginHandleResult = {
+    handled: boolean;
+    errorMessage?: string;
+};
+
+async function handleSuccessfulLoginResponse(
     response: LoginResponse,
     username: string,
     setSession: (token: string, expiresIn: number) => void,
+    verifySession: (options?: { silent?: boolean; allowRefresh?: boolean }) => Promise<boolean>,
     navigate: ReturnType<typeof useNavigate>
-) {
-    if ('access_token' in response) {
-        setSession(response.access_token, response.expires_in);
-        const payload = decodeJwtPayload(response.access_token);
+) : Promise<LoginHandleResult> {
+    const directLogin = normalizeDirectLoginResponse(response);
+    if (directLogin) {
+        setSession(directLogin.accessToken, directLogin.expiresIn);
+        const verified = await verifySession({ silent: true, allowRefresh: false });
+        if (!verified) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo validar la sesión activa. Intenta iniciar sesión nuevamente.'
+            };
+        }
+        const payload = decodeJwtPayload(directLogin.accessToken);
         navigate(getDefaultRouteForRoles(payload?.roles), { replace: true });
-        return true;
+        return { handled: true };
     }
 
-    if ('mfa_required' in response && response.mfa_required) {
+    const challengeLogin = normalizeMfaChallengeResponse(response);
+    if (challengeLogin) {
+        if (!challengeLogin.challengeId) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo iniciar el challenge MFA. Intenta iniciar sesión nuevamente.'
+            };
+        }
+
         navigate('/mfa', {
+            replace: true,
             state: {
                 mode: 'challenge',
-                challengeId: response.challenge_id,
-                expiresIn: response.expires_in,
+                challengeId: challengeLogin.challengeId,
+                expiresIn: challengeLogin.expiresIn,
                 username
-            },
+            }
         });
-        return true;
+        return { handled: true };
     }
 
-    if ('mfa_enrollment_required' in response && response.mfa_enrollment_required) {
+    const enrollmentLogin = normalizeMfaEnrollmentResponse(response);
+    if (enrollmentLogin) {
+        if (!enrollmentLogin.enrollmentToken) {
+            return {
+                handled: true,
+                errorMessage: 'No se pudo iniciar la configuración de MFA. Intenta iniciar sesión nuevamente.'
+            };
+        }
+
         navigate('/mfa', {
+            replace: true,
             state: {
                 mode: 'setup',
-                enrollmentToken: response.enrollment_token,
-                expiresIn: response.expires_in,
+                enrollmentToken: enrollmentLogin.enrollmentToken,
+                expiresIn: enrollmentLogin.expiresIn,
                 username
-            },
+            }
         });
-        return true;
+        return { handled: true };
     }
 
-    return false;
+    return { handled: false };
 }
 
 function shouldRedirectToDefaultRoute(isAuthenticated: boolean, devAuthActive: boolean) {
@@ -147,7 +265,7 @@ export default function InicioSesion() {
     const [forgotGeneralError, setForgotGeneralError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, roles, setSession, devAuthActive } = useAuth();
+    const { isAuthenticated, roles, setSession, verifySession, devAuthActive } = useAuth();
     const usernamePattern = /^[A-Za-z0-9._-]{3,32}$/;
 
     useEffect(() => {
@@ -190,13 +308,20 @@ export default function InicioSesion() {
                 return;
             }
             const response = await login({ username, password });
-            if (!isLoginErrorResponse(response) && handleSuccessfulLoginResponse(response, username, setSession, navigate)) {
-                return;
-            }
+
             if (isLoginErrorResponse(response)) {
-                setErrorMessage(resolveLoginErrorMessage(response.error));
+                setErrorMessage(resolveLoginErrorMessage(response));
                 return;
             }
+
+            const loginResult = await handleSuccessfulLoginResponse(response, username, setSession, verifySession, navigate);
+            if (loginResult.handled) {
+                if (loginResult.errorMessage) {
+                    setErrorMessage(loginResult.errorMessage);
+                }
+                return;
+            }
+
             setErrorMessage('No se pudo iniciar sesión. Intenta nuevamente.');
         } catch {
             setErrorMessage('Ocurrió un error al iniciar sesión. Intenta nuevamente.');
@@ -245,7 +370,7 @@ export default function InicioSesion() {
                 <div className="auth-content">
                     <div className="header-brand">
                         <Link to="/" className="brand-link">
-                            <div className="brand-icon">c</div>
+                            <img className="auth-brand-logo" src={cogniaLogo} alt="CognIA" />
                             <span className="brand-text">cognIA</span>
                         </Link>
                     </div>
