@@ -737,7 +737,7 @@ export function QuestionnaireReportDetailModal({
                 try {
                     nextPreview = await getQuestionnaireReportPreviewV2(sessionId);
                     setReportPreviewPayload(nextPreview);
-                    setVisibleProfessionalReviews((nextPreview.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false));
+                    setVisibleProfessionalReviews((nextPreview?.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false));
                 } catch {
                     nextPreview = null;
                 }
