@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Modal } from '../Modal/Modal';
 import { ColombiaLocationSelect } from '../Location/ColombiaLocationSelect';
 import { ApiError } from '../../services/api/httpClient';
@@ -162,6 +162,11 @@ const NON_TEXT_PATTERNS = [/https?:\/\//i, /^[A-Za-z0-9_-]{6,}$/];
 
 function runHistoryTask(task: () => Promise<void>) {
     task().catch(() => undefined);
+}
+
+function handleHistoryFormSubmit(event: FormEvent<HTMLFormElement>, task: () => Promise<void>) {
+    event.preventDefault();
+    runHistoryTask(task);
 }
 
 function readOptionalString(value: unknown) {
@@ -1027,61 +1032,65 @@ export function QuestionnaireReportDetailModal({
                                     <p className="historial-v2-helper-text">
                                         Busca un psicólogo registrado por nombre, correo o ubicación para enviarle una solicitud de revisión desde su cuenta profesional.
                                     </p>
-                                    <div className="historial-v2-share-search-grid">
-                                        <label className="historial-v2-share-field">
-                                            <span>Nombre o correo</span>
-                                            <input
-                                                type="text"
-                                                placeholder="Nombre o correo"
-                                                value={shareQuery}
-                                                onChange={(event) => setShareQuery(event.target.value)}
-                                            />
-                                        </label>
-                                        <ColombiaLocationSelect
-                                            value={{ department: shareDepartment, city: shareCity }}
-                                            onChange={(nextValue) => {
-                                                setShareDepartment(nextValue.department);
-                                                setShareCity(nextValue.city);
-                                            }}
-                                            disabled={shareSameLocation}
-                                            departmentLabel="Departamento"
-                                            cityLabel="Ciudad"
-                                            className="historial-v2-share-location"
-                                        />
-                                        <label className="historial-v2-inline-toggle">
-                                            <input
-                                                type="checkbox"
-                                                checked={shareSameLocation}
-                                                onChange={(event) => {
-                                                    const checked = event.target.checked;
-                                                    setShareSameLocation(checked);
-                                                    if (checked) {
-                                                        setShareDepartment('');
-                                                        setShareCity('');
-                                                    }
+                                    <form
+                                        className="historial-v2-share-search-form"
+                                        onSubmit={(event) => handleHistoryFormSubmit(event, handleSearchPsychologists)}
+                                    >
+                                        <div className="historial-v2-share-search-grid">
+                                            <label className="historial-v2-share-field">
+                                                <span>Nombre o correo</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nombre o correo"
+                                                    value={shareQuery}
+                                                    onChange={(event) => setShareQuery(event.target.value)}
+                                                />
+                                            </label>
+                                            <ColombiaLocationSelect
+                                                value={{ department: shareDepartment, city: shareCity }}
+                                                onChange={(nextValue) => {
+                                                    setShareDepartment(nextValue.department);
+                                                    setShareCity(nextValue.city);
                                                 }}
+                                                disabled={shareSameLocation}
+                                                departmentLabel="Departamento"
+                                                cityLabel="Ciudad"
+                                                className="historial-v2-share-location"
                                             />
-                                            <span>Buscar psicólogos de mi misma ubicación</span>
-                                        </label>
-                                        <div className="historial-v2-share-button-wrap">
-                                            <button
-                                                type="button"
-                                                className="historial-v2-btn"
-                                                aria-label="Buscar psicólogos"
-                                                onClick={() => { runHistoryTask(handleSearchPsychologists); }}
-                                                disabled={shareSearchLoading}
-                                            >
-                                                {shareSearchLoading ? (
-                                                    <span>...</span>
-                                                ) : (
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                                        <circle cx="11" cy="11" r="6.5" />
-                                                        <path d="m16 16 4.5 4.5" />
-                                                    </svg>
-                                                )}
-                                            </button>
+                                            <div className="historial-v2-share-button-wrap">
+                                                <button
+                                                    type="submit"
+                                                    className="historial-v2-btn historial-v2-share-search-button"
+                                                    aria-label="Buscar psicólogos"
+                                                    disabled={shareSearchLoading}
+                                                >
+                                                    {shareSearchLoading ? (
+                                                        <span>...</span>
+                                                    ) : (
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                                            <circle cx="11" cy="11" r="6.5" />
+                                                            <path d="m16 16 4.5 4.5" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <label className="historial-v2-inline-toggle historial-v2-share-same-location">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={shareSameLocation}
+                                                    onChange={(event) => {
+                                                        const checked = event.target.checked;
+                                                        setShareSameLocation(checked);
+                                                        if (checked) {
+                                                            setShareDepartment('');
+                                                            setShareCity('');
+                                                        }
+                                                    }}
+                                                />
+                                                <span>Buscar psicólogos de mi misma ubicación</span>
+                                            </label>
                                         </div>
-                                    </div>
+                                    </form>
                                     {shareError ? <div className="historial-v2-inline-feedback error">{shareError}</div> : null}
                                     {shareNotice ? <div className="historial-v2-inline-feedback success">{shareNotice}</div> : null}
                                     {shareWarnings.includes('user_location_missing') ? (

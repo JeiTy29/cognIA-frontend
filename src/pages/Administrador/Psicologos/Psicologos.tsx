@@ -1,9 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    AreaChart,
+    DashboardEmptyState,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    TreemapChart,
+    WaffleChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
 import type { PsychologistAdminItem } from '../../../hooks/usePsychologists';
 import { fetchPsychologistsForReport } from '../../../services/admin/adminReportData';
+import type { ReportPsychologistRecord } from '../../../services/admin/adminReportData';
+import { buildHeatmapCells, buildMonthlyCountItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import { downloadPsychologistsReportPdf } from '../../../utils/reports/admin/psychologistsReport';
 import '../AdminShared.css';
 import './Psicologos.css';
@@ -98,6 +109,8 @@ export default function Psicologos() {
     const [reportError, setReportError] = useState<string | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportForm, setReportForm] = useState<PsychologistsReportModalState>(defaultPsychologistsReportModal);
+    const [dashboardSample, setDashboardSample] = useState<ReportPsychologistRecord[]>([]);
+    const [dashboardSampleTotal, setDashboardSampleTotal] = useState(0);
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -118,6 +131,92 @@ export default function Psicologos() {
             return matchesSearch && matchesReview;
         });
     }, [items, reviewFilter, searchTerm]);
+    const dashboardNote = useMemo(
+        () => (dashboardSampleTotal > dashboardSample.length ? 'Resumen calculado sobre los registros cargados.' : undefined),
+        [dashboardSample.length, dashboardSampleTotal]
+    );
+    const approvalChartItems = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, item) => {
+                    const label = item.reviewState === 'approved' ? 'Aprobados' : item.reviewState === 'rejected' ? 'Rechazados' : 'Pendientes';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const psychologistsByMonth = useMemo(
+        () => buildMonthlyCountItems(dashboardSample.map((item) => item.created_at)),
+        [dashboardSample]
+    );
+    const psychologistsByDepartment = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, item) => {
+                    const department = (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const verificationChartItems = useMemo(
+        () => [
+            { label: 'Verificados', value: dashboardSample.filter((item) => item.colpsic_verified === true).length },
+            { label: 'Sin verificaci?n visible', value: dashboardSample.filter((item) => item.colpsic_verified !== true).length }
+        ].filter((item) => item.value > 0),
+        [dashboardSample]
+    );
+    const coverageRows = useMemo(
+        () => Array.from(new Set(dashboardSample.map((item) => (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento'))),
+        [dashboardSample]
+    );
+    const coverageColumns = useMemo(() => ['Activos', 'Inactivos'], []);
+    const coverageCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                dashboardSample.map((item) => ({
+                    department: (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento',
+                    availability: item.is_active ? 'Activos' : 'Inactivos'
+                })),
+                coverageRows,
+                coverageColumns,
+                (entry) => entry.department,
+                (entry) => entry.availability
+            ),
+        [coverageColumns, coverageRows, dashboardSample]
+    );
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDashboardSample = async () => {
+            try {
+                const result = await fetchPsychologistsForReport({
+                    limit: 100,
+                    verification:
+                        reviewFilter === 'Todos'
+                            ? 'all'
+                            : reviewFilter === 'Pendientes'
+                                ? 'pending'
+                                : 'rejected'
+                });
+                if (cancelled) return;
+                setDashboardSample(result.items);
+                setDashboardSampleTotal(result.totalAvailable);
+            } catch {
+                if (cancelled) return;
+                setDashboardSample([]);
+                setDashboardSampleTotal(0);
+            }
+        };
+
+        loadDashboardSample().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [reviewFilter]);
 
     const total = filteredRows.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -219,6 +318,73 @@ export default function Psicologos() {
                     Se encontraron psicólogos, pero ninguno tenía un estado de revisión visible. Se mostraron como pendientes o rechazados cuando el backend entregó señales compatibles.
                 </div>
             ) : null}
+            <div className="psicologos-dashboard-grid">
+                <DashboardSection
+                    title="Estado de aprobaci?n"
+                    description="Resume el estado del proceso de validaci?n de psic?logos."
+                    note={dashboardNote}
+                >
+                    <DonutChart
+                        data={approvalChartItems}
+                        ariaLabel="Distribuci?n por estado de aprobaci?n"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros de psic?logos en el tiempo"
+                    description="Muestra la evoluci?n de registros de psic?logos."
+                    note={dashboardNote}
+                >
+                    <AreaChart
+                        data={psychologistsByMonth}
+                        ariaLabel="Registros de psic?logos en el tiempo"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Psic?logos por departamento"
+                    description="Permite observar cobertura territorial de profesionales registrados."
+                    note={dashboardNote}
+                >
+                    <TreemapChart
+                        data={psychologistsByDepartment}
+                        ariaLabel="Distribuci?n territorial de psic?logos"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Verificaci?n profesional"
+                    description="Resume la proporci?n de psic?logos con verificaci?n profesional registrada."
+                    note={dashboardNote}
+                >
+                    <WaffleChart
+                        data={verificationChartItems}
+                        ariaLabel="Proporci?n de psic?logos verificados"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Solicitudes atendidas por psic?logos"
+                    description="Relaciona la carga de solicitudes con la respuesta de los psic?logos."
+                >
+                    <DashboardEmptyState message="No hay datos agregados suficientes para generar esta gr?fica." />
+                </DashboardSection>
+                <DashboardSection
+                    title="Cobertura territorial vs demanda"
+                    description="Permite identificar diferencias entre disponibilidad profesional y demanda de revisi?n."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={coverageRows}
+                        columns={coverageColumns}
+                        cells={coverageCells}
+                        ariaLabel="Cobertura territorial seg?n disponibilidad"
+                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+            </div>
+
+
 
             <section className="admin-controls" aria-label="Controles de psicólogos">
                 <div className="admin-search">

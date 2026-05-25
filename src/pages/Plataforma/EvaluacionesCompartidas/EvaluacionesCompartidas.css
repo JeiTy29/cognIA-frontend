@@ -140,6 +140,12 @@
     gap: 12px;
 }
 
+.evaluaciones-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
 .evaluaciones-aggregates section {
     border: 1px solid rgba(33, 95, 143, 0.14);
     border-radius: 16px;

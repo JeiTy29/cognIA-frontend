@@ -5,6 +5,11 @@
     color: #215f8f;
 }
 
+.solicitudes-revision__card,
+.solicitudes-revision__card * {
+    min-width: 0;
+}
+
 .solicitudes-revision__header,
 .solicitudes-revision__card-top,
 .solicitudes-revision__actions,
@@ -94,6 +99,12 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.solicitudes-revision__dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
 .solicitudes-revision__summary article,
 .solicitudes-revision__notice,
 .solicitudes-revision__empty,
@@ -174,6 +185,14 @@
 .solicitudes-revision__summary-block {
     display: grid;
     gap: 10px;
+}
+
+.solicitudes-revision__summary-block p,
+.solicitudes-revision__protected-text {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .solicitudes-revision__domains {

@@ -1,8 +1,17 @@
 ﻿import { useMemo, useState } from 'react';
+import {
+    AreaChart,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    TimelineChart,
+    TreemapChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
 import type { AuditLogItem } from '../../../services/admin/audit';
+import { buildDailyCountItems, buildHeatmapCells, buildTimelineItems, mapCountsToItems, summarizeRole } from '../../../utils/dashboard/dashboardData';
 import {
     downloadAuditReportPdf,
     resolveAuditCategoryValue,
@@ -345,6 +354,147 @@ export default function Auditoria() {
         }));
     }, [selectedItem]);
 
+    const auditActionsChart = useMemo(
+        () =>
+            mapCountsToItems(
+                filteredRows.reduce((accumulator, item) => {
+                    const label = humanizeAction(item.action);
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [filteredRows]
+    );
+
+    const auditRoleChart = useMemo(
+        () =>
+            mapCountsToItems(
+                filteredRows.reduce((accumulator, item) => {
+                    const roleValue =
+                        (typeof item.raw.user_role === 'string' && item.raw.user_role) ||
+                        (typeof item.raw.actor_role === 'string' && item.raw.actor_role) ||
+                        (typeof item.raw.role === 'string' && item.raw.role) ||
+                        'SYSTEM';
+                    const label = summarizeRole(roleValue);
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [filteredRows]
+    );
+
+    const auditActivityByDay = useMemo(
+        () => buildDailyCountItems(filteredRows.map((item) => item.timestamp)),
+        [filteredRows]
+    );
+
+    const auditResultChart = useMemo(
+        () =>
+            mapCountsToItems(
+                filteredRows.reduce((accumulator, item) => {
+                    const result = resolveAuditResultValue(item);
+                    const label =
+                        result === 'success'
+                            ? 'Exitosas'
+                            : result === 'failed'
+                                ? 'Fallidas'
+                                : result === 'unauthorized'
+                                    ? 'No autorizadas'
+                                    : result === 'validation'
+                                        ? 'Rechazadas'
+                                        : 'Otras';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [filteredRows]
+    );
+
+    const auditSensitiveTimeline = useMemo(
+        () =>
+            buildTimelineItems(
+                filteredRows.filter((item) => {
+                    const action = item.action.toUpperCase();
+                    return (
+                        action.includes('PDF') ||
+                        action.includes('REPORT') ||
+                        action.includes('APPROV') ||
+                        action.includes('REJECT') ||
+                        action.includes('DENIED') ||
+                        action.includes('FAILED') ||
+                        action.includes('REVIEW')
+                    );
+                }),
+                {
+                    getDate: (item) => item.timestamp,
+                    getTitle: (item) => humanizeAction(item.action),
+                    getDescription: (item) => normalizeMojibakeText(item.summary || item.target || '--'),
+                    getTone: (item) => {
+                        const result = resolveAuditResultValue(item);
+                        if (result === 'success') return 'success';
+                        if (result === 'failed' || result === 'unauthorized') return 'danger';
+                        if (result === 'validation') return 'warning';
+                        return 'info';
+                    }
+                }
+            ),
+        [filteredRows]
+    );
+
+    const auditRiskRows = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    filteredRows.map((item) => {
+                        const section =
+                            typeof item.section === 'string' && item.section.trim().length > 0
+                                ? item.section
+                                : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
+                                    ? item.raw.source_module
+                                    : 'General';
+                        return normalizeMojibakeText(section);
+                    })
+                )
+            ),
+        [filteredRows]
+    );
+    const auditRiskColumns = useMemo(() => ['Éxito', 'Error', 'Acceso denegado', 'Acción sensible'], []);
+    const auditRiskCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                filteredRows,
+                auditRiskRows,
+                auditRiskColumns,
+                (item) => {
+                    const section =
+                        typeof item.section === 'string' && item.section.trim().length > 0
+                            ? item.section
+                            : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
+                                ? item.raw.source_module
+                                : 'General';
+                    return normalizeMojibakeText(section);
+                },
+                (item) => {
+                    const action = item.action.toUpperCase();
+                    const result = resolveAuditResultValue(item);
+                    if (result === 'success') return 'Éxito';
+                    if (result === 'unauthorized') return 'Acceso denegado';
+                    if (result === 'failed' || result === 'validation') return 'Error';
+                    if (
+                        action.includes('PDF') ||
+                        action.includes('REPORT') ||
+                        action.includes('APPROV') ||
+                        action.includes('REJECT') ||
+                        action.includes('REVIEW')
+                    ) {
+                        return 'Acción sensible';
+                    }
+                    return 'Éxito';
+                }
+            ),
+        [auditRiskColumns, auditRiskRows, filteredRows]
+    );
+
     const handleDownloadReport = async () => {
         if (reportForm.scope === 'all' && !reportForm.confirmedFullReport) {
             setReportError('Debes confirmar que entiendes que el reporte completo puede ser extenso.');
@@ -442,6 +592,50 @@ export default function Auditoria() {
             {error ? <div className="admin-alert error">{error}</div> : null}
             {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
             {reportError ? <div className="admin-alert error">{reportError}</div> : null}
+
+            <div className="admin-dashboard-grid">
+                <DashboardSection
+                    title="Acciones por tipo"
+                    description="Identifica los tipos de acciones más frecuentes en auditoría."
+                >
+                    <TreemapChart data={auditActionsChart} ariaLabel="Acciones por tipo" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Eventos por rol"
+                    description="Distribuye la actividad registrada según el rol origen."
+                >
+                    <DonutChart data={auditRoleChart} ariaLabel="Eventos por rol" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Actividad por fecha"
+                    description="Permite ubicar días con mayor actividad o eventos atípicos."
+                >
+                    <AreaChart data={auditActivityByDay} ariaLabel="Actividad por fecha" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Resultado de acciones"
+                    description="Resume el resultado operativo de los eventos registrados."
+                >
+                    <DonutChart data={auditResultChart} ariaLabel="Resultado de acciones" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Eventos sensibles"
+                    description="Destaca eventos que requieren mayor atención administrativa."
+                >
+                    <TimelineChart items={auditSensitiveTimeline} ariaLabel="Eventos sensibles" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Riesgo por módulo"
+                    description="Permite identificar módulos con mayor concentración de eventos problemáticos."
+                >
+                    <HeatmapChart
+                        rows={auditRiskRows}
+                        columns={auditRiskColumns}
+                        cells={auditRiskCells}
+                        ariaLabel="Riesgo por módulo"
+                    />
+                </DashboardSection>
+            </div>
 
             <section className="admin-controls" aria-label="Controles de auditoría">
                 <div className="admin-search">

@@ -258,6 +258,13 @@
     margin-top: 24px;
 }
 
+.metricas-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+}
+
 .metricas-table-row {
     display: grid;
     grid-template-columns: 28px minmax(160px, 1.25fr) minmax(120px, 0.85fr) minmax(220px, 1.5fr);

@@ -136,7 +136,7 @@ export function ColombiaLocationSelect({
             {
                 value: '',
                 label: !selectedDepartment
-                    ? 'Selecciona un departamento primero'
+                    ? 'Elige departamento'
                     : loadingCities
                         ? 'Cargando ciudades...'
                         : 'Selecciona una ciudad'

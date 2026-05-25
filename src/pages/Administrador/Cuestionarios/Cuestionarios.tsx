@@ -1,10 +1,18 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    AreaChart,
+    DashboardEmptyState,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminQuestionnaires } from '../../../hooks/useAdminQuestionnaires';
 import { fetchQuestionnairesForReport } from '../../../services/admin/adminReportData';
 import type { AdminQuestionnaireItem } from '../../../services/admin/questionnaires';
+import { buildHeatmapCells, buildMonthlyCountItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import { downloadQuestionnairesReportPdf } from '../../../utils/reports/admin/questionnairesReport';
 import '../AdminShared.css';
 import './Cuestionarios.css';
@@ -174,6 +182,38 @@ export default function Cuestionarios() {
     const displayTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
     const orderValue = useMemo(() => getOrderValue(sort, order), [sort, order]);
+    const dashboardNote = useMemo(
+        () => (total > items.length ? 'Resumen calculado sobre las plantillas visibles.' : undefined),
+        [items.length, total]
+    );
+    const questionnaireStateChart = useMemo(
+        () =>
+            mapCountsToItems(
+                items.reduce((accumulator, item) => {
+                    const label = item.is_archived ? 'Archivados' : item.is_active ? 'Activos' : 'Inactivos';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [items]
+    );
+    const questionnaireCreatedByMonth = useMemo(
+        () => buildMonthlyCountItems(items.map((item) => item.created_at)),
+        [items]
+    );
+    const questionnaireAvailabilityRows = useMemo(() => ['Activos', 'Inactivos', 'Archivados'], []);
+    const questionnaireAvailabilityColumns = useMemo(() => ['Vigentes', 'Archivados'], []);
+    const questionnaireAvailabilityCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                items,
+                questionnaireAvailabilityRows,
+                questionnaireAvailabilityColumns,
+                (item) => (item.is_archived ? 'Archivados' : item.is_active ? 'Activos' : 'Inactivos'),
+                (item) => (item.is_archived ? 'Archivados' : 'Vigentes')
+            ),
+        [items, questionnaireAvailabilityColumns, questionnaireAvailabilityRows]
+    );
 
     const handleDownloadReport = async () => {
         setReportWorking(true);
@@ -391,6 +431,41 @@ export default function Cuestionarios() {
             {error ? <div className="admin-alert error">{error}</div> : null}
             {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
             {reportError ? <div className="admin-alert error">{reportError}</div> : null}
+
+            <div className="admin-dashboard-grid">
+                <DashboardSection
+                    title="Plantillas por estado"
+                    description="Resume cu?ntas plantillas est?n activas, inactivas o archivadas en la vista actual."
+                    note={dashboardNote}
+                >
+                    <DonutChart data={questionnaireStateChart} ariaLabel="Plantillas por estado" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros en el tiempo"
+                    description="Muestra la evoluci?n de plantillas registradas en la vista actual."
+                    note={dashboardNote}
+                >
+                    <AreaChart data={questionnaireCreatedByMonth} ariaLabel="Registros de cuestionarios en el tiempo" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Disponibilidad operativa"
+                    description="Cruza el estado operativo con la condici?n de archivado."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={questionnaireAvailabilityRows}
+                        columns={questionnaireAvailabilityColumns}
+                        cells={questionnaireAvailabilityCells}
+                        ariaLabel="Disponibilidad operativa de cuestionarios"
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Cobertura por preguntas y modo"
+                    description="Requiere datos reales de preguntas por plantilla para construir esta gr?fica."
+                >
+                    <DashboardEmptyState message="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado." />
+                </DashboardSection>
+            </div>
 
             <section className="admin-controls" aria-label="Controles de cuestionarios">
                 <div className="admin-search">

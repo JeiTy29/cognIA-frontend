@@ -1,9 +1,22 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import {
+    AreaChart,
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    TreemapChart,
+    WaffleChart
+} from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { CustomSelect, type CustomSelectOption } from '../../../components/CustomSelect/CustomSelect';
 import { useUsers } from '../../../hooks/useUsers';
 import { fetchUsersForReport } from '../../../services/admin/adminReportData';
 import type { CreateUserRequest, User } from '../../../services/admin/users';
+import {
+    buildHeatmapCells,
+    buildMonthlyCountItems,
+    mapCountsToItems
+} from '../../../utils/dashboard/dashboardData';
 import { downloadUsersReportPdf } from '../../../utils/reports/admin/usersReport';
 import '../AdminShared.css';
 import './Usuarios.css';
@@ -426,8 +439,75 @@ export default function Usuarios() {
     const [reportNotice, setReportNotice] = useState<string | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportForm, setReportForm] = useState<UsersReportModalState>(defaultUsersReportModal);
+    const [dashboardSample, setDashboardSample] = useState<User[]>([]);
+    const [dashboardSampleTotal, setDashboardSampleTotal] = useState<number>(0);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const dashboardNote = useMemo(
+        () => (dashboardSampleTotal > dashboardSample.length ? 'Resumen calculado sobre los usuarios cargados.' : undefined),
+        [dashboardSample.length, dashboardSampleTotal]
+    );
+    const usersByRoleChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const label = hasAdminRole(user)
+                        ? 'Administrador'
+                        : normalizeEditableUserType(user) === 'psychologist'
+                            ? 'Psicólogo'
+                            : 'Padre/Tutor';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const usersByStateChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const label = user.is_active ? 'Activos' : 'Inactivos';
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const usersByMonthChart = useMemo(
+        () => buildMonthlyCountItems(dashboardSample.map((user) => user.created_at)),
+        [dashboardSample]
+    );
+    const usersByDepartmentChart = useMemo(
+        () =>
+            mapCountsToItems(
+                dashboardSample.reduce((accumulator, user) => {
+                    const department = (user as User & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [dashboardSample]
+    );
+    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Administrador'], []);
+    const roleStateColumns = useMemo(() => ['Activos', 'Inactivos'], []);
+    const roleStateCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                dashboardSample.map((user) => ({
+                    role: hasAdminRole(user)
+                        ? 'Administrador'
+                        : normalizeEditableUserType(user) === 'psychologist'
+                            ? 'Psicólogo'
+                            : 'Padre/Tutor',
+                    state: user.is_active ? 'Activos' : 'Inactivos'
+                })),
+                roleStateRows,
+                roleStateColumns,
+                (entry) => entry.role,
+                (entry) => entry.state
+            ),
+        [dashboardSample, roleStateColumns, roleStateRows]
+    );
 
     const handleDownloadReport = async () => {
         setReportWorking(true);
@@ -481,6 +561,37 @@ export default function Usuarios() {
             globalThis.clearTimeout(timeoutId);
         };
     }, [searchDraft, setSearchQuery]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDashboardSample = async () => {
+            try {
+                const result = await fetchUsersForReport({
+                    limit: 100,
+                    role: filters.role === 'all' ? undefined : filters.role,
+                    isActive:
+                        filters.is_active === 'all'
+                            ? undefined
+                            : filters.is_active === 'active',
+                    orderBy: 'recent',
+                    q: filters.q
+                });
+                if (cancelled) return;
+                setDashboardSample(result.items);
+                setDashboardSampleTotal(result.totalAvailable);
+            } catch {
+                if (cancelled) return;
+                setDashboardSample([]);
+                setDashboardSampleTotal(0);
+            }
+        };
+
+        loadDashboardSample().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [filters.is_active, filters.q, filters.role]);
 
     const createPayload = useMemo<CreateUserRequest>(() => ({
         username: createForm.username.trim(),
@@ -789,6 +900,66 @@ export default function Usuarios() {
                     </button>
                 </div>
             ) : null}
+
+            <div className="usuarios-dashboard-grid">
+                <DashboardSection
+                    title="Usuarios por rol"
+                    description="Muestra la composición de usuarios según rol."
+                    note={dashboardNote}
+                >
+                    <DonutChart
+                        data={usersByRoleChart}
+                        ariaLabel="Distribución de usuarios por rol"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Usuarios por estado"
+                    description="Resume el estado operativo de las cuentas."
+                    note={dashboardNote}
+                >
+                    <WaffleChart
+                        data={usersByStateChart}
+                        ariaLabel="Distribución de usuarios por estado"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Registros en el tiempo"
+                    description="Permite observar el crecimiento de usuarios registrados."
+                    note={dashboardNote}
+                >
+                    <AreaChart
+                        data={usersByMonthChart}
+                        ariaLabel="Crecimiento de usuarios registrados"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Usuarios por departamento"
+                    description="Presenta la distribución territorial de usuarios registrados."
+                    note={dashboardNote}
+                >
+                    <TreemapChart
+                        data={usersByDepartmentChart}
+                        ariaLabel="Distribución territorial de usuarios"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Composición rol + estado"
+                    description="Cruza rol y estado para identificar segmentos que requieren revisión."
+                    note={dashboardNote}
+                >
+                    <HeatmapChart
+                        rows={roleStateRows}
+                        columns={roleStateColumns}
+                        cells={roleStateCells}
+                        ariaLabel="Cruce entre rol y estado de usuario"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                    />
+                </DashboardSection>
+            </div>
 
             <div className="usuarios-controls">
                 <div className="usuarios-search">

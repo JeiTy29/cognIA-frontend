@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './EvaluacionesCompartidas.css';
+import {
+    DashboardSection,
+    DonutChart,
+    HeatmapChart,
+    HistogramChart,
+    TreemapChart,
+    VerticalBarChart
+} from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import {
@@ -27,6 +35,12 @@ import type {
     QuestionnaireReportPreviewDTO,
     QuestionnaireReviewStatus
 } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildAgingBuckets,
+    buildHeatmapCells,
+    mapCountsToItems,
+    normalizeDashboardDomain
+} from '../../../utils/dashboard/dashboardData';
 import {
     formatDateTime,
     formatPercent,
@@ -77,11 +91,6 @@ const reportPeriodOptions = [
 ] as const;
 
 type ReportPeriodValue = (typeof reportPeriodOptions)[number]['value'];
-
-function buildAggregateLine(label: string, count: unknown, extra?: string) {
-    const countText = Number.isFinite(Number(count)) ? String(count) : '0';
-    return extra ? `${label}: ${countText} · ${extra}` : `${label}: ${countText}`;
-}
 
 function buildInitialReportDates(monthsBack: number) {
     const end = new Date();
@@ -478,8 +487,79 @@ export default function EvaluacionesCompartidas() {
     };
 
     const summary = dashboard?.summary ?? null;
-    const items = dashboard?.items ?? [];
+    const items = useMemo(() => dashboard?.items ?? [], [dashboard?.items]);
     const emptyState = !loading && items.length === 0;
+    const partialChartsNote = useMemo(() => {
+        const total = Number(dashboard?.pagination?.total ?? items.length);
+        return total > items.length ? 'Resumen calculado sobre las evaluaciones cargadas.' : undefined;
+    }, [dashboard?.pagination?.total, items.length]);
+    const alertChartItems = useMemo(
+        () =>
+            (dashboard?.aggregates?.by_alert_level ?? [])
+                .map((item) => ({
+                    label: normalizeAlertLevel(item.alert_level),
+                    value: Number(item.count ?? 0)
+                }))
+                .filter((item) => item.value > 0),
+        [dashboard?.aggregates?.by_alert_level]
+    );
+    const domainChartItems = useMemo(
+        () =>
+            (dashboard?.aggregates?.by_domain ?? [])
+                .map((item) => ({
+                    label: normalizeDashboardDomain(item.domain),
+                    value: Number(item.count ?? 0),
+                    meta: typeof item.max_probability === 'number' ? `Máx: ${formatPercent(item.max_probability)}` : undefined
+                }))
+                .filter((item) => item.value > 0),
+        [dashboard?.aggregates?.by_domain]
+    );
+    const reviewChartItems = useMemo(
+        () =>
+            (dashboard?.aggregates?.by_review_status ?? [])
+                .map((item) => ({
+                    label: normalizeReviewStatus(item.review_status),
+                    value: Number(item.count ?? 0)
+                }))
+                .filter((item) => item.value > 0),
+        [dashboard?.aggregates?.by_review_status]
+    );
+    const heatmapRows = useMemo(
+        () => Array.from(new Set(items.flatMap((item) => (item.domains ?? []).map((domainItem) => normalizeDashboardDomain(domainItem.domain))))),
+        [items]
+    );
+    const heatmapColumns = useMemo(() => ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisi?n prioritaria'], []);
+    const heatmapCells = useMemo(
+        () =>
+            buildHeatmapCells(
+                items.flatMap((item) => (item.domains ?? []).map((domainItem) => ({ ...domainItem, session_id: item.session_id }))),
+                heatmapRows,
+                heatmapColumns,
+                (domainItem) => normalizeDashboardDomain(domainItem.domain),
+                (domainItem) => normalizeAlertLevel(domainItem.alert_level)
+            ),
+        [heatmapColumns, heatmapRows, items]
+    );
+    const pendingAgingItems = useMemo(
+        () =>
+            buildAgingBuckets(
+                items
+                    .filter((item) => ['pending', 'in_review'].includes(String(item.review_status ?? '').toLowerCase()))
+                    .map((item) => item.processed_at)
+            ),
+        [items]
+    );
+    const caseTreemapItems = useMemo(
+        () =>
+            mapCountsToItems(
+                items.reduce((accumulator, item) => {
+                    const label = normalizeBackendText(item.case_public_id, 'Sin caso');
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [items]
+    );
 
     return (
         <div className="plataforma-view">
@@ -531,32 +611,73 @@ export default function EvaluacionesCompartidas() {
                     </div>
                 ) : null}
 
-                {!loading && dashboard?.aggregates ? (
-                    <div className="evaluaciones-aggregates">
-                        <section>
-                            <h2>Por dominio</h2>
-                            <ul>
-                                {(dashboard.aggregates.by_domain ?? []).map((item, index) => (
-                                    <li key={`domain-${index}`}>{buildAggregateLine(normalizeDomainLabel(item.domain), item.count, item.max_probability !== null && item.max_probability !== undefined ? formatPercent(item.max_probability) : undefined)}</li>
-                                ))}
-                            </ul>
-                        </section>
-                        <section>
-                            <h2>Por alerta</h2>
-                            <ul>
-                                {(dashboard.aggregates.by_alert_level ?? []).map((item, index) => (
-                                    <li key={`alert-${index}`}>{buildAggregateLine(normalizeAlertLevel(item.alert_level), item.count)}</li>
-                                ))}
-                            </ul>
-                        </section>
-                        <section>
-                            <h2>Por revisión</h2>
-                            <ul>
-                                {(dashboard.aggregates.by_review_status ?? []).map((item, index) => (
-                                    <li key={`review-${index}`}>{buildAggregateLine(normalizeReviewStatus(item.review_status), item.count)}</li>
-                                ))}
-                            </ul>
-                        </section>
+                {!loading ? (
+                    <div className="evaluaciones-dashboard-grid">
+                        <DashboardSection
+                            title="Distribuci?n por nivel de alerta"
+                            description="Permite priorizar las evaluaciones aceptadas seg?n su nivel de alerta."
+                        >
+                            <DonutChart
+                                data={alertChartItems}
+                                ariaLabel="Distribuci?n de evaluaciones aceptadas por nivel de alerta"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Evaluaciones por dominio"
+                            description="Muestra qu? dominios aparecen con mayor frecuencia en las evaluaciones aceptadas."
+                        >
+                            <VerticalBarChart
+                                data={domainChartItems}
+                                ariaLabel="Frecuencia de dominios en evaluaciones aceptadas"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Estado de revisi?n profesional"
+                            description="Resume el avance del proceso de revisi?n profesional."
+                        >
+                            <DonutChart
+                                data={reviewChartItems}
+                                ariaLabel="Distribuci?n por estado de revisi?n profesional"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Matriz de prioridad cl?nica-operativa"
+                            description="Cruza dominios y niveles de alerta para identificar combinaciones que requieren mayor atenci?n."
+                            note={partialChartsNote}
+                        >
+                            <HeatmapChart
+                                rows={heatmapRows}
+                                columns={heatmapColumns}
+                                cells={heatmapCells}
+                                ariaLabel="Cruce entre dominios y niveles de alerta"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Antig?edad de evaluaciones pendientes de revisi?n"
+                            description="Identifica evaluaciones aceptadas que llevan m?s tiempo sin cierre de revisi?n."
+                            note={partialChartsNote}
+                        >
+                            <HistogramChart
+                                data={pendingAgingItems}
+                                ariaLabel="Antig?edad de evaluaciones pendientes o en revisi?n"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Mapa de carga por caso"
+                            description="Muestra qu? casos concentran mayor cantidad de evaluaciones aceptadas."
+                            note={partialChartsNote}
+                        >
+                            <TreemapChart
+                                data={caseTreemapItems}
+                                ariaLabel="Distribuci?n de evaluaciones aceptadas por caso"
+                                emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
                     </div>
                 ) : null}
 

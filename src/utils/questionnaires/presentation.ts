@@ -2,6 +2,10 @@ function readText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function isUrlLike(value: string) {
     return /^https?:\/\//i.test(value);
 }
@@ -122,6 +126,28 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
     professional_review_updated: 'Revisión profesional actualizada'
 };
 
+const ENCRYPTED_FIELD_STRING_MARKERS = [
+    '__cognia_field_encrypted__',
+    'field_encryption_v1',
+    'AES-256-GCM',
+    '"ciphertext"',
+    '"nonce"',
+    '"key_id"',
+    '"algorithm"',
+    '"purpose"',
+    '"version"'
+];
+
+const ENCRYPTED_FIELD_KEYS = [
+    '__cognia_field_encrypted__',
+    'key_id',
+    'nonce',
+    'ciphertext',
+    'algorithm',
+    'purpose',
+    'version'
+];
+
 function formatFallbackLabel(value: string) {
     return normalizeBackendText(titleCaseWords(value.replace(/[_-]+/g, ' ')), '--');
 }
@@ -142,8 +168,37 @@ export function normalizeBooleanLabel(value: unknown, fallback = '--') {
     return fallback;
 }
 
-export function normalizeBackendText(value: unknown, fallback = '--') {
+export function isEncryptedField(value: unknown) {
+    if (!isRecordLike(value)) return false;
+    if (value.__cognia_field_encrypted__ === true) return true;
+    return ENCRYPTED_FIELD_KEYS.some((key) => key in value);
+}
+
+export function isEncryptedFieldString(value: unknown) {
+    const raw = readText(value);
+    if (!raw) return false;
+
+    if (ENCRYPTED_FIELD_STRING_MARKERS.some((marker) => raw.includes(marker))) {
+        return true;
+    }
+
+    if (!(raw.startsWith('{') || raw.startsWith('['))) {
+        return false;
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return isEncryptedField(parsed);
+    } catch {
+        return false;
+    }
+}
+
+export function safeDisplayText(value: unknown, fallback = 'Información protegida no disponible para visualización.') {
     if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    if (isEncryptedField(value) || isEncryptedFieldString(value)) return fallback;
+    if (isRecordLike(value) || Array.isArray(value)) return fallback;
+
     const raw = readText(value);
     if (!raw || raw === 'null' || raw === 'undefined' || raw === 'NaN' || raw === '[object Object]') {
         return fallback;
@@ -158,9 +213,53 @@ export function normalizeBackendText(value: unknown, fallback = '--') {
     return normalized || fallback;
 }
 
+export function normalizeBackendText(value: unknown, fallback = '--') {
+    return safeDisplayText(value, fallback);
+}
+
 export function normalizeDomainLabel(value: unknown) {
     const raw = readText(value).toLowerCase().replace(/[_-]+/g, '_');
     if (!raw) return 'General';
+    if (
+        raw.includes('gad') ||
+        raw.includes('agor') ||
+        raw.includes('worry') ||
+        raw.includes('panic') ||
+        raw.includes('separation') ||
+        raw.includes('social')
+    ) {
+        return 'Ansiedad';
+    }
+    if (
+        raw.includes('mdd') ||
+        raw.includes('pdd') ||
+        raw.includes('depressive') ||
+        raw.includes('mood')
+    ) {
+        return 'Depresión';
+    }
+    if (
+        raw.includes('adhd') ||
+        raw.includes('inatt') ||
+        raw.includes('hypimp')
+    ) {
+        return 'TDAH';
+    }
+    if (
+        raw.includes('conduct') ||
+        raw.includes('odd') ||
+        raw.includes('dmdd') ||
+        raw.includes('outburst')
+    ) {
+        return 'Conducta';
+    }
+    if (
+        raw.includes('elimination') ||
+        raw.includes('enuresis') ||
+        raw.includes('encopresis')
+    ) {
+        return 'Eliminación';
+    }
     return DOMAIN_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 

@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'reac
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
+import {
+    DashboardEmptyState,
+    DashboardMetricCard,
+    DashboardSection,
+    HorizontalBarChart,
+    LineChart,
+    TimelineChart
+} from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import {
@@ -19,6 +27,14 @@ import type {
     QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireSessionV2DTO
 } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildDeltaItems,
+    buildPercentItems,
+    buildTimelineItems,
+    normalizeDashboardDomain
+} from '../../../utils/dashboard/dashboardData';
+import { formatChartPercent } from '../../../utils/dashboard/chartFormatters';
+import { normalizePercentValue } from '../../../utils/dashboard/chartScales';
 import {
     formatDateTime,
     normalizeAlertLevel,
@@ -53,6 +69,13 @@ type CaseStatusFilter = (typeof caseStatusOptions)[number]['value'];
 type ReportPeriodValue = (typeof reportPeriodOptions)[number]['value'];
 
 const CREATE_CASE_MAX_LENGTH = 120;
+const guardianDomainSeries = [
+    { key: 'TDAH', label: 'TDAH', color: '#0f5f9f' },
+    { key: 'Ansiedad', label: 'Ansiedad', color: '#2f8f6b' },
+    { key: 'Depresión', label: 'Depresión', color: '#e67e22' },
+    { key: 'Conducta', label: 'Conducta', color: '#c0392b' },
+    { key: 'Eliminación', label: 'Eliminación', color: '#7c3aed' }
+] as const;
 
 function getCaseOptionLabel(item: QuestionnaireCaseDTO) {
     const label = item.display_label ?? item.private_label ?? 'Caso sin etiqueta';
@@ -276,6 +299,92 @@ export default function SeguimientoGuardian() {
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
+    const selectedCaseItem = useMemo(
+        () => (caseId ? visibleCases.find((item) => item.case_id === caseId) ?? null : visibleCases[0] ?? null),
+        [caseId, visibleCases]
+    );
+    const selectedCaseEntry = selectedCaseItem ? dashboardEntryMap.get(selectedCaseItem.case_id) ?? null : null;
+    const selectedCaseDetail = selectedCaseItem ? caseDetailsById[selectedCaseItem.case_id] ?? null : null;
+    const selectedCaseSessions = useMemo(
+        () => sortCaseSessions(selectedCaseDetail?.sessions ?? []),
+        [selectedCaseDetail?.sessions]
+    );
+    const selectedDomainBreakdown = useMemo(
+        () => resolveCaseDomainBreakdown(selectedCaseEntry, selectedCaseDetail),
+        [selectedCaseDetail, selectedCaseEntry]
+    );
+    const selectedTrendData = useMemo(() => {
+        const source = (selectedCaseEntry?.trend?.length ? selectedCaseEntry.trend : selectedCaseDetail?.trend) ?? [];
+        return source
+            .filter((point) => point.date && Array.isArray(point.domains) && point.domains.length > 0)
+            .map((point) => ({
+                label: point.date ?? '',
+                values: guardianDomainSeries.reduce<Record<string, number | null>>((accumulator, series) => {
+                    const domainEntry = (point.domains ?? []).find(
+                        (domainItem) => normalizeDashboardDomain(domainItem.domain) === series.label
+                    );
+                    accumulator[series.key] = normalizePercentValue(domainEntry?.probability);
+                    return accumulator;
+                }, {})
+            }));
+    }, [selectedCaseDetail?.trend, selectedCaseEntry?.trend]);
+    const selectedLatestBars = useMemo(
+        () =>
+            buildPercentItems(
+                selectedDomainBreakdown.map((item) => ({
+                    label: normalizeDashboardDomain(item.domain),
+                    value: item.latest_probability
+                }))
+            ),
+        [selectedDomainBreakdown]
+    );
+    const selectedPeakBars = useMemo(
+        () =>
+            buildPercentItems(
+                selectedDomainBreakdown
+                    .filter((item) => typeof item.max_probability === 'number')
+                    .map((item) => ({
+                        label: normalizeDashboardDomain(item.domain),
+                        value: item.max_probability
+                    }))
+            ),
+        [selectedDomainBreakdown]
+    );
+    const selectedDeltaBars = useMemo(() => {
+        if (selectedTrendData.length < 2) return [];
+        const previousPoint = selectedTrendData[selectedTrendData.length - 2];
+        const currentPoint = selectedTrendData[selectedTrendData.length - 1];
+        return buildDeltaItems(
+            guardianDomainSeries.map((series) => ({
+                label: series.label,
+                value: Number(currentPoint.values[series.key] ?? 0) - Number(previousPoint.values[series.key] ?? 0)
+            }))
+        );
+    }, [selectedTrendData]);
+    const selectedTimelineItems = useMemo(
+        () =>
+            buildTimelineItems(selectedCaseSessions, {
+                getDate: (session) => session.processed_at ?? session.updated_at ?? session.created_at,
+                getTitle: (session) => {
+                    const mode = normalizeQuestionnaireMode(session.mode);
+                    const status = normalizeSessionStatus(session.status);
+                    return `${mode} · ${status}`;
+                },
+                getDescription: (session) => {
+                    const alert = resolveSessionAlert(session);
+                    const alertText = alert ? `${alert.domainLabel}: ${alert.alertLabel} (${alert.probabilityLabel})` : 'Sin alerta principal disponible';
+                    return `${formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)} · ${alertText}`;
+                },
+                getTone: (session) => {
+                    const alert = resolveSessionAlert(session)?.alertLabel.toLowerCase();
+                    if (alert?.includes('alto') || alert?.includes('prioritaria')) return 'danger';
+                    if (alert?.includes('elevado') || alert?.includes('moderado')) return 'warning';
+                    if (alert?.includes('bajo')) return 'success';
+                    return 'info';
+                }
+            }),
+        [selectedCaseSessions]
+    );
 
     const openCreateCaseModal = () => {
         setCreateCaseError(null);
@@ -524,6 +633,120 @@ export default function SeguimientoGuardian() {
                                 <span>{normalizeAlertLevel(summary?.highest_alert_level)}</span>
                             </article>
                         </div>
+
+                        {selectedCaseItem ? (
+                            <div className="seguimiento-dashboard-grid">
+                                <div className="seguimiento-dashboard-metrics">
+                                    <DashboardMetricCard
+                                        label="Sesiones registradas"
+                                        value={selectedCaseEntry?.sessions_count ?? selectedCaseSessions.length}
+                                        helper={selectedCaseItem.case_public_id ?? 'Caso sin código público'}
+                                        tone="info"
+                                    />
+                                    <DashboardMetricCard
+                                        label="Última sesión"
+                                        value={formatDateTime(
+                                            selectedCaseEntry?.latest_session?.processed_at ??
+                                            selectedCaseSessions[0]?.processed_at ??
+                                            selectedCaseSessions[0]?.updated_at ??
+                                            selectedCaseSessions[0]?.created_at
+                                        )}
+                                        helper="Fecha más reciente dentro del caso."
+                                        tone="neutral"
+                                    />
+                                    <DashboardMetricCard
+                                        label="Mayor alerta"
+                                        value={normalizeAlertLevel(
+                                            selectedCaseItem.latest_alert_level ??
+                                            selectedCaseEntry?.latest_session?.domains?.[0]?.alert_level ??
+                                            selectedDomainBreakdown[0]?.latest_alert_level
+                                        )}
+                                        helper="Nivel más alto visible para el caso seleccionado."
+                                        tone="warning"
+                                    />
+                                    <DashboardMetricCard
+                                        label="Estado del caso"
+                                        value={normalizeCaseStatus(selectedCaseItem.status)}
+                                        helper={caseId ? 'Caso filtrado manualmente.' : 'Caso mostrado según el filtro actual.'}
+                                        tone={(selectedCaseItem.status ?? '').toLowerCase() === 'archived' ? 'neutral' : 'success'}
+                                    />
+                                </div>
+
+                                <DashboardSection
+                                    className="seguimiento-dashboard-main"
+                                    title="Evolución por dominio"
+                                    description="Permite observar cómo han variado los dominios evaluados a lo largo de las sesiones del caso seleccionado."
+                                    note={caseId ? undefined : 'Mostrando el caso más reciente entre los resultados cargados.'}
+                                >
+                                    <LineChart
+                                        data={selectedTrendData}
+                                        series={[...guardianDomainSeries]}
+                                        ariaLabel="Evolución por dominio del caso seleccionado"
+                                        emptyMessage="No hay suficientes sesiones para mostrar evolución en el periodo seleccionado."
+                                        minY={0}
+                                        maxY={100}
+                                        formatter={formatChartPercent}
+                                    />
+                                </DashboardSection>
+
+                                <DashboardSection
+                                    title="Última medición por dominio"
+                                    description="Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico."
+                                >
+                                    <HorizontalBarChart
+                                        data={selectedLatestBars}
+                                        ariaLabel="Última medición por dominio"
+                                        emptyMessage="No hay datos suficientes para mostrar la última medición por dominio."
+                                        formatter={formatChartPercent}
+                                        minValue={0}
+                                        maxValue={100}
+                                    />
+                                </DashboardSection>
+
+                                <DashboardSection
+                                    title="Mayor medición registrada por dominio"
+                                    description="Identifica el mayor valor registrado para cada dominio dentro del periodo seleccionado."
+                                >
+                                    {selectedPeakBars.length > 0 ? (
+                                        <HorizontalBarChart
+                                            data={selectedPeakBars}
+                                            ariaLabel="Mayor medición registrada por dominio"
+                                            emptyMessage="No hay datos suficientes para mostrar la mayor medición registrada."
+                                            formatter={formatChartPercent}
+                                            minValue={0}
+                                            maxValue={100}
+                                        />
+                                    ) : (
+                                        <DashboardEmptyState message="Este caso no incluye valores máximos registrados por dominio para el periodo seleccionado." />
+                                    )}
+                                </DashboardSection>
+
+                                <DashboardSection
+                                    title="Cambio frente a la sesión anterior"
+                                    description="Muestra el aumento o disminución de cada dominio respecto a la sesión anterior."
+                                >
+                                    <HorizontalBarChart
+                                        data={selectedDeltaBars}
+                                        ariaLabel="Cambio por dominio frente a la sesión anterior"
+                                        emptyMessage="No hay suficientes sesiones para comparar el cambio frente a la sesión anterior."
+                                        formatter={formatChartPercent}
+                                        minValue={-100}
+                                        maxValue={100}
+                                    />
+                                </DashboardSection>
+
+                                <DashboardSection
+                                    title="Línea de sesiones del caso"
+                                    description="Resume la secuencia de sesiones registradas para el caso."
+                                >
+                                    <TimelineChart
+                                        items={selectedTimelineItems}
+                                        ariaLabel="Secuencia de sesiones del caso"
+                                        emptyMessage="No hay sesiones suficientes para construir la línea temporal del caso."
+                                    />
+                                </DashboardSection>
+                            </div>
+                        ) : null}
 
                         <div className="seguimiento-case-list">
                             {visibleCases.map((caseItem) => {

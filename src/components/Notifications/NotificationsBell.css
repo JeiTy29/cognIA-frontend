@@ -111,6 +111,7 @@
     padding: 14px;
     display: grid;
     gap: 8px;
+    min-width: 0;
 }
 
 .notifications-modal__item.is-unread {
@@ -121,4 +122,8 @@
 .notifications-modal__item p,
 .notifications-modal__item small {
     color: #52677a;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }

@@ -1,4 +1,9 @@
 ﻿import { useMemo, useState } from 'react';
+import {
+    DashboardEmptyState,
+    DashboardSection,
+    MatrixAvailabilityChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAdminProblemReports } from '../../../hooks/useAdminProblemReports';
@@ -338,6 +343,45 @@ export default function ReportesAdmin() {
         ];
     }, [items]);
 
+    const reportAvailabilityRows = useMemo(
+        () => ['Usuarios', 'Psic?logos', 'Auditor?a', 'M?tricas', 'Cuestionarios', 'Casos', 'Evaluaciones'],
+        []
+    );
+    const reportAvailabilityColumns = useMemo(() => ['PDF', 'Filtros', 'Gr?ficas', 'Exportaci?n completa'], []);
+    const reportAvailabilityValues = useMemo(
+        () => [
+            { row: 'Usuarios', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Usuarios', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Usuarios', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'Usuarios', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Psic?logos', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Psic?logos', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Psic?logos', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'Psic?logos', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Auditor?a', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Auditor?a', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Auditor?a', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'Auditor?a', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'M?tricas', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'M?tricas', column: 'Filtros', status: 'partial' as const, label: 'Parcial' },
+            { row: 'M?tricas', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'M?tricas', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Cuestionarios', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Cuestionarios', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Cuestionarios', column: 'Gr?ficas', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Cuestionarios', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Casos', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Casos', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Casos', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'Casos', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' },
+            { row: 'Evaluaciones', column: 'PDF', status: 'available' as const, label: 'Disponible' },
+            { row: 'Evaluaciones', column: 'Filtros', status: 'available' as const, label: 'Disponible' },
+            { row: 'Evaluaciones', column: 'Gr?ficas', status: 'available' as const, label: 'Disponible' },
+            { row: 'Evaluaciones', column: 'Exportaci?n completa', status: 'partial' as const, label: 'Parcial' }
+        ],
+        []
+    );
+
     const handleDownloadReport = async () => {
         setReportWorking(true);
         setReportNotice(null);
@@ -485,6 +529,44 @@ export default function ReportesAdmin() {
             {error ? <div className="admin-alert error">{error}</div> : null}
             {reportNotice ? <div className="admin-alert success">{reportNotice}</div> : null}
             {reportError ? <div className="admin-alert error">{reportError}</div> : null}
+
+            <div className="admin-dashboard-grid">
+                <DashboardSection
+                    title="Disponibilidad de reportes por secci?n"
+                    description="Resume las capacidades disponibles por tipo de reporte."
+                >
+                    <MatrixAvailabilityChart
+                        rows={reportAvailabilityRows}
+                        columns={reportAvailabilityColumns}
+                        values={reportAvailabilityValues}
+                        ariaLabel="Disponibilidad de reportes por secci?n"
+                    />
+                </DashboardSection>
+                <DashboardSection
+                    title="Reportes generados por fecha"
+                    description="Muestra la evoluci?n de reportes generados en el tiempo."
+                >
+                    <DashboardEmptyState message="No hay historial suficiente de generaci?n de reportes." />
+                </DashboardSection>
+                <DashboardSection
+                    title="Descargas por tipo de reporte"
+                    description="Distribuye las descargas seg?n el tipo de reporte."
+                >
+                    <DashboardEmptyState message="No hay datos reales de descargas por tipo de reporte disponibles en esta vista." />
+                </DashboardSection>
+                <DashboardSection
+                    title="Filtros m?s usados por reporte"
+                    description="Permite identificar qu? criterios se usan con mayor frecuencia al generar reportes."
+                >
+                    <DashboardEmptyState message="No hay datos reales de uso de filtros para generar esta gr?fica." />
+                </DashboardSection>
+                <DashboardSection
+                    title="Estado de generaci?n"
+                    description="Permite detectar fallos o abandono en el flujo de generaci?n."
+                >
+                    <DashboardEmptyState message="No hay datos reales del flujo de generaci?n para esta gr?fica." />
+                </DashboardSection>
+            </div>
 
             <section className="admin-controls" aria-label="Controles de reportes">
                 <div className="admin-search">

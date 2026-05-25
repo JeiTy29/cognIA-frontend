@@ -7,7 +7,8 @@ import { useAuth } from '../../hooks/auth/useAuth';
 import {
     formatDateTime,
     normalizeBackendText,
-    normalizeNotificationType
+    normalizeNotificationType,
+    safeDisplayText
 } from '../../utils/questionnaires/presentation';
 import { emitNotificationsRefresh, onNotificationsRefresh } from '../../utils/notifications/events';
 import './NotificationsBell.css';
@@ -30,7 +31,7 @@ function getNotificationTarget(notification: NotificationDTO, primaryRole: strin
 
 function buildNotificationTitle(notification: NotificationDTO) {
     const normalizedType = normalizeNotificationType(notification.type);
-    const title = normalizeBackendText(notification.title, '');
+    const title = safeDisplayText(notification.title, '');
     if (!title) return normalizedType;
 
     const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -42,12 +43,12 @@ function buildNotificationTitle(notification: NotificationDTO) {
 }
 
 function buildNotificationMessage(notification: NotificationDTO) {
-    const message = normalizeBackendText(notification.message, '');
+    const message = safeDisplayText(notification.message, '');
     if (message) return message;
     if (notification.case_public_id) {
         return `Caso ${normalizeBackendText(notification.case_public_id)}.`;
     }
-    return 'Sin detalle disponible.';
+    return 'Información protegida no disponible para visualización.';
 }
 
 type NotificationModalContent = {

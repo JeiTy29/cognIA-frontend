@@ -1,9 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+    AreaChart,
+    DashboardEmptyState,
+    DashboardMetricCard,
+    DashboardSection,
+    DonutChart,
+    TimelineChart,
+    TreemapChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
 import type { QuestionnaireHistoryItemV2DTO } from '../../../services/questionnaires/questionnaires.types';
+import {
+    buildCountsMap,
+    buildMonthlyCountItems,
+    buildTimelineItems,
+    mapCountsToItems
+} from '../../../utils/dashboard/dashboardData';
 import {
     formatDateTimeEsCO,
     getModeLabel,
@@ -95,6 +110,44 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const currentPage = Math.min(Math.max(page, 1), totalPages);
     const showFrom = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const showTo = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const statusSummaryItems = useMemo(
+        () => mapCountsToItems(buildCountsMap(items.map((item) => item.status), (value) => normalizeBackendText(getStatusLabel(value), 'No disponible'))),
+        [items]
+    );
+    const sessionsByMonth = useMemo(
+        () => buildMonthlyCountItems(items.map((item) => item.updated_at ?? item.created_at ?? null)),
+        [items]
+    );
+    const caseSummaryItems = useMemo(() => {
+        const labels = items.map((item) => {
+            const rawLabel =
+                item.case?.display_label ??
+                item.case?.private_label ??
+                item.case_display_label ??
+                item.case_private_label ??
+                item.case_label ??
+                item.case_public_id ??
+                'Sin caso';
+            return normalizeBackendText(rawLabel, 'Sin caso');
+        });
+        return mapCountsToItems(buildCountsMap(labels));
+    }, [items]);
+    const alertTimelineItems = useMemo(() => {
+        const candidateItems = items.filter((item) => {
+            const record = item as Record<string, unknown>;
+            return Boolean(record.alert_level ?? record.highest_alert_level ?? record.latest_alert_level);
+        });
+        return buildTimelineItems(candidateItems, {
+            getDate: (item) => item.updated_at ?? item.created_at,
+            getTitle: (item) => normalizeBackendText(resolveSessionTitle(item, 0), 'Sesión'),
+            getDescription: (item) => {
+                const record = item as Record<string, unknown>;
+                return `${resolveHistoryCaseLabel(item)} · ${normalizeBackendText(getStatusLabel(item.status), '--')} · ${normalizeBackendText(String(record.alert_level ?? record.highest_alert_level ?? record.latest_alert_level ?? '--'), '--')}`;
+            }
+        });
+    }, [items]);
+    const processedCount = useMemo(() => items.filter((item) => item.status === 'processed').length, [items]);
+    const sessionsWithoutCase = useMemo(() => items.filter((item) => !item.case && !item.case_id && !item.case_public_id).length, [items]);
 
     const historyRowsContent = useMemo(() => {
         if (loading) {
@@ -138,6 +191,62 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 </div>
 
                 <div className="historial-v2-divider" />
+
+                <div className="historial-v2-dashboard">
+                    <div className="historial-v2-dashboard-metrics">
+                        <DashboardMetricCard label="Sesiones cargadas" value={items.length} helper="Resumen calculado sobre los resultados cargados." tone="info" />
+                        <DashboardMetricCard label="Procesadas" value={processedCount} helper="Estado procesado dentro de la muestra visible." tone="success" />
+                        <DashboardMetricCard label="Sin caso" value={sessionsWithoutCase} helper="Registros sin asociación visible a un caso." tone="warning" />
+                    </div>
+                    <DashboardSection
+                        title="Sesiones por estado"
+                        description="Distribuye las sesiones del historial según su estado actual."
+                        note="Resumen calculado sobre los resultados cargados."
+                    >
+                        <DonutChart
+                            data={statusSummaryItems}
+                            ariaLabel="Distribución de sesiones por estado"
+                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                        />
+                    </DashboardSection>
+                    <DashboardSection
+                        title="Sesiones realizadas por mes"
+                        description="Muestra la frecuencia de registros realizados a lo largo del tiempo."
+                        note="Resumen calculado sobre los resultados cargados."
+                    >
+                        <AreaChart
+                            data={sessionsByMonth}
+                            ariaLabel="Frecuencia de sesiones realizadas por mes"
+                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                        />
+                    </DashboardSection>
+                    <DashboardSection
+                        title="Historial por caso"
+                        description="Permite identificar si las evaluaciones se encuentran organizadas por casos o si existen sesiones sin asociación."
+                        note="Resumen calculado sobre los resultados cargados."
+                    >
+                        <TreemapChart
+                            data={caseSummaryItems}
+                            ariaLabel="Distribución del historial por caso"
+                            emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                        />
+                    </DashboardSection>
+                    <DashboardSection
+                        title="Línea de alertas históricas"
+                        description="Resume los momentos en los que se registraron alertas más relevantes."
+                        note="Solo se grafica si las sesiones cargadas exponen datos de alerta."
+                    >
+                        {alertTimelineItems.length > 0 ? (
+                            <TimelineChart
+                                items={alertTimelineItems}
+                                ariaLabel="Línea de alertas históricas"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        ) : (
+                            <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
+                        )}
+                    </DashboardSection>
+                </div>
 
                 <div className="historial-v2-controls">
                     <label>

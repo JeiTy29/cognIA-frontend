@@ -100,6 +100,18 @@
     margin-bottom: 20px;
 }
 
+.admin-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 0 0 24px;
+    min-width: 0;
+}
+
+.admin-dashboard-grid > * {
+    min-width: 0;
+}
+
 .admin-search {
     flex: 1 1 280px;
     display: flex;

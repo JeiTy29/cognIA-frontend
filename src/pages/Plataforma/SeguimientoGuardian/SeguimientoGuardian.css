@@ -139,6 +139,24 @@
     gap: 12px;
 }
 
+.seguimiento-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.seguimiento-dashboard-main,
+.seguimiento-dashboard-metrics {
+    grid-column: 1 / -1;
+}
+
+.seguimiento-dashboard-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
 .seguimiento-summary-card {
     padding: 16px;
     display: grid;

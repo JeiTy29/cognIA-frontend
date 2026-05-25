@@ -19,6 +19,20 @@
     background: #dbeafe;
 }
 
+.historial-v2-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.historial-v2-dashboard-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    grid-column: 1 / -1;
+}
+
 .historial-v2-controls {
     display: flex;
     justify-content: flex-end;
@@ -408,11 +422,24 @@
     flex-direction: column;
     gap: 12px;
     background: #fbfdff;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.historial-v2-share-search-form {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .historial-v2-share-search-grid {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     display: grid;
-    grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(170px, 1fr) auto 44px;
+    grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) 44px;
     gap: 12px;
     align-items: end;
 }
@@ -421,6 +448,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .historial-v2-share-field span,
@@ -428,11 +456,19 @@
     font-size: 13px;
     font-weight: 600;
     color: #52677a;
+    min-height: 18px;
+    line-height: 18px;
+    display: flex;
+    align-items: center;
+    margin: 0;
 }
 
 .historial-v2-share-search-grid input,
-.historial-v2-share-search-grid .historial-v2-btn {
-    min-height: 42px;
+.historial-v2-share-search-grid .historial-v2-btn,
+.historial-v2-share-search-grid .global-select-trigger {
+    height: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
 }
 
 .historial-v2-share-search-grid input {
@@ -440,6 +476,10 @@
     border: 1px solid rgba(33, 95, 143, 0.22);
     padding: 9px 12px;
     color: #215f8f;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .historial-v2-share-location {
@@ -453,35 +493,53 @@
 .historial-v2-share-button-wrap {
     display: flex;
     align-items: center;
+    min-width: 0;
 }
 
-.historial-v2-share-button-wrap .historial-v2-btn {
+.historial-v2-share-search-button {
     width: 44px;
     min-width: 44px;
     height: 44px;
     min-height: 44px;
     padding: 0;
     color: #0f5f9f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
-.historial-v2-share-button-wrap .historial-v2-btn svg {
+.historial-v2-share-search-button svg {
     width: 20px;
     height: 20px;
 }
 
 .historial-v2-inline-toggle {
-    min-height: 44px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    align-self: end;
     color: #52677a;
     font-size: 13px;
-    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 .historial-v2-inline-toggle input {
     margin: 0;
+    flex: 0 0 auto;
+}
+
+.historial-v2-share-same-location {
+    grid-column: 1 / -1;
+    min-height: 24px;
+}
+
+.historial-v2-share-same-location span {
+    min-width: 0;
+    overflow-wrap: break-word;
 }
 
 .historial-v2-psychologist-list,
@@ -567,10 +625,20 @@
     }
 
     .historial-v2-share-search-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .historial-v2-share-search-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .historial-v2-share-search-grid {
         grid-template-columns: 1fr;
     }
 
-    .historial-v2-share-location {
-        display: contents;
+    .historial-v2-share-search-button {
+        width: 44px;
     }
 }

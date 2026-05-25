@@ -1,6 +1,14 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+    DashboardEmptyState,
+    DashboardSection,
+    DonutChart,
+    HorizontalBarChart,
+    WaffleChart
+} from '../../../components/DashboardCharts';
 import { ApiError } from '../../../services/api/httpClient';
+import { mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import {
     createQuestionnaireQuestion,
     type AdminQuestionnaireItem,
@@ -682,6 +690,23 @@ export default function PreguntasCuestionario() {
         }
     };
 
+    const draftQuestionsByType = useMemo(
+        () =>
+            mapCountsToItems(
+                draftQuestions.reduce((accumulator, question) => {
+                    const label = QUESTION_TYPE_CONFIG[question.response_type]?.label ?? question.response_type;
+                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+                    return accumulator;
+                }, new Map<string, number>())
+            ),
+        [draftQuestions]
+    );
+    const draftQuestionsByTypeBars = draftQuestionsByType;
+    const draftQuestionsState = useMemo(
+        () => (draftQuestions.length > 0 ? [{ label: 'En borrador', value: draftQuestions.length }] : []),
+        [draftQuestions.length]
+    );
+
     return (
         <div className="admin-page preguntas-cuestionario-page">
             <header className="admin-header">
@@ -731,6 +756,35 @@ export default function PreguntasCuestionario() {
 
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
+
+            <div className="admin-dashboard-grid">
+                <DashboardSection
+                    title="Preguntas por tipo de respuesta"
+                    description="Resume los formatos de respuesta utilizados en el borrador actual."
+                    note="Resumen calculado sobre las preguntas cargadas en borrador."
+                >
+                    <DonutChart data={draftQuestionsByType} ariaLabel="Preguntas por tipo de respuesta" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Cobertura por tipo"
+                    description="Permite revisar si el borrador est? balanceado entre formatos de respuesta."
+                    note="Resumen calculado sobre las preguntas cargadas en borrador."
+                >
+                    <HorizontalBarChart data={draftQuestionsByTypeBars} ariaLabel="Cobertura por tipo de respuesta" formatter={(value) => String(value)} maxValue={Math.max(1, draftQuestions.length)} />
+                </DashboardSection>
+                <DashboardSection
+                    title="Preguntas por estado"
+                    description="Identifica preguntas preparadas en borrador antes de guardarlas en el servidor."
+                >
+                    <WaffleChart data={draftQuestionsState} ariaLabel="Preguntas por estado" />
+                </DashboardSection>
+                <DashboardSection
+                    title="Preguntas por dominio"
+                    description="Requiere un endpoint de consulta de preguntas persistidas con dominio asociado."
+                >
+                    <DashboardEmptyState message="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado." />
+                </DashboardSection>
+            </div>
 
             <section className="preguntas-cuestionario-grid">
                 <form className="admin-modal preguntas-form" onSubmit={handleAddToDraft}>

@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+    DashboardEmptyState,
+    DashboardSection,
+    HistogramChart,
+    LineChart,
+    MatrixAvailabilityChart
+} from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useMetrics, type StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
+import { buildHistogramItems } from '../../../utils/dashboard/dashboardData';
 import { downloadMetricsReportPdf } from '../../../utils/reports/admin/metricsReport';
 import '../AdminShared.css';
 import './Metricas.css';
@@ -320,6 +328,88 @@ export function Metricas() {
         () => Object.values(groupedStatus).reduce((sum, value) => sum + value, 0),
         [groupedStatus]
     );
+    const latencyLineData = useMemo(
+        () =>
+            latencyHistory.map((value, index) => ({
+                label: String(index + 1),
+                values: { latency: value }
+            })),
+        [latencyHistory]
+    );
+    const latencyHistogram = useMemo(
+        () =>
+            buildHistogramItems(latencyHistory, [
+                { label: '<50 ms', min: 0, max: 49.999 },
+                { label: '50–100 ms', min: 50, max: 100 },
+                { label: '100–250 ms', min: 100.001, max: 250 },
+                { label: '250–500 ms', min: 250.001, max: 500 },
+                { label: '>500 ms', min: 500.001 }
+            ]),
+        [latencyHistory]
+    );
+    const servicesMatrix = useMemo(
+        () => ({
+            rows: ['Backend', 'Base de datos', 'Correo'],
+            columns: ['Estado', 'Detalle', 'Última verificación'],
+            values: [
+                {
+                    row: 'Backend',
+                    column: 'Estado',
+                    status: serverState.status === 'ok' ? 'available' : serverState.status === 'loading' ? 'partial' : 'unavailable',
+                    label: resolveServiceStatusLabel(serverState.status)
+                },
+                {
+                    row: 'Backend',
+                    column: 'Detalle',
+                    status: 'partial',
+                    label: serverState.detail || 'Sin detalle'
+                },
+                {
+                    row: 'Backend',
+                    column: 'Última verificación',
+                    status: 'partial',
+                    label: formatDateTime(lastUpdated)
+                },
+                {
+                    row: 'Base de datos',
+                    column: 'Estado',
+                    status: dbState.status === 'ready' ? 'available' : dbState.status === 'loading' || dbState.status === 'not_ready' ? 'partial' : 'unavailable',
+                    label: resolveDatabaseBadgeLabel(dbState.status)
+                },
+                {
+                    row: 'Base de datos',
+                    column: 'Detalle',
+                    status: 'partial',
+                    label: formatLatencyMs(dbState.latency_ms)
+                },
+                {
+                    row: 'Base de datos',
+                    column: 'Última verificación',
+                    status: 'partial',
+                    label: formatDateTime(lastUpdated)
+                },
+                {
+                    row: 'Correo',
+                    column: 'Estado',
+                    status: emailState.status === 'ok' ? 'available' : emailState.status === 'loading' ? 'partial' : 'unavailable',
+                    label: emailState.label
+                },
+                {
+                    row: 'Correo',
+                    column: 'Detalle',
+                    status: 'partial',
+                    label: emailState.detail
+                },
+                {
+                    row: 'Correo',
+                    column: 'Última verificación',
+                    status: 'partial',
+                    label: formatDateTime(lastUpdated)
+                }
+            ] as const
+        }),
+        [dbState.latency_ms, dbState.status, emailState.detail, emailState.label, emailState.status, lastUpdated, serverState.detail, serverState.status]
+    );
 
     const handleDownloadReport = async () => {
         if (!snapshot) {
@@ -525,6 +615,58 @@ export function Metricas() {
                             <span>Estados fuera de las familias HTTP más comunes.</span>
                         </div>
                     </section>
+
+                    <div className="metricas-dashboard-grid">
+                        <DashboardSection
+                            title="Latencia en el tiempo"
+                            description="Permite observar cambios recientes en el tiempo de respuesta promedio."
+                        >
+                            <LineChart
+                                data={latencyLineData}
+                                series={[{ key: 'latency', label: 'Latencia', color: '#0f5f9f' }]}
+                                ariaLabel="Latencia en el tiempo"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                minY={0}
+                                maxY={Math.max(50, ...latencyHistory, 0)}
+                                formatter={formatLatencyMs}
+                                xLabelFormatter={(value) => `M${value}`}
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Errores en el tiempo"
+                            description="Visualiza la evolución de errores de cliente y servidor."
+                        >
+                            <DashboardEmptyState message="No hay historial suficiente de errores para generar esta gráfica." />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Salud de servicios"
+                            description="Resume la disponibilidad de servicios críticos del sistema."
+                        >
+                            <MatrixAvailabilityChart
+                                rows={servicesMatrix.rows}
+                                columns={servicesMatrix.columns}
+                                values={[...servicesMatrix.values]}
+                                ariaLabel="Estado de servicios críticos"
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Distribución de latencias"
+                            description="Permite identificar si existen respuestas atípicamente lentas."
+                        >
+                            <HistogramChart
+                                data={latencyHistogram}
+                                ariaLabel="Distribución de latencias del sistema"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                formatter={formatCompactNumber}
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Procesamiento de cuestionarios"
+                            description="Representa el avance del flujo de procesamiento de cuestionarios."
+                        >
+                            <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
+                        </DashboardSection>
+                    </div>
                 </>
             ) : null}
 
