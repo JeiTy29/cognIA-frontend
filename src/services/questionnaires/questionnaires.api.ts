@@ -41,16 +41,10 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireSessionPageV2Response,
     QuestionnaireSessionV2DTO,
-    QuestionnaireReportPreviewDTO,
-    QuestionnaireProfessionalReviewDTO,
     QuestionnairePsychologistDashboardFiltersV2,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnairePsychologistShareRequestV2DTO,
     QuestionnairePsychologistShareRequestsV2Response,
-    GuardianDashboardDTO,
-    PsychologistDashboardDTO,
-    PsychologistSearchItemDTO,
-    PsychologistSearchResponseDTO,
     QuestionnaireSharedComorbidityDTO,
     QuestionnaireSharedDomainDTO,
     QuestionnaireShareResponseDTO,
@@ -63,16 +57,6 @@ import type {
     QuestionnaireV2Role,
     ShareQuestionnairePayload
 } from './questionnaires.types';
-import {
-    getDemoGuardianDashboardV2,
-    getDemoPsychologistDashboard,
-    getDemoPsychologistDashboardV2,
-    getDemoQuestionnaireCaseDetail,
-    getDemoQuestionnaireCasesResponse,
-    getDemoQuestionnaireHistoryResponse,
-    getDemoShareRequests,
-    isDevDashboardDemoEnabled
-} from '../../utils/questionnaires/demoDashboardData';
 
 const requestOptions = {
     auth: true,
@@ -339,40 +323,6 @@ function normalizeTag(value: unknown): QuestionnaireTagDTO | null {
         created_at: firstNonEmptyString([record.created_at, record.createdAt]),
         updated_at: firstNonEmptyString([record.updated_at, record.updatedAt])
     };
-}
-
-function normalizeReportPreview(value: unknown): QuestionnaireReportPreviewDTO {
-    const record = asRecord(value) ?? {};
-    return {
-        ...record,
-        domains: asArray(record.domains),
-        comorbidity: asArray(record.comorbidity),
-        answers: asArray(record.answers),
-        professional_reviews: asArray(record.professional_reviews)
-    } as QuestionnaireReportPreviewDTO;
-}
-
-function normalizeProfessionalReview(value: unknown): QuestionnaireProfessionalReviewDTO | null {
-    const record = asRecord(value);
-    if (!record) return null;
-    const reviewId = firstNonEmptyString([record.review_id, record.id, record.uuid]);
-    if (!reviewId) return null;
-    return {
-        ...record,
-        review_id: reviewId,
-        session_id: firstNonEmptyString([record.session_id]),
-        case_id: firstNonEmptyString([record.case_id])
-    } as QuestionnaireProfessionalReviewDTO;
-}
-
-function normalizePsychologistSearchItem(value: unknown, index: number): PsychologistSearchItemDTO | null {
-    const record = asRecord(value);
-    if (!record) return null;
-    const userId = firstNonEmptyString([record.user_id, record.id, record.uuid]) ?? `user-${index + 1}`;
-    return {
-        ...record,
-        user_id: userId
-    } as PsychologistSearchItemDTO;
 }
 
 function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
@@ -1325,22 +1275,6 @@ export function getQuestionnaireSessionPageV2(sessionId: string, params?: { page
     );
 }
 
-export async function getAllQuestionnaireSessionQuestionsV2(sessionId: string, pageSize = sessionDefaultPageSize) {
-    const questions: QuestionnaireQuestionV2DTO[] = [];
-    let page = 1;
-    let totalPages = 1;
-
-    while (page <= totalPages) {
-        const response = await getQuestionnaireSessionPageV2(sessionId, { page, page_size: pageSize });
-        questions.push(...(response.items ?? []));
-        totalPages = response.pagination.pages ?? 1;
-        if ((response.items ?? []).length === 0) break;
-        page += 1;
-    }
-
-    return questions;
-}
-
 export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: PatchSessionAnswersV2Payload) {
     if (sensitiveTransportEnabled) {
         return apiSecurePatch<unknown, PatchSessionAnswersV2Payload>(
@@ -1357,28 +1291,16 @@ export function patchQuestionnaireSessionAnswersV2(sessionId: string, payload: P
     );
 }
 
-export function submitQuestionnaireSessionV2(sessionId: string, payload?: Record<string, unknown>) {
+export function submitQuestionnaireSessionV2(sessionId: string) {
     const request = sensitiveTransportEnabled
-        ? (payload
-            ? apiSecurePost<unknown, Record<string, unknown>>(
-                `/api/v2/questionnaires/sessions/${sessionId}/submit`,
-                payload,
-                requestOptions
-            )
-            : apiSecurePostNoBody<unknown>(
-                `/api/v2/questionnaires/sessions/${sessionId}/submit`,
-                requestOptions
-            ))
-        : (payload
-            ? apiPost<unknown, Record<string, unknown>>(
-                `/api/v2/questionnaires/sessions/${sessionId}/submit`,
-                payload,
-                requestOptions
-            )
-            : apiPostNoBody<unknown>(
-                `/api/v2/questionnaires/sessions/${sessionId}/submit`,
-                requestOptions
-            ));
+        ? apiSecurePostNoBody<unknown>(
+            `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestOptions
+        )
+        : apiPostNoBody<unknown>(
+            `/api/v2/questionnaires/sessions/${sessionId}/submit`,
+            requestOptions
+        );
 
     return request.then(normalizeSubmitResponse);
 }
@@ -1423,18 +1345,7 @@ export function getQuestionnaireHistoryV2(params?: QuestionnaireHistoryFiltersV2
         )
         : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions);
 
-    return request
-        .then((payload) => {
-            const response = normalizeHistoryResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
-                return getDemoQuestionnaireHistoryResponse(page, pageSize);
-            }
-            return response;
-        })
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireHistoryResponse(page, pageSize);
-            throw error;
-        });
+    return request.then((payload) => normalizeHistoryResponse(payload, page, pageSize));
 }
 
 export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
@@ -1452,39 +1363,13 @@ export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions)
-        .then((payload) => {
-            const response = normalizeCasesResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
-                return getDemoQuestionnaireCasesResponse(page, pageSize);
-            }
-            return response;
-        })
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireCasesResponse(page, pageSize);
-            throw error;
-        });
-}
-
-export function createQuestionnaireCaseV2(payload: Record<string, unknown>) {
-    return apiPost<unknown, Record<string, unknown>>('/api/v2/questionnaires/cases', payload, requestOptions).then(
-        (response) => normalizeCase(pickRecord(response, ['case', 'item', 'data']) ?? response)
-    );
-}
-
-export function updateQuestionnaireCaseV2(caseId: string, payload: Record<string, unknown>) {
-    return apiPatch<unknown, Record<string, unknown>>(`/api/v2/questionnaires/cases/${caseId}`, payload, requestOptions).then(
-        (response) => normalizeCase(pickRecord(response, ['case', 'item', 'data']) ?? response)
+    return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions).then((payload) =>
+        normalizeCasesResponse(payload, page, pageSize)
     );
 }
 
 export function getQuestionnaireCaseDetailV2(caseId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/cases/${caseId}`, requestOptions)
-        .then(normalizeCaseDetailResponse)
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireCaseDetail(caseId);
-            throw error;
-        });
+    return apiGet<unknown>(`/api/v2/questionnaires/cases/${caseId}`, requestOptions).then(normalizeCaseDetailResponse);
 }
 
 export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFiltersV2) {
@@ -1502,27 +1387,7 @@ export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFi
     const path = query.length > 0
         ? `/api/v2/questionnaires/guardian/dashboard?${query}`
         : '/api/v2/questionnaires/guardian/dashboard';
-    return apiGet<unknown>(path, requestOptions)
-        .then((payload) => {
-            const response = normalizeGuardianDashboardResponse(payload);
-            if (isDevDashboardDemoEnabled() && !response.cases?.length) {
-                return getDemoGuardianDashboardV2();
-            }
-            return response;
-        })
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoGuardianDashboardV2();
-            throw error;
-        });
-}
-
-export function getGuardianQuestionnaireDashboardV2(
-    params?: QuestionnaireGuardianDashboardFiltersV2
-): Promise<GuardianDashboardDTO> {
-    return getGuardianDashboardV2(params).then((response) => ({
-        ...(response as Record<string, unknown>),
-        cases: asArray(response?.cases) as GuardianDashboardDTO['cases']
-    })) as Promise<GuardianDashboardDTO>;
+    return apiGet<unknown>(path, requestOptions).then(normalizeGuardianDashboardResponse);
 }
 
 export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDashboardFiltersV2) {
@@ -1539,90 +1404,29 @@ export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDas
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions)
-        .then((payload) => {
-            const response = normalizePsychologistDashboardResponse(payload);
-            if (isDevDashboardDemoEnabled() && !response.items?.length) {
-                return getDemoPsychologistDashboardV2(page, pageSize);
-            }
-            return response;
-        })
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoPsychologistDashboardV2(page, pageSize);
-            throw error;
-        });
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions).then(
+        normalizePsychologistDashboardResponse
+    );
 }
 
-export function getPsychologistQuestionnaireDashboardV2(
-    params?: QuestionnairePsychologistDashboardFiltersV2
-): Promise<PsychologistDashboardDTO> {
-    return getPsychologistDashboardV2(params).then((response) => {
-        const items = asArray(response?.items);
-        const firstItem = items[0] as Record<string, unknown> | undefined;
-        if (isDevDashboardDemoEnabled() && (!items.length || !Array.isArray(firstItem?.domains))) {
-            return getDemoPsychologistDashboard(params?.page ?? 1, params?.page_size ?? defaultPageSize);
-        }
-        return {
-            ...(response as Record<string, unknown>),
-            items: items as PsychologistDashboardDTO['items'],
-            pagination: normalizePagination(response?.pagination, params?.page ?? 1, params?.page_size ?? defaultPageSize)
-        };
-    }) as Promise<PsychologistDashboardDTO>;
-}
-
-export function getPsychologistShareRequestsV2(params?: {
-    page?: number;
-    page_size?: number;
-    status?: string;
-    q?: string;
-    date_from?: string;
-    date_to?: string;
-}) {
+export function getPsychologistShareRequestsV2(params?: { page?: number; page_size?: number; status?: string }) {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? defaultPageSize;
     const query = buildSearch({
         page,
         page_size: pageSize,
-        status: params?.status,
-        q: params?.q,
-        date_from: params?.date_from,
-        date_to: params?.date_to
+        status: params?.status
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions)
-        .then((payload) => {
-            const response = normalizeShareRequestsResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && !response.items?.length) {
-                return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
-            }
-            return response;
-        })
-        .catch((error) => {
-            if (isDevDashboardDemoEnabled()) return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
-            throw error;
-        });
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions).then(
+        (payload) => normalizeShareRequestsResponse(payload, page, pageSize)
+    );
 }
 
-export function acceptPsychologistShareRequestV2(grantId: string, payload?: { message?: string }) {
-    if (payload && payload.message) {
-        return apiPost<unknown, { message?: string }>(
-            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/accept`,
-            payload,
-            requestOptions
-        );
-    }
-
+export function acceptPsychologistShareRequestV2(grantId: string) {
     return apiPostNoBody<unknown>(`/api/v2/questionnaires/psychologist/share-requests/${grantId}/accept`, requestOptions);
 }
 
-export function rejectPsychologistShareRequestV2(grantId: string, payload?: { message?: string }) {
-    if (payload && payload.message) {
-        return apiPost<unknown, { message?: string }>(
-            `/api/v2/questionnaires/psychologist/share-requests/${grantId}/reject`,
-            payload,
-            requestOptions
-        );
-    }
-
+export function rejectPsychologistShareRequestV2(grantId: string) {
     return apiPostNoBody<unknown>(`/api/v2/questionnaires/psychologist/share-requests/${grantId}/reject`, requestOptions);
 }
 
@@ -1636,12 +1440,6 @@ export function markQuestionnaireNotificationAsReadV2(notificationId: string) {
 
 export function getQuestionnaireHistoryDetailV2(sessionId: string) {
     return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}`, requestOptions).then(normalizeHistoryDetail);
-}
-
-export function getQuestionnaireReportPreviewV2(sessionId: string): Promise<QuestionnaireReportPreviewDTO> {
-    return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/report-preview`, requestOptions).then((payload) =>
-        normalizeReportPreview(pickRecord(payload, ['preview', 'data', 'result']) ?? payload)
-    );
 }
 
 export function getQuestionnaireHistoryResultsV2(sessionId: string) {
@@ -1660,40 +1458,6 @@ export function getQuestionnaireClinicalSummaryV2(sessionId: string) {
         `/api/v2/questionnaires/history/${sessionId}/clinical-summary`,
         requestOptions
     ).then(normalizeClinicalSummary);
-}
-
-export function getQuestionnaireProfessionalReviewsV2(sessionId: string): Promise<QuestionnaireProfessionalReviewDTO[]> {
-    return apiGet<unknown>(
-        `/api/v2/questionnaires/history/${sessionId}/professional-reviews`,
-        requestOptions
-    ).then((payload) =>
-        asArray(pickRecord(payload, ['items', 'reviews', 'data']) ?? payload)
-            .map(normalizeProfessionalReview)
-            .filter((item): item is QuestionnaireProfessionalReviewDTO => Boolean(item))
-    );
-}
-
-export function createQuestionnaireProfessionalReviewV2(
-    sessionId: string,
-    payload: Record<string, unknown>
-): Promise<QuestionnaireProfessionalReviewDTO> {
-    return apiPost<unknown, Record<string, unknown>>(
-        `/api/v2/questionnaires/history/${sessionId}/professional-reviews`,
-        payload,
-        requestOptions
-    ).then((response) => normalizeProfessionalReview(response) ?? ({ review_id: '' } as QuestionnaireProfessionalReviewDTO));
-}
-
-export function updateQuestionnaireProfessionalReviewV2(
-    sessionId: string,
-    reviewId: string,
-    payload: Record<string, unknown>
-): Promise<QuestionnaireProfessionalReviewDTO> {
-    return apiPatch<unknown, Record<string, unknown>>(
-        `/api/v2/questionnaires/history/${sessionId}/professional-reviews/${reviewId}`,
-        payload,
-        requestOptions
-    ).then((response) => normalizeProfessionalReview(response) ?? ({ review_id: reviewId } as QuestionnaireProfessionalReviewDTO));
 }
 
 export function addQuestionnaireHistoryTagV2(sessionId: string, payload: AddQuestionnaireTagPayload) {
@@ -1724,53 +1488,6 @@ export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQu
         `/api/v2/questionnaires/history/${sessionId}/share`,
         requestOptions
     ).then(normalizeShareResponse);
-}
-
-export function searchPsychologistsV2(params?: {
-    q?: string;
-    department?: string;
-    city?: string;
-    same_location?: boolean;
-    page?: number;
-    page_size?: number;
-}): Promise<PsychologistSearchResponseDTO> {
-    const page = params?.page ?? 1;
-    const pageSize = params?.page_size ?? 10;
-    const query = buildSearch({
-        q: params?.q,
-        department: params?.department,
-        city: params?.city,
-        same_location: params?.same_location,
-        page,
-        page_size: pageSize
-    });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/search?${query}`, requestOptions).then((payload) => {
-        const root = asRecord(pickRecord(payload, ['data', 'result']) ?? payload) ?? {};
-        const items = asArray(root.items ?? root.results ?? root.psychologists)
-            .map(normalizePsychologistSearchItem)
-            .filter((item): item is PsychologistSearchItemDTO => Boolean(item));
-        return {
-            ...root,
-            items,
-            warnings: asArray<string>(root.warnings),
-            pagination: normalizePagination(root.pagination ?? root, page, pageSize)
-        } as PsychologistSearchResponseDTO;
-    });
-}
-
-export function shareQuestionnaireWithPsychologistV2(
-    sessionId: string,
-    payload: Record<string, unknown>
-): Promise<QuestionnaireShareResponseDTO> {
-    const requestPayload: ShareQuestionnairePayload = {
-        expires_in_hours: Number(payload.expires_in_hours),
-        max_uses: Number(payload.max_uses),
-        grantee_user_id: typeof payload.grantee_user_id === 'string' ? payload.grantee_user_id : undefined,
-        grant_can_tag: typeof payload.grant_can_tag === 'boolean' ? payload.grant_can_tag : undefined,
-        grant_can_download_pdf:
-            typeof payload.grant_can_download_pdf === 'boolean' ? payload.grant_can_download_pdf : undefined
-    };
-    return shareQuestionnaireHistoryV2(sessionId, requestPayload);
 }
 
 export function generateQuestionnaireHistoryPdfV2(sessionId: string) {

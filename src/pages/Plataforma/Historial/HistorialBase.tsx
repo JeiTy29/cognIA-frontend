@@ -44,18 +44,13 @@ import {
 import {
     buildSafeDisplayRows,
     formatDateTimeEsCO,
+    getDomainLabel,
     getModeLabel,
     getRoleLabel,
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
 import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
-import {
-    getDashboardDomainLabel,
-    resolveCaseCompositeLabel,
-    toHistoryStatusFilter,
-    toOptionalFilterText
-} from '../../../utils/questionnaires/dashboardLabels';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -98,26 +93,12 @@ function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | unde
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
 }
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
-    return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
+    return { status: '', q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
 }
 function toMaybeBoolean(value: string) {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return undefined;
-}
-function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2): QuestionnaireHistoryFiltersV2 {
-    return {
-        status: filters.status,
-        q: toOptionalFilterText(filters.q ?? ''),
-        case_label: toOptionalFilterText(filters.case_label ?? ''),
-        case_public_id: toOptionalFilterText(filters.case_public_id ?? ''),
-        tag: toOptionalFilterText(filters.tag ?? ''),
-        domain: toOptionalFilterText(filters.domain ?? ''),
-        alert_level: toOptionalFilterText(filters.alert_level ?? ''),
-        date_from: toOptionalFilterText(filters.date_from ?? ''),
-        date_to: toOptionalFilterText(filters.date_to ?? ''),
-        needs_professional_review: filters.needs_professional_review
-    };
 }
 function canLoadClinicalArtifacts(status: string | null | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
@@ -147,17 +128,7 @@ function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<
     return <div className="historial-dashboard-kv-grid">{rows.map((row) => <div key={row.key}><strong>{row.label}</strong><span>{row.value}</span></div>)}</div>;
 }
 function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
-    return resolveCaseCompositeLabel(caseItem);
-}
-function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
-    const label = resolveCaseCompositeLabel({
-        display_label: item.case_display_label,
-        private_label: item.case_private_label,
-        case_label: item.case_label,
-        case_public_id: item.case_public_id,
-        case_id: item.case_id
-    });
-    return label === 'Caso sin etiqueta' ? getString(item.title, 'Sesion sin caso') : label;
+    return caseItem.display_label ?? caseItem.private_label ?? caseItem.case_public_id ?? caseItem.case_id;
 }
 function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
     if (!summary) return 0;
@@ -172,7 +143,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const history = useQuestionnaireHistoryV2({ initialFilters: { page: 1, page_size: 10 } });
     const [draftFilters, setDraftFilters] = useState<QuestionnaireHistoryFiltersV2>(() => defaultFilters());
     const [period, setPeriod] = useState('6');
-    const [filtersOpen, setFiltersOpen] = useState(false);
 
     const [guardianDashboard, setGuardianDashboard] = useState<QuestionnaireGuardianDashboardV2Response | null>(null);
     const [guardianCases, setGuardianCases] = useState<QuestionnaireCaseV2DTO[]>([]);
@@ -304,7 +274,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         loadCase().catch(() => undefined);
     }, [selectedCaseId]);
 
-    const applyFilters = () => history.patchFilters({ ...normalizeDraftFilters(draftFilters), page: 1, page_size: history.pageSize });
+    const applyFilters = () => history.patchFilters({ ...draftFilters, page: 1, page_size: history.pageSize });
     const clearFilters = () => {
         const cleaned = defaultFilters();
         setDraftFilters(cleaned);
@@ -314,7 +284,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         history.patchFilters({ [key]: undefined, page: 1 } as Partial<QuestionnaireHistoryFiltersV2>);
         setDraftFilters((previous) => {
             const next = { ...previous } as Record<string, unknown>;
-            next[key] = key === 'status' || key === 'needs_professional_review' ? undefined : '';
+            next[key] = '';
             return next as QuestionnaireHistoryFiltersV2;
         });
     };
@@ -443,16 +413,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         byStatus: toChartData(psychologistDashboard?.charts?.reviews_by_status ?? psychologistDashboard?.aggregates?.by_review_status),
         byDate: toChartData(psychologistDashboard?.charts?.alerts_by_date ?? psychologistDashboard?.aggregates?.by_date)
     };
-    const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
-    const leadingAlert = historyCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
-    const executiveCopy = role === 'padre'
-        ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio mas frecuente es ${leadingDomain}.`
-        : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revision y la alerta predominante es ${leadingAlert}.`;
-    const filterSummary = filterChips.length > 0
-        ? `${filterChips.length} filtros activos`
-        : role === 'padre'
-            ? `Periodo base: ${period} meses, todos los estados visibles`
-            : 'Sin filtros activos, mostrando evaluaciones disponibles';
 
     const showFrom = history.total === 0 ? 0 : (history.page - 1) * history.pageSize + 1;
     const showTo = history.total === 0 ? 0 : Math.min(history.page * history.pageSize, history.total);
@@ -468,33 +428,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     </div>
                 </header>
 
-                <section className="historial-dashboard-insight" aria-label="Resumen ejecutivo del historial">
-                    <div>
-                        <span>Lectura rapida</span>
-                        <h2>{role === 'padre' ? 'Historial familiar orientativo' : 'Consolidado profesional de evaluaciones'}</h2>
-                        <p>{executiveCopy}</p>
-                    </div>
-                    <strong>{leadingDomain}</strong>
-                </section>
-
-                <section className={`historial-dashboard-filters ${filtersOpen ? 'is-open' : 'is-collapsed'}`}>
-                    <div className="historial-dashboard-filters-summary">
-                        <div>
-                            <strong>Filtros</strong>
-                            <span>{filterSummary}</span>
-                        </div>
-                        <button
-                            type="button"
-                            className="historial-dashboard-btn secondary"
-                            onClick={() => setFiltersOpen((value) => !value)}
-                            aria-expanded={filtersOpen}
-                        >
-                            {filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
-                        </button>
-                    </div>
-                    {filtersOpen ? (
-                        <div className="historial-dashboard-filters-grid">
-                        <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: toHistoryStatusFilter(value) }))} ariaLabel="Filtrar por estado" /></label>
+                <section className="historial-dashboard-filters">
+                    <div className="historial-dashboard-filters-grid">
+                        <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: value }))} ariaLabel="Filtrar por estado" /></label>
                         <label>Caso/etiqueta<input type="text" value={draftFilters.case_label ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_label: event.target.value }))} /></label>
                         <label>Caso publico<input type="text" value={draftFilters.case_public_id ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_public_id: event.target.value }))} /></label>
                         <label>Tag<input type="text" value={draftFilters.tag ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, tag: event.target.value }))} /></label>
@@ -506,13 +442,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <label>Revision<CustomSelect value={draftFilters.needs_professional_review === undefined ? '' : String(draftFilters.needs_professional_review)} options={reviewOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, needs_professional_review: toMaybeBoolean(value) }))} ariaLabel="Filtrar por revision profesional" /></label>
                         {role === 'padre' ? <label>Periodo<CustomSelect value={period} options={periodOptions} onChange={setPeriod} ariaLabel="Periodo" /></label> : null}
                     </div>
-                    ) : null}
-                    {filtersOpen ? (
-                        <div className="historial-dashboard-filter-actions">
-                            <button type="button" className="historial-dashboard-btn" onClick={applyFilters}>Aplicar filtros</button>
-                            <button type="button" className="historial-dashboard-btn secondary" onClick={clearFilters}>Resetear</button>
-                        </div>
-                    ) : null}
+                    <div className="historial-dashboard-filter-actions">
+                        <button type="button" className="historial-dashboard-btn" onClick={applyFilters}>Aplicar filtros</button>
+                        <button type="button" className="historial-dashboard-btn secondary" onClick={clearFilters}>Resetear</button>
+                    </div>
                     <ActiveFilterChips chips={filterChips} onRemove={removeFilterChip} />
                 </section>
 
@@ -548,11 +481,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             {guardianCases.map((caseItem) => (
                                 <article className="historial-dashboard-case-card" key={caseItem.case_id}>
                                     <h3>{resolveCaseLabel(caseItem)}</h3>
-                                    <div><strong>Codigo del caso:</strong> {getString(caseItem.case_public_id)}</div>
+                                    <div><strong>ID publico:</strong> {getString(caseItem.case_public_id)}</div>
                                     <div><strong>Sesiones:</strong> {caseItem.sessions_count ?? 0}</div>
                                     <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
                                     <div className="historial-dashboard-card-inline"><strong>Ultima alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
-                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
+                                    <div><strong>Dominio:</strong> {getDomainLabel(caseItem.latest_domain)}</div>
                                     <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>Ver detalle</button>
                                 </article>
                             ))}
@@ -573,9 +506,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         <div className="historial-dashboard-session-list">
                                             {selectedCaseDetail.sessions.map((item) => (
                                                 <article className="historial-dashboard-session-card" key={item.id}>
-                                                    <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                                    <div className="historial-dashboard-card-inline"><strong>{item.case_display_label ?? item.case_public_id ?? item.id}</strong><AlertBadge level={item.latest_alert_level} /></div>
                                                     <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
-                                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
+                                                    <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
                                                     <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
                                                     <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
                                                 </article>
@@ -606,11 +539,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <div className="historial-dashboard-session-list">
                         {history.items.map((item) => (
                             <article className="historial-dashboard-session-card" key={item.id}>
-                                <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                <div className="historial-dashboard-card-inline"><strong>{item.case_display_label ?? item.case_public_id ?? item.title ?? item.id}</strong><AlertBadge level={item.latest_alert_level} /></div>
                                 <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
                                 <div><strong>Modo:</strong> {getModeLabel(item.mode)}</div>
                                 <div><strong>Rol:</strong> {getRoleLabel(item.role)}</div>
-                                <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
+                                <div><strong>Dominio:</strong> {getDomainLabel(item.dominant_domain)}</div>
                                 <div><strong>Creado:</strong> {formatDateTimeEsCO(item.created_at)}</div>
                                 <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver detalle</button>
                             </article>
@@ -682,7 +615,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         <div className="historial-dashboard-share-form">
                                             <input type="number" min={1} value={shareExpiresHours} onChange={(event) => setShareExpiresHours(event.target.value)} placeholder="Expira en horas" />
                                             <input type="number" min={1} value={shareMaxUses} onChange={(event) => setShareMaxUses(event.target.value)} placeholder="Max usos" />
-                                            <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="Usuario destinatario autorizado" />
+                                            <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="ID destinatario" />
                                         </div>
                                         <button type="button" className="historial-dashboard-btn" onClick={() => generateShare().catch(() => undefined)}>Generar enlace</button>
                                         {(shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path) ? <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? undefined} target="_blank" rel="noreferrer">{shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}</a> : <p className="historial-dashboard-helper">Aun no hay enlace compartido.</p>}
