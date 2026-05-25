@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { getAlertLevelMeta } from '../../utils/dashboard/alerts';
 import './DashboardCharts.css';
 
@@ -16,6 +16,33 @@ interface DashboardChartCardProps {
     loading?: boolean;
     emptyText?: string;
     variant?: 'bars' | 'line';
+}
+
+interface DashboardSectionProps {
+    title?: ReactNode;
+    subtitle?: ReactNode;
+    children?: ReactNode;
+    [key: string]: unknown;
+}
+
+interface DashboardEmptyStateProps {
+    message?: string;
+}
+
+interface DashboardMetricCardProps {
+    label?: ReactNode;
+    title?: ReactNode;
+    value?: ReactNode;
+    helper?: ReactNode;
+}
+
+interface CompatChartProps {
+    data?: Array<Record<string, unknown>>;
+    items?: Array<Record<string, unknown>>;
+    ariaLabel?: string;
+    formatter?: (value: number) => string;
+    maxValue?: number;
+    [key: string]: unknown;
 }
 
 function formatCompact(value: number) {
@@ -61,7 +88,7 @@ function BarChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
     );
 }
 
-function LineChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
+export function LineChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
     const coordinates = useMemo(() => {
         if (data.length === 0) return '';
         const max = data.reduce((acc, item) => Math.max(acc, item.value), 0);
@@ -86,6 +113,105 @@ function LineChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
             </div>
         </div>
     );
+}
+
+function toNumber(value: unknown) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toChartItems(input?: Array<Record<string, unknown>>) {
+    return (input ?? []).map((item, index) => ({
+        id: String(item.id ?? item.key ?? item.name ?? item.label ?? index),
+        label: String(item.label ?? item.name ?? item.key ?? `Item ${index + 1}`),
+        value: toNumber(item.value ?? item.total ?? item.count ?? item.sessions),
+        tone: typeof item.tone === 'string' ? item.tone : undefined
+    }));
+}
+
+function CompatChart({
+    data,
+    items,
+    ariaLabel,
+    formatter
+}: Readonly<CompatChartProps>) {
+    const normalizedData = toChartItems(data ?? items);
+    return (
+        <DashboardChartCard
+            title={ariaLabel ?? 'Grafica'}
+            data={normalizedData}
+            emptyText="No hay datos disponibles."
+            description={formatter ? 'Valores formateados por configuracion de vista.' : undefined}
+        />
+    );
+}
+
+export function DashboardSection({ title, subtitle, children }: Readonly<DashboardSectionProps>) {
+    return (
+        <section className="dashboard-chart-card">
+            {(title || subtitle) ? (
+                <header>
+                    {title ? <h3>{title}</h3> : null}
+                    {subtitle ? <p>{subtitle}</p> : null}
+                </header>
+            ) : null}
+            {children}
+        </section>
+    );
+}
+
+export function DashboardEmptyState({ message = 'No hay datos disponibles.' }: Readonly<DashboardEmptyStateProps>) {
+    return <p className="dashboard-chart-empty">{message}</p>;
+}
+
+export function DashboardMetricCard({ label, title, value, helper }: Readonly<DashboardMetricCardProps>) {
+    return (
+        <article className="historial-dashboard-kpi-card">
+            <span>{label ?? title ?? 'Metrica'}</span>
+            <strong>{value ?? '--'}</strong>
+            {helper ? <small>{helper}</small> : null}
+        </article>
+    );
+}
+
+export function AreaChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function DonutChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function HeatmapChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function TimelineChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function TreemapChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function HorizontalBarChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function WaffleChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function HistogramChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function MatrixAvailabilityChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
+}
+
+export function DivergingDeltaChart(props: Readonly<CompatChartProps>) {
+    return <CompatChart {...props} />;
 }
 
 export function DashboardChartCard({

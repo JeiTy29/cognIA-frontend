@@ -254,7 +254,7 @@ export default function SeguimientoGuardian() {
             setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: null }));
             try {
                 const detail = await getQuestionnaireCaseDetailV2(nextCaseId);
-                const sortedSessions = sortCaseSessions(detail.sessions ?? []);
+                const sortedSessions = sortCaseSessions((detail.sessions ?? []) as QuestionnaireSessionV2DTO[]);
                 const normalizedDetail = { ...detail, sessions: sortedSessions };
                 setCaseDetailsById((prev) => ({ ...prev, [nextCaseId]: normalizedDetail }));
                 setExpandedSessionByCaseId((prev) => {

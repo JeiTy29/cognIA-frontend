@@ -286,11 +286,7 @@ export interface QuestionnaireHistoryItemV2DTO {
     title?: string | null;
     name?: string | null;
     case?: QuestionnaireCaseDTO | null;
-    case_id?: string | null;
-    case_public_id?: string | null;
     case_label?: string | null;
-    case_private_label?: string | null;
-    case_display_label?: string | null;
     version?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
