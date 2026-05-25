@@ -282,7 +282,7 @@ export default function EvaluacionesCompartidas() {
             setDetailSession(nextDetail);
             setDetailQuestions(Array.isArray(nextQuestions) ? nextQuestions : []);
             const ownReview = currentUserId
-                ? nextReviews.find((review) => review.psychologist_user_id === currentUserId)
+                ? nextReviews.find((review: { psychologist_user_id?: string | null }) => review.psychologist_user_id === currentUserId)
                 : null;
             setReviewStatusValue((ownReview?.review_status as QuestionnaireReviewStatus | undefined) ?? (item.review_status as QuestionnaireReviewStatus | undefined) ?? 'pending');
             setInitialConcept(ownReview?.initial_concept ?? '');
