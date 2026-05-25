@@ -1430,8 +1430,8 @@ export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFi
     return apiGet<unknown>(path, requestOptions).then(normalizeGuardianDashboardResponse);
 }
 
-export function getGuardianQuestionnaireDashboardV2(params?: QuestionnaireGuardianDashboardFiltersV2) {
-    return getGuardianDashboardV2(params);
+export function getGuardianQuestionnaireDashboardV2(params?: QuestionnaireGuardianDashboardFiltersV2): Promise<any> {
+    return getGuardianDashboardV2(params) as Promise<any>;
 }
 
 export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDashboardFiltersV2) {
@@ -1453,8 +1453,8 @@ export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDas
     );
 }
 
-export function getPsychologistQuestionnaireDashboardV2(params?: QuestionnairePsychologistDashboardFiltersV2) {
-    return getPsychologistDashboardV2(params);
+export function getPsychologistQuestionnaireDashboardV2(params?: QuestionnairePsychologistDashboardFiltersV2): Promise<any> {
+    return getPsychologistDashboardV2(params) as Promise<any>;
 }
 
 export function getPsychologistShareRequestsV2(params?: {
@@ -1516,7 +1516,7 @@ export function getQuestionnaireHistoryDetailV2(sessionId: string) {
     return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}`, requestOptions).then(normalizeHistoryDetail);
 }
 
-export function getQuestionnaireReportPreviewV2(sessionId: string) {
+export function getQuestionnaireReportPreviewV2(sessionId: string): Promise<any> {
     return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/report-preview`, requestOptions).then((payload) =>
         asRecord(pickRecord(payload, ['preview', 'data', 'result']) ?? payload) ?? {}
     );
@@ -1540,7 +1540,7 @@ export function getQuestionnaireClinicalSummaryV2(sessionId: string) {
     ).then(normalizeClinicalSummary);
 }
 
-export function getQuestionnaireProfessionalReviewsV2(sessionId: string) {
+export function getQuestionnaireProfessionalReviewsV2(sessionId: string): Promise<any> {
     return apiGet<unknown>(
         `/api/v2/questionnaires/history/${sessionId}/professional-reviews`,
         requestOptions
@@ -1551,7 +1551,7 @@ export function getQuestionnaireProfessionalReviewsV2(sessionId: string) {
     );
 }
 
-export function createQuestionnaireProfessionalReviewV2(sessionId: string, payload: Record<string, unknown>) {
+export function createQuestionnaireProfessionalReviewV2(sessionId: string, payload: Record<string, unknown>): Promise<any> {
     return apiPost<unknown, Record<string, unknown>>(
         `/api/v2/questionnaires/history/${sessionId}/professional-reviews`,
         payload,
@@ -1563,7 +1563,7 @@ export function updateQuestionnaireProfessionalReviewV2(
     sessionId: string,
     reviewId: string,
     payload: Record<string, unknown>
-) {
+): Promise<any> {
     return apiPatch<unknown, Record<string, unknown>>(
         `/api/v2/questionnaires/history/${sessionId}/professional-reviews/${reviewId}`,
         payload,
@@ -1608,7 +1608,7 @@ export function searchPsychologistsV2(params?: {
     same_location?: boolean;
     page?: number;
     page_size?: number;
-}) {
+}): Promise<any> {
     const page = params?.page ?? 1;
     const pageSize = params?.page_size ?? 10;
     const query = buildSearch({
@@ -1633,7 +1633,7 @@ export function searchPsychologistsV2(params?: {
     });
 }
 
-export function shareQuestionnaireWithPsychologistV2(sessionId: string, payload: Record<string, unknown>) {
+export function shareQuestionnaireWithPsychologistV2(sessionId: string, payload: Record<string, unknown>): Promise<any> {
     const requestPayload: ShareQuestionnairePayload = {
         expires_in_hours: Number(payload.expires_in_hours),
         max_uses: Number(payload.max_uses),
