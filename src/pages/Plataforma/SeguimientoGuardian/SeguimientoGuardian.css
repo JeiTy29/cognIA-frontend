@@ -191,6 +191,7 @@
 
 .seguimiento-case-list {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 14px;
 }
 
@@ -199,6 +200,30 @@
     display: grid;
     gap: 16px;
     min-width: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.seguimiento-case-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(33, 95, 143, 0.24);
+    box-shadow: 0 10px 20px rgba(21, 71, 112, 0.08);
+}
+
+.seguimiento-case-card.is-selected {
+    grid-column: 1 / -1;
+    border-color: rgba(15, 95, 154, 0.28);
+    box-shadow: 0 12px 24px rgba(21, 71, 112, 0.12);
+}
+
+.seguimiento-case-card.is-collapsed {
+    gap: 10px;
+}
+
+.seguimiento-case-collapsed-copy {
+    margin: 0;
+    color: #52677a;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .seguimiento-case-top,
