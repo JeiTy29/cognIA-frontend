@@ -30,7 +30,7 @@ import {
     formatHistoryTimelineDescription,
     mapCountsToItems,
     resolveHistoryItemAlert,
-    resolveHistoryTimelineDate
+    resolveHistorySessionDate
 } from '../../../utils/dashboard/dashboardData';
 import { formatMonthLabel } from '../../../utils/dashboard/chartFormatters';
 import {
@@ -123,8 +123,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(initialLocationState?.openHistorySessionId ?? null);
     const [dashboardHistoryItems, setDashboardHistoryItems] = useState<QuestionnaireHistoryItemV2DTO[]>([]);
-    const [dashboardLoading, setDashboardLoading] = useState(true);
-    const [dashboardError, setDashboardError] = useState<string | null>(null);
+    const [dashboardHistoryLoading, setDashboardHistoryLoading] = useState(true);
+    const [dashboardHistoryError, setDashboardHistoryError] = useState<string | null>(null);
     const [dashboardLoadedAllPages, setDashboardLoadedAllPages] = useState(true);
     const [dashboardAlertSources, setDashboardAlertSources] = useState<Record<string, QuestionnaireSecureResultsV2DTO | QuestionnaireReportPreviewDTO | null>>({});
 
@@ -137,13 +137,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         if (cached) {
             setDashboardHistoryItems(cached);
             setDashboardLoadedAllPages(true);
-            setDashboardError(null);
-            setDashboardLoading(false);
+            setDashboardHistoryError(null);
+            setDashboardHistoryLoading(false);
             return;
         }
 
-        setDashboardLoading(true);
-        setDashboardError(null);
+        setDashboardHistoryLoading(true);
+        setDashboardHistoryError(null);
         try {
             const firstPage = await getQuestionnaireHistoryV2({
                 status: nextStatusFilter || undefined,
@@ -170,9 +170,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         } catch {
             setDashboardHistoryItems([]);
             setDashboardLoadedAllPages(false);
-            setDashboardError(mapDashboardHistoryError());
+            setDashboardHistoryError(mapDashboardHistoryError());
         } finally {
-            setDashboardLoading(false);
+            setDashboardHistoryLoading(false);
         }
     }, []);
 
@@ -258,7 +258,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     );
 
     const sessionsByMonth = useMemo(
-        () => buildMonthlyCountItems(dashboardHistoryItems.map((item) => resolveHistoryTimelineDate(item))),
+        () => buildMonthlyCountItems(dashboardHistoryItems.map((item) => resolveHistorySessionDate(item))),
         [dashboardHistoryItems]
     );
 
@@ -287,7 +287,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             .filter((entry) => Boolean(entry.alert));
 
         return buildTimelineItems(candidateItems, {
-            getDate: ({ item }) => resolveHistoryTimelineDate(item),
+            getDate: ({ item }) => resolveHistorySessionDate(item),
             getTitle: ({ item, index }) => normalizeBackendText(resolveSessionTitle(item, index), 'Sesión'),
             getDescription: ({ item, alert }) => formatHistoryTimelineDescription({ item, alert }),
             getTone: ({ alert }) => {
@@ -352,83 +352,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                 <div className="historial-v2-divider" />
 
-                <div className="historial-v2-dashboard">
-                    <div className="historial-v2-dashboard-metrics">
-                        <DashboardMetricCard label="Sesiones del dashboard" value={dashboardHistoryItems.length} helper={dashboardNote} tone="info" />
-                        <DashboardMetricCard label="Procesadas" value={processedCount} helper="Sesiones procesadas dentro del historial filtrado." tone="success" />
-                        <DashboardMetricCard label="Sin caso" value={sessionsWithoutCase} helper="Registros sin asociación visible a un caso." tone="warning" />
-                        <DashboardMetricCard label="Con alerta visible" value={alertTimelineItems.length} helper="Sesiones con alerta o dominio dominante identificable." tone="neutral" />
-                    </div>
-
-                    <DashboardSection
-                        title="Sesiones por estado"
-                        description="Distribuye las sesiones del historial según su estado actual."
-                        note={dashboardNote}
-                    >
-                        {dashboardLoading ? (
-                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
-                        ) : (
-                            <DonutChart
-                                data={statusSummaryItems}
-                                ariaLabel="Distribución de sesiones por estado"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
-                        )}
-                    </DashboardSection>
-
-                    <DashboardSection
-                        title="Sesiones realizadas por mes"
-                        description="Muestra la frecuencia de registros realizados a lo largo del tiempo."
-                        note={dashboardNote}
-                    >
-                        {dashboardLoading ? (
-                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
-                        ) : (
-                            <AreaChart
-                                data={sessionsByMonth}
-                                ariaLabel="Frecuencia de sesiones realizadas por mes"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                                xLabelFormatter={formatMonthLabel}
-                            />
-                        )}
-                    </DashboardSection>
-
-                    <DashboardSection
-                        title="Historial por caso"
-                        description="Permite identificar si las evaluaciones se encuentran organizadas por casos o si existen sesiones sin asociación."
-                        note={dashboardNote}
-                    >
-                        {dashboardLoading ? (
-                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
-                        ) : (
-                            <TreemapChart
-                                data={caseSummaryItems}
-                                ariaLabel="Distribución del historial por caso"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
-                        )}
-                    </DashboardSection>
-
-                    <DashboardSection
-                        className="historial-v2-dashboard-wide"
-                        title="Línea de alertas históricas"
-                        description="Resume los momentos en los que se registraron alertas más relevantes."
-                        note={dashboardNote}
-                    >
-                        {dashboardLoading ? (
-                            <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
-                        ) : alertTimelineItems.length > 0 ? (
-                            <TimelineChart
-                                items={alertTimelineItems}
-                                ariaLabel="Línea de alertas históricas"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
-                        ) : (
-                            <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
-                        )}
-                    </DashboardSection>
-                </div>
-
                 <div className="historial-v2-controls">
                     <label>
                         Estado
@@ -441,7 +364,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     </label>
                 </div>
 
-                {dashboardError ? <div className="historial-v2-alert error">{dashboardError}</div> : null}
+                {dashboardHistoryError ? <div className="historial-v2-alert error">{dashboardHistoryError}</div> : null}
                 {error ? <div className="historial-v2-alert error">{error}</div> : null}
 
                 <div className="historial-v2-table">
@@ -490,6 +413,91 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         </button>
                     </div>
                 </div>
+
+                <section className="historial-v2-dashboard-block" aria-label="Resumen visual del historial">
+                    <div className="historial-v2-dashboard-header">
+                        <h2>Resumen visual del historial</h2>
+                        <p>{dashboardNote}</p>
+                    </div>
+
+                    <div className="historial-v2-dashboard">
+                        <div className="historial-v2-dashboard-metrics">
+                            <DashboardMetricCard label="Sesiones del dashboard" value={dashboardHistoryItems.length} helper={dashboardNote} tone="info" />
+                            <DashboardMetricCard label="Procesadas" value={processedCount} helper="Sesiones procesadas dentro del historial filtrado." tone="success" />
+                            <DashboardMetricCard label="Sin caso" value={sessionsWithoutCase} helper="Registros sin asociación visible a un caso." tone="warning" />
+                            <DashboardMetricCard label="Con alerta visible" value={alertTimelineItems.length} helper="Sesiones con alerta o dominio dominante identificable." tone="neutral" />
+                        </div>
+
+                        <DashboardSection
+                            title="Sesiones por estado"
+                            description="Distribuye las sesiones del historial según su estado actual."
+                            note={dashboardNote}
+                        >
+                            {dashboardHistoryLoading ? (
+                                <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                            ) : (
+                                <DonutChart
+                                    data={statusSummaryItems}
+                                    ariaLabel="Distribución de sesiones por estado"
+                                    emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                />
+                            )}
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Historial por caso"
+                            description="Permite identificar si las evaluaciones se encuentran organizadas por casos o si existen sesiones sin asociación."
+                            note={dashboardNote}
+                        >
+                            {dashboardHistoryLoading ? (
+                                <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                            ) : (
+                                <TreemapChart
+                                    data={caseSummaryItems}
+                                    ariaLabel="Distribución del historial por caso"
+                                    emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                />
+                            )}
+                        </DashboardSection>
+
+                        <DashboardSection
+                            className="historial-v2-dashboard-wide historial-v2-dashboard-large"
+                            title="Sesiones realizadas por mes"
+                            description="Muestra la frecuencia de registros realizados a lo largo del tiempo."
+                            note={dashboardNote}
+                        >
+                            {dashboardHistoryLoading ? (
+                                <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                            ) : (
+                                <AreaChart
+                                    data={sessionsByMonth}
+                                    ariaLabel="Frecuencia de sesiones realizadas por mes"
+                                    emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                    xLabelFormatter={formatMonthLabel}
+                                />
+                            )}
+                        </DashboardSection>
+
+                        <DashboardSection
+                            className="historial-v2-dashboard-wide historial-v2-dashboard-large"
+                            title="Línea de alertas históricas"
+                            description="Resume los momentos en los que se registraron alertas más relevantes."
+                            note={dashboardNote}
+                        >
+                            {dashboardHistoryLoading ? (
+                                <DashboardEmptyState message="Cargando el resumen analítico del historial..." />
+                            ) : alertTimelineItems.length > 0 ? (
+                                <TimelineChart
+                                    items={alertTimelineItems}
+                                    ariaLabel="Línea de alertas históricas"
+                                    emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                />
+                            ) : (
+                                <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
+                            )}
+                        </DashboardSection>
+                    </div>
+                </section>
             </section>
 
             <QuestionnaireReportDetailModal

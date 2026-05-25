@@ -198,6 +198,7 @@
     padding: 18px;
     display: grid;
     gap: 16px;
+    min-width: 0;
 }
 
 .seguimiento-case-top,
@@ -252,6 +253,22 @@
 
 .seguimiento-case-meta {
     flex-wrap: wrap;
+}
+
+.case-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    min-width: 0;
+}
+
+.case-dashboard-wide {
+    grid-column: 1 / -1;
+}
+
+.case-dashboard-chart-large .dashboard-chart-svg-wrap,
+.case-dashboard-chart-large .dashboard-chart-timeline {
+    min-height: 360px;
 }
 
 .seguimiento-case-meta > div,

@@ -13,6 +13,14 @@ export function toPositiveNumber(value: unknown, fallback = 0) {
     return numeric > 0 ? numeric : fallback;
 }
 
+export function domainProbabilityToPercent(value: unknown) {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const normalized = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric;
+    return clamp(normalized, 0, 100);
+}
+
 export function normalizePercentValue(value: unknown) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return null;
@@ -46,7 +54,7 @@ export function normalizeDashboardProbability(
 
     let normalized = numeric;
     if (scale === 'ratio') {
-        normalized = numeric * 100;
+        normalized = domainProbabilityToPercent(numeric) ?? numeric * 100;
     } else if (scale === 'percent') {
         normalized = numeric;
     } else {

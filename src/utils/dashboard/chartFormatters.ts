@@ -1,4 +1,4 @@
-import { formatDate, formatDateTime, formatPercent, normalizeBackendText } from '../questionnaires/presentation';
+import { formatDate, formatDateTime, normalizeBackendText } from '../questionnaires/presentation';
 
 export function formatChartCount(value: unknown) {
     const numeric = Number(value);
@@ -7,7 +7,12 @@ export function formatChartCount(value: unknown) {
 }
 
 export function formatChartPercent(value: unknown) {
-    return formatPercent(value);
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '--';
+    return `${new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+    }).format(numeric)} %`;
 }
 
 export function formatChartDate(value: unknown) {

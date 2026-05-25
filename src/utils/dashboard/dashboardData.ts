@@ -12,6 +12,7 @@ import {
 } from '../questionnaires/presentation';
 import {
     daysBetween,
+    domainProbabilityToPercent,
     normalizeDashboardDelta,
     normalizeDashboardProbability,
     normalizeMaybeNegativePercentValue,
@@ -21,6 +22,7 @@ import {
 } from './chartScales';
 import type {
     GuardianDashboardCaseDTO,
+    QuestionnaireCaseDTO,
     QuestionnaireCaseDetailDTO,
     QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireCaseTrendPointDTO,
@@ -316,7 +318,7 @@ export function resolveSessionTimelineDate(session: QuestionnaireSessionV2DTO | 
     );
 }
 
-export function resolveHistoryTimelineDate(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
+export function resolveHistorySessionDate(item: QuestionnaireHistoryItemV2DTO | null | undefined) {
     if (!item) return null;
     const record = item as Record<string, unknown>;
     return (
@@ -327,6 +329,8 @@ export function resolveHistoryTimelineDate(item: QuestionnaireHistoryItemV2DTO |
         null
     );
 }
+
+export const resolveHistoryTimelineDate = resolveHistorySessionDate;
 
 function resolveSessionDomains(session: QuestionnaireSessionV2DTO | null | undefined) {
     if (Array.isArray(session?.domains) && session.domains.length > 0) return session.domains;
@@ -365,6 +369,65 @@ type GuardianDomainSummaryRow = {
     peakValue: number | null;
     sessionsWithAlert: number;
 };
+
+export type GuardianCaseDashboardDomainRow = {
+    domainKey: string;
+    domainLabel: string;
+    latestPct: number | null;
+    maxPct: number | null;
+    previousPct: number | null;
+    currentPct: number | null;
+    deltaPct: number | null;
+    latestAlertLabel: string;
+    sessionsWithAlert: number;
+};
+
+export type GuardianCaseDashboardViewModel = {
+    caseId: string;
+    caseLabel: string;
+    casePublicId: string;
+    statusLabel: string;
+    sessionsSortedAsc: QuestionnaireSessionV2DTO[];
+    sessionsSortedDesc: QuestionnaireSessionV2DTO[];
+    domains: GuardianCaseDashboardDomainRow[];
+    trendPoints: Array<{ label: string; timestamp: number; values: Record<string, number | null>; meta: string }>;
+    timelineItems: Array<{
+        date: string;
+        title: string;
+        description?: string;
+        tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+    }>;
+    latestSessionAt: string | null;
+    sessionsCount: number;
+    highestAlertLabel: string;
+};
+
+function compareDateAsc(left: string | null | undefined, right: string | null | undefined) {
+    const leftValue = Date.parse(left ?? '');
+    const rightValue = Date.parse(right ?? '');
+    const safeLeft = Number.isFinite(leftValue) ? leftValue : 0;
+    const safeRight = Number.isFinite(rightValue) ? rightValue : 0;
+    return safeLeft - safeRight;
+}
+
+function formatProbabilityLabel(value: number | null) {
+    if (typeof value !== 'number') return '--';
+    return `${value.toLocaleString('es-CO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+    })} %`;
+}
+
+function formatDashboardDateTime(value: string | null | undefined) {
+    const parsed = value ? new Date(value) : null;
+    if (!parsed || Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+    return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(parsed);
+}
 
 export function buildGuardianCaseDomainSummary(options: {
     sessions?: QuestionnaireSessionV2DTO[] | null;
@@ -499,6 +562,142 @@ export function buildGuardianCaseDomainTrend(options: {
         .sort((left, right) => left.timestamp - right.timestamp);
 }
 
+export function buildGuardianCaseDashboardViewModel(options: {
+    caseItem: QuestionnaireCaseDTO;
+    caseEntry?: GuardianDashboardCaseDTO | null;
+    caseDetail?: QuestionnaireCaseDetailDTO | null;
+    domainLabels: string[];
+}) : GuardianCaseDashboardViewModel {
+    const sessionsAsc = [...(options.caseDetail?.sessions ?? [])]
+        .filter((session) => resolveSessionDomains(session).length > 0)
+        .sort((left, right) => compareDateAsc(resolveSessionTimelineDate(left), resolveSessionTimelineDate(right)));
+    const sessionsDesc = [...sessionsAsc].reverse();
+    const domainBreakdown = Array.isArray(options.caseEntry?.domain_breakdown) && options.caseEntry.domain_breakdown.length > 0
+        ? options.caseEntry.domain_breakdown
+        : options.caseDetail?.domain_summary ?? [];
+    const trendPoints = buildGuardianCaseDomainTrend({
+        caseEntry: options.caseEntry,
+        caseDetail: options.caseDetail,
+        sessions: sessionsAsc,
+        domainLabels: options.domainLabels
+    });
+    const latestPoint = trendPoints[trendPoints.length - 1] ?? null;
+    const previousPoint = trendPoints.length >= 2 ? trendPoints[trendPoints.length - 2] : null;
+
+    const labels = [...new Set([
+        ...options.domainLabels,
+        ...domainBreakdown.map((item) => normalizeDashboardDomain(item.domain)),
+        ...sessionsAsc.flatMap((session) => resolveSessionDomains(session).map((domain) => normalizeDashboardDomain(domain.domain)))
+    ])];
+
+    const domains = labels
+        .map((domainLabel): GuardianCaseDashboardDomainRow => {
+            const summaryMatch = domainBreakdown.find((item) => normalizeDashboardDomain(item.domain) === domainLabel);
+            const sessionValues = sessionsAsc
+                .map((session) => {
+                    const domainMatch = resolveSessionDomains(session).find(
+                        (domainItem) => normalizeDashboardDomain(domainItem.domain) === domainLabel
+                    );
+                    return domainProbabilityToPercent(domainMatch?.probability);
+                })
+                .filter((value): value is number => typeof value === 'number');
+            const latestSessionDomain = sessionsAsc.length > 0
+                ? resolveSessionDomains(sessionsAsc[sessionsAsc.length - 1]).find(
+                    (domainItem) => normalizeDashboardDomain(domainItem.domain) === domainLabel
+                )
+                : null;
+            const latestPct = latestPoint?.values[domainLabel]
+                ?? domainProbabilityToPercent(latestSessionDomain?.probability)
+                ?? domainProbabilityToPercent(summaryMatch?.latest_probability);
+            const maxPct = sessionValues.length > 0
+                ? Math.max(...sessionValues)
+                : domainProbabilityToPercent(summaryMatch?.max_probability);
+            const previousPct = previousPoint?.values[domainLabel] ?? null;
+            const currentPct = latestPoint?.values[domainLabel] ?? latestPct;
+            const deltaPct =
+                typeof currentPct === 'number' && typeof previousPct === 'number'
+                    ? currentPct - previousPct
+                    : null;
+
+            return {
+                domainKey: domainLabel,
+                domainLabel,
+                latestPct: typeof latestPct === 'number' ? latestPct : null,
+                maxPct: typeof maxPct === 'number' ? maxPct : null,
+                previousPct: typeof previousPct === 'number' ? previousPct : null,
+                currentPct: typeof currentPct === 'number' ? currentPct : null,
+                deltaPct,
+                latestAlertLabel:
+                    normalizeAlertLevel(latestSessionDomain?.alert_level) !== '--'
+                        ? normalizeAlertLevel(latestSessionDomain?.alert_level)
+                        : normalizeAlertLevel(summaryMatch?.latest_alert_level),
+                sessionsWithAlert:
+                    sessionsAsc.filter((session) => {
+                        const domainMatch = resolveSessionDomains(session).find(
+                            (domainItem) => normalizeDashboardDomain(domainItem.domain) === domainLabel
+                        );
+                        return normalizeAlertLevel(domainMatch?.alert_level) !== '--';
+                    }).length || toPositiveNumber(summaryMatch?.sessions_with_alert)
+            };
+        })
+        .filter((domain) =>
+            domain.latestPct !== null ||
+            domain.maxPct !== null ||
+            domain.currentPct !== null ||
+            domain.previousPct !== null ||
+            domain.sessionsWithAlert > 0
+        );
+
+    const timelineItems = buildTimelineItems(sessionsAsc, {
+        getDate: (session) => resolveSessionTimelineDate(session),
+        getTitle: (session) => `${normalizeModeLabel(session.mode)} · ${normalizeSessionStatus(session.status)}`,
+        getDescription: (session) => {
+            const alert = resolveAlertFromDomains(resolveSessionDomains(session));
+            const alertDescription = alert
+                ? `${alert.domainLabel}: ${alert.alertLabel} (${formatProbabilityLabel(alert.probabilityValue)})`
+                : 'Sin alerta principal disponible';
+            return `${formatDashboardDateTime(resolveSessionTimelineDate(session))} · ${alertDescription}`;
+        },
+        getTone: (session) => {
+            const alert = resolveAlertFromDomains(resolveSessionDomains(session))?.alertLabel.toLowerCase() ?? '';
+            if (alert.includes('alto') || alert.includes('prioritaria')) return 'danger';
+            if (alert.includes('elevado') || alert.includes('moderado')) return 'warning';
+            if (alert.includes('bajo')) return 'success';
+            return 'info';
+        }
+    });
+
+    const highestAlertLabel =
+        domains.find((domain) => domain.latestAlertLabel !== '--')?.latestAlertLabel ??
+        normalizeAlertLevel(
+            options.caseItem.latest_alert_level ??
+            options.caseEntry?.latest_session?.domains?.[0]?.alert_level ??
+            domainBreakdown[0]?.latest_alert_level
+        );
+
+    return {
+        caseId: options.caseItem.case_id,
+        caseLabel:
+            options.caseItem.display_label ??
+            options.caseItem.private_label ??
+            options.caseItem.case_public_id ??
+            'Caso sin etiqueta',
+        casePublicId: safeDisplayText(options.caseItem.case_public_id, ''),
+        statusLabel: normalizeCaseStatus(options.caseItem.status),
+        sessionsSortedAsc: sessionsAsc,
+        sessionsSortedDesc: sessionsDesc,
+        domains,
+        trendPoints,
+        timelineItems,
+        latestSessionAt:
+            resolveSessionTimelineDate(sessionsDesc[0]) ??
+            safeDisplayText(options.caseItem.latest_processed_at, '') ??
+            safeDisplayText(options.caseEntry?.latest_session?.processed_at, ''),
+        sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? sessionsAsc.length,
+        highestAlertLabel
+    };
+}
+
 function resolveAlertFromDomains(
     domains: Array<{ domain?: unknown; probability?: unknown; alert_level?: unknown }> | null | undefined
 ) {
@@ -533,7 +732,8 @@ export function resolveHistoryItemAlert(
         return {
             alertLabel: directAlert,
             domainLabel: getDominantDomain((item as Record<string, unknown>).domains as Array<{ domain?: unknown; probability?: unknown }> | undefined) ?? 'General',
-            probabilityLabel: '--'
+            probabilityLabel: '--',
+            probabilityValue: null
         };
     }
 

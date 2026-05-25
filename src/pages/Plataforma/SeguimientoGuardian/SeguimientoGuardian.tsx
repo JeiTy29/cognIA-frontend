@@ -28,15 +28,11 @@ import type {
     QuestionnaireSessionV2DTO
 } from '../../../services/questionnaires/questionnaires.types';
 import {
-    buildGuardianCaseDomainSummary,
-    buildGuardianCaseDomainTrend,
-    buildProbabilityDeltaItems,
-    buildProbabilityItems,
-    buildTimelineItems,
+    buildGuardianCaseDashboardViewModel,
     formatGuardianTrendAxisLabel
 } from '../../../utils/dashboard/dashboardData';
 import { formatChartPercent } from '../../../utils/dashboard/chartFormatters';
-import { normalizeDashboardProbability } from '../../../utils/dashboard/chartScales';
+import { domainProbabilityToPercent } from '../../../utils/dashboard/chartScales';
 import {
     formatDateTime,
     normalizeAlertLevel,
@@ -140,7 +136,7 @@ function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
     return {
         domainLabel: normalizeDomainLabel(topDomain.domain),
         alertLabel: normalizeAlertLevel(topDomain.alert_level),
-        probabilityLabel: formatChartPercent(normalizeDashboardProbability(topDomain.probability, { scale: 'ratio' }))
+        probabilityLabel: formatChartPercent(domainProbabilityToPercent(topDomain.probability))
     };
 }
 
@@ -154,13 +150,6 @@ function getDashboardEntryMap(entries: GuardianDashboardCaseDTO[]) {
             .map((entry) => [entry.case?.case_id ?? '', entry] as const)
             .filter(([nextCaseId]) => nextCaseId.length > 0)
     );
-}
-
-function resolveCaseDomainBreakdown(caseEntry: GuardianDashboardCaseDTO | null, caseDetail: QuestionnaireCaseDetailDTO | null) {
-    if (Array.isArray(caseEntry?.domain_breakdown) && caseEntry.domain_breakdown.length > 0) {
-        return caseEntry.domain_breakdown;
-    }
-    return caseDetail?.domain_summary ?? [];
 }
 
 function buildInitialReportDates(months: number) {
@@ -192,6 +181,7 @@ export default function SeguimientoGuardian() {
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
     const [caseErrorById, setCaseErrorById] = useState<Record<string, string | null>>({});
     const [expandedSessionByCaseId, setExpandedSessionByCaseId] = useState<Record<string, string>>({});
+    const [expandedDashboardByCaseId, setExpandedDashboardByCaseId] = useState<Record<string, boolean>>({});
     const [reportSessionId, setReportSessionId] = useState<string | null>(null);
 
     const [archiveTargetCase, setArchiveTargetCase] = useState<QuestionnaireCaseDTO | null>(null);
@@ -299,100 +289,22 @@ export default function SeguimientoGuardian() {
         });
     }, [loadCaseDetail, visibleCases]);
 
+    useEffect(() => {
+        setExpandedDashboardByCaseId((previous) => {
+            if (visibleCases.length === 0) return previous;
+            const nextState = { ...previous };
+            visibleCases.forEach((item, index) => {
+                if (!(item.case_id in nextState)) {
+                    nextState[item.case_id] = visibleCases.length === 1 || index === 0;
+                }
+            });
+            return nextState;
+        });
+    }, [visibleCases]);
+
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
-    const selectedCaseItem = useMemo(
-        () => (caseId ? visibleCases.find((item) => item.case_id === caseId) ?? null : visibleCases[0] ?? null),
-        [caseId, visibleCases]
-    );
-    const selectedCaseEntry = selectedCaseItem ? dashboardEntryMap.get(selectedCaseItem.case_id) ?? null : null;
-    const selectedCaseDetail = selectedCaseItem ? caseDetailsById[selectedCaseItem.case_id] ?? null : null;
-    const selectedCaseSessions = useMemo(
-        () => sortCaseSessions(selectedCaseDetail?.sessions ?? []),
-        [selectedCaseDetail?.sessions]
-    );
-    const selectedDomainBreakdown = useMemo(
-        () => resolveCaseDomainBreakdown(selectedCaseEntry, selectedCaseDetail),
-        [selectedCaseDetail, selectedCaseEntry]
-    );
-    const selectedDomainSummary = useMemo(
-        () =>
-            buildGuardianCaseDomainSummary({
-                sessions: selectedCaseSessions,
-                domainBreakdown: selectedDomainBreakdown,
-                domainLabels: guardianDomainSeries.map((series) => series.label)
-            }),
-        [selectedCaseSessions, selectedDomainBreakdown]
-    );
-    const selectedTrendData = useMemo(() => {
-        return buildGuardianCaseDomainTrend({
-            caseEntry: selectedCaseEntry,
-            caseDetail: selectedCaseDetail,
-            sessions: selectedCaseSessions,
-            domainLabels: guardianDomainSeries.map((series) => series.label)
-        });
-    }, [selectedCaseDetail, selectedCaseEntry, selectedCaseSessions]);
-    const selectedLatestBars = useMemo(
-        () =>
-            buildProbabilityItems(
-                selectedDomainSummary.map((item) => ({
-                    label: item.label,
-                    value: item.latestValue
-                })),
-                { scale: 'percent' }
-            ),
-        [selectedDomainSummary]
-    );
-    const selectedPeakBars = useMemo(
-        () =>
-            buildProbabilityItems(
-                selectedDomainSummary
-                    .filter((item) => typeof item.peakValue === 'number')
-                    .map((item) => ({
-                        label: item.label,
-                        value: item.peakValue
-                    })),
-                { scale: 'percent' }
-            ),
-        [selectedDomainSummary]
-    );
-    const selectedDeltaBars = useMemo(() => {
-        if (selectedTrendData.length < 2) return [];
-        const previousPoint = selectedTrendData[selectedTrendData.length - 2];
-        const currentPoint = selectedTrendData[selectedTrendData.length - 1];
-        return buildProbabilityDeltaItems(
-            guardianDomainSeries.map((series) => ({
-                label: series.label,
-                value: Number(currentPoint.values[series.key] ?? 0) - Number(previousPoint.values[series.key] ?? 0)
-            })),
-            { scale: 'percent' }
-        );
-    }, [selectedTrendData]);
-    const selectedTimelineItems = useMemo(
-        () =>
-            buildTimelineItems(selectedCaseSessions, {
-                getDate: (session) => session.processed_at ?? resolveOptionalSessionTimestamp(session, 'submitted_at') ?? session.updated_at ?? session.created_at,
-                getTitle: (session) => {
-                    const mode = normalizeQuestionnaireMode(session.mode);
-                    const status = normalizeSessionStatus(session.status);
-                    return `${mode} · ${status}`;
-                },
-                getDescription: (session) => {
-                    const alert = resolveSessionAlert(session);
-                    const alertText = alert ? `${alert.domainLabel}: ${alert.alertLabel} (${alert.probabilityLabel})` : 'Sin alerta principal disponible';
-                    return `${formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)} · ${alertText}`;
-                },
-                getTone: (session) => {
-                    const alert = resolveSessionAlert(session)?.alertLabel.toLowerCase();
-                    if (alert?.includes('alto') || alert?.includes('prioritaria')) return 'danger';
-                    if (alert?.includes('elevado') || alert?.includes('moderado')) return 'warning';
-                    if (alert?.includes('bajo')) return 'success';
-                    return 'info';
-                }
-            }),
-        [selectedCaseSessions]
-    );
 
     const openCreateCaseModal = () => {
         setCreateCaseError(null);
@@ -642,121 +554,6 @@ export default function SeguimientoGuardian() {
                             </article>
                         </div>
 
-                        {selectedCaseItem ? (
-                            <div className="seguimiento-dashboard-grid">
-                                <div className="seguimiento-dashboard-metrics">
-                                    <DashboardMetricCard
-                                        label="Sesiones registradas"
-                                        value={selectedCaseEntry?.sessions_count ?? selectedCaseSessions.length}
-                                        helper={selectedCaseItem.case_public_id ?? 'Caso sin código público'}
-                                        tone="info"
-                                    />
-                                    <DashboardMetricCard
-                                        label="Última sesión"
-                                        value={formatDateTime(
-                                            selectedCaseEntry?.latest_session?.processed_at ??
-                                            selectedCaseSessions[0]?.processed_at ??
-                                            (selectedCaseSessions[0] ? resolveOptionalSessionTimestamp(selectedCaseSessions[0], 'submitted_at') : null) ??
-                                            selectedCaseSessions[0]?.updated_at ??
-                                            selectedCaseSessions[0]?.created_at
-                                        )}
-                                        helper="Fecha más reciente dentro del caso."
-                                        tone="neutral"
-                                    />
-                                    <DashboardMetricCard
-                                        label="Mayor alerta"
-                                        value={normalizeAlertLevel(
-                                            selectedCaseItem.latest_alert_level ??
-                                            selectedCaseEntry?.latest_session?.domains?.[0]?.alert_level ??
-                                            selectedDomainBreakdown[0]?.latest_alert_level
-                                        )}
-                                        helper="Nivel más alto visible para el caso seleccionado."
-                                        tone="warning"
-                                    />
-                                    <DashboardMetricCard
-                                        label="Estado del caso"
-                                        value={normalizeCaseStatus(selectedCaseItem.status)}
-                                        helper={caseId ? 'Caso filtrado manualmente.' : 'Caso mostrado según el filtro actual.'}
-                                        tone={(selectedCaseItem.status ?? '').toLowerCase() === 'archived' ? 'neutral' : 'success'}
-                                    />
-                                </div>
-
-                                <DashboardSection
-                                    className="seguimiento-dashboard-main"
-                                    title="Evolución por dominio"
-                                    description="Permite observar cómo han variado los dominios evaluados a lo largo de las sesiones del caso seleccionado."
-                                    note={caseId ? undefined : 'Mostrando el caso más reciente entre los resultados cargados.'}
-                                >
-                                    <LineChart
-                                        data={selectedTrendData}
-                                        series={[...guardianDomainSeries]}
-                                        ariaLabel="Evolución por dominio del caso seleccionado"
-                                        emptyMessage="No hay suficientes sesiones para mostrar evolución en el periodo seleccionado."
-                                        minY={0}
-                                        maxY={100}
-                                        formatter={formatChartPercent}
-                                        xLabelFormatter={formatGuardianTrendAxisLabel}
-                                    />
-                                </DashboardSection>
-
-                                <DashboardSection
-                                    title="Última medición por dominio"
-                                    description="Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico."
-                                >
-                                    <HorizontalBarChart
-                                        data={selectedLatestBars}
-                                        ariaLabel="Última medición por dominio"
-                                        emptyMessage="No hay datos suficientes para mostrar la última medición por dominio."
-                                        formatter={formatChartPercent}
-                                        minValue={0}
-                                        maxValue={100}
-                                    />
-                                </DashboardSection>
-
-                                <DashboardSection
-                                    title="Mayor medición registrada por dominio"
-                                    description="Identifica el mayor valor registrado para cada dominio dentro del periodo seleccionado."
-                                >
-                                    {selectedPeakBars.length > 0 ? (
-                                        <HorizontalBarChart
-                                            data={selectedPeakBars}
-                                            ariaLabel="Mayor medición registrada por dominio"
-                                            emptyMessage="No hay datos suficientes para mostrar la mayor medición registrada."
-                                            formatter={formatChartPercent}
-                                            minValue={0}
-                                            maxValue={100}
-                                        />
-                                    ) : (
-                                        <DashboardEmptyState message="Este caso no incluye valores máximos registrados por dominio para el periodo seleccionado." />
-                                    )}
-                                </DashboardSection>
-
-                                <DashboardSection
-                                    title="Cambio frente a la sesión anterior"
-                                    description="Muestra el aumento o disminución de cada dominio respecto a la sesión anterior."
-                                >
-                                    <DivergingDeltaChart
-                                        data={selectedDeltaBars}
-                                        ariaLabel="Cambio por dominio frente a la sesión anterior"
-                                        emptyMessage="No hay suficientes sesiones para comparar el cambio frente a la sesión anterior."
-                                        formatter={formatChartPercent}
-                                        helper="Valores positivos indican aumento frente a la sesión anterior; valores negativos indican disminución."
-                                    />
-                                </DashboardSection>
-
-                                <DashboardSection
-                                    title="Línea de sesiones del caso"
-                                    description="Resume la secuencia de sesiones registradas para el caso."
-                                >
-                                    <TimelineChart
-                                        items={selectedTimelineItems}
-                                        ariaLabel="Secuencia de sesiones del caso"
-                                        emptyMessage="No hay sesiones suficientes para construir la línea temporal del caso."
-                                    />
-                                </DashboardSection>
-                            </div>
-                        ) : null}
-
                         <div className="seguimiento-case-list">
                             {visibleCases.map((caseItem) => {
                                 const caseEntry = dashboardEntryMap.get(caseItem.case_id) ?? null;
@@ -766,15 +563,25 @@ export default function SeguimientoGuardian() {
                                     expandedSessionByCaseId[caseItem.case_id] ?? (caseSessions[0] ? resolveSessionKey(caseSessions[0]) : '');
                                 const caseIsLoading = caseLoadingById[caseItem.case_id] === true;
                                 const caseLoadError = caseErrorById[caseItem.case_id] ?? null;
-                                const domainBreakdown = resolveCaseDomainBreakdown(caseEntry, caseDetail);
-                                const domainSummaryRows = buildGuardianCaseDomainSummary({
-                                    sessions: caseSessions,
-                                    domainBreakdown,
+                                const dashboardViewModel = buildGuardianCaseDashboardViewModel({
+                                    caseItem,
+                                    caseEntry,
+                                    caseDetail,
                                     domainLabels: guardianDomainSeries.map((series) => series.label)
                                 });
-                                const showPeakProbability = domainSummaryRows.some((item) => typeof item.peakValue === 'number');
-                                const sessionsCount = caseItem.sessions_count ?? caseEntry?.sessions_count ?? caseSessions.length;
+                                const showPeakProbability = dashboardViewModel.domains.some((item) => typeof item.maxPct === 'number');
+                                const latestBars = dashboardViewModel.domains
+                                    .filter((item) => typeof item.latestPct === 'number')
+                                    .map((item) => ({ label: item.domainLabel, value: item.latestPct ?? 0 }));
+                                const peakBars = dashboardViewModel.domains
+                                    .filter((item) => typeof item.maxPct === 'number')
+                                    .map((item) => ({ label: item.domainLabel, value: item.maxPct ?? 0 }));
+                                const deltaBars = dashboardViewModel.domains
+                                    .filter((item) => typeof item.deltaPct === 'number')
+                                    .map((item) => ({ label: item.domainLabel, value: item.deltaPct ?? 0 }));
+                                const sessionsCount = dashboardViewModel.sessionsCount;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
+                                const isDashboardExpanded = expandedDashboardByCaseId[caseItem.case_id] ?? false;
 
                                 return (
                                     <article key={caseItem.case_id} className="seguimiento-case-card">
@@ -793,6 +600,18 @@ export default function SeguimientoGuardian() {
                                                     </span>
                                                 </div>
                                                 <div className="seguimiento-case-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="seguimiento-inline-btn ghost"
+                                                        onClick={() =>
+                                                            setExpandedDashboardByCaseId((previous) => ({
+                                                                ...previous,
+                                                                [caseItem.case_id]: !isDashboardExpanded
+                                                            }))
+                                                        }
+                                                    >
+                                                        {isDashboardExpanded ? 'Ocultar gráficas de seguimiento' : 'Ver gráficas de seguimiento'}
+                                                    </button>
                                                     {isArchived ? (
                                                         <button
                                                             type="button"
@@ -825,11 +644,11 @@ export default function SeguimientoGuardian() {
                                             </div>
                                             <div>
                                                 <strong>Último procesamiento</strong>
-                                                <span>{formatDateTime(caseItem.latest_processed_at ?? caseEntry?.latest_session?.processed_at)}</span>
+                                                <span>{formatDateTime(dashboardViewModel.latestSessionAt)}</span>
                                             </div>
                                             <div>
                                                 <strong>Alerta principal</strong>
-                                                <span>{normalizeAlertLevel(caseItem.latest_alert_level ?? caseEntry?.domain_breakdown?.[0]?.latest_alert_level)}</span>
+                                                <span>{dashboardViewModel.highestAlertLabel}</span>
                                             </div>
                                         </div>
 
@@ -838,7 +657,7 @@ export default function SeguimientoGuardian() {
                                             <p>
                                                 Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico.
                                             </p>
-                                            {domainSummaryRows.length > 0 ? (
+                                            {dashboardViewModel.domains.length > 0 ? (
                                                 <div className="seguimiento-domain-table">
                                                     <div className={`seguimiento-domain-row seguimiento-domain-head ${showPeakProbability ? 'has-peak' : ''}`}>
                                                         <strong>Dominio</strong>
@@ -846,24 +665,24 @@ export default function SeguimientoGuardian() {
                                                         {showPeakProbability ? <strong>Mayor registrada</strong> : null}
                                                         <strong>Alerta actual</strong>
                                                     </div>
-                                                    {domainSummaryRows.map((domain) => (
+                                                    {dashboardViewModel.domains.map((domain) => (
                                                         <div
-                                                            key={`${caseItem.case_id}-${domain.label}`}
+                                                            key={`${caseItem.case_id}-${domain.domainKey}`}
                                                             className={`seguimiento-domain-row ${showPeakProbability ? 'has-peak' : ''}`}
                                                         >
-                                                            <span className="seguimiento-domain-cell heading">{domain.label}</span>
+                                                            <span className="seguimiento-domain-cell heading">{domain.domainLabel}</span>
                                                             <span className="seguimiento-domain-cell">
-                                                                {typeof domain.latestValue === 'number'
+                                                                {typeof domain.latestPct === 'number'
                                                                     ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                                                                        domain.latestValue
+                                                                        domain.latestPct
                                                                     )} %`
                                                                     : '--'}
                                                             </span>
                                                             {showPeakProbability ? (
                                                                 <span className="seguimiento-domain-cell">
-                                                                    {typeof domain.peakValue === 'number'
+                                                                    {typeof domain.maxPct === 'number'
                                                                         ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                                                                            domain.peakValue
+                                                                            domain.maxPct
                                                                         )} %`
                                                                         : '—'}
                                                                 </span>
@@ -876,6 +695,112 @@ export default function SeguimientoGuardian() {
                                                 <p>No hay mediciones de dominio disponibles para este periodo.</p>
                                             )}
                                         </div>
+
+                                        {isDashboardExpanded ? (
+                                            <div className="case-dashboard-grid">
+                                                <div className="seguimiento-dashboard-metrics case-dashboard-wide">
+                                                    <DashboardMetricCard
+                                                        label="Sesiones registradas"
+                                                        value={dashboardViewModel.sessionsCount}
+                                                        helper={dashboardViewModel.casePublicId || 'Caso sin código público'}
+                                                        tone="info"
+                                                    />
+                                                    <DashboardMetricCard
+                                                        label="Última sesión"
+                                                        value={formatDateTime(dashboardViewModel.latestSessionAt)}
+                                                        helper="Fecha más reciente dentro del caso."
+                                                        tone="neutral"
+                                                    />
+                                                    <DashboardMetricCard
+                                                        label="Mayor alerta"
+                                                        value={dashboardViewModel.highestAlertLabel}
+                                                        helper="Nivel más alto visible para este caso."
+                                                        tone="warning"
+                                                    />
+                                                    <DashboardMetricCard
+                                                        label="Estado del caso"
+                                                        value={dashboardViewModel.statusLabel}
+                                                        helper="Datos calculados únicamente con este caso."
+                                                        tone={isArchived ? 'neutral' : 'success'}
+                                                    />
+                                                </div>
+
+                                                <DashboardSection
+                                                    className="case-dashboard-wide case-dashboard-chart-large"
+                                                    title="Evolución por dominio"
+                                                    description="Permite observar cómo han variado los dominios evaluados a lo largo de las sesiones de este caso."
+                                                >
+                                                    <LineChart
+                                                        data={dashboardViewModel.trendPoints}
+                                                        series={[...guardianDomainSeries]}
+                                                        ariaLabel={`Evolución por dominio de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay suficientes sesiones para mostrar evolución en el periodo seleccionado."
+                                                        minY={0}
+                                                        maxY={100}
+                                                        formatter={formatChartPercent}
+                                                        xLabelFormatter={formatGuardianTrendAxisLabel}
+                                                    />
+                                                </DashboardSection>
+
+                                                <DashboardSection
+                                                    title="Última medición por dominio"
+                                                    description="Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico."
+                                                >
+                                                    <HorizontalBarChart
+                                                        data={latestBars}
+                                                        ariaLabel={`Última medición por dominio de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay datos suficientes para mostrar la última medición por dominio."
+                                                        formatter={formatChartPercent}
+                                                        minValue={0}
+                                                        maxValue={100}
+                                                    />
+                                                </DashboardSection>
+
+                                                <DashboardSection
+                                                    title="Mayor medición registrada por dominio"
+                                                    description="Identifica el mayor valor registrado para cada dominio dentro del periodo seleccionado."
+                                                >
+                                                    {peakBars.length > 0 ? (
+                                                        <HorizontalBarChart
+                                                            data={peakBars}
+                                                            ariaLabel={`Mayor medición registrada por dominio de ${dashboardViewModel.caseLabel}`}
+                                                            emptyMessage="No hay datos suficientes para mostrar la mayor medición registrada."
+                                                            formatter={formatChartPercent}
+                                                            minValue={0}
+                                                            maxValue={100}
+                                                        />
+                                                    ) : (
+                                                        <DashboardEmptyState message="Este caso no incluye valores máximos registrados por dominio para el periodo seleccionado." />
+                                                    )}
+                                                </DashboardSection>
+
+                                                <DashboardSection
+                                                    className="case-dashboard-wide"
+                                                    title="Cambio frente a la sesión anterior"
+                                                    description="Muestra el aumento o disminución de cada dominio respecto a la sesión anterior."
+                                                >
+                                                    <DivergingDeltaChart
+                                                        data={deltaBars}
+                                                        ariaLabel={`Cambio por dominio frente a la sesión anterior de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay suficientes sesiones para comparar cambios."
+                                                        formatter={formatChartPercent}
+                                                        helper="Valores positivos indican aumento frente a la sesión anterior; valores negativos indican disminución."
+                                                    />
+                                                </DashboardSection>
+
+                                                <DashboardSection
+                                                    className="case-dashboard-wide case-dashboard-chart-large"
+                                                    title="Línea de sesiones del caso"
+                                                    description="Resume la secuencia de sesiones registradas para este caso."
+                                                >
+                                                    <TimelineChart
+                                                        items={dashboardViewModel.timelineItems}
+                                                        ariaLabel={`Secuencia de sesiones de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay sesiones suficientes para construir la línea temporal del caso."
+                                                    />
+                                                </DashboardSection>
+                                            </div>
+                                        ) : null}
 
                                         <div className="seguimiento-sessions">
                                             <div className="seguimiento-sessions-header">
@@ -965,9 +890,9 @@ export default function SeguimientoGuardian() {
                                                                                     <div key={`${sessionKey}-${domain.domain}`} className="seguimiento-domain-pill">
                                                                                         <strong>{normalizeDomainLabel(domain.domain)}</strong>
                                                                                         <span>
-                                                                                            {typeof domain.probability === 'number'
+                                                                                            {typeof domainProbabilityToPercent(domain.probability) === 'number'
                                                                                                 ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
-                                                                                                    domain.probability <= 1 ? domain.probability * 100 : domain.probability
+                                                                                                    domainProbabilityToPercent(domain.probability) ?? 0
                                                                                                 )} %`
                                                                                                 : '--'}
                                                                                         </span>

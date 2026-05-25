@@ -23,7 +23,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 18px;
-    margin-bottom: 24px;
+    margin-top: 18px;
 }
 
 .historial-v2-dashboard-metrics {
@@ -35,6 +35,33 @@
 
 .historial-v2-dashboard-wide {
     grid-column: 1 / -1;
+}
+
+.historial-v2-dashboard-large .dashboard-chart-svg-wrap,
+.historial-v2-dashboard-large .dashboard-chart-timeline {
+    min-height: 360px;
+}
+
+.historial-v2-dashboard-block {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(33, 95, 143, 0.12);
+}
+
+.historial-v2-dashboard-header {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.historial-v2-dashboard-header h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.historial-v2-dashboard-header p {
+    margin: 0;
+    color: #52677a;
 }
 
 .historial-v2-controls {
