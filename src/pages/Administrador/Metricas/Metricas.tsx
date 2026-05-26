@@ -493,6 +493,17 @@ export function Metricas() {
             {reportNotice ? <div className="metricas-alert metricas-alert-success">{reportNotice}</div> : null}
             {reportError ? <div className="metricas-alert">{reportError}</div> : null}
 
+            <section className="metricas-hero" aria-label="Resumen operativo">
+                <div>
+                    <span>Estado operativo</span>
+                    <h2>Panel de salud del sistema</h2>
+                    <p>
+                        Prioriza disponibilidad, latencia y errores antes de revisar tablas técnicas. Los logs quedan como respaldo al final.
+                    </p>
+                </div>
+                <strong>{serverState.status === 'ok' && dbState.status === 'ready' ? 'Servicios principales disponibles' : 'Revisión operativa requerida'}</strong>
+            </section>
+
             {metricsDisabled ? (
                 <section className="metricas-disabled">
                     <strong>Metricas deshabilitadas</strong>

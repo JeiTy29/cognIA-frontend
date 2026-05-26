@@ -280,3 +280,130 @@ a {
         position: absolute;
     }
 }
+
+/* Final defect pass after visual validation. */
+html,
+body,
+#root,
+.app-shell,
+.app-main,
+.app-content,
+.plataforma-view,
+.seguimiento-guardian,
+.historial-dashboard,
+.evaluaciones-compartidas,
+.solicitudes-revision {
+    max-width: 100%;
+}
+
+body,
+.app-main {
+    overflow-x: hidden;
+}
+
+.seguimiento-header,
+.seguimiento-hero-insight,
+.historial-dashboard-header,
+.historial-dashboard-insight,
+.evaluaciones-header,
+.evaluaciones-insight,
+.seguimiento-header > *,
+.historial-dashboard-header > *,
+.evaluaciones-header > * {
+    min-width: 0;
+}
+
+.seguimiento-create-btn,
+.seguimiento-inline-btn,
+.historial-dashboard-btn,
+.evaluaciones-refresh,
+.solicitudes-revision__btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+}
+
+.seguimiento-summary-card span,
+.historial-dashboard-kpi-card strong,
+.evaluaciones-summary-grid article span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    line-height: 1.08;
+}
+
+.seguimiento-summary-card:nth-child(6) span,
+.evaluaciones-summary-grid article:nth-child(5) span {
+    font-size: clamp(19px, 2vw, 25px);
+}
+
+@media (max-width: 720px) {
+    .plataforma-view {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .seguimiento-guardian,
+    .historial-dashboard,
+    .evaluaciones-compartidas,
+    .solicitudes-revision {
+        width: 100%;
+    }
+
+    .seguimiento-header,
+    .historial-dashboard-header,
+    .evaluaciones-header,
+    .solicitudes-revision__header {
+        padding: 16px;
+    }
+
+    .seguimiento-header-button-row,
+    .evaluaciones-header-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .seguimiento-summary-grid,
+    .historial-dashboard-kpis,
+    .evaluaciones-summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Narrow viewport hardening for acceptance screenshots. */
+@media (max-width: 480px) {
+    .profile-context-indicator {
+        display: none;
+    }
+
+    .app-main {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .seguimiento-header,
+    .seguimiento-hero-insight,
+    .historial-dashboard-header,
+    .historial-dashboard-insight,
+    .evaluaciones-header,
+    .evaluaciones-insight {
+        width: 100%;
+    }
+
+    .seguimiento-create-btn,
+    .seguimiento-inline-btn,
+    .historial-dashboard-btn,
+    .evaluaciones-refresh {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        line-height: 1.25;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .seguimiento-summary-grid,
+    .historial-dashboard-kpis,
+    .evaluaciones-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}

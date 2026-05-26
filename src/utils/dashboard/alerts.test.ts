@@ -14,7 +14,7 @@ describe('alerts', () => {
 
     it('devuelve metadatos semanticos consistentes', () => {
         const meta = getAlertLevelMeta('critical_review');
-        expect(meta.label).toBe('Revisión prioritaria');
+        expect(meta.label).toBe('Revisi\u00f3n prioritaria');
         expect(meta.color.length).toBeGreaterThan(0);
     });
 });

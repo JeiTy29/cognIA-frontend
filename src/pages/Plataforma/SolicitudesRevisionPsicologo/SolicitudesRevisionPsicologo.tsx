@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './SolicitudesRevisionPsicologo.css';
@@ -381,7 +381,7 @@ export default function SolicitudesRevisionPsicologo() {
                 <section className="solicitudes-revision__insight" aria-label="Resumen ejecutivo de solicitudes">
                     <div>
                         <span>Lectura rapida</span>
-                        <h2>Solicitudes recibidas para revision</h2>
+                        <h2>Solicitudes recibidas para revisión</h2>
                         <p>{requestsInsightCopy}</p>
                     </div>
                     <strong>{topRequestAlert}</strong>
@@ -529,8 +529,8 @@ export default function SolicitudesRevisionPsicologo() {
 
                                 <div className="solicitudes-revision__meta">
                                     <div>
-                                        <strong>Sesión</strong>
-                                        <span>{normalizeBackendText(request.session?.questionnaire_id ?? request.session?.session_id, '--')}</span>
+                                        <strong>Referencia</strong>
+                                        <span>{resolveRequestTitle(request)}</span>
                                     </div>
                                     <div>
                                         <strong>Estado</strong>
@@ -559,12 +559,12 @@ export default function SolicitudesRevisionPsicologo() {
                                         <p className="solicitudes-revision__protected-text">
                                             {safeDisplayText(
                                                 request.summary.result_summary,
-                                                'Resumen protegido no disponible para visualización.'
+                                                'Resumen protegido no disponible para visualizaci\u00f3n.'
                                             )}
                                         </p>
                                         <p>
                                             <strong>Mayor alerta:</strong> {resolveRequestAlertLabel(request)}
-                                            {' · '}
+                                            {' - '}
                                             <strong>Requiere revisión:</strong> {normalizeBooleanLabel(request.summary.needs_professional_review)}
                                         </p>
                                         {Array.isArray(request.summary.domains) && request.summary.domains.length > 0 ? (
@@ -588,7 +588,7 @@ export default function SolicitudesRevisionPsicologo() {
                                         </p>
                                         <p>
                                             <strong>Estado:</strong> {normalizeRequestStatus(request.request_status)}
-                                            {' · '}
+                                            {' - '}
                                             <strong>Respondida:</strong> {formatDateTime(request.responded_at)}
                                         </p>
                                         <p className="solicitudes-revision__protected-text">
