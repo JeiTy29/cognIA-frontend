@@ -34,6 +34,53 @@
     line-height: 1.6;
 }
 
+.solicitudes-revision__insight,
+.solicitudes-revision__filter-panel {
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at top left, rgba(15, 95, 159, 0.12), transparent 34%),
+        linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 16px 32px rgba(21, 71, 112, 0.08);
+}
+
+.solicitudes-revision__insight {
+    padding: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+    gap: 18px;
+    align-items: center;
+}
+
+.solicitudes-revision__insight span {
+    color: #0f5f9f;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.solicitudes-revision__insight h2 {
+    margin: 6px 0 8px;
+    color: #183b57;
+    font-size: clamp(22px, 3vw, 34px);
+}
+
+.solicitudes-revision__insight p {
+    margin: 0;
+    color: #52677a;
+    line-height: 1.6;
+}
+
+.solicitudes-revision__insight > strong {
+    border: 1px solid rgba(15, 95, 159, 0.16);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    padding: 18px;
+    color: #183b57;
+    text-align: center;
+}
+
 .solicitudes-revision__header button,
 .solicitudes-revision__actions button,
 .solicitudes-revision__modal-actions button {
@@ -56,6 +103,43 @@
 
 .solicitudes-revision__filters {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.solicitudes-revision__filter-panel {
+    padding: 12px;
+    display: grid;
+    gap: 12px;
+}
+
+.solicitudes-revision__filter-summary,
+.solicitudes-revision__filter-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.solicitudes-revision__filter-summary strong {
+    color: #183b57;
+}
+
+.solicitudes-revision__filter-summary span {
+    display: block;
+    margin-top: 3px;
+    color: #52677a;
+    font-size: 13px;
+}
+
+.solicitudes-revision__filter-actions button {
+    border: 1px solid rgba(33, 95, 143, 0.22);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 10px;
+    min-height: 38px;
+    padding: 0 12px;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 .solicitudes-revision__status-tabs {
@@ -254,6 +338,10 @@
     .solicitudes-revision__actions,
     .solicitudes-revision__modal-actions {
         flex-direction: column;
+    }
+
+    .solicitudes-revision__insight {
+        grid-template-columns: 1fr;
     }
 
     .solicitudes-revision__filters,

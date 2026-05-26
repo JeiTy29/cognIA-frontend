@@ -156,6 +156,7 @@ export default function SolicitudesRevisionPsicologo() {
     const [selectedRequest, setSelectedRequest] = useState<PsychologistShareRequestDTO | null>(null);
     const [actionIntent, setActionIntent] = useState<ActionIntent>(null);
     const [actionMessage, setActionMessage] = useState('');
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [actionWorking, setActionWorking] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const debouncedQuery = useDebouncedValue(query, 350);
@@ -350,9 +351,19 @@ export default function SolicitudesRevisionPsicologo() {
                 heatmapColumns,
                 (request) => normalizeRequestStatus(request.request.request_status),
                 (request) => request.alertLabel
-            ),
+        ),
         [dashboardInsights, heatmapColumns, heatmapRows]
     );
+    const activeFilterCount = [query.trim(), dateFrom, dateTo].filter(Boolean).length;
+    const filterSummary = activeFilterCount > 0 ? `${activeFilterCount} filtros activos` : 'Tabs por estado, sin busqueda adicional';
+    const clearFilters = () => {
+        setQuery('');
+        setDateFrom('');
+        setDateTo('');
+    };
+    const topRequestDomain = requestsByDomainChartItems[0]?.label ?? 'Sin dominio dominante';
+    const topRequestAlert = requestsByAlertChartItems[0]?.label ?? 'Sin alerta dominante';
+    const requestsInsightCopy = `Hay ${dashboardSummary?.pending_count ?? 0} solicitudes pendientes, ${dashboardSummary?.accepted_count ?? 0} aceptadas y ${dashboardSummary?.rejected_count ?? 0} rechazadas. El dominio mas frecuente es ${topRequestDomain} y la alerta predominante es ${topRequestAlert}.`;
 
     return (
         <div className="plataforma-view">
@@ -367,7 +378,28 @@ export default function SolicitudesRevisionPsicologo() {
                     </button>
                 </div>
 
-                <div className="solicitudes-revision__filters">
+                <section className="solicitudes-revision__insight" aria-label="Resumen ejecutivo de solicitudes">
+                    <div>
+                        <span>Lectura rapida</span>
+                        <h2>Solicitudes recibidas para revision</h2>
+                        <p>{requestsInsightCopy}</p>
+                    </div>
+                    <strong>{topRequestAlert}</strong>
+                </section>
+
+                <section className={`solicitudes-revision__filter-panel ${filtersOpen ? 'is-open' : 'is-collapsed'}`} aria-label="Filtros de solicitudes">
+                    <div className="solicitudes-revision__filter-summary">
+                        <div>
+                            <strong>Filtros</strong>
+                            <span>{filterSummary}</span>
+                        </div>
+                        <div className="solicitudes-revision__filter-actions">
+                            <button type="button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen}>
+                                {filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
+                            </button>
+                            <button type="button" onClick={clearFilters}>Limpiar</button>
+                        </div>
+                    </div>
                     <div className="solicitudes-revision__status-tabs" role="tablist" aria-label="Filtrar solicitudes por estado">
                         {statusOptions.map((option) => (
                             <button
@@ -380,14 +412,18 @@ export default function SolicitudesRevisionPsicologo() {
                             </button>
                         ))}
                     </div>
-                    <input
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Buscar por caso o acudiente"
-                    />
-                    <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-                    <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-                </div>
+                    {filtersOpen ? (
+                        <div className="solicitudes-revision__filters">
+                            <input
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder="Buscar por caso o acudiente"
+                            />
+                            <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+                            <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+                        </div>
+                    ) : null}
+                </section>
 
                 {notice ? <div className="solicitudes-revision__notice success">{notice}</div> : null}
                 {error ? <div className="solicitudes-revision__notice error">{error}</div> : null}

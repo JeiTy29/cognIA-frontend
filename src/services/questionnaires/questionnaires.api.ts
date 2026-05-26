@@ -63,6 +63,16 @@ import type {
     QuestionnaireV2Role,
     ShareQuestionnairePayload
 } from './questionnaires.types';
+import {
+    getDemoGuardianDashboardV2,
+    getDemoPsychologistDashboard,
+    getDemoPsychologistDashboardV2,
+    getDemoQuestionnaireCaseDetail,
+    getDemoQuestionnaireCasesResponse,
+    getDemoQuestionnaireHistoryResponse,
+    getDemoShareRequests,
+    isDevDashboardDemoEnabled
+} from '../../utils/questionnaires/demoDashboardData';
 
 const requestOptions = {
     auth: true,
@@ -1413,7 +1423,18 @@ export function getQuestionnaireHistoryV2(params?: QuestionnaireHistoryFiltersV2
         )
         : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions);
 
-    return request.then((payload) => normalizeHistoryResponse(payload, page, pageSize));
+    return request
+        .then((payload) => {
+            const response = normalizeHistoryResponse(payload, page, pageSize);
+            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
+                return getDemoQuestionnaireHistoryResponse(page, pageSize);
+            }
+            return response;
+        })
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireHistoryResponse(page, pageSize);
+            throw error;
+        });
 }
 
 export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
@@ -1431,9 +1452,18 @@ export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions).then((payload) =>
-        normalizeCasesResponse(payload, page, pageSize)
-    );
+    return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions)
+        .then((payload) => {
+            const response = normalizeCasesResponse(payload, page, pageSize);
+            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
+                return getDemoQuestionnaireCasesResponse(page, pageSize);
+            }
+            return response;
+        })
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireCasesResponse(page, pageSize);
+            throw error;
+        });
 }
 
 export function createQuestionnaireCaseV2(payload: Record<string, unknown>) {
@@ -1449,7 +1479,12 @@ export function updateQuestionnaireCaseV2(caseId: string, payload: Record<string
 }
 
 export function getQuestionnaireCaseDetailV2(caseId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/cases/${caseId}`, requestOptions).then(normalizeCaseDetailResponse);
+    return apiGet<unknown>(`/api/v2/questionnaires/cases/${caseId}`, requestOptions)
+        .then(normalizeCaseDetailResponse)
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireCaseDetail(caseId);
+            throw error;
+        });
 }
 
 export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFiltersV2) {
@@ -1467,7 +1502,18 @@ export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFi
     const path = query.length > 0
         ? `/api/v2/questionnaires/guardian/dashboard?${query}`
         : '/api/v2/questionnaires/guardian/dashboard';
-    return apiGet<unknown>(path, requestOptions).then(normalizeGuardianDashboardResponse);
+    return apiGet<unknown>(path, requestOptions)
+        .then((payload) => {
+            const response = normalizeGuardianDashboardResponse(payload);
+            if (isDevDashboardDemoEnabled() && !response.cases?.length) {
+                return getDemoGuardianDashboardV2();
+            }
+            return response;
+        })
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoGuardianDashboardV2();
+            throw error;
+        });
 }
 
 export function getGuardianQuestionnaireDashboardV2(
@@ -1493,19 +1539,35 @@ export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDas
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions).then(
-        normalizePsychologistDashboardResponse
-    );
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions)
+        .then((payload) => {
+            const response = normalizePsychologistDashboardResponse(payload);
+            if (isDevDashboardDemoEnabled() && !response.items?.length) {
+                return getDemoPsychologistDashboardV2(page, pageSize);
+            }
+            return response;
+        })
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoPsychologistDashboardV2(page, pageSize);
+            throw error;
+        });
 }
 
 export function getPsychologistQuestionnaireDashboardV2(
     params?: QuestionnairePsychologistDashboardFiltersV2
 ): Promise<PsychologistDashboardDTO> {
-    return getPsychologistDashboardV2(params).then((response) => ({
-        ...(response as Record<string, unknown>),
-        items: asArray(response?.items) as PsychologistDashboardDTO['items'],
-        pagination: normalizePagination(response?.pagination, params?.page ?? 1, params?.page_size ?? defaultPageSize)
-    })) as Promise<PsychologistDashboardDTO>;
+    return getPsychologistDashboardV2(params).then((response) => {
+        const items = asArray(response?.items);
+        const firstItem = items[0] as Record<string, unknown> | undefined;
+        if (isDevDashboardDemoEnabled() && (!items.length || !Array.isArray(firstItem?.domains))) {
+            return getDemoPsychologistDashboard(params?.page ?? 1, params?.page_size ?? defaultPageSize);
+        }
+        return {
+            ...(response as Record<string, unknown>),
+            items: items as PsychologistDashboardDTO['items'],
+            pagination: normalizePagination(response?.pagination, params?.page ?? 1, params?.page_size ?? defaultPageSize)
+        };
+    }) as Promise<PsychologistDashboardDTO>;
 }
 
 export function getPsychologistShareRequestsV2(params?: {
@@ -1526,9 +1588,18 @@ export function getPsychologistShareRequestsV2(params?: {
         date_from: params?.date_from,
         date_to: params?.date_to
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions).then(
-        (payload) => normalizeShareRequestsResponse(payload, page, pageSize)
-    );
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions)
+        .then((payload) => {
+            const response = normalizeShareRequestsResponse(payload, page, pageSize);
+            if (isDevDashboardDemoEnabled() && !response.items?.length) {
+                return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
+            }
+            return response;
+        })
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
+            throw error;
+        });
 }
 
 export function acceptPsychologistShareRequestV2(grantId: string, payload?: { message?: string }) {
