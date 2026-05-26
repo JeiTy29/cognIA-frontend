@@ -22,6 +22,7 @@ interface ApiClientConfigAssertion {
 
 const API_SUFFIX = '/api';
 const DEBUG_FLAG = import.meta.env.VITE_DEBUG_API_CLIENT;
+const DEFAULT_BACKEND_BASE_URL = 'https://cognia-api.onrender.com';
 
 let configErrorLogged = false;
 
@@ -33,7 +34,8 @@ function getRawBackendBaseUrl() {
         : alternativeValue;
 
     if (typeof value !== 'string' || value.trim().length === 0) {
-        throw new Error('VITE_API_BASE_URL no esta configurado.');
+        console.warn(`[CognIA API] VITE_API_BASE_URL no esta configurado. Usando backend por defecto: ${DEFAULT_BACKEND_BASE_URL}`);
+        return DEFAULT_BACKEND_BASE_URL;
     }
 
     return value.trim();
