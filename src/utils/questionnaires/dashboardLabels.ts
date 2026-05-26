@@ -22,9 +22,9 @@ const validHistoryStatuses: QuestionnaireHistoryStatusFilter[] = [
 const domainLabels: Record<string, string> = {
     adhd: 'TDAH',
     anxiety: 'Ansiedad',
-    depression: 'Depresion',
+    depression: 'Depresi\u00f3n',
     conduct: 'Conducta',
-    elimination: 'Eliminacion'
+    elimination: 'Eliminaci\u00f3n'
 };
 
 function cleanText(value: unknown) {

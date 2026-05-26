@@ -52,4 +52,11 @@ describe('dashboardTransform', () => {
         expect(data[1].label.toLowerCase()).toContain('prior');
         expect(data[2].label).toBe('Ansiedad');
     });
+
+    it('evita usar UUID como label principal de graficas', () => {
+        const data = normalizeChartSeries([
+            { label: '5f2b43d945f14f4cb0c8aa2d53b18b4f', value: 3 }
+        ]);
+        expect(data[0].label).toBe('Caso 1');
+    });
 });

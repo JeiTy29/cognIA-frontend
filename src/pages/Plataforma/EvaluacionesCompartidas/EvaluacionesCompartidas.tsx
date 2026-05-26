@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './EvaluacionesCompartidas.css';
@@ -686,8 +686,8 @@ export default function EvaluacionesCompartidas() {
     );
     const topCaseLabel = caseTreemapItems[0]?.label ?? 'Sin caso prioritario';
     const topDomainLabel = domainChartItems[0]?.label ?? 'Sin dominio dominante';
-    const highPriorityCount = evaluationInsights.filter((item) => ['Alto', 'Revision prioritaria', 'RevisiÃ³n prioritaria'].includes(item.dominantAlertLabel)).length;
-    const executiveCopy = `Hay ${summary?.total_shared_sessions ?? items.length} evaluaciones aceptadas, ${summary?.pending_reviews ?? 0} pendientes de revision y ${highPriorityCount} con alerta alta o prioritaria. El dominio mas frecuente es ${topDomainLabel}.`;
+    const highPriorityCount = evaluationInsights.filter((item) => ['Alto', 'Revisi\u00f3n prioritaria'].includes(item.dominantAlertLabel)).length;
+    const executiveCopy = `Hay ${summary?.total_shared_sessions ?? items.length} evaluaciones aceptadas, ${summary?.pending_reviews ?? 0} pendientes de revisión y ${highPriorityCount} con alerta alta o prioritaria. El dominio más frecuente es ${topDomainLabel}.`;
 
     return (
         <div className="plataforma-view">
@@ -711,8 +711,8 @@ export default function EvaluacionesCompartidas() {
 
                 <section className="evaluaciones-insight" aria-label="Resumen ejecutivo de evaluaciones">
                     <div>
-                        <span>Lectura rapida</span>
-                        <h2>Panel de evaluaciones recibidas</h2>
+                        <span>Lectura rápida</span>
+                        <h2>{`${summary?.total_shared_sessions ?? items.length} evaluaciones · ${summary?.pending_reviews ?? 0} por revisar`}</h2>
                         <p>{executiveCopy}</p>
                     </div>
                     <strong>{topCaseLabel}</strong>
@@ -721,7 +721,7 @@ export default function EvaluacionesCompartidas() {
                 <section className={`evaluaciones-filter-panel ${filtersOpen ? 'is-open' : 'is-collapsed'}`} aria-label="Filtros de evaluaciones">
                     <div className="evaluaciones-filter-summary">
                         <div>
-                            <strong>Filtros dinamicos</strong>
+                            <strong>Filtros dinámicos</strong>
                             <span>{filterSummary}</span>
                         </div>
                         <div className="evaluaciones-filter-actions">
@@ -797,7 +797,7 @@ export default function EvaluacionesCompartidas() {
                             <AreaChart
                                 data={evaluationTimelineItems}
                                 ariaLabel="Evaluaciones aceptadas por fecha"
-                                emptyMessage="No hay evaluaciones fechadas suficientes para construir la evolucion temporal."
+                                emptyMessage="No hay evaluaciones fechadas suficientes para construir la evolución temporal."
                             />
                         </DashboardSection>
                         <DashboardSection
@@ -960,7 +960,7 @@ export default function EvaluacionesCompartidas() {
                                             <div key={answer.key} className="evaluaciones-answer-row">
                                                 <strong>{answer.questionText}</strong>
                                                 <span>{answer.answerLabel}</span>
-                                                <small>{answer.domainLabel} · {answer.sectionLabel}</small>
+                                                <small>{answer.domainLabel} ? {answer.sectionLabel}</small>
                                             </div>
                                         ))}
                                     </div>
@@ -979,10 +979,10 @@ export default function EvaluacionesCompartidas() {
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
                                                 <small>
-                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} · Estado de revisión: {normalizeReviewStatus(review.review_status)}
+                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} ? Estado de revisión: {normalizeReviewStatus(review.review_status)}
                                                 </small>
                                                 <small>
-                                                    Actualizada: {formatDateTime(review.updated_at)} · {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
+                                                    Actualizada: {formatDateTime(review.updated_at)} ? {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
                                                 </small>
                                             </article>
                                         ))}
