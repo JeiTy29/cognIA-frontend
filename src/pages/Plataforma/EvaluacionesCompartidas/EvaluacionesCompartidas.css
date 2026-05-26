@@ -33,6 +33,53 @@
     line-height: 1.6;
 }
 
+.evaluaciones-insight,
+.evaluaciones-filter-panel {
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at top left, rgba(15, 95, 159, 0.12), transparent 34%),
+        linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 16px 32px rgba(21, 71, 112, 0.08);
+}
+
+.evaluaciones-insight {
+    padding: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 300px);
+    gap: 18px;
+    align-items: center;
+}
+
+.evaluaciones-insight span {
+    color: #0f5f9f;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.evaluaciones-insight h2 {
+    margin: 6px 0 8px;
+    color: #183b57;
+    font-size: clamp(22px, 3vw, 34px);
+}
+
+.evaluaciones-insight p {
+    margin: 0;
+    color: #52677a;
+    line-height: 1.6;
+}
+
+.evaluaciones-insight > strong {
+    border: 1px solid rgba(15, 95, 159, 0.16);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    padding: 18px;
+    color: #183b57;
+    text-align: center;
+}
+
 .evaluaciones-refresh,
 .evaluaciones-card-actions button,
 .evaluaciones-detail-actions button {
@@ -50,6 +97,32 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
+}
+
+.evaluaciones-filter-panel {
+    padding: 12px;
+    display: grid;
+    gap: 12px;
+}
+
+.evaluaciones-filter-summary,
+.evaluaciones-filter-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.evaluaciones-filter-summary strong {
+    color: #183b57;
+}
+
+.evaluaciones-filter-summary span {
+    display: block;
+    margin-top: 3px;
+    color: #52677a;
+    font-size: 13px;
 }
 
 .evaluaciones-filters input,
@@ -333,6 +406,10 @@
     .evaluaciones-card-top,
     .evaluaciones-card-actions {
         flex-direction: column;
+    }
+
+    .evaluaciones-insight {
+        grid-template-columns: 1fr;
     }
 
     .evaluaciones-filters,
