@@ -25,6 +25,14 @@ const DEBUG_FLAG = import.meta.env.VITE_DEBUG_API_CLIENT;
 
 let configErrorLogged = false;
 
+function isDevMode() {
+    if (typeof import.meta !== 'undefined' && typeof import.meta.env === 'object') {
+        return Boolean(import.meta.env.DEV);
+    }
+
+    return typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
+}
+
 function getRawBackendBaseUrl() {
     const directValue = import.meta.env.VITE_API_BASE_URL;
     const alternativeValue = import.meta.env.VITE_COGNIA_API_BASE_URL;
@@ -33,6 +41,12 @@ function getRawBackendBaseUrl() {
         : alternativeValue;
 
     if (typeof value !== 'string' || value.trim().length === 0) {
+        if (isDevMode()) {
+            const fallback = 'https://cognia-api.onrender.com';
+            console.warn(`[CognIA API] VITE_API_BASE_URL no esta configurado. Usando fallback de desarrollo: ${fallback}`);
+            return fallback;
+        }
+
         throw new Error('VITE_API_BASE_URL no esta configurado.');
     }
 
