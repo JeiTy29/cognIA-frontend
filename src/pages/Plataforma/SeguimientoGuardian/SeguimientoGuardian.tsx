@@ -3,10 +3,12 @@ import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import {
+    AreaChart,
     DashboardEmptyState,
     DivergingDeltaChart,
     DashboardMetricCard,
     DashboardSection,
+    DonutChart,
     HorizontalBarChart,
     LineChart,
     TimelineChart
@@ -34,6 +36,7 @@ import {
 } from '../../../utils/dashboard/dashboardData';
 import { formatChartPercent } from '../../../utils/dashboard/chartFormatters';
 import { domainProbabilityToPercent } from '../../../utils/dashboard/chartScales';
+import { getAlertLevelMeta } from '../../../utils/dashboard/alerts';
 import {
     formatDateTime,
     normalizeAlertLevel,
@@ -117,6 +120,198 @@ function sortCaseSessions(sessions: QuestionnaireSessionV2DTO[]) {
             parseSortableDate(right.processed_at, resolveOptionalSessionTimestamp(right, 'submitted_at'), right.updated_at, right.created_at) -
             parseSortableDate(left.processed_at, resolveOptionalSessionTimestamp(left, 'submitted_at'), left.updated_at, left.created_at)
     );
+}
+
+type GuardianChartPoint = {
+    label?: string | null;
+    name?: string | null;
+    key?: string | null;
+    case_id?: string | null;
+    case_public_id?: string | null;
+    domain?: string | null;
+    alert_level?: string | null;
+    date?: string | null;
+    month?: string | null;
+    value?: number | null;
+    count?: number | null;
+    total?: number | null;
+    sessions?: number | null;
+};
+
+type GuardianVisualCharts = {
+    monthlyAlerts: Array<{ label: string; value: number }>;
+    alertsByDomain: Array<{ label: string; value: number }>;
+    alertsByLevel: Array<{ label: string; value: number; tone?: string }>;
+    sessionsByCase: Array<{ label: string; value: number }>;
+    priorityCases: Array<{
+        caseItem: QuestionnaireCaseDTO;
+        label: string;
+        alertLabel: string;
+        alertTone: string;
+        domainLabel: string;
+        sessions: number;
+        lastActivity: string | null;
+        score: number;
+    }>;
+};
+
+function readDashboardCharts(dashboard: GuardianDashboardDTO | null) {
+    const charts = (dashboard as { charts?: Record<string, GuardianChartPoint[] | undefined> } | null)?.charts;
+    return charts ?? {};
+}
+
+function chartPointValue(point: GuardianChartPoint) {
+    return Number(point.value ?? point.count ?? point.total ?? point.sessions ?? 0) || 0;
+}
+
+function isTechnicalId(value: string) {
+    return /^[a-f0-9]{16,}$/i.test(value.replace(/[-_]/g, ''));
+}
+
+function normalizeMonthLabel(value: string) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+        return new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' }).format(parsed).replace('.', '');
+    }
+    return value;
+}
+
+function resolveCaseFromPoint(point: GuardianChartPoint, cases: QuestionnaireCaseDTO[]) {
+    const candidates = [
+        point.case_id,
+        point.case_public_id,
+        point.key,
+        point.label,
+        point.name
+    ].map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean);
+
+    return cases.find((caseItem) =>
+        candidates.some((candidate) =>
+            candidate === caseItem.case_id ||
+            candidate === caseItem.case_public_id ||
+            candidate === resolveCaseCompositeLabel(caseItem)
+        )
+    ) ?? null;
+}
+
+function resolveCaseChartLabel(point: GuardianChartPoint, cases: QuestionnaireCaseDTO[]) {
+    const matchingCase = resolveCaseFromPoint(point, cases);
+    if (matchingCase) return resolveCaseCompositeLabel(matchingCase);
+
+    const label = String(point.label ?? point.name ?? point.case_public_id ?? point.key ?? '').trim();
+    if (label && !isTechnicalId(label)) return label;
+    return 'Caso sin etiqueta';
+}
+
+function normalizeChartPoints(
+    points: GuardianChartPoint[] | undefined,
+    options?: {
+        labelType?: 'domain' | 'alert' | 'month' | 'case';
+        cases?: QuestionnaireCaseDTO[];
+    }
+) {
+    return (points ?? [])
+        .map((point, index) => {
+            const rawLabel = String(point.label ?? point.name ?? point.domain ?? point.alert_level ?? point.date ?? point.month ?? point.key ?? '').trim();
+            const label =
+                options?.labelType === 'domain'
+                    ? normalizeDomainLabel(point.domain ?? rawLabel)
+                    : options?.labelType === 'alert'
+                        ? normalizeAlertLevel(point.alert_level ?? rawLabel)
+                        : options?.labelType === 'month'
+                            ? normalizeMonthLabel(String(point.month ?? point.date ?? (rawLabel || `Periodo ${index + 1}`)))
+                            : options?.labelType === 'case'
+                                ? resolveCaseChartLabel(point, options.cases ?? [])
+                                : rawLabel || `Dato ${index + 1}`;
+            const value = chartPointValue(point);
+            const tone = options?.labelType === 'alert' ? getAlertLevelMeta(point.alert_level ?? rawLabel).tone : undefined;
+            return { label, value, tone };
+        })
+        .filter((item) => item.value > 0);
+}
+
+function alertPriorityScore(value: string | null | undefined) {
+    const tone = getAlertLevelMeta(value).tone;
+    if (tone === 'critical_review') return 5;
+    if (tone === 'high') return 4;
+    if (tone === 'elevated') return 3;
+    if (tone === 'moderate') return 2;
+    if (tone === 'low') return 1;
+    return 0;
+}
+
+function buildGuardianVisualCharts(
+    dashboard: GuardianDashboardDTO | null,
+    cases: QuestionnaireCaseDTO[]
+): GuardianVisualCharts {
+    const charts = readDashboardCharts(dashboard);
+    const monthlyAlerts = normalizeChartPoints(charts.alerts_by_month, { labelType: 'month' });
+    const alertsByDomain = normalizeChartPoints(charts.alerts_by_domain, { labelType: 'domain' });
+    const alertsByLevel = normalizeChartPoints(charts.alerts_by_level ?? charts.cases_by_alert_level, { labelType: 'alert' });
+    const sessionsByCase = normalizeChartPoints(charts.sessions_by_case, { labelType: 'case', cases });
+
+    const fallbackByDomain = cases.reduce((accumulator, caseItem) => {
+        const domainLabel = normalizeDomainLabel(caseItem.latest_domain);
+        if (domainLabel === '--') return accumulator;
+        accumulator.set(domainLabel, (accumulator.get(domainLabel) ?? 0) + 1);
+        return accumulator;
+    }, new Map<string, number>());
+
+    const fallbackByLevel = cases.reduce((accumulator, caseItem) => {
+        const meta = getAlertLevelMeta(caseItem.latest_alert_level);
+        if (meta.tone === 'unknown') return accumulator;
+        const current = accumulator.get(meta.label) ?? { label: meta.label, value: 0, tone: meta.tone };
+        accumulator.set(meta.label, { ...current, value: current.value + 1 });
+        return accumulator;
+    }, new Map<string, { label: string; value: number; tone: string }>());
+
+    const fallbackByCase = cases
+        .map((caseItem) => ({
+            label: resolveCaseCompositeLabel(caseItem),
+            value: Number(caseItem.sessions_count ?? (caseItem as { processed_sessions_count?: number | null }).processed_sessions_count ?? 0) || 0
+        }))
+        .filter((item) => item.value > 0)
+        .sort((left, right) => right.value - left.value);
+
+    const fallbackByMonth = cases.reduce((accumulator, caseItem) => {
+        if (!caseItem.latest_processed_at) return accumulator;
+        const label = normalizeMonthLabel(caseItem.latest_processed_at);
+        accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+        return accumulator;
+    }, new Map<string, number>());
+
+    const priorityCases = cases
+        .map((caseItem) => {
+            const alertMeta = getAlertLevelMeta(caseItem.latest_alert_level);
+            const sessions = Number(caseItem.sessions_count ?? (caseItem as { processed_sessions_count?: number | null }).processed_sessions_count ?? 0) || 0;
+            const lastActivity = caseItem.latest_processed_at ?? caseItem.updated_at ?? caseItem.created_at ?? null;
+            return {
+                caseItem,
+                label: resolveCaseCompositeLabel(caseItem),
+                alertLabel: alertMeta.label,
+                alertTone: alertMeta.tone,
+                domainLabel: normalizeDomainLabel(caseItem.latest_domain) === '--' ? 'Sin dominio principal' : normalizeDomainLabel(caseItem.latest_domain),
+                sessions,
+                lastActivity,
+                score: alertPriorityScore(caseItem.latest_alert_level) * 100 + sessions
+            };
+        })
+        .sort((left, right) => right.score - left.score || parseSortableDate(right.lastActivity) - parseSortableDate(left.lastActivity))
+        .slice(0, 4);
+
+    return {
+        monthlyAlerts: monthlyAlerts.length > 0
+            ? monthlyAlerts
+            : [...fallbackByMonth.entries()].map(([label, value]) => ({ label, value })),
+        alertsByDomain: alertsByDomain.length > 0
+            ? alertsByDomain
+            : [...fallbackByDomain.entries()].map(([label, value]) => ({ label, value })).sort((left, right) => right.value - left.value),
+        alertsByLevel: alertsByLevel.length > 0
+            ? alertsByLevel
+            : [...fallbackByLevel.values()].sort((left, right) => right.value - left.value),
+        sessionsByCase: sessionsByCase.length > 0 ? sessionsByCase : fallbackByCase,
+        priorityCases
+    };
 }
 
 function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
@@ -285,12 +480,8 @@ export default function SeguimientoGuardian() {
     }, [caseId, cases]);
 
     useEffect(() => {
-        if (visibleCases.length === 0) {
+        if (selectedCaseId && !visibleCases.some((item) => item.case_id === selectedCaseId)) {
             setSelectedCaseId('');
-            return;
-        }
-        if (!selectedCaseId || !visibleCases.some((item) => item.case_id === selectedCaseId)) {
-            setSelectedCaseId(visibleCases[0]?.case_id ?? '');
         }
     }, [selectedCaseId, visibleCases]);
 
@@ -303,6 +494,14 @@ export default function SeguimientoGuardian() {
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
+    const guardianVisuals = useMemo(() => buildGuardianVisualCharts(dashboard, visibleCases), [dashboard, visibleCases]);
+    const topPriorityCase = guardianVisuals.priorityCases[0] ?? null;
+    const topDomain = guardianVisuals.alertsByDomain[0]?.label ?? 'Sin dominio dominante';
+    const casesWithAlert = visibleCases.filter((item) => getAlertLevelMeta(item.latest_alert_level).tone !== 'unknown').length;
+    const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
+    const insightCopy = topPriorityCase
+        ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio mas frecuente es ${topDomain}.`
+        : 'Aun no hay suficientes alertas procesadas para priorizar casos. Cuando existan sesiones procesadas, este panel mostrara evolucion, dominios y casos que requieren atencion.';
 
     const openCreateCaseModal = () => {
         setCreateCaseError(null);
@@ -529,6 +728,18 @@ export default function SeguimientoGuardian() {
 
                 {!loading && hasCases ? (
                     <>
+                        <section className="seguimiento-hero-insight" aria-label="Resumen ejecutivo familiar">
+                            <div>
+                                <span>Resumen ejecutivo</span>
+                                <h2>Panel de seguimiento familiar</h2>
+                                <p>{insightCopy}</p>
+                            </div>
+                            <div className="seguimiento-hero-priority">
+                                <strong>{topPriorityCase?.label ?? 'Sin caso prioritario'}</strong>
+                                <span>{topPriorityCase ? `${topPriorityCase.alertLabel} - ${topPriorityCase.domainLabel}` : 'Sin alerta visible'}</span>
+                            </div>
+                        </section>
+
                         <div className="seguimiento-summary-grid">
                             <article className="seguimiento-summary-card">
                                 <strong>Total de casos</strong>
@@ -547,10 +758,95 @@ export default function SeguimientoGuardian() {
                                 <span>{summary?.cases_needing_professional_review ?? 0}</span>
                             </article>
                             <article className="seguimiento-summary-card">
+                                <strong>Casos con alerta</strong>
+                                <span>{casesWithAlert}</span>
+                            </article>
+                            <article className="seguimiento-summary-card">
                                 <strong>Mayor nivel de alerta</strong>
                                 <span>{normalizeAlertLevel(summary?.highest_alert_level)}</span>
                             </article>
+                            <article className="seguimiento-summary-card">
+                                <strong>Dominio mas frecuente</strong>
+                                <span>{topDomain}</span>
+                            </article>
                         </div>
+
+                        <div className="seguimiento-dashboard-grid" aria-label="Graficas principales del seguimiento familiar">
+                            <DashboardSection
+                                className="seguimiento-dashboard-main"
+                                title="Evolucion de alertas del periodo"
+                                description="Muestra como se distribuyen las alertas procesadas durante el periodo seleccionado."
+                            >
+                                <AreaChart
+                                    data={guardianVisuals.monthlyAlerts}
+                                    ariaLabel="Evolucion temporal de alertas"
+                                    emptyMessage="Aun no hay suficientes sesiones procesadas para calcular tendencia temporal."
+                                />
+                            </DashboardSection>
+                            <DashboardSection
+                                title="Alertas por dominio"
+                                description="Identifica que areas concentran mas senales orientativas."
+                            >
+                                <HorizontalBarChart
+                                    data={guardianVisuals.alertsByDomain}
+                                    ariaLabel="Alertas por dominio"
+                                    emptyMessage="Aun no hay dominios con alertas visibles para el periodo seleccionado."
+                                />
+                            </DashboardSection>
+                            <DashboardSection
+                                title="Distribucion por nivel de alerta"
+                                description="Resume la severidad visible de los casos y sesiones."
+                            >
+                                <DonutChart
+                                    data={guardianVisuals.alertsByLevel}
+                                    ariaLabel="Distribucion por nivel de alerta"
+                                    emptyMessage="Aun no hay alertas clasificadas para construir la distribucion."
+                                />
+                            </DashboardSection>
+                            <DashboardSection
+                                className="seguimiento-dashboard-wide"
+                                title="Actividad por hijo o caso"
+                                description="Compara que casos concentran mas actividad o sesiones registradas."
+                            >
+                                <HorizontalBarChart
+                                    data={guardianVisuals.sessionsByCase}
+                                    ariaLabel="Sesiones por caso"
+                                    emptyMessage="Aun no hay actividad suficiente por caso para comparar."
+                                />
+                            </DashboardSection>
+                        </div>
+
+                        <section className="seguimiento-priority-ranking" aria-label="Ranking de casos prioritarios">
+                            <div className="seguimiento-section-title">
+                                <span>Prioridades</span>
+                                <h2>Que revisar primero</h2>
+                                <p>Ordenado por nivel de alerta, actividad y ultima actualizacion visible.</p>
+                            </div>
+                            <div className="seguimiento-priority-grid">
+                                {guardianVisuals.priorityCases.map((item) => (
+                                    <article className="seguimiento-priority-card" key={item.caseItem.case_id}>
+                                        <div>
+                                            <strong>{item.label}</strong>
+                                            <span>{item.domainLabel}</span>
+                                        </div>
+                                        <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
+                                        <small>{item.sessions} sesiones - Ultima actividad: {formatDateTime(item.lastActivity)}</small>
+                                        <button
+                                            type="button"
+                                            className="seguimiento-inline-btn ghost"
+                                            onClick={() => {
+                                                setSelectedCaseId(item.caseItem.case_id);
+                                                if (!loadedCaseDetailById[item.caseItem.case_id] && !caseLoadingById[item.caseItem.case_id]) {
+                                                    loadCaseDetail(item.caseItem.case_id).catch(() => undefined);
+                                                }
+                                            }}
+                                        >
+                                            Ver detalle
+                                        </button>
+                                    </article>
+                                ))}
+                            </div>
+                        </section>
 
                         <div className="seguimiento-case-list">
                             {visibleCases.map((caseItem) => {

@@ -3,6 +3,11 @@ import { getEmailHealth, resolveEmailHealthBlockState, type EmailHealthBlockStat
 import { getAdminMetrics } from '../../services/admin/metrics';
 import { ApiError } from '../../services/api/httpClient';
 import { joinBackendRootUrl } from '../../services/api/url';
+import {
+    getDemoMetricsHistory,
+    getDemoMetricsSnapshot,
+    isDevDashboardDemoEnabled
+} from '../../utils/questionnaires/demoDashboardData';
 
 export type ServerState = {
     status: 'loading' | 'ok' | 'error';
@@ -244,6 +249,14 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                 });
             }
         } catch {
+            if (isDevDashboardDemoEnabled()) {
+                setServerState({
+                    status: 'ok',
+                    message: 'OK',
+                    detail: 'Servidor operativo en datos demo'
+                });
+                return;
+            }
             setServerState({
                 status: 'error',
                 message: 'No disponible',
@@ -273,6 +286,13 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                 });
             }
         } catch {
+            if (isDevDashboardDemoEnabled()) {
+                setDbState({
+                    status: 'ready',
+                    latency_ms: 36
+                });
+                return;
+            }
             setDbState({
                 status: 'error',
                 latency_ms: null
@@ -286,6 +306,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
             setMetricsDisabled(false);
             const resolved = resolveSnapshot(response);
             if (!resolved) {
+                if (isDevDashboardDemoEnabled()) return getDemoMetricsSnapshot();
                 setErrorMessage('La respuesta de metricas no tiene el formato esperado.');
                 return null;
             }
@@ -304,6 +325,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                     throw error;
                 }
             }
+            if (isDevDashboardDemoEnabled()) return getDemoMetricsSnapshot();
             setErrorMessage('No se pudieron cargar las metricas.');
             return null;
         }
@@ -314,6 +336,15 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
             const response = await getEmailHealth();
             setEmailState(resolveEmailHealthBlockState(response));
         } catch (error) {
+            if (isDevDashboardDemoEnabled()) {
+                setEmailState({
+                    status: 'ok',
+                    label: 'Operativo',
+                    detail: 'Servicio disponible en datos demo',
+                    reason: 'Validacion local con dev auth activo.'
+                });
+                return;
+            }
             if (error instanceof ApiError) {
                 if (error.status === 404) {
                     setEmailState({
@@ -354,8 +385,14 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
             const result = await fetchMetrics();
             if (result) {
                 setSnapshot(result);
-                pushHistory(setRequestHistory, result.requests_total);
-                pushHistory(setLatencyHistory, result.latency_ms_avg);
+                if (isDevDashboardDemoEnabled()) {
+                    const history = getDemoMetricsHistory();
+                    setRequestHistory(history.requestHistory);
+                    setLatencyHistory(history.latencyHistory);
+                } else {
+                    pushHistory(setRequestHistory, result.requests_total);
+                    pushHistory(setLatencyHistory, result.latency_ms_avg);
+                }
                 resetBackoff();
                 setErrorMessage(null);
             }

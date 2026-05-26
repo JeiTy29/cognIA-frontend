@@ -3,11 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './EvaluacionesCompartidas.css';
 import {
+    AreaChart,
     DashboardSection,
     DonutChart,
     HeatmapChart,
+    HorizontalBarChart,
     HistogramChart,
-    TreemapChart
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuth } from '../../../hooks/auth/useAuth';
@@ -38,6 +39,7 @@ import type {
 import {
     buildAgingBuckets,
     buildHeatmapCells,
+    buildMonthlyCountItems,
     mapCountsToItems,
     normalizeDashboardDomain
 } from '../../../utils/dashboard/dashboardData';
@@ -175,18 +177,31 @@ function resolveEvaluationAgingDate(item: PsychologistDashboardItemDTO) {
     return acceptedAt ?? item.processed_at ?? requestedAt ?? updatedAt ?? null;
 }
 
+function resolveEvaluationCaseLabel(item: PsychologistDashboardItemDTO | null | undefined) {
+    if (!item) return 'Caso sin codigo publico';
+    const record = item as Record<string, unknown>;
+    const displayLabel = normalizeBackendText(record.case_display_label ?? record.display_label ?? record.private_label, '');
+    const publicId = normalizeBackendText(item.case_public_id, '');
+    if (displayLabel && publicId && displayLabel !== publicId) return `${displayLabel} - ${publicId}`;
+    if (displayLabel) return displayLabel;
+    if (publicId) return `Caso ${publicId}`;
+    return 'Caso sin codigo publico';
+}
+
 export default function EvaluacionesCompartidas() {
     const location = useLocation();
     const navigate = useNavigate();
     const { profile } = useAuth();
     const currentUserId = profile?.id ?? null;
+    const defaultDateRange = useMemo(() => buildInitialReportDates(3), []);
     const [query, setQuery] = useState('');
     const [casePublicId, setCasePublicId] = useState('');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
+    const [dateFrom, setDateFrom] = useState(defaultDateRange.dateFrom);
+    const [dateTo, setDateTo] = useState(defaultDateRange.dateTo);
     const [domain, setDomain] = useState('');
     const [alertLevel, setAlertLevel] = useState('');
     const [reviewStatus, setReviewStatus] = useState('');
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [dashboard, setDashboard] = useState<PsychologistDashboardDTO | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -555,6 +570,25 @@ export default function EvaluacionesCompartidas() {
     const summary = dashboard?.summary ?? null;
     const items = useMemo(() => dashboard?.items ?? [], [dashboard?.items]);
     const emptyState = !loading && items.length === 0;
+    const activeFilterCount = [
+        query.trim(),
+        casePublicId.trim(),
+        domain,
+        alertLevel,
+        reviewStatus,
+        dateFrom !== defaultDateRange.dateFrom ? dateFrom : '',
+        dateTo !== defaultDateRange.dateTo ? dateTo : ''
+    ].filter(Boolean).length;
+    const filterSummary = activeFilterCount > 0 ? `${activeFilterCount} filtros activos` : 'Ultimos 3 meses, todos los dominios y alertas';
+    const clearFilters = () => {
+        setQuery('');
+        setCasePublicId('');
+        setDateFrom(defaultDateRange.dateFrom);
+        setDateTo(defaultDateRange.dateTo);
+        setDomain('');
+        setAlertLevel('');
+        setReviewStatus('');
+    };
     const partialChartsNote = useMemo(() => {
         const total = Number(dashboard?.pagination?.total ?? items.length);
         return total > items.length ? 'Resumen calculado sobre las evaluaciones cargadas.' : undefined;
@@ -568,7 +602,7 @@ export default function EvaluacionesCompartidas() {
                     dominantDomainLabel: dominantDomain?.domainLabel ?? null,
                     dominantAlertLabel: resolveEvaluationAlertLabel(item),
                     reviewStatusLabel: normalizeReviewStatus(item.review_status),
-                    caseLabel: normalizeBackendText(item.case_public_id, 'Sin caso'),
+                    caseLabel: resolveEvaluationCaseLabel(item),
                     agingDate: resolveEvaluationAgingDate(item)
                 };
             }),
@@ -646,6 +680,14 @@ export default function EvaluacionesCompartidas() {
             ),
         [evaluationInsights]
     );
+    const evaluationTimelineItems = useMemo(
+        () => buildMonthlyCountItems(evaluationInsights.map((item) => item.agingDate)),
+        [evaluationInsights]
+    );
+    const topCaseLabel = caseTreemapItems[0]?.label ?? 'Sin caso prioritario';
+    const topDomainLabel = domainChartItems[0]?.label ?? 'Sin dominio dominante';
+    const highPriorityCount = evaluationInsights.filter((item) => ['Alto', 'Revision prioritaria', 'RevisiÃ³n prioritaria'].includes(item.dominantAlertLabel)).length;
+    const executiveCopy = `Hay ${summary?.total_shared_sessions ?? items.length} evaluaciones aceptadas, ${summary?.pending_reviews ?? 0} pendientes de revision y ${highPriorityCount} con alerta alta o prioritaria. El dominio mas frecuente es ${topDomainLabel}.`;
 
     return (
         <div className="plataforma-view">
@@ -667,6 +709,31 @@ export default function EvaluacionesCompartidas() {
                     </div>
                 </div>
 
+                <section className="evaluaciones-insight" aria-label="Resumen ejecutivo de evaluaciones">
+                    <div>
+                        <span>Lectura rapida</span>
+                        <h2>Panel de evaluaciones recibidas</h2>
+                        <p>{executiveCopy}</p>
+                    </div>
+                    <strong>{topCaseLabel}</strong>
+                </section>
+
+                <section className={`evaluaciones-filter-panel ${filtersOpen ? 'is-open' : 'is-collapsed'}`} aria-label="Filtros de evaluaciones">
+                    <div className="evaluaciones-filter-summary">
+                        <div>
+                            <strong>Filtros dinamicos</strong>
+                            <span>{filterSummary}</span>
+                        </div>
+                        <div className="evaluaciones-filter-actions">
+                            <button type="button" className="evaluaciones-refresh" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen}>
+                                {filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
+                            </button>
+                            <button type="button" className="evaluaciones-refresh" onClick={clearFilters}>
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    {filtersOpen ? (
                 <div className="evaluaciones-filters">
                     <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre o correo" />
                     <input value={casePublicId} onChange={(event) => setCasePublicId(event.target.value)} placeholder="Caso público" />
@@ -682,6 +749,8 @@ export default function EvaluacionesCompartidas() {
                     <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
                     <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
                 </div>
+                    ) : null}
+                </section>
 
                 {error ? <div className="evaluaciones-alert error">{error}</div> : null}
 
@@ -713,10 +782,22 @@ export default function EvaluacionesCompartidas() {
                             title="Dominio predominante por evaluación"
                             description="Identifica el dominio con mayor probabilidad en cada evaluación aceptada."
                         >
-                            <DonutChart
+                            <HorizontalBarChart
                                 data={domainChartItems}
                                 ariaLabel="Distribución del dominio predominante por evaluación aceptada"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            className="evaluaciones-dashboard-wide evaluaciones-dashboard-large"
+                            title="Evaluaciones por rango de fechas"
+                            description="Muestra la actividad aceptada por mes dentro del periodo consultado."
+                            note={partialChartsNote}
+                        >
+                            <AreaChart
+                                data={evaluationTimelineItems}
+                                ariaLabel="Evaluaciones aceptadas por fecha"
+                                emptyMessage="No hay evaluaciones fechadas suficientes para construir la evolucion temporal."
                             />
                         </DashboardSection>
                         <DashboardSection
@@ -761,7 +842,7 @@ export default function EvaluacionesCompartidas() {
                             description="Muestra qué casos concentran mayor cantidad de evaluaciones aceptadas."
                             note={partialChartsNote}
                         >
-                            <TreemapChart
+                            <HorizontalBarChart
                                 data={caseTreemapItems}
                                 ariaLabel="Distribución de evaluaciones aceptadas por caso"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
@@ -783,7 +864,7 @@ export default function EvaluacionesCompartidas() {
                             <article key={item.session_id} className="evaluaciones-card">
                                 <div className="evaluaciones-card-top">
                                     <div>
-                                        <h2>{item.case_public_id ?? 'Caso sin código público'}</h2>
+                                        <h2>{resolveEvaluationCaseLabel(item)}</h2>
                                         <p>{normalizeBackendText(item.guardian?.display_name, 'Acudiente no disponible')}</p>
                                     </div>
                                     <span className="evaluaciones-badge">{normalizeReviewStatus(item.review_status)}</span>
@@ -848,7 +929,7 @@ export default function EvaluacionesCompartidas() {
                     {!detailLoading && preview ? (
                         <>
                             <div className="evaluaciones-detail-grid">
-                                <div><strong>Caso</strong><span>{activeSession?.case_public_id ?? '--'}</span></div>
+                                <div><strong>Caso</strong><span>{resolveEvaluationCaseLabel(activeSession)}</span></div>
                                 <div><strong>Estado</strong><span>{normalizeSessionStatus(preview.session?.status ?? activeSession?.status)}</span></div>
                                 <div><strong>Procesado</strong><span>{formatDateTime(activeSession?.processed_at ?? preview.session?.updated_at)}</span></div>
                                 <div><strong>PDF servidor</strong><span>{preview.pdf?.available ? 'Disponible' : 'No disponible'}</span></div>
