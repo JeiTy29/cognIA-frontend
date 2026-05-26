@@ -7,7 +7,7 @@ describe('api/url', () => {
         vi.unstubAllEnvs();
     });
 
-    it('usa el fallback de desarrollo cuando VITE_API_BASE_URL no esta configurado', () => {
+    it('usa el backend por defecto cuando VITE_API_BASE_URL no esta configurado', () => {
         vi.stubEnv('VITE_API_BASE_URL', '');
         vi.stubEnv('VITE_COGNIA_API_BASE_URL', '');
 
