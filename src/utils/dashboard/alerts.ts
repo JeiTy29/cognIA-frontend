@@ -39,14 +39,14 @@ const ALERT_META: Record<AlertLevelTone, AlertLevelMeta> = {
     },
     critical_review: {
         tone: 'critical_review',
-        label: 'Revisión prioritaria',
+        label: 'Revisi\u00f3n prioritaria',
         className: 'is-critical-review',
         color: '#5f2a8f',
         background: '#f2e9ff'
     },
     unknown: {
         tone: 'unknown',
-        label: 'Sin clasificación',
+        label: 'Sin clasificaci\u00f3n',
         className: 'is-unknown',
         color: '#5f6b7a',
         background: '#eff2f6'

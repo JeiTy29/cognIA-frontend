@@ -225,3 +225,88 @@
         display: none;
     }
 }
+
+/* Modern dashboard rail: keeps navigation functional while reducing visual dominance. */
+.sidebar {
+    width: 68px;
+    background:
+        linear-gradient(180deg, rgba(10, 45, 72, 0.96) 0%, rgba(13, 79, 122, 0.94) 56%, rgba(11, 93, 116, 0.92) 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 10px 0 40px rgba(8, 37, 61, 0.16);
+    padding: 18px 0;
+}
+
+.sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 14px 10px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    pointer-events: none;
+}
+
+.sidebar-list {
+    gap: 10px;
+}
+
+.sidebar-active-indicator {
+    left: 7px;
+    width: 3px;
+    background: #7dd3fc;
+    box-shadow: 0 0 18px rgba(125, 211, 252, 0.8);
+}
+
+.sidebar-active-bg {
+    left: 12px;
+    width: calc(100% - 24px);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.sidebar-item {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    color: rgba(226, 244, 255, 0.82);
+}
+
+.sidebar-item svg {
+    width: 22px;
+    height: 22px;
+}
+
+.sidebar-item.active,
+.sidebar-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.sidebar-label {
+    left: 58px;
+    background: rgba(8, 34, 57, 0.96);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 14px 34px rgba(8, 34, 57, 0.24);
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        height: 68px;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+        background: rgba(8, 34, 57, 0.96);
+        backdrop-filter: blur(18px);
+    }
+
+    .sidebar::before {
+        display: none;
+    }
+
+    .sidebar-item {
+        width: 58px;
+        min-width: 58px;
+        height: 52px;
+    }
+}
