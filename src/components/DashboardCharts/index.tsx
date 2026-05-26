@@ -1,12 +1,37 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import {
+    Area,
+    AreaChart as ReAreaChart,
+    Bar,
+    BarChart as ReBarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart as ReLineChart,
+    Pie,
+    PieChart as RePieChart,
+    ResponsiveContainer,
+    Tooltip,
+    Treemap,
+    XAxis,
+    YAxis
+} from 'recharts';
 import { getAlertLevelMeta } from '../../utils/dashboard/alerts';
 import './DashboardCharts.css';
 
 export interface DashboardChartItem {
     id?: string;
     label?: string;
+    name?: string;
+    key?: string;
     value?: number;
+    total?: number;
+    count?: number;
+    sessions?: number;
     tone?: string;
+    color?: string;
+    meta?: string;
     [key: string]: unknown;
 }
 
@@ -16,12 +41,16 @@ interface DashboardChartCardProps {
     data: DashboardChartItem[];
     loading?: boolean;
     emptyText?: string;
-    variant?: 'bars' | 'line';
+    variant?: 'bars' | 'line' | 'area' | 'donut';
+    formatter?: (value: number) => string;
 }
 
 interface DashboardSectionProps {
     title?: ReactNode;
     subtitle?: ReactNode;
+    description?: ReactNode;
+    note?: ReactNode;
+    className?: string;
     children?: ReactNode;
     [key: string]: unknown;
 }
@@ -42,17 +71,116 @@ interface DashboardMetricCardProps {
 interface CompatChartProps {
     data?: Array<Record<string, unknown>>;
     items?: Array<Record<string, unknown>>;
+    rows?: string[];
+    columns?: string[];
+    cells?: Array<Record<string, unknown>>;
+    values?: Array<Record<string, unknown>>;
     ariaLabel?: string;
     formatter?: (value: number) => string;
     xLabelFormatter?: (value: string) => string;
+    xTooltipFormatter?: (value: string) => string;
     maxValue?: number;
+    minValue?: number;
+    minY?: number;
+    maxY?: number;
     emptyMessage?: string;
     series?: Array<Record<string, unknown>>;
+    helper?: ReactNode;
     [key: string]: unknown;
+}
+
+type NormalizedChartItem = {
+    id: string;
+    label: string;
+    value: number;
+    tone?: string;
+    color?: string;
+    meta?: string;
+    raw: Record<string, unknown>;
+};
+
+const CATEGORY_COLORS = ['#0f5f9f', '#2f8f6b', '#e67e22', '#c0392b', '#7c3aed', '#235ea8', '#bd1f2d', '#64748b'];
+
+function toNumber(value: unknown) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function cleanLabel(value: unknown, fallback: string) {
+    const label = typeof value === 'string' ? value.trim() : '';
+    if (!label) return fallback;
+    return label;
 }
 
 function formatCompact(value: number) {
     return new Intl.NumberFormat('es-CO', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
+function defaultFormatter(value: number) {
+    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(value);
+}
+
+function resolveColor(item: NormalizedChartItem, index: number) {
+    if (item.color) return item.color;
+    const tone = getAlertLevelMeta(item.tone ?? item.raw.alert_level as string | null | undefined);
+    if (tone.tone !== 'unknown') return tone.color;
+    return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+}
+
+function toChartItems(input?: Array<Record<string, unknown>>): NormalizedChartItem[] {
+    return (input ?? [])
+        .map((item, index) => {
+            const label = cleanLabel(
+                item.label ?? item.name ?? item.key ?? item.domain ?? item.alert_level ?? item.date ?? item.month,
+                `Dato ${index + 1}`
+            );
+            return {
+                id: String(item.id ?? item.key ?? item.name ?? item.label ?? index),
+                label,
+                value: toNumber(item.value ?? item.total ?? item.count ?? item.sessions ?? item.size),
+                tone: typeof item.tone === 'string' ? item.tone : typeof item.alert_level === 'string' ? item.alert_level : undefined,
+                color: typeof item.color === 'string' ? item.color : undefined,
+                meta: typeof item.meta === 'string' ? item.meta : undefined,
+                raw: item
+            };
+        })
+        .filter((item) => Number.isFinite(item.value) && item.value !== 0);
+}
+
+function isSeriesPoint(value: Record<string, unknown>) {
+    return value.values && typeof value.values === 'object' && !Array.isArray(value.values);
+}
+
+function normalizeSeriesData(data: Array<Record<string, unknown>> | undefined) {
+    const source = data ?? [];
+    if (source.some(isSeriesPoint)) {
+        return source.map((item, index) => {
+            const values = item.values as Record<string, unknown> | undefined;
+            return {
+                label: cleanLabel(item.label ?? item.date ?? item.month, `Punto ${index + 1}`),
+                meta: typeof item.meta === 'string' ? item.meta : undefined,
+                ...Object.fromEntries(Object.entries(values ?? {}).map(([key, value]) => [key, toNumber(value)]))
+            };
+        });
+    }
+
+    const normalized = toChartItems(source);
+    return normalized.map((item) => ({
+        label: item.label,
+        value: item.value,
+        meta: item.meta
+    }));
+}
+
+function hasLineValues(data: Array<Record<string, unknown>>, series: Array<{ key: string }>) {
+    if (data.length === 0) return false;
+    if (!series?.length) return data.some((item) => toNumber(item.value) !== 0);
+    return data.some((item) =>
+        series.some((serie) => {
+            const key = String(serie.key ?? '');
+            return key.length > 0 && toNumber(item[key]) !== 0;
+        })
+    );
 }
 
 function DashboardSkeleton() {
@@ -66,74 +194,316 @@ function DashboardSkeleton() {
     );
 }
 
-function BarChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
-    const max = data.reduce((acc, item) => Math.max(acc, Number(item.value ?? 0)), 0);
-
+function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ active?: boolean; payload?: Array<{ value?: unknown; name?: string; color?: string }>; label?: string; formatter?: (value: number) => string }>) {
+    if (!active || !payload?.length) return null;
     return (
-        <div className="dashboard-chart-bars" role="list">
-            {data.map((item) => {
-                const numericValue = Number(item.value ?? 0);
-                const percentage = max > 0 ? Math.round((numericValue / max) * 100) : 0;
-                const toneMeta = getAlertLevelMeta(item.tone ?? null);
-                return (
-                    <div className="dashboard-chart-bar-row" key={String(item.id ?? item.label ?? percentage)} role="listitem">
-                        <div className="dashboard-chart-bar-label" title={String(item.label ?? '--')}>{String(item.label ?? '--')}</div>
-                        <div className="dashboard-chart-bar-track">
-                            <i
-                                style={{
-                                    width: `${percentage}%`,
-                                    backgroundColor: toneMeta.color
-                                }}
-                                aria-hidden="true"
-                            />
-                        </div>
-                        <div className="dashboard-chart-bar-value">{formatCompact(numericValue)}</div>
-                    </div>
-                );
-            })}
+        <div className="dashboard-chart-tooltip">
+            <strong>{label}</strong>
+            {payload.map((item) => (
+                <span key={`${item.name}-${item.value}`}>
+                    <i style={{ backgroundColor: item.color }} />
+                    {item.name}: {formatter ? formatter(toNumber(item.value)) : defaultFormatter(toNumber(item.value))}
+                </span>
+            ))}
         </div>
     );
 }
 
-function BaseLineChart({ data }: Readonly<{ data: DashboardChartItem[] }>) {
-    const coordinates = useMemo(() => {
-        if (data.length === 0) return '';
-        const max = data.reduce((acc, item) => Math.max(acc, Number(item.value ?? 0)), 0);
-        return data
-            .map((item, index) => {
-                const x = (index / Math.max(data.length - 1, 1)) * 100;
-                const y = max > 0 ? 100 - (Number(item.value ?? 0) / max) * 100 : 100;
-                return `${x},${y}`;
-            })
-            .join(' ');
-    }, [data]);
+function EmptyOrSkeleton({ loading, emptyText }: Readonly<{ loading: boolean; emptyText: string }>) {
+    if (loading) return <DashboardSkeleton />;
+    return <DashboardEmptyState message={emptyText} />;
+}
+
+function SimpleAreaChart({ data, loading, emptyText, formatter }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string }>) {
+    const chartData = data.map((item) => ({ label: item.label, value: item.value }));
+    if (loading || chartData.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+    return (
+        <div className="dashboard-chart-canvas">
+            <ResponsiveContainer width="100%" height="100%">
+                <ReAreaChart data={chartData} margin={{ top: 10, right: 12, bottom: 4, left: 0 }}>
+                    <defs>
+                        <linearGradient id="dashboardAreaFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0f5f9f" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#0f5f9f" stopOpacity={0.02} />
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" />
+                    <XAxis dataKey="label" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={14} />
+                    <YAxis tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
+                    <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                    <Area type="monotone" dataKey="value" name="Total" stroke="#0f5f9f" fill="url(#dashboardAreaFill)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive />
+                </ReAreaChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+function SimpleLineChart({
+    data,
+    source,
+    series,
+    loading,
+    emptyText,
+    formatter,
+    xLabelFormatter,
+    minY,
+    maxY
+}: Readonly<{
+    data: NormalizedChartItem[];
+    source?: Array<Record<string, unknown>>;
+    series?: Array<Record<string, unknown>>;
+    loading?: boolean;
+    emptyText: string;
+    formatter?: (value: number) => string;
+    xLabelFormatter?: (value: string) => string;
+    minY?: number;
+    maxY?: number;
+}>) {
+    const chartData = normalizeSeriesData(source ?? data.map((item) => item.raw));
+    const lineSeries = series?.length
+        ? series.map((item, index) => ({
+            key: String(item.key ?? ''),
+            label: cleanLabel(item.label, String(item.key ?? `Serie ${index + 1}`)),
+            color: typeof item.color === 'string' ? item.color : CATEGORY_COLORS[index % CATEGORY_COLORS.length]
+        })).filter((item) => item.key)
+        : [{ key: 'value', label: 'Total', color: '#0f5f9f' }];
+
+    if (loading || !hasLineValues(chartData, lineSeries)) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
 
     return (
-        <div className="dashboard-chart-line-wrap">
-            <svg viewBox="0 0 100 100" className="dashboard-chart-line" aria-hidden="true">
-                <polyline points={coordinates} />
-            </svg>
-            <div className="dashboard-chart-line-footer">
-                {data.map((item) => (
-                    <span key={String(item.id ?? item.label ?? '')} title={String(item.label ?? '--')}>{String(item.label ?? '--')}</span>
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+            <ResponsiveContainer width="100%" height="100%">
+                <ReLineChart data={chartData} margin={{ top: 10, right: 16, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" />
+                    <XAxis
+                        dataKey="label"
+                        tick={{ fill: '#5a6e82', fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => xLabelFormatter ? xLabelFormatter(String(value)) : String(value)}
+                        minTickGap={16}
+                    />
+                    <YAxis domain={[minY ?? 'auto', maxY ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
+                    <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    {lineSeries.map((item) => (
+                        <Line
+                            key={item.key}
+                            type="monotone"
+                            dataKey={item.key}
+                            name={item.label}
+                            stroke={item.color}
+                            strokeWidth={3}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                            connectNulls
+                            isAnimationActive
+                        />
+                    ))}
+                </ReLineChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number }>) {
+    const chartData = data.slice(0, 10).map((item, index) => ({
+        label: item.label,
+        value: item.value,
+        color: resolveColor(item, index)
+    }));
+
+    if (loading || chartData.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+
+    return (
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+            <ResponsiveContainer width="100%" height="100%">
+                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 12 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
+                    <XAxis type="number" domain={[0, maxValue ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={120} />
+                    <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                    <Bar dataKey="value" name="Total" radius={[0, 9, 9, 0]} isAnimationActive>
+                        {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
+                    </Bar>
+                </ReBarChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+function SimpleDonutChart({ data, loading, emptyText, formatter }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string }>) {
+    const chartData = data.slice(0, 8).map((item, index) => ({
+        name: item.label,
+        value: item.value,
+        color: resolveColor(item, index)
+    }));
+    const total = chartData.reduce((accumulator, item) => accumulator + item.value, 0);
+
+    if (loading || chartData.length === 0 || total === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+
+    return (
+        <div className="dashboard-chart-donut-layout">
+            <div className="dashboard-chart-donut">
+                <ResponsiveContainer width="100%" height="100%">
+                    <RePieChart>
+                        <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                        <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2} isAnimationActive>
+                            {chartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                        </Pie>
+                    </RePieChart>
+                </ResponsiveContainer>
+                <div className="dashboard-chart-donut-total">
+                    <strong>{formatCompact(total)}</strong>
+                    <span>Total</span>
+                </div>
+            </div>
+            <div className="dashboard-chart-legend">
+                {chartData.map((item) => (
+                    <span key={item.name}>
+                        <i style={{ backgroundColor: item.color }} />
+                        {item.name} <strong>{formatter ? formatter(item.value) : defaultFormatter(item.value)}</strong>
+                    </span>
                 ))}
             </div>
         </div>
     );
 }
 
-function toNumber(value: unknown) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
+function SimpleTreemapChart({ data, loading, emptyText }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string }>) {
+    const chartData = data.slice(0, 12).map((item, index) => ({
+        name: item.label,
+        size: item.value,
+        fill: resolveColor(item, index)
+    }));
+
+    if (loading || chartData.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+
+    return (
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+            <ResponsiveContainer width="100%" height="100%">
+                <Treemap
+                    data={chartData}
+                    dataKey="size"
+                    nameKey="name"
+                    stroke="#ffffff"
+                    fill="#0f5f9f"
+                    isAnimationActive
+                />
+            </ResponsiveContainer>
+        </div>
+    );
 }
 
-function toChartItems(input?: Array<Record<string, unknown>>) {
-    return (input ?? []).map((item, index) => ({
-        id: String(item.id ?? item.key ?? item.name ?? item.label ?? index),
-        label: String(item.label ?? item.name ?? item.key ?? `Item ${index + 1}`),
-        value: toNumber(item.value ?? item.total ?? item.count ?? item.sessions),
-        tone: typeof item.tone === 'string' ? item.tone : undefined
+function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?: string[]; columns?: string[]; cells?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
+    const safeRows = rows ?? [];
+    const safeColumns = columns ?? [];
+    const values = cells ?? [];
+    const max = values.reduce((accumulator, item) => Math.max(accumulator, toNumber(item.value)), 0);
+
+    if (loading || safeRows.length === 0 || safeColumns.length === 0 || values.length === 0 || max === 0) {
+        return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+    }
+
+    return (
+        <div className="dashboard-chart-heatmap" style={{ '--dashboard-heatmap-columns': safeColumns.length } as CSSProperties}>
+            <div className="dashboard-chart-heatmap-head" />
+            {safeColumns.map((column) => <div key={column} className="dashboard-chart-heatmap-label">{column}</div>)}
+            {safeRows.map((row) => (
+                <div key={row} className="dashboard-chart-heatmap-row">
+                    <div className="dashboard-chart-heatmap-label is-row">{row}</div>
+                    {safeColumns.map((column) => {
+                        const cell = values.find((item) => item.row === row && item.column === column);
+                        const value = toNumber(cell?.value);
+                        const opacity = max > 0 ? 0.18 + (value / max) * 0.72 : 0.1;
+                        return (
+                            <div
+                                key={`${row}-${column}`}
+                                className="dashboard-chart-heatmap-cell"
+                                title={`${row} / ${column}: ${value}`}
+                                style={{ backgroundColor: `rgba(15, 95, 159, ${opacity})` }}
+                            >
+                                {value > 0 ? value : ''}
+                            </div>
+                        );
+                    })}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function AvailabilityMatrix({ rows, columns, values, loading, emptyText }: Readonly<{ rows?: string[]; columns?: string[]; values?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
+    const safeRows = rows ?? [];
+    const safeColumns = columns ?? [];
+    const safeValues = values ?? [];
+    if (loading || safeRows.length === 0 || safeColumns.length === 0 || safeValues.length === 0) {
+        return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+    }
+
+    return (
+        <div className="dashboard-chart-matrix" style={{ '--dashboard-matrix-columns': safeColumns.length } as CSSProperties}>
+            <div className="dashboard-chart-matrix-head" />
+            {safeColumns.map((column) => <div key={column} className="dashboard-chart-matrix-label">{column}</div>)}
+            {safeRows.map((row) => (
+                <div key={row} className="dashboard-chart-matrix-row">
+                    <div className="dashboard-chart-matrix-label is-row">{row}</div>
+                    {safeColumns.map((column) => {
+                        const value = safeValues.find((item) => item.row === row && item.column === column);
+                        const status = cleanLabel(value?.status, 'partial');
+                        const label = cleanLabel(value?.label, '--');
+                        return (
+                            <div key={`${row}-${column}`} className={`dashboard-chart-matrix-cell is-${status}`}>
+                                {label}
+                            </div>
+                        );
+                    })}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function Timeline({ items, loading, emptyText }: Readonly<{ items?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
+    const safeItems = (items ?? []).slice(0, 8);
+    if (loading || safeItems.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+    return (
+        <ol className="dashboard-chart-timeline">
+            {safeItems.map((item, index) => (
+                <li key={String(item.date ?? item.title ?? index)}>
+                    <span />
+                    <div>
+                        <strong>{cleanLabel(item.title, `Evento ${index + 1}`)}</strong>
+                        <p>{cleanLabel(item.description, cleanLabel(item.date, 'Sin fecha visible'))}</p>
+                    </div>
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string }>) {
+    const chartData = data.filter((item) => item.value !== 0).slice(0, 10).map((item) => ({
+        label: item.label,
+        value: item.value,
+        color: item.value >= 0 ? '#bf6d1e' : '#2f8f6b'
     }));
+    if (loading || chartData.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
+    return (
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+            <ResponsiveContainer width="100%" height="100%">
+                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 12 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={120} />
+                    <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                    <Bar dataKey="value" name="Cambio" radius={[0, 9, 9, 0]} isAnimationActive>
+                        {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
+                    </Bar>
+                </ReBarChart>
+            </ResponsiveContainer>
+        </div>
+    );
 }
 
 function CompatChart({
@@ -142,28 +512,50 @@ function CompatChart({
     ariaLabel,
     formatter,
     emptyMessage,
-    series
+    series,
+    rows,
+    columns,
+    cells,
+    values,
+    maxValue,
+    minY,
+    maxY,
+    xLabelFormatter,
+    helper,
+    type
 }: Readonly<CompatChartProps>) {
-    const normalizedData = toChartItems(data ?? items);
-    const variant = Array.isArray(series) && series.length > 0 ? 'line' : 'bars';
+    const normalizedData = useMemo(() => toChartItems(data ?? items), [data, items]);
+    const title = ariaLabel ?? 'Grafica';
+    const emptyText = emptyMessage ?? 'No hay datos utiles para los filtros seleccionados.';
+
+    if (type === 'heatmap') {
+        return <Heatmap rows={rows} columns={columns} cells={cells} emptyText={emptyText} />;
+    }
+    if (type === 'matrix') {
+        return <AvailabilityMatrix rows={rows} columns={columns} values={values} emptyText={emptyText} />;
+    }
+
     return (
-        <DashboardChartCard
-            title={ariaLabel ?? 'Grafica'}
-            data={normalizedData}
-            emptyText={emptyMessage ?? 'No hay datos disponibles.'}
-            description={formatter ? 'Valores formateados por configuracion de vista.' : undefined}
-            variant={variant}
-        />
+        <div className="dashboard-chart-standalone" aria-label={title}>
+            {type === 'donut' ? <SimpleDonutChart data={normalizedData} emptyText={emptyText} formatter={formatter} /> : null}
+            {type === 'area' ? <SimpleAreaChart data={normalizedData} emptyText={emptyText} formatter={formatter} /> : null}
+            {type === 'line' ? <SimpleLineChart data={normalizedData} source={data} series={series} emptyText={emptyText} formatter={formatter} xLabelFormatter={xLabelFormatter} minY={typeof minY === 'number' ? minY : undefined} maxY={typeof maxY === 'number' ? maxY : undefined} /> : null}
+            {type === 'treemap' ? <SimpleTreemapChart data={normalizedData} emptyText={emptyText} /> : null}
+            {type === 'delta' ? <DivergingBars data={normalizedData} emptyText={emptyText} formatter={formatter} /> : null}
+            {(!type || type === 'bar' || type === 'histogram') ? <SimpleBarChart data={normalizedData} emptyText={emptyText} formatter={formatter} maxValue={maxValue} /> : null}
+            {helper ? <p className="dashboard-chart-helper">{helper}</p> : null}
+        </div>
     );
 }
 
-export function DashboardSection({ title, subtitle, children }: Readonly<DashboardSectionProps>) {
+export function DashboardSection({ title, subtitle, description, note, children, className }: Readonly<DashboardSectionProps>) {
     return (
-        <section className="dashboard-chart-card">
-            {(title || subtitle) ? (
+        <section className={`dashboard-chart-section ${className ?? ''}`.trim()}>
+            {(title || subtitle || description || note) ? (
                 <header>
                     {title ? <h3>{title}</h3> : null}
-                    {subtitle ? <p>{subtitle}</p> : null}
+                    {subtitle ?? description ? <p>{subtitle ?? description}</p> : null}
+                    {note ? <small>{note}</small> : null}
                 </header>
             ) : null}
             {children}
@@ -175,9 +567,9 @@ export function DashboardEmptyState({ message = 'No hay datos disponibles.' }: R
     return <p className="dashboard-chart-empty">{message}</p>;
 }
 
-export function DashboardMetricCard({ label, title, value, helper }: Readonly<DashboardMetricCardProps>) {
+export function DashboardMetricCard({ label, title, value, helper, tone }: Readonly<DashboardMetricCardProps>) {
     return (
-        <article className="historial-dashboard-kpi-card">
+        <article className={`dashboard-metric-card ${tone ? `is-${tone}` : ''}`.trim()}>
             <span>{label ?? title ?? 'Metrica'}</span>
             <strong>{value ?? '--'}</strong>
             {helper ? <small>{helper}</small> : null}
@@ -186,47 +578,47 @@ export function DashboardMetricCard({ label, title, value, helper }: Readonly<Da
 }
 
 export function AreaChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="area" />;
 }
 
 export function DonutChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="donut" />;
 }
 
 export function HeatmapChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="heatmap" />;
 }
 
 export function TimelineChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <Timeline items={props.items ?? props.data} emptyText={props.emptyMessage ?? 'No hay eventos suficientes para mostrar esta linea temporal.'} />;
 }
 
 export function LineChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} series={props.series ?? [{ key: 'line' }]} />;
+    return <CompatChart {...props} type="line" />;
 }
 
 export function TreemapChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="treemap" />;
 }
 
 export function HorizontalBarChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="bar" />;
 }
 
 export function WaffleChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="donut" />;
 }
 
 export function HistogramChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="histogram" />;
 }
 
 export function MatrixAvailabilityChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="matrix" />;
 }
 
 export function DivergingDeltaChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} />;
+    return <CompatChart {...props} type="delta" />;
 }
 
 export function DashboardChartCard({
@@ -234,19 +626,26 @@ export function DashboardChartCard({
     description,
     data,
     loading = false,
-    emptyText = 'No hay datos para los filtros seleccionados.',
-    variant = 'bars'
+    emptyText = 'No hay datos utiles para los filtros seleccionados.',
+    variant = 'bars',
+    formatter
 }: Readonly<DashboardChartCardProps>) {
+    const normalizedData = toChartItems(data);
     return (
-        <article className="dashboard-chart-card" aria-label={title}>
+        <article className="dashboard-chart-section" aria-label={title}>
             <header>
                 <h3>{title}</h3>
                 {description ? <p>{description}</p> : null}
             </header>
-            {loading ? <DashboardSkeleton /> : null}
-            {!loading && data.length === 0 ? <p className="dashboard-chart-empty">{emptyText}</p> : null}
-            {!loading && data.length > 0 && variant === 'bars' ? <BarChart data={data} /> : null}
-            {!loading && data.length > 0 && variant === 'line' ? <BaseLineChart data={data} /> : null}
+            {variant === 'line' ? (
+                <SimpleLineChart data={normalizedData} source={data} loading={loading} emptyText={emptyText} formatter={formatter} />
+            ) : variant === 'area' ? (
+                <SimpleAreaChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
+            ) : variant === 'donut' ? (
+                <SimpleDonutChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
+            ) : (
+                <SimpleBarChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
+            )}
         </article>
     );
 }
