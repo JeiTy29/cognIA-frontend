@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
@@ -75,8 +75,8 @@ const statusOptions = [
 ];
 const pageSizeOptions = [{ value: '10', label: '10' }, { value: '20', label: '20' }, { value: '50', label: '50' }];
 const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'TDAH' }, { value: 'conduct', label: 'Conducta' }, { value: 'anxiety', label: 'Ansiedad' }, { value: 'depression', label: 'Depresion' }, { value: 'elimination', label: 'Eliminacion' }];
-const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revision prioritaria' }];
-const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revision' }, { value: 'false', label: 'Sin revision requerida' }];
+const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revisión prioritaria' }];
+const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revisión' }, { value: 'false', label: 'Sin revisión requerida' }];
 const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6 meses' }, { value: '12', label: '12 meses' }];
 const tagVisibilityOptions = [{ value: 'private', label: 'Privado' }, { value: 'shared', label: 'Compartido' }];
 const tagColorOptions = [{ value: '#215f8f', label: 'Azul' }, { value: '#1f7a46', label: 'Verde' }, { value: '#d97a1f', label: 'Naranja' }, { value: '#5f2a8f', label: 'Morado' }, { value: '#bd1f2d', label: 'Rojo' }];
@@ -129,7 +129,7 @@ function makeTitle(role: HistorialRole) {
 function makeDescription(role: HistorialRole) {
     return role === 'padre'
         ? 'Consulta la evolucion de alertas orientativas por caso y dominio.'
-        : 'Visualiza evaluaciones compartidas, alertas y estado de revision.';
+        : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
 }
 async function loadDetail(sessionId: string) {
     const detail = await getQuestionnaireHistoryDetailV2(sessionId);
@@ -447,7 +447,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const leadingAlert = historyCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
         ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio mas frecuente es ${leadingDomain}.`
-        : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revision y la alerta predominante es ${leadingAlert}.`;
+        : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revisión y la alerta predominante es ${leadingAlert}.`;
     const filterSummary = filterChips.length > 0
         ? `${filterChips.length} filtros activos`
         : role === 'padre'
@@ -470,8 +470,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                 <section className="historial-dashboard-insight" aria-label="Resumen ejecutivo del historial">
                     <div>
-                        <span>Lectura rapida</span>
-                        <h2>{role === 'padre' ? 'Historial familiar orientativo' : 'Consolidado profesional de evaluaciones'}</h2>
+                        <span>Lectura rápida</span>
+                        <h2>{role === 'padre' ? `${kpis.total} cuestionarios - ${kpis.withAlert} con alerta` : `${kpis.total} evaluaciones - ${kpis.needsReview} por revisar`}</h2>
                         <p>{executiveCopy}</p>
                     </div>
                     <strong>{leadingDomain}</strong>
@@ -503,7 +503,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <label>Desde<input type="date" value={draftFilters.date_from ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, date_from: event.target.value }))} /></label>
                         <label>Hasta<input type="date" value={draftFilters.date_to ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, date_to: event.target.value }))} /></label>
                         <label>Buscar<input type="text" value={draftFilters.q ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, q: event.target.value }))} /></label>
-                        <label>Revision<CustomSelect value={draftFilters.needs_professional_review === undefined ? '' : String(draftFilters.needs_professional_review)} options={reviewOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, needs_professional_review: toMaybeBoolean(value) }))} ariaLabel="Filtrar por revision profesional" /></label>
+                        <label>Revisión<CustomSelect value={draftFilters.needs_professional_review === undefined ? '' : String(draftFilters.needs_professional_review)} options={reviewOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, needs_professional_review: toMaybeBoolean(value) }))} ariaLabel="Filtrar por revisión profesional" /></label>
                         {role === 'padre' ? <label>Periodo<CustomSelect value={period} options={periodOptions} onChange={setPeriod} ariaLabel="Periodo" /></label> : null}
                     </div>
                     ) : null}
@@ -520,7 +520,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <article className="historial-dashboard-kpi-card"><span>Total registros</span><strong>{kpis.total}</strong></article>
                     <article className="historial-dashboard-kpi-card"><span>Procesados</span><strong>{kpis.processed}</strong></article>
                     <article className="historial-dashboard-kpi-card"><span>Con alerta</span><strong>{kpis.withAlert}</strong></article>
-                    <article className="historial-dashboard-kpi-card"><span>Requieren revision</span><strong>{kpis.needsReview}</strong></article>
+                    <article className="historial-dashboard-kpi-card"><span>Requieren revisión</span><strong>{kpis.needsReview}</strong></article>
                     <article className="historial-dashboard-kpi-card"><span>Sin caso asociado</span><strong>{kpis.withoutCase}</strong></article>
                     <article className="historial-dashboard-kpi-card">
                         <span>{role === 'padre' ? 'Casos con alerta' : 'Casos visibles'}</span>
@@ -529,29 +529,29 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 </section>
 
                 <section className="historial-dashboard-charts">
-                    <DashboardChartCard title="Historico por fecha" data={historyCharts.byDate} loading={history.loading} variant="line" />
-                    <DashboardChartCard title="Historial por caso" data={historyCharts.byCase} loading={history.loading} />
+                    <DashboardChartCard title="Actividad por mes" data={historyCharts.byDate} loading={history.loading} variant="area" />
+                    <DashboardChartCard title="Actividad por caso o hijo" data={historyCharts.byCase} loading={history.loading} />
                     <DashboardChartCard title="Alertas por dominio" data={historyCharts.byDomain} loading={history.loading} />
-                    <DashboardChartCard title="Alertas por nivel" data={historyCharts.byLevel} loading={history.loading} />
+                    <DashboardChartCard title="Alertas por nivel" data={historyCharts.byLevel} loading={history.loading} variant="donut" />
                 </section>
 
                 {role === 'padre' ? (
                     <section className="historial-dashboard-role-block">
                         {guardianError ? <div className="historial-dashboard-alert error">{guardianError}</div> : null}
                         <div className="historial-dashboard-charts">
-                            <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="line" />
+                            <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="area" />
                             <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} loading={guardianLoading} />
                             <DashboardChartCard title="Sesiones por caso" data={guardianCharts.byCase} loading={guardianLoading} />
-                            <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} />
+                            <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} variant="donut" />
                         </div>
                         <div className="historial-dashboard-cases-grid">
                             {guardianCases.map((caseItem) => (
                                 <article className="historial-dashboard-case-card" key={caseItem.case_id}>
                                     <h3>{resolveCaseLabel(caseItem)}</h3>
-                                    <div><strong>Codigo del caso:</strong> {getString(caseItem.case_public_id)}</div>
+                                    <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
                                     <div><strong>Sesiones:</strong> {caseItem.sessions_count ?? 0}</div>
                                     <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
-                                    <div className="historial-dashboard-card-inline"><strong>Ultima alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
+                                    <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
                                     <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
                                     <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>Ver detalle</button>
                                 </article>
@@ -591,9 +591,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         {psychologistError ? <div className="historial-dashboard-alert error">{psychologistError}</div> : null}
                         <div className="historial-dashboard-charts">
                             <DashboardChartCard title="Alertas por dominio" data={psychologistCharts.byDomain} loading={psychologistLoading} />
-                            <DashboardChartCard title="Alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} />
-                            <DashboardChartCard title="Revisiones por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} />
-                            <DashboardChartCard title="Alertas por fecha" data={psychologistCharts.byDate} loading={psychologistLoading} variant="line" />
+                            <DashboardChartCard title="Alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} variant="donut" />
+                            <DashboardChartCard title="Revisiónes por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
+                            <DashboardChartCard title="Alertas por fecha" data={psychologistCharts.byDate} loading={psychologistLoading} variant="area" />
                         </div>
                     </section>
                 )}
@@ -602,7 +602,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <div className="historial-dashboard-list-header"><h2>Listado detallado</h2><div>Mostrando {showFrom}-{showTo} de {history.total}</div></div>
                     {history.error ? <div className="historial-dashboard-alert error">{history.error}</div> : null}
                     {history.loading ? <div className="historial-dashboard-empty">Cargando registros...</div> : null}
-                    {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aun no hay sesiones registradas.'}</div> : null}
+                    {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aún no hay sesiones registradas.'}</div> : null}
                     <div className="historial-dashboard-session-list">
                         {history.items.map((item) => (
                             <article className="historial-dashboard-session-card" key={item.id}>
@@ -639,7 +639,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 <div><strong>Rol</strong><span>{getRoleLabel(detailPayload.role)}</span></div>
                                 <div><strong>Actualizado</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
                             </div>
-                            <div className="historial-dashboard-warning">Este resultado es orientativo y no constituye diagnostico clinico definitivo.</div>
+                            <div className="historial-dashboard-warning">Este resultado es orientativo y no constituye diagnóstico clínico definitivo.</div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Informe orientativo</h3>
                                 {clinicalSummaryPayload ? (
@@ -648,7 +648,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
                                             <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
                                         </div>
-                                        {clinicalComorbiditySummary ? <div className="historial-dashboard-warning"><strong>Posible coexistencia de senales.</strong> {clinicalComorbiditySummary}</div> : null}
+                                        {clinicalComorbiditySummary ? <div className="historial-dashboard-warning"><strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}</div> : null}
                                         <div className="historial-dashboard-kv-grid">{clinicalSections.map((section) => <div key={section.key}><strong>{section.title}</strong><span>{section.content}</span></div>)}</div>
                                     </>
                                 ) : <p className="historial-dashboard-helper">No hay informe orientativo disponible.</p>}
@@ -685,7 +685,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="Usuario destinatario autorizado" />
                                         </div>
                                         <button type="button" className="historial-dashboard-btn" onClick={() => generateShare().catch(() => undefined)}>Generar enlace</button>
-                                        {(shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path) ? <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? undefined} target="_blank" rel="noreferrer">{shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}</a> : <p className="historial-dashboard-helper">Aun no hay enlace compartido.</p>}
+                                        {(shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path) ? <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? undefined} target="_blank" rel="noreferrer">{shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}</a> : <p className="historial-dashboard-helper">Aún no hay enlace compartido.</p>}
                                     </article>
                                     <article>
                                         <h4>PDF</h4>

@@ -1,9 +1,16 @@
 ﻿import { useAuth } from '../../hooks/auth/useAuth';
 import './DevAuthToggle.css';
 
+function shouldHideDevAuthOverlay() {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('hideDevAuth') === '1' || params.get('screenshot') === '1';
+}
+
 export default function DevAuthToggle() {
     const { devBypassEnabled, devAuthActive, setDevAuthActive, devBypassLabel } = useAuth();
 
+    if (shouldHideDevAuthOverlay()) return null;
     if (!devBypassEnabled) return null;
     const publicModeActive = devAuthActive === false;
 
@@ -18,7 +25,7 @@ export default function DevAuthToggle() {
                     className={`dev-auth-toggle__btn ${publicModeActive ? 'is-active' : ''}`}
                     onClick={() => setDevAuthActive(false)}
                 >
-                    Modo público
+                    Modo publico
                 </button>
                 <button
                     type="button"
