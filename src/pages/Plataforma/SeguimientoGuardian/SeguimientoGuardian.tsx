@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
@@ -500,8 +500,8 @@ export default function SeguimientoGuardian() {
     const casesWithAlert = visibleCases.filter((item) => getAlertLevelMeta(item.latest_alert_level).tone !== 'unknown').length;
     const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
     const insightCopy = topPriorityCase
-        ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio mas frecuente es ${topDomain}.`
-        : 'Aun no hay suficientes alertas procesadas para priorizar casos. Cuando existan sesiones procesadas, este panel mostrara evolucion, dominios y casos que requieren atencion.';
+        ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio más frecuente es ${topDomain}.`
+        : 'Aún no hay suficientes alertas procesadas para priorizar casos. Cuando existan sesiones procesadas, este panel mostrará evolución, dominios y casos que requieren atención.';
 
     const openCreateCaseModal = () => {
         setCreateCaseError(null);
@@ -665,44 +665,17 @@ export default function SeguimientoGuardian() {
             <section className="seguimiento-guardian" aria-label="Casos y seguimiento">
                 <div className="seguimiento-header">
                     <div>
-                        <h1>Casos</h1>
+                        <span className="seguimiento-eyebrow">Seguimiento familiar</span>
+                        <h1>Seguimiento familiar</h1>
                         <p>
-                            Un caso permite agrupar cuestionarios relacionados con una misma persona o situación para facilitar el seguimiento en el tiempo.
+                            Alertas, evolución y prioridades por caso en un solo panel.
                         </p>
                     </div>
                     <div className="seguimiento-header-actions">
-                        <div className="seguimiento-filters">
-                            <label>
-                                Periodo
-                                <CustomSelect
-                                    value={months}
-                                    options={periodOptions}
-                                    onChange={setMonths}
-                                    ariaLabel="Filtrar casos por periodo"
-                                />
-                            </label>
-                            <label>
-                                Estado
-                                <CustomSelect
-                                    value={caseStatusFilter}
-                                    options={caseStatusOptions.map((item) => ({ value: item.value, label: item.label }))}
-                                    onChange={(value) => setCaseStatusFilter(value as CaseStatusFilter)}
-                                    ariaLabel="Filtrar por estado del caso"
-                                />
-                            </label>
-                            {cases.length > 0 ? (
-                                <label>
-                                    Caso
-                                    <CustomSelect
-                                        value={caseId}
-                                        options={caseOptions}
-                                        onChange={setCaseId}
-                                        ariaLabel="Filtrar por caso"
-                                    />
-                                </label>
-                            ) : null}
-                        </div>
                         <div className="seguimiento-header-button-row">
+                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => loadDashboard().catch(() => undefined)} disabled={loading}>
+                                Actualizar
+                            </button>
                             <button type="button" className="seguimiento-inline-btn" onClick={openReportModal} disabled={loading || !hasCases}>
                                 Descargar reporte de seguimiento
                             </button>
@@ -731,7 +704,7 @@ export default function SeguimientoGuardian() {
                         <section className="seguimiento-hero-insight" aria-label="Resumen ejecutivo familiar">
                             <div>
                                 <span>Resumen ejecutivo</span>
-                                <h2>Panel de seguimiento familiar</h2>
+                                <h2>{`${alertsTotal || casesWithAlert} alertas visibles · ${casesWithAlert} casos con atención`}</h2>
                                 <p>{insightCopy}</p>
                             </div>
                             <div className="seguimiento-hero-priority">
@@ -746,7 +719,7 @@ export default function SeguimientoGuardian() {
                                 <span>{summary?.total_cases ?? cases.length}</span>
                             </article>
                             <article className="seguimiento-summary-card">
-                                <strong>Total de sesiones</strong>
+                                <strong>Sesiones</strong>
                                 <span>{summary?.total_sessions ?? 0}</span>
                             </article>
                             <article className="seguimiento-summary-card">
@@ -762,20 +735,20 @@ export default function SeguimientoGuardian() {
                                 <span>{casesWithAlert}</span>
                             </article>
                             <article className="seguimiento-summary-card">
-                                <strong>Mayor nivel de alerta</strong>
+                                <strong>Mayor alerta</strong>
                                 <span>{normalizeAlertLevel(summary?.highest_alert_level)}</span>
                             </article>
                             <article className="seguimiento-summary-card">
-                                <strong>Dominio mas frecuente</strong>
+                                <strong>Dominio más frecuente</strong>
                                 <span>{topDomain}</span>
                             </article>
                         </div>
 
-                        <div className="seguimiento-dashboard-grid" aria-label="Graficas principales del seguimiento familiar">
+                        <div className="seguimiento-dashboard-grid" aria-label="Gráficas principales del seguimiento familiar">
                             <DashboardSection
                                 className="seguimiento-dashboard-main"
-                                title="Evolucion de alertas del periodo"
-                                description="Muestra como se distribuyen las alertas procesadas durante el periodo seleccionado."
+                                title="Evolución de alertas"
+                                description="Tendencia del periodo seleccionado."
                             >
                                 <AreaChart
                                     data={guardianVisuals.monthlyAlerts}
@@ -785,7 +758,7 @@ export default function SeguimientoGuardian() {
                             </DashboardSection>
                             <DashboardSection
                                 title="Alertas por dominio"
-                                description="Identifica que areas concentran mas senales orientativas."
+                                description="Áreas con más señales orientativas."
                             >
                                 <HorizontalBarChart
                                     data={guardianVisuals.alertsByDomain}
@@ -794,19 +767,19 @@ export default function SeguimientoGuardian() {
                                 />
                             </DashboardSection>
                             <DashboardSection
-                                title="Distribucion por nivel de alerta"
-                                description="Resume la severidad visible de los casos y sesiones."
+                                title="Distribución por alerta"
+                                description="Severidad visible en el periodo."
                             >
                                 <DonutChart
                                     data={guardianVisuals.alertsByLevel}
-                                    ariaLabel="Distribucion por nivel de alerta"
+                                    ariaLabel="Distribución por alerta"
                                     emptyMessage="Aun no hay alertas clasificadas para construir la distribucion."
                                 />
                             </DashboardSection>
                             <DashboardSection
                                 className="seguimiento-dashboard-wide"
-                                title="Actividad por hijo o caso"
-                                description="Compara que casos concentran mas actividad o sesiones registradas."
+                                title="Alertas por hijo o caso"
+                                description="Casos con más actividad o alertas visibles."
                             >
                                 <HorizontalBarChart
                                     data={guardianVisuals.sessionsByCase}
@@ -819,8 +792,8 @@ export default function SeguimientoGuardian() {
                         <section className="seguimiento-priority-ranking" aria-label="Ranking de casos prioritarios">
                             <div className="seguimiento-section-title">
                                 <span>Prioridades</span>
-                                <h2>Que revisar primero</h2>
-                                <p>Ordenado por nivel de alerta, actividad y ultima actualizacion visible.</p>
+                                <h2>Qué revisar primero</h2>
+                                <p>Top 3 por severidad, actividad y última actualización.</p>
                             </div>
                             <div className="seguimiento-priority-grid">
                                 {guardianVisuals.priorityCases.map((item) => (
@@ -830,7 +803,7 @@ export default function SeguimientoGuardian() {
                                             <span>{item.domainLabel}</span>
                                         </div>
                                         <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
-                                        <small>{item.sessions} sesiones - Ultima actividad: {formatDateTime(item.lastActivity)}</small>
+                                        <small>{item.sessions} sesiones · Última actividad: {formatDateTime(item.lastActivity)}</small>
                                         <button
                                             type="button"
                                             className="seguimiento-inline-btn ghost"
@@ -847,6 +820,55 @@ export default function SeguimientoGuardian() {
                                 ))}
                             </div>
                         </section>
+                        <section className="seguimiento-filter-panel" aria-label="Filtros compactos de seguimiento">
+                            <div className="seguimiento-filter-panel__summary">
+                                <div>
+                                    <span className="seguimiento-eyebrow">Filtros compactos</span>
+                                    <strong>{caseId ? 'Caso filtrado' : 'Todos los casos visibles'}</strong>
+                                    <p>Periodo {months} meses - {caseStatusFilter === 'all' ? 'todos los estados' : normalizeCaseStatus(caseStatusFilter)}</p>
+                                </div>
+                                <button type="button" className="seguimiento-inline-btn ghost" onClick={() => { setMonths('3'); setCaseId(''); setCaseStatusFilter('active'); }}>
+                                    Limpiar filtros
+                                </button>
+                            </div>
+                            <div className="seguimiento-filters compact">
+                                <label>
+                                    Periodo
+                                    <CustomSelect
+                                        value={months}
+                                        options={periodOptions}
+                                        onChange={setMonths}
+                                        ariaLabel="Filtrar casos por periodo"
+                                    />
+                                </label>
+                                <label>
+                                    Estado
+                                    <CustomSelect
+                                        value={caseStatusFilter}
+                                        options={caseStatusOptions.map((item) => ({ value: item.value, label: item.label }))}
+                                        onChange={(value) => setCaseStatusFilter(value as CaseStatusFilter)}
+                                        ariaLabel="Filtrar por estado del caso"
+                                    />
+                                </label>
+                                {cases.length > 0 ? (
+                                    <label>
+                                        Caso
+                                        <CustomSelect
+                                            value={caseId}
+                                            options={caseOptions}
+                                            onChange={setCaseId}
+                                            ariaLabel="Filtrar por caso"
+                                        />
+                                    </label>
+                                ) : null}
+                            </div>
+                        </section>
+
+                        <div className="seguimiento-section-title seguimiento-section-title--list">
+                            <span>Detalle bajo demanda</span>
+                            <h2>Casos del seguimiento</h2>
+                            <p>El listado queda al final; selecciona un solo caso para cargar sesiones, reportes y graficas de detalle.</p>
+                        </div>
 
                         <div className="seguimiento-case-list">
                             {visibleCases.map((caseItem) => {
@@ -1005,7 +1027,7 @@ export default function SeguimientoGuardian() {
                                                                         ? `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(
                                                                             domain.maxPct
                                                                         )} %`
-                                                                        : '—'}
+                                                                        : '-'}
                                                                 </span>
                                                             ) : null}
                                                             <span className="seguimiento-domain-cell">{domain.latestAlertLabel}</span>
@@ -1175,7 +1197,7 @@ export default function SeguimientoGuardian() {
                                                                     <span>{formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)}</span>
                                                                     <span>{normalizeSessionStatus(session.status)}</span>
                                                                     <span>{normalizeQuestionnaireMode(session.mode)}</span>
-                                                                    <span>{sessionAlert ? `${sessionAlert.domainLabel} · ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
+                                                                    <span>{sessionAlert ? `${sessionAlert.domainLabel} ? ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
                                                                 </button>
 
                                                                 <div className="seguimiento-session-details" aria-hidden={!isExpanded}>
@@ -1215,7 +1237,7 @@ export default function SeguimientoGuardian() {
 
                                                                         {sessionAlert ? (
                                                                             <p className="seguimiento-session-alert">
-                                                                                Alerta principal: {sessionAlert.domainLabel} · {sessionAlert.alertLabel} · {sessionAlert.probabilityLabel}
+                                                                                Alerta principal: {sessionAlert.domainLabel} ? {sessionAlert.alertLabel} ? {sessionAlert.probabilityLabel}
                                                                             </p>
                                                                         ) : null}
 

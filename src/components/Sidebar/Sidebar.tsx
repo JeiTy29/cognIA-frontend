@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 import type { Role } from './SidebarConfig';
@@ -31,7 +31,7 @@ export default function Sidebar({ role }: SidebarProps) {
     }, [location.pathname, role]);
 
     return (
-        <aside className="sidebar" aria-label="Navegación principal">
+        <aside className="sidebar" aria-label="Navegacion principal">
             <nav className="sidebar-nav">
                 <ul className="sidebar-list" ref={listRef}>
                     <span
