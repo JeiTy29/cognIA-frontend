@@ -32,12 +32,18 @@ function toNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function looksLikeTechnicalId(value: string) {
+    const compact = value.replace(/[-_]/g, '');
+    return compact.length >= 16 && /^[a-f0-9]+$/i.test(compact);
+}
+
 function resolveLabel(point: QuestionnaireDashboardChartPointDTO, index: number) {
     const label = point.label ?? point.name ?? point.key ?? point.date ?? point.month;
     if (!label && point.domain) return getDashboardDomainLabel(point.domain);
     if (!label && point.alert_level) return getAlertLevelMeta(point.alert_level).label;
     if (!label || !String(label).trim()) return `Dato ${index + 1}`;
     const normalized = String(label).trim();
+    if (looksLikeTechnicalId(normalized)) return `Caso ${index + 1}`;
     const domainLabel = getDashboardDomainLabel(normalized);
     if (domainLabel !== normalized) return domainLabel;
     const alertMeta = getAlertLevelMeta(normalized);
