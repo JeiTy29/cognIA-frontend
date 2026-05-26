@@ -7,6 +7,7 @@ import {
     CartesianGrid,
     Cell,
     Legend,
+    LabelList,
     Line,
     LineChart as ReLineChart,
     Pie,
@@ -43,6 +44,7 @@ interface DashboardChartCardProps {
     emptyText?: string;
     variant?: 'bars' | 'line' | 'area' | 'donut';
     formatter?: (value: number) => string;
+    className?: string;
 }
 
 interface DashboardSectionProps {
@@ -65,6 +67,7 @@ interface DashboardMetricCardProps {
     value?: ReactNode;
     helper?: ReactNode;
     tone?: string;
+    className?: string;
     [key: string]: unknown;
 }
 
@@ -101,6 +104,38 @@ type NormalizedChartItem = {
 
 const CATEGORY_COLORS = ['#0f5f9f', '#2f8f6b', '#e67e22', '#c0392b', '#7c3aed', '#235ea8', '#bd1f2d', '#64748b'];
 
+const HUMAN_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    anxiety: 'Ansiedad',
+    depression: 'Depresi\u00f3n',
+    conduct: 'Conducta',
+    elimination: 'Eliminaci\u00f3n',
+    inattention: 'Inatenci\u00f3n',
+    hyperactivity: 'Hiperactividad',
+    impulsivity: 'Impulsividad',
+    sadness: 'Estado de \u00e1nimo bajo',
+    irritability: 'Irritabilidad',
+    aggression: 'Conducta agresiva',
+    low: 'Baja',
+    moderate: 'Moderada',
+    elevated: 'Elevada',
+    high: 'Alta',
+    critical_review: 'Revisi\u00f3n prioritaria',
+    draft: 'Borrador',
+    in_progress: 'En progreso',
+    submitted: 'Enviado',
+    processed: 'Procesado',
+    failed: 'Fallido',
+    archived: 'Archivado',
+    pending: 'Pendiente',
+    reviewed: 'Revisado',
+    closed: 'Cerrado',
+    orientation_recommended: 'Orientaci\u00f3n recomendada',
+    in_review: 'En revisi\u00f3n',
+    accepted: 'Aceptada',
+    rejected: 'Rechazada'
+};
+
 function toNumber(value: unknown) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -110,6 +145,35 @@ function cleanLabel(value: unknown, fallback: string) {
     const label = typeof value === 'string' ? value.trim() : '';
     if (!label) return fallback;
     return label;
+}
+
+function looksLikeTechnicalId(value: string) {
+    const compact = value.replace(/[-_]/g, '');
+    return compact.length >= 16 && /^[a-f0-9]+$/i.test(compact);
+}
+
+function humanizeLabel(value: unknown, fallback = 'Sin etiqueta') {
+    const raw = cleanLabel(value, '');
+    if (!raw || looksLikeTechnicalId(raw)) return fallback;
+    const normalized = raw.trim().toLowerCase();
+    if (HUMAN_LABELS[normalized]) return HUMAN_LABELS[normalized];
+
+    const alertMeta = getAlertLevelMeta(normalized);
+    if (alertMeta.tone !== 'unknown') return alertMeta.label;
+
+    const parsedDate = Date.parse(raw);
+    if (/^\d{4}-\d{2}(-\d{2})?/.test(raw) && Number.isFinite(parsedDate)) {
+        return new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' }).format(new Date(parsedDate)).replace('.', '');
+    }
+
+    if (/^[a-z]+(_[a-z]+)+$/i.test(raw)) {
+        return raw
+            .split('_')
+            .map((part) => HUMAN_LABELS[part.toLowerCase()] ?? `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}`)
+            .join(' ');
+    }
+
+    return raw;
 }
 
 function formatCompact(value: number) {
@@ -130,12 +194,12 @@ function resolveColor(item: NormalizedChartItem, index: number) {
 function toChartItems(input?: Array<Record<string, unknown>>): NormalizedChartItem[] {
     return (input ?? [])
         .map((item, index) => {
-            const label = cleanLabel(
+            const label = humanizeLabel(
                 item.label ?? item.name ?? item.key ?? item.domain ?? item.alert_level ?? item.date ?? item.month,
-                `Dato ${index + 1}`
+                'Sin etiqueta'
             );
             return {
-                id: String(item.id ?? item.key ?? item.name ?? item.label ?? index),
+                id: String(item.id ?? item.key ?? item.name ?? item.label ?? `chart-${index}`),
                 label,
                 value: toNumber(item.value ?? item.total ?? item.count ?? item.sessions ?? item.size),
                 tone: typeof item.tone === 'string' ? item.tone : typeof item.alert_level === 'string' ? item.alert_level : undefined,
@@ -157,7 +221,7 @@ function normalizeSeriesData(data: Array<Record<string, unknown>> | undefined) {
         return source.map((item, index) => {
             const values = item.values as Record<string, unknown> | undefined;
             return {
-                label: cleanLabel(item.label ?? item.date ?? item.month, `Punto ${index + 1}`),
+                label: humanizeLabel(item.label ?? item.date ?? item.month, `Periodo ${index + 1}`),
                 meta: typeof item.meta === 'string' ? item.meta : undefined,
                 ...Object.fromEntries(Object.entries(values ?? {}).map(([key, value]) => [key, toNumber(value)]))
             };
@@ -263,7 +327,7 @@ function SimpleLineChart({
     const lineSeries = series?.length
         ? series.map((item, index) => ({
             key: String(item.key ?? ''),
-            label: cleanLabel(item.label, String(item.key ?? `Serie ${index + 1}`)),
+            label: humanizeLabel(item.label ?? item.key, `Serie ${index + 1}`),
             color: typeof item.color === 'string' ? item.color : CATEGORY_COLORS[index % CATEGORY_COLORS.length]
         })).filter((item) => item.key)
         : [{ key: 'value', label: 'Total', color: '#0f5f9f' }];
@@ -318,12 +382,13 @@ function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Reado
     return (
         <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
             <ResponsiveContainer width="100%" height="100%">
-                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 12 }}>
+                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 42, bottom: 4, left: 12 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
                     <XAxis type="number" domain={[0, maxValue ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={120} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                    <Bar dataKey="value" name="Total" radius={[0, 9, 9, 0]} isAnimationActive>
+                    <Bar dataKey="value" name="Total" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive>
+                        <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
                         {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
                     </Bar>
                 </ReBarChart>
@@ -396,8 +461,8 @@ function SimpleTreemapChart({ data, loading, emptyText }: Readonly<{ data: Norma
 }
 
 function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?: string[]; columns?: string[]; cells?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
-    const safeRows = rows ?? [];
-    const safeColumns = columns ?? [];
+    const safeRows = (rows ?? []).map((row) => humanizeLabel(row));
+    const safeColumns = (columns ?? []).map((column) => humanizeLabel(column));
     const values = cells ?? [];
     const max = values.reduce((accumulator, item) => Math.max(accumulator, toNumber(item.value)), 0);
 
@@ -413,7 +478,7 @@ function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?:
                 <div key={row} className="dashboard-chart-heatmap-row">
                     <div className="dashboard-chart-heatmap-label is-row">{row}</div>
                     {safeColumns.map((column) => {
-                        const cell = values.find((item) => item.row === row && item.column === column);
+                        const cell = values.find((item) => humanizeLabel(item.row) === row && humanizeLabel(item.column) === column);
                         const value = toNumber(cell?.value);
                         const opacity = max > 0 ? 0.18 + (value / max) * 0.72 : 0.1;
                         return (
@@ -434,8 +499,8 @@ function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?:
 }
 
 function AvailabilityMatrix({ rows, columns, values, loading, emptyText }: Readonly<{ rows?: string[]; columns?: string[]; values?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
-    const safeRows = rows ?? [];
-    const safeColumns = columns ?? [];
+    const safeRows = (rows ?? []).map((row) => humanizeLabel(row, row));
+    const safeColumns = (columns ?? []).map((column) => humanizeLabel(column, column));
     const safeValues = values ?? [];
     if (loading || safeRows.length === 0 || safeColumns.length === 0 || safeValues.length === 0) {
         return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
@@ -449,9 +514,9 @@ function AvailabilityMatrix({ rows, columns, values, loading, emptyText }: Reado
                 <div key={row} className="dashboard-chart-matrix-row">
                     <div className="dashboard-chart-matrix-label is-row">{row}</div>
                     {safeColumns.map((column) => {
-                        const value = safeValues.find((item) => item.row === row && item.column === column);
+                        const value = safeValues.find((item) => humanizeLabel(item.row, String(item.row ?? '')) === row && humanizeLabel(item.column, String(item.column ?? '')) === column);
                         const status = cleanLabel(value?.status, 'partial');
-                        const label = cleanLabel(value?.label, '--');
+                        const label = humanizeLabel(value?.label, '--');
                         return (
                             <div key={`${row}-${column}`} className={`dashboard-chart-matrix-cell is-${status}`}>
                                 {label}
@@ -492,12 +557,13 @@ function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data:
     return (
         <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
             <ResponsiveContainer width="100%" height="100%">
-                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 12 }}>
+                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 42, bottom: 4, left: 12 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
                     <XAxis type="number" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={120} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                    <Bar dataKey="value" name="Cambio" radius={[0, 9, 9, 0]} isAnimationActive>
+                    <Bar dataKey="value" name="Cambio" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive>
+                        <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
                         {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
                     </Bar>
                 </ReBarChart>
@@ -564,12 +630,15 @@ export function DashboardSection({ title, subtitle, description, note, children,
 }
 
 export function DashboardEmptyState({ message = 'No hay datos disponibles.' }: Readonly<DashboardEmptyStateProps>) {
-    return <p className="dashboard-chart-empty">{message}</p>;
+    const normalizedMessage = /No hay datos suficientes/i.test(message)
+        ? 'No encontramos datos útiles con estos filtros. Amplía el periodo o limpia filtros para recuperar la lectura.'
+        : message;
+    return <p className="dashboard-chart-empty">{normalizedMessage}</p>;
 }
 
-export function DashboardMetricCard({ label, title, value, helper, tone }: Readonly<DashboardMetricCardProps>) {
+export function DashboardMetricCard({ label, title, value, helper, tone, className }: Readonly<DashboardMetricCardProps>) {
     return (
-        <article className={`dashboard-metric-card ${tone ? `is-${tone}` : ''}`.trim()}>
+        <article className={`dashboard-metric-card ${tone ? `is-${tone}` : ''} ${className ?? ''}`.trim()}>
             <span>{label ?? title ?? 'Metrica'}</span>
             <strong>{value ?? '--'}</strong>
             {helper ? <small>{helper}</small> : null}
@@ -628,11 +697,12 @@ export function DashboardChartCard({
     loading = false,
     emptyText = 'No hay datos utiles para los filtros seleccionados.',
     variant = 'bars',
-    formatter
+    formatter,
+    className
 }: Readonly<DashboardChartCardProps>) {
     const normalizedData = toChartItems(data);
     return (
-        <article className="dashboard-chart-section" aria-label={title}>
+        <article className={`dashboard-chart-section ${className ?? ''}`.trim()} aria-label={title}>
             <header>
                 <h3>{title}</h3>
                 {description ? <p>{description}</p> : null}

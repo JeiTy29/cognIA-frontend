@@ -1,4 +1,4 @@
-function readText(value: unknown) {
+﻿function readText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
@@ -15,64 +15,62 @@ function titleCaseWords(value: string) {
 }
 
 const BACKEND_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡/g, 'á'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©/g, 'é'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­/g, 'í'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³/g, 'ó'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âº/g, 'ú'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â/g, 'Á'],
-    [/ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°/g, 'É'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â/g, 'Í'],
-    [/ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ/g, 'Ó'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡/g, 'Ú'],
-    [/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±/g, 'ñ'],
-    [/ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“/g, 'Ñ'],
-    [/ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿/g, '¿'],
-    [/ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡/g, '¡'],
-    [/ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·/g, '·'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ/g, '–'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â/g, '—'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦/g, '…'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢/g, '•'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“|ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â/g, '"'],
-    [/ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ|ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢/g, '\''],
-    [/psic\?logo/gi, 'psicólogo'],
-    [/ubicaci\?n/gi, 'ubicación'],
-    [/revisi\?n/gi, 'revisión'],
-    [/evaluaci\?n/gi, 'evaluación'],
-    [/informaci\?n/gi, 'información'],
-    [/sesi\?n/gi, 'sesión'],
-    [/contrase\?a/gi, 'contraseña'],
-    [/aprobaci\?n/gi, 'aprobación'],
-    [/notificaci\?n/gi, 'notificación'],
-    [/diagnostico/gi, 'diagnóstico'],
-    [/clinico/gi, 'clínico'],
-    [/evaluacion/gi, 'evaluación'],
-    [/informacion/gi, 'información'],
-    [/psicologica/gi, 'psicológica'],
-    [/medica/gi, 'médica'],
-    [/senales/gi, 'señales'],
-    [/patron/gi, 'patrón'],
-    [/sesion/gi, 'sesión'],
-    [/seccion/gi, 'sección'],
-    [/recomendacion/gi, 'recomendación'],
-    [/orientacion/gi, 'orientación'],
-    [/observacion/gi, 'observación'],
-    [/reevaluacion/gi, 'reevaluación'],
-    [/simulacion/gi, 'simulación'],
-    [/estadisticos/gi, 'estadísticos'],
-    [/clinicas/gi, 'clínicas'],
-    [/terapeuticas/gi, 'terapéuticas'],
-    [/pagina/gi, 'página'],
-    [/metricas/gi, 'métricas']
+    [/\u00c3\u00a1/g, '\u00e1'],
+    [/\u00c3\u00a9/g, '\u00e9'],
+    [/\u00c3\u00ad/g, '\u00ed'],
+    [/\u00c3\u00b3/g, '\u00f3'],
+    [/\u00c3\u00ba/g, '\u00fa'],
+    [/\u00c3\u0081/g, '\u00c1'],
+    [/\u00c3\u0089/g, '\u00c9'],
+    [/\u00c3\u008d/g, '\u00cd'],
+    [/\u00c3\u0093/g, '\u00d3'],
+    [/\u00c3\u009a/g, '\u00da'],
+    [/\u00c3\u00b1/g, '\u00f1'],
+    [/\u00c3\u0091/g, '\u00d1'],
+    [/\u00c2\u00bf/g, '\u00bf'],
+    [/\u00c2\u00a1/g, '\u00a1'],
+    [/\u00c2\u00b7/g, '\u00b7'],
+    [/\u00e2\u20ac\u201c/g, '\u2013'],
+    [/\u00e2\u20ac\u009d/g, '\u2014'],
+    [/\u00e2\u20ac\u00a6/g, '\u2026'],
+    [/\u00e2\u20ac\u00a2/g, '\u2022'],
+    [/psic\?logo/gi, 'psic\u00f3logo'],
+    [/ubicaci\?n/gi, 'ubicaci\u00f3n'],
+    [/revisi\?n/gi, 'revisi\u00f3n'],
+    [/evaluaci\?n/gi, 'evaluaci\u00f3n'],
+    [/informaci\?n/gi, 'informaci\u00f3n'],
+    [/sesi\?n/gi, 'sesi\u00f3n'],
+    [/contrase\?a/gi, 'contrase\u00f1a'],
+    [/aprobaci\?n/gi, 'aprobaci\u00f3n'],
+    [/notificaci\?n/gi, 'notificaci\u00f3n'],
+    [/diagnostico/gi, 'diagn\u00f3stico'],
+    [/clinico/gi, 'cl\u00ednico'],
+    [/evaluacion/gi, 'evaluaci\u00f3n'],
+    [/informacion/gi, 'informaci\u00f3n'],
+    [/psicologica/gi, 'psicol\u00f3gica'],
+    [/medica/gi, 'm\u00e9dica'],
+    [/senales/gi, 'se\u00f1ales'],
+    [/patron/gi, 'patr\u00f3n'],
+    [/sesion/gi, 'sesi\u00f3n'],
+    [/seccion/gi, 'secci\u00f3n'],
+    [/recomendacion/gi, 'recomendaci\u00f3n'],
+    [/orientacion/gi, 'orientaci\u00f3n'],
+    [/observacion/gi, 'observaci\u00f3n'],
+    [/reevaluacion/gi, 'reevaluaci\u00f3n'],
+    [/simulacion/gi, 'simulaci\u00f3n'],
+    [/estadisticos/gi, 'estad\u00edsticos'],
+    [/clinicas/gi, 'cl\u00ednicas'],
+    [/terapeuticas/gi, 'terap\u00e9uticas'],
+    [/pagina/gi, 'p\u00e1gina'],
+    [/metricas/gi, 'm\u00e9tricas']
 ];
 
 const DOMAIN_LABELS: Record<string, string> = {
     adhd: 'TDAH',
     conduct: 'Conducta',
-    elimination: 'Eliminación',
+    elimination: 'Eliminaci\u00f3n',
     anxiety: 'Ansiedad',
-    depression: 'Depresión',
+    depression: 'Depresi\u00f3n',
     general: 'General'
 };
 
@@ -81,7 +79,7 @@ const ALERT_LEVEL_LABELS: Record<string, string> = {
     moderate: 'Moderado',
     elevated: 'Elevado',
     high: 'Alto',
-    critical_review: 'Revisión prioritaria'
+    critical_review: 'Revisi\u00f3n prioritaria'
 };
 
 const SESSION_STATUS_LABELS: Record<string, string> = {
@@ -106,9 +104,9 @@ const QUESTIONNAIRE_MODE_LABELS: Record<string, string> = {
 
 const REVIEW_STATUS_LABELS: Record<string, string> = {
     pending: 'Pendiente',
-    in_review: 'En revisión',
+    in_review: 'En revisi\u00f3n',
     reviewed: 'Revisado',
-    orientation_recommended: 'Orientación recomendada',
+    orientation_recommended: 'Orientaci\u00f3n recomendada',
     closed: 'Cerrado'
 };
 
@@ -119,11 +117,11 @@ const REQUEST_STATUS_LABELS: Record<string, string> = {
 };
 
 const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
-    questionnaire_share_requested: 'Nueva solicitud de revisión',
+    questionnaire_share_requested: 'Nueva solicitud de revisi\u00f3n',
     questionnaire_share_accepted: 'Solicitud aceptada',
     questionnaire_share_rejected: 'Solicitud rechazada',
-    professional_review_created: 'Nueva revisión profesional',
-    professional_review_updated: 'Revisión profesional actualizada'
+    professional_review_created: 'Nueva revisi\u00f3n profesional',
+    professional_review_updated: 'Revisi\u00f3n profesional actualizada'
 };
 
 const ENCRYPTED_FIELD_STRING_MARKERS = [
@@ -160,10 +158,10 @@ function normalizeKnownWords(value: string) {
 }
 
 export function normalizeBooleanLabel(value: unknown, fallback = '--') {
-    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    if (typeof value === 'boolean') return value ? 'S\u00ed' : 'No';
     const raw = readText(value).toLowerCase();
     if (!raw) return fallback;
-    if (raw === 'true') return 'Sí';
+    if (raw === 'true') return 'S\u00ed';
     if (raw === 'false') return 'No';
     return fallback;
 }
@@ -194,8 +192,8 @@ export function isEncryptedFieldString(value: unknown) {
     }
 }
 
-export function safeDisplayText(value: unknown, fallback = 'Información protegida no disponible para visualización.') {
-    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+export function safeDisplayText(value: unknown, fallback = 'Informaci\u00f3n protegida no disponible para visualizaci\u00f3n.') {
+    if (typeof value === 'boolean') return value ? 'S\u00ed' : 'No';
     if (isEncryptedField(value) || isEncryptedFieldString(value)) return fallback;
     if (isRecordLike(value) || Array.isArray(value)) return fallback;
 
@@ -236,7 +234,7 @@ export function normalizeDomainLabel(value: unknown) {
         raw.includes('depressive') ||
         raw.includes('mood')
     ) {
-        return 'Depresión';
+        return 'Depresi\u00f3n';
     }
     if (
         raw.includes('adhd') ||
@@ -258,7 +256,7 @@ export function normalizeDomainLabel(value: unknown) {
         raw.includes('enuresis') ||
         raw.includes('encopresis')
     ) {
-        return 'Eliminación';
+        return 'Eliminaci\u00f3n';
     }
     return DOMAIN_LABELS[raw] ?? formatFallbackLabel(raw);
 }
@@ -303,7 +301,7 @@ export const normalizeModeLabel = normalizeQuestionnaireMode;
 
 export function normalizeNotificationType(value: unknown) {
     const raw = readText(value).toLowerCase();
-    if (!raw) return 'Notificación';
+    if (!raw) return 'Notificaci\u00f3n';
     return NOTIFICATION_TYPE_LABELS[raw] ?? formatFallbackLabel(raw);
 }
 
