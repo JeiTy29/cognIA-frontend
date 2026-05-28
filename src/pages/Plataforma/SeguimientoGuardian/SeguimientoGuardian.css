@@ -909,16 +909,16 @@
 
 .seguimiento-guardian {
     width: min(1360px, 100%);
-    gap: 14px;
+    gap: 10px;
 }
 
 .seguimiento-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    padding: 18px 20px;
-    border-radius: 24px;
+    padding: 12px 16px;
+    border-radius: 20px;
     min-height: 0;
-    box-shadow: 0 18px 44px rgba(15, 47, 78, 0.10);
+    box-shadow: 0 14px 34px rgba(15, 47, 78, 0.08);
 }
 
 .seguimiento-eyebrow {
@@ -927,16 +927,16 @@
 }
 
 .seguimiento-header h1 {
-    margin-top: 7px;
-    font-size: clamp(28px, 3.2vw, 42px);
+    margin-top: 5px;
+    font-size: clamp(25px, 2.7vw, 36px);
     line-height: 1;
 }
 
 .seguimiento-header p {
-    margin-top: 7px;
+    margin-top: 5px;
     max-width: 560px;
-    font-size: 14px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.35;
 }
 
 .seguimiento-header-button-row {
@@ -945,35 +945,35 @@
 
 .seguimiento-hero-insight {
     grid-template-columns: minmax(0, 1fr) minmax(210px, 280px);
-    padding: 17px 18px;
-    border-radius: 22px;
-    box-shadow: 0 14px 34px rgba(15, 47, 78, 0.08);
+    padding: 12px 14px;
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 47, 78, 0.07);
 }
 
 .seguimiento-hero-insight h2 {
-    margin: 5px 0 6px;
-    font-size: clamp(21px, 2.3vw, 32px);
+    margin: 3px 0 4px;
+    font-size: clamp(19px, 2vw, 27px);
     letter-spacing: -0.04em;
 }
 
 .seguimiento-hero-insight p {
-    font-size: 14px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.35;
 }
 
 .seguimiento-hero-priority {
-    padding: 13px;
-    border-radius: 17px;
+    padding: 10px;
+    border-radius: 14px;
 }
 
 .seguimiento-summary-grid {
-    grid-template-columns: repeat(7, minmax(118px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(7, minmax(104px, 1fr));
+    gap: 8px;
 }
 
 .seguimiento-dashboard-grid {
     grid-template-columns: minmax(0, 1.15fr) minmax(310px, 0.85fr);
-    gap: 14px;
+    gap: 10px;
 }
 
 .seguimiento-dashboard-main {
@@ -1080,8 +1080,98 @@
 
 @media (max-width: 480px) {
     .seguimiento-guardian {
-        width: calc(100vw - 20px);
-        margin-left: auto;
-        margin-right: auto;
+        width: calc(100vw - 28px);
+        max-width: calc(100vw - 28px);
+        margin: 0 auto;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .seguimiento-header,
+    .seguimiento-hero-insight,
+    .seguimiento-filter-panel,
+    .seguimiento-priority-ranking,
+    .seguimiento-case-card,
+    .dashboard-chart-section,
+    .dashboard-chart-card {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .seguimiento-header > *,
+    .seguimiento-hero-insight > *,
+    .seguimiento-filter-panel > *,
+    .seguimiento-priority-ranking > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .seguimiento-header {
+        padding: 14px;
+    }
+
+    .seguimiento-header h1 {
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+    }
+
+    .seguimiento-header-button-row,
+    .seguimiento-header-actions {
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .seguimiento-header-button-row > * {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .seguimiento-hero-priority,
+    .seguimiento-hero-priority strong,
+    .seguimiento-priority-card strong,
+    .seguimiento-case-top h2 {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .seguimiento-header p,
+    .seguimiento-hero-insight p,
+    .seguimiento-filter-panel__summary p {
+        max-width: calc(100vw - 72px);
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .seguimiento-hero-priority {
+        max-width: calc(100vw - 72px);
+    }
+
+    .seguimiento-summary-grid,
+    .seguimiento-dashboard-grid,
+    .seguimiento-priority-grid,
+    .seguimiento-case-list,
+    .case-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .seguimiento-summary-card {
+        min-height: 72px;
+    }
+
+    .dashboard-chart-canvas,
+    .dashboard-chart-canvas--large {
+        height: 220px;
+        min-height: 220px;
+    }
+
+    .dashboard-chart-donut-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .seguimiento-session-summary {
+        grid-template-columns: 1fr;
     }
 }

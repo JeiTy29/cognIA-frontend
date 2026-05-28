@@ -13,6 +13,7 @@ import {
     debugApiClient,
     joinApiUrl
 } from './url';
+import { RequestTimeoutError, fetchWithTimeout } from './fetchWithTimeout';
 
 export class ApiError extends Error {
     status: number;
@@ -122,6 +123,13 @@ function shouldRefreshBeforeSecureRequest(options?: ApiRequestOptions) {
 function toTransportApiError(error: unknown) {
     if (error instanceof ApiError) return error;
 
+    if (error instanceof RequestTimeoutError) {
+        return new ApiError('Request timed out', 408, {
+            error: 'request_timeout',
+            msg: 'La solicitud tardó demasiado en responder.'
+        });
+    }
+
     if (error instanceof Error && 'status' in error) {
         const status = (error as { status?: number }).status ?? 500;
         const payload = 'payload' in error ? (error as { payload?: unknown }).payload : undefined;
@@ -176,7 +184,7 @@ async function runStandardJsonRequest<T>(
     ensureApiClientConfig();
     debugApiClient(`request ${init.method ?? 'GET'} ${path}`);
 
-    const response = await fetch(joinApiUrl(path), {
+    const response = await fetchWithTimeout(joinApiUrl(path), {
         ...init,
         credentials: getRequestCredentials(options)
     });
@@ -203,7 +211,7 @@ async function runStandardBlobRequest(
     ensureApiClientConfig();
     debugApiClient(`request GET ${path}`);
 
-    const response = await fetch(joinApiUrl(path), {
+    const response = await fetchWithTimeout(joinApiUrl(path), {
         method: 'GET',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)
@@ -343,7 +351,7 @@ export async function apiPostNoBody<T>(
     ensureApiClientConfig();
     debugApiClient(`request POST ${path}`);
 
-    const response = await fetch(joinApiUrl(path), {
+    const response = await fetchWithTimeout(joinApiUrl(path), {
         method: 'POST',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)
@@ -370,7 +378,7 @@ export async function apiPostFormData<T>(
     ensureApiClientConfig();
     debugApiClient(`request POST ${path}`);
 
-    const response = await fetch(joinApiUrl(path), {
+    const response = await fetchWithTimeout(joinApiUrl(path), {
         method: 'POST',
         headers: buildHeaders(options, false),
         body,
@@ -430,7 +438,7 @@ export async function apiDelete<T>(
     ensureApiClientConfig();
     debugApiClient(`request DELETE ${path}`);
 
-    const response = await fetch(joinApiUrl(path), {
+    const response = await fetchWithTimeout(joinApiUrl(path), {
         method: 'DELETE',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)

@@ -7,10 +7,13 @@ import type {
     QuestionnaireCasesListV2Response,
     QuestionnaireDashboardChartPointDTO,
     QuestionnaireGuardianDashboardV2Response,
+    QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryItemV2DTO,
     QuestionnaireHistoryListV2Response,
+    QuestionnairePdfInfoV2DTO,
     QuestionnairePsychologistDashboardV2Response,
-    QuestionnaireSessionV2DTO
+    QuestionnaireSessionV2DTO,
+    QuestionnaireShareResponseDTO
 } from '../../services/questionnaires/questionnaires.types';
 
 const DEV_AUTH_ACTIVE_KEY = 'cognia_dev_auth_active';
@@ -46,6 +49,7 @@ const demoCases: QuestionnaireCaseDTO[] = [
         private_label: 'Mateo - seguimiento escolar',
         status: 'active',
         sessions_count: 5,
+        processed_sessions_count: 5,
         latest_session_id: 'demo-session-mateo-5',
         latest_processed_at: getIsoDate(0, 18),
         latest_alert_level: 'high',
@@ -56,10 +60,11 @@ const demoCases: QuestionnaireCaseDTO[] = [
     {
         case_id: 'demo-case-sofia',
         case_public_id: 'CASO-E79FCF',
-        display_label: 'Sofia - bienestar emocional',
-        private_label: 'Sofia - bienestar emocional',
+        display_label: 'Sofía - bienestar emocional',
+        private_label: 'Sofía - bienestar emocional',
         status: 'active',
         sessions_count: 4,
+        processed_sessions_count: 4,
         latest_session_id: 'demo-session-sofia-4',
         latest_processed_at: getIsoDate(0, 16),
         latest_alert_level: 'elevated',
@@ -70,10 +75,11 @@ const demoCases: QuestionnaireCaseDTO[] = [
     {
         case_id: 'demo-case-lucas',
         case_public_id: 'CASO-C45B21',
-        display_label: 'Lucas - rutina y atencion',
-        private_label: 'Lucas - rutina y atencion',
+        display_label: 'Lucas - rutina y atención',
+        private_label: 'Lucas - rutina y atención',
         status: 'active',
         sessions_count: 6,
+        processed_sessions_count: 6,
         latest_session_id: 'demo-session-lucas-6',
         latest_processed_at: getIsoDate(0, 20),
         latest_alert_level: 'critical_review',
@@ -206,9 +212,9 @@ const guardianCharts = {
         { alert_level: 'critical_review', value: 2 }
     ],
     sessions_by_case: [
-        { label: 'Lucas - rutina y atencion', case_public_id: 'CASO-C45B21', value: 6 },
+        { label: 'Lucas - rutina y atención', case_public_id: 'CASO-C45B21', value: 6 },
         { label: 'Mateo - seguimiento escolar', case_public_id: 'CASO-A1F4C3', value: 5 },
-        { label: 'Sofia - bienestar emocional', case_public_id: 'CASO-E79FCF', value: 4 }
+        { label: 'Sofía - bienestar emocional', case_public_id: 'CASO-E79FCF', value: 4 }
     ],
     cases_by_alert_level: [
         { alert_level: 'critical_review', value: 1 },
@@ -306,6 +312,75 @@ export function getDemoQuestionnaireHistoryResponse(page = 1, pageSize = 10): Qu
     };
 }
 
+export function getDemoQuestionnaireHistoryDetail(sessionId: string): QuestionnaireHistoryDetailV2DTO {
+    const item = demoHistoryItems.find((entry) => entry.id === sessionId || entry.session_id === sessionId) ?? demoHistoryItems[0];
+    return {
+        ...item,
+        applied_at: item.applied_at ?? item.created_at,
+        submitted_at: item.submitted_at ?? item.created_at,
+        processed_at: item.processed_at ?? item.updated_at,
+        completed_by_user_id: 'demo-guardian-1',
+        completed_by_display_name: 'Acudiente familiar',
+        completed_by_role: 'guardian',
+        respondent_relationship: 'Padre/Tutor',
+        domain_code: item.dominant_domain,
+        domain_label: item.dominant_domain === 'adhd' ? 'TDAH' : item.dominant_domain,
+        score_type: 'orientative',
+        score_label: 'Riesgo orientativo alto',
+        score_value: 90,
+        score_explanation: 'El porcentaje resume señales orientativas del cuestionario y no representa una probabilidad diagnóstica.',
+        safety_flags: item.latest_alert_level === 'critical_review' ? ['Señal sensible reportada'] : [],
+        urgent_referral_recommended: item.latest_alert_level === 'critical_review',
+        safety_signal_items: item.latest_alert_level === 'critical_review' ? ['Revisar señales de seguridad con un profesional autorizado.'] : [],
+        inconsistency_flags: item.latest_alert_level === 'high' ? ['Respuestas con variación relevante entre dominios.'] : [],
+        developmental_context_notes: ['Interpretar los resultados junto con contexto familiar, escolar y evolutivo.'],
+        tags: [
+            { id: 'demo-tag-1', label: 'seguimiento', color: '#0f5f9f', visibility: 'private', visibility_label: 'Privado' },
+            { id: 'demo-tag-2', label: 'revisión prioritaria', color: '#842a5c', visibility: 'shared', visibility_label: 'Compartido' }
+        ],
+        permissions: {
+            can_tag: true,
+            can_share: true,
+            can_request_review: true,
+            can_generate_pdf: true,
+            can_download_pdf: true
+        },
+        answers: [
+            { question_id: 'demo-q1', question_text: 'Atención sostenida durante actividades escolares', answer: 'Frecuente' },
+            { question_id: 'demo-q2', question_text: 'Cambios recientes en estado de ánimo', answer: 'Ocasional' }
+        ],
+        metadata: {
+            source: 'Datos demo de desarrollo',
+            data_quality: 'suficiente'
+        }
+    };
+}
+
+export function getDemoQuestionnaireShareResponse(sessionId: string): QuestionnaireShareResponseDTO {
+    return {
+        questionnaire_id: sessionId,
+        share_code: 'DEMO-SHARE',
+        shared_path: `/cuestionario/compartido/${sessionId}/DEMO-SHARE`,
+        shared_url: `http://127.0.0.1:5173/cuestionario/compartido/${sessionId}/DEMO-SHARE`,
+        expires_at: getIsoDate(-1, 28),
+        max_uses: 3,
+        uses: 0
+    };
+}
+
+export function getDemoQuestionnairePdfInfo(sessionId: string): QuestionnairePdfInfoV2DTO {
+    return {
+        status: 'ready',
+        file_id: `demo-pdf-${sessionId}`,
+        filename: `reporte-${sessionId}.pdf`,
+        mime_type: 'application/pdf',
+        size_bytes: 128000,
+        generated_at: getIsoDate(0, 20),
+        updated_at: getIsoDate(0, 20),
+        download_url: `/api/v2/questionnaires/history/${sessionId}/pdf/download`
+    };
+}
+
 const psychologistItems = demoHistoryItems.slice(0, 8).map((item, index) => ({
     session_id: item.session_id ?? item.id,
     case_public_id: item.case_public_id,
@@ -395,7 +470,7 @@ export function getDemoShareRequests(page = 1, pageSize = 10): PsychologistShare
                 needs_professional_review: true,
                 highest_alert_level: 'critical_review',
                 domains: [{ domain: 'adhd', probability: 0.91, alert_level: 'critical_review' }],
-                result_summary: 'Senales persistentes de inatencion e hiperactividad que sugieren priorizar revision.'
+                result_summary: 'Señales persistentes de inatención e hiperactividad que sugieren priorizar revisión.'
             },
             can_accept: true,
             can_reject: true
@@ -410,7 +485,7 @@ export function getDemoShareRequests(page = 1, pageSize = 10): PsychologistShare
                 needs_professional_review: true,
                 highest_alert_level: 'high',
                 domains: [{ domain: 'conduct', probability: 0.82, alert_level: 'high' }],
-                result_summary: 'Indicadores conductuales elevados en las ultimas sesiones.'
+                result_summary: 'Indicadores conductuales elevados en las últimas sesiones.'
             },
             can_accept: true,
             can_reject: true
@@ -426,7 +501,7 @@ export function getDemoShareRequests(page = 1, pageSize = 10): PsychologistShare
                 needs_professional_review: false,
                 highest_alert_level: 'elevated',
                 domains: [{ domain: 'depression', probability: 0.68, alert_level: 'elevated' }],
-                result_summary: 'Seguimiento emocional aceptado para revision orientativa.'
+                result_summary: 'Seguimiento emocional aceptado para revisión orientativa.'
             },
             can_accept: false,
             can_reject: false

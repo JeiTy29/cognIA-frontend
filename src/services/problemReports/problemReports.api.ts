@@ -1,4 +1,10 @@
 import { apiGet, apiPatch, apiPost, apiPostFormData } from '../api/httpClient';
+import {
+    getDemoProblemReportDetail,
+    getDemoProblemReportsResponse,
+    isAdminDevDemoEnabled,
+    updateDemoProblemReport
+} from '../../utils/admin/demoAdminData';
 import type {
     CreateProblemReportPayload,
     CreateProblemReportResponse,
@@ -118,6 +124,10 @@ export function getMyProblemReports(params: ProblemReportListParams) {
 }
 
 export function getAdminProblemReports(params: ProblemReportListParams) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve(getDemoProblemReportsResponse(params.page, params.page_size));
+    }
+
     const search = buildListSearch(params);
     return apiGet<ProblemReportListResponse>(
         `/api/admin/problem-reports?${search.toString()}`,
@@ -126,6 +136,10 @@ export function getAdminProblemReports(params: ProblemReportListParams) {
 }
 
 export function getAdminProblemReportById(reportId: string) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve(getDemoProblemReportDetail(reportId));
+    }
+
     return apiGet<ProblemReportDetailResponse>(
         `/api/admin/problem-reports/${reportId}`,
         requestOptions
@@ -133,6 +147,10 @@ export function getAdminProblemReportById(reportId: string) {
 }
 
 export function updateAdminProblemReport(reportId: string, payload: UpdateProblemReportPayload) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve(updateDemoProblemReport(reportId, payload));
+    }
+
     return apiPatch<UpdateProblemReportResponse, UpdateProblemReportPayload>(
         `/api/admin/problem-reports/${reportId}`,
         payload,

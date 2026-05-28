@@ -753,7 +753,7 @@ export default function SeguimientoGuardian() {
                                 <AreaChart
                                     data={guardianVisuals.monthlyAlerts}
                                     ariaLabel="Evolucion temporal de alertas"
-                                    emptyMessage="Aun no hay suficientes sesiones procesadas para calcular tendencia temporal."
+                                    emptyMessage="Aún no hay suficientes sesiones procesadas para calcular tendencia temporal."
                                 />
                             </DashboardSection>
                             <DashboardSection
@@ -763,7 +763,7 @@ export default function SeguimientoGuardian() {
                                 <HorizontalBarChart
                                     data={guardianVisuals.alertsByDomain}
                                     ariaLabel="Alertas por dominio"
-                                    emptyMessage="Aun no hay dominios con alertas visibles para el periodo seleccionado."
+                                    emptyMessage="Aún no hay dominios con alertas visibles para el periodo seleccionado."
                                 />
                             </DashboardSection>
                             <DashboardSection
@@ -773,7 +773,7 @@ export default function SeguimientoGuardian() {
                                 <DonutChart
                                     data={guardianVisuals.alertsByLevel}
                                     ariaLabel="Distribución por alerta"
-                                    emptyMessage="Aun no hay alertas clasificadas para construir la distribucion."
+                                    emptyMessage="Aún no hay alertas clasificadas para construir la distribución."
                                 />
                             </DashboardSection>
                             <DashboardSection
@@ -784,7 +784,7 @@ export default function SeguimientoGuardian() {
                                 <HorizontalBarChart
                                     data={guardianVisuals.sessionsByCase}
                                     ariaLabel="Sesiones por caso"
-                                    emptyMessage="Aun no hay actividad suficiente por caso para comparar."
+                                    emptyMessage="Aún no hay actividad suficiente por caso para comparar."
                                 />
                             </DashboardSection>
                         </div>
@@ -867,7 +867,7 @@ export default function SeguimientoGuardian() {
                         <div className="seguimiento-section-title seguimiento-section-title--list">
                             <span>Detalle bajo demanda</span>
                             <h2>Casos del seguimiento</h2>
-                            <p>El listado queda al final; selecciona un solo caso para cargar sesiones, reportes y graficas de detalle.</p>
+                            <p>El listado queda al final; selecciona un solo caso para cargar sesiones, reportes y gráficas de detalle.</p>
                         </div>
 
                         <div className="seguimiento-case-list">
@@ -1197,7 +1197,7 @@ export default function SeguimientoGuardian() {
                                                                     <span>{formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)}</span>
                                                                     <span>{normalizeSessionStatus(session.status)}</span>
                                                                     <span>{normalizeQuestionnaireMode(session.mode)}</span>
-                                                                    <span>{sessionAlert ? `${sessionAlert.domainLabel} ? ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
+                                                                    <span>{sessionAlert ? `${sessionAlert.domainLabel} - ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
                                                                 </button>
 
                                                                 <div className="seguimiento-session-details" aria-hidden={!isExpanded}>
@@ -1237,7 +1237,7 @@ export default function SeguimientoGuardian() {
 
                                                                         {sessionAlert ? (
                                                                             <p className="seguimiento-session-alert">
-                                                                                Alerta principal: {sessionAlert.domainLabel} ? {sessionAlert.alertLabel} ? {sessionAlert.probabilityLabel}
+                                                                                Alerta principal: {sessionAlert.domainLabel} - {sessionAlert.alertLabel} - {sessionAlert.probabilityLabel}
                                                                             </p>
                                                                         ) : null}
 

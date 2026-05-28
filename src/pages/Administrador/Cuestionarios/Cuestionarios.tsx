@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     AreaChart,
@@ -435,21 +435,21 @@ export default function Cuestionarios() {
             <div className="admin-dashboard-grid">
                 <DashboardSection
                     title="Plantillas por estado"
-                    description="Resume cu?ntas plantillas est?n activas, inactivas o archivadas en la vista actual."
+                    description="Resume cuántas plantillas están activas, inactivas o archivadas en la vista actual."
                     note={dashboardNote}
                 >
                     <DonutChart data={questionnaireStateChart} ariaLabel="Plantillas por estado" />
                 </DashboardSection>
                 <DashboardSection
                     title="Registros en el tiempo"
-                    description="Muestra la evoluci?n de plantillas registradas en la vista actual."
+                    description="Muestra la evolución de plantillas registradas en la vista actual."
                     note={dashboardNote}
                 >
                     <AreaChart data={questionnaireCreatedByMonth} ariaLabel="Registros de cuestionarios en el tiempo" />
                 </DashboardSection>
                 <DashboardSection
                     title="Disponibilidad operativa"
-                    description="Cruza el estado operativo con la condici?n de archivado."
+                    description="Cruza el estado operativo con la condición de archivado."
                     note={dashboardNote}
                 >
                     <HeatmapChart
@@ -461,9 +461,9 @@ export default function Cuestionarios() {
                 </DashboardSection>
                 <DashboardSection
                     title="Cobertura por preguntas y modo"
-                    description="Requiere datos reales de preguntas por plantilla para construir esta gr?fica."
+                    description="Requiere datos reales de preguntas por plantilla para construir esta gráfica."
                 >
-                    <DashboardEmptyState message="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado." />
+                    <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
                 </DashboardSection>
             </div>
 
@@ -569,7 +569,7 @@ export default function Cuestionarios() {
                                 </div>
                                 <div>
                                     <span className={`admin-status-badge ${item.is_archived ? 'archived' : 'neutral'}`}>
-                                        {item.is_archived ? 'Si' : 'No'}
+                                        {item.is_archived ? 'Sí' : 'No'}
                                     </span>
                                 </div>
                                 <div>{formatDateTime(item.created_at)}</div>
@@ -643,7 +643,7 @@ export default function Cuestionarios() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginacion de cuestionarios">
+            <footer className="admin-pagination" aria-label="Paginación de cuestionarios">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>
@@ -651,17 +651,17 @@ export default function Cuestionarios() {
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina anterior"
+                        aria-label="Página anterior"
                         onClick={() => setPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage <= 1}
                     >
                         <svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
                     </button>
-                    <span className="admin-page-current">Pagina {currentPage}</span>
+                    <span className="admin-page-current">Página {currentPage}</span>
                     <button
                         type="button"
                         className="admin-page-nav-btn"
-                        aria-label="Pagina siguiente"
+                        aria-label="Página siguiente"
                         onClick={() => setPage(Math.min(pages, currentPage + 1))}
                         disabled={currentPage >= pages}
                     >
@@ -672,7 +672,7 @@ export default function Cuestionarios() {
                     <label>
                         <span>Tamaño</span>
                         <CustomSelect
-                            ariaLabel="Tamaño de pagina"
+                            ariaLabel="Tamaño de página"
                             value={String(pageSize)}
                             options={pageSizeOptions}
                             onChange={(value) => changePageSize(Number(value))}
@@ -776,7 +776,7 @@ export default function Cuestionarios() {
                     <h2>{resolvePendingActionLabel(pendingAction?.type ?? 'publish')}</h2>
                     <p>
                         {pendingAction
-                            ? `Confirma la accion sobre ${pendingAction.item.name} ${pendingAction.item.version}.`
+                            ? `Confirma la acción sobre ${pendingAction.item.name} ${pendingAction.item.version}.`
                             : ''}
                     </p>
                     <div className="admin-modal-actions">

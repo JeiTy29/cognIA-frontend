@@ -15,40 +15,10 @@ function resolveLayoutRole(primaryRole: string | null, pathname: string): Role {
     return 'padre';
 }
 
-function resolveProfileContextLabel({
-    roles,
-    primaryRole,
-    userType
-}: {
-    roles: string[];
-    primaryRole: string | null;
-    userType: string | undefined;
-}) {
-    const normalizedRoles = new Set(roles.map((role) => role.trim().toUpperCase()));
-    const normalizedUserType = String(userType ?? '').trim().toLowerCase();
-
-    if (normalizedRoles.has('ADMIN') || primaryRole === 'admin') return 'ADMINISTRADOR';
-    if (normalizedRoles.has('PSYCHOLOGIST') || primaryRole === 'psicologo' || normalizedUserType === 'psychologist') {
-        return 'PSICÓLOGO';
-    }
-    if (normalizedRoles.has('GUARDIAN') || primaryRole === 'padre' || normalizedUserType === 'guardian') {
-        return 'PADRE/TUTOR';
-    }
-    return null;
-}
-
 export default function SidebarLayout() {
     const location = useLocation();
-    const { primaryRole, roles, profile, isAuthenticated } = useAuth();
+    const { primaryRole } = useAuth();
     const role = resolveLayoutRole(primaryRole, location.pathname);
-    const profileContextLabel = isAuthenticated
-        ? resolveProfileContextLabel({
-            roles,
-            primaryRole,
-            userType: profile?.user_type
-        })
-        : null;
-
     return (
         <div className="app-shell">
             <Sidebar role={role} />
@@ -61,11 +31,6 @@ export default function SidebarLayout() {
                 <div className="app-content">
                     <Outlet />
                 </div>
-                {profileContextLabel ? (
-                    <div className="profile-context-indicator" aria-hidden="true">
-                        <div className="profile-context-indicator__inner">{profileContextLabel}</div>
-                    </div>
-                ) : null}
             </div>
         </div>
     );

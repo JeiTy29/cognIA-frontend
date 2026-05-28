@@ -75,10 +75,10 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 const ALERT_LEVEL_LABELS: Record<string, string> = {
-    low: 'Bajo',
-    moderate: 'Moderado',
-    elevated: 'Elevado',
-    high: 'Alto',
+    low: 'Baja',
+    moderate: 'Moderada',
+    elevated: 'Elevada',
+    high: 'Alta',
     critical_review: 'Revisi\u00f3n prioritaria'
 };
 
@@ -238,6 +238,7 @@ export function normalizeDomainLabel(value: unknown) {
     }
     if (
         raw.includes('adhd') ||
+        raw.includes('tdah') ||
         raw.includes('inatt') ||
         raw.includes('hypimp')
     ) {

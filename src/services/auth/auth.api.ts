@@ -29,6 +29,7 @@ import type {
 import { getCsrfToken } from '../../utils/auth/csrf';
 import { buildAuthorizationHeader } from '../../utils/auth/authorization';
 import { joinApiUrl } from '../api/url';
+import { fetchWithTimeout } from '../api/fetchWithTimeout';
 
 export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiPost<RegisterResponse, RegisterPayload>('/api/auth/register', payload);
@@ -36,7 +37,7 @@ export function registerUser(payload: RegisterPayload): Promise<RegisterResponse
 
 export async function login(payload: LoginRequest): Promise<LoginResponse | LoginErrorResponse> {
     try {
-        const response = await fetch(joinApiUrl('/api/auth/login'), {
+        const response = await fetchWithTimeout(joinApiUrl('/api/auth/login'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',

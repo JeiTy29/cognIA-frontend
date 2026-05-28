@@ -334,15 +334,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         const verificationTask: Promise<boolean> = (async () => {
-            const snapshot = authSnapshotRef.current;
-            debugAuth('verifySession:start', {
-                options,
-                authStatus: snapshot.authStatus,
-                sessionVerified: snapshot.sessionVerified,
-                profileStatus: snapshot.profileStatus,
-                epoch: authEpochRef.current,
-                manualLogout: hasManualLogoutFlag()
-            });
+            try {
+                const snapshot = authSnapshotRef.current;
+                debugAuth('verifySession:start', {
+                    options,
+                    authStatus: snapshot.authStatus,
+                    sessionVerified: snapshot.sessionVerified,
+                    profileStatus: snapshot.profileStatus,
+                    epoch: authEpochRef.current,
+                    manualLogout: hasManualLogoutFlag()
+                });
 
             if (
                 !options?.force &&
@@ -446,7 +447,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setProfileStatus('error');
             setProfileErrorStatus(meResponse.status);
             applyAnonymousState(meResponse.status === 401 || meResponse.status === 403 ? 'expired' : undefined);
-            return false;
+                return false;
+            } catch (error) {
+                debugAuth('verifySession:unhandled-error', error);
+                if (hasManualLogoutFlag()) {
+                    applyAnonymousState('manual');
+                    return false;
+                }
+
+                setProfile(null);
+                setProfileStatus('error');
+                setProfileErrorStatus(error instanceof Error && error.message === 'auth_timeout' ? 408 : 500);
+                applyAnonymousState('expired');
+                return false;
+            }
         })();
 
         verificationPromiseRef.current = verificationTask;
