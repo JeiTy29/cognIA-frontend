@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth/useAuth';
 import { getDefaultRouteForRoles, getPrimaryRole } from '../../utils/auth/roles';
 import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
+import AppLoadingScreen from '../AppLoadingScreen/AppLoadingScreen';
 import Sidebar from '../Sidebar/Sidebar';
 import type { Role } from '../Sidebar/SidebarConfig';
 import SupportContact from '../SupportContact/SupportContact';
@@ -77,19 +78,14 @@ function ProtectedRouteLoader({ onResetSession, preserveShell = false, shellRole
     }, []);
 
     const loaderContent = (
-        <div className="auth-guard-content-loading" aria-live="polite">
-            <span className="auth-guard-content-loading-dot" aria-hidden="true"></span>
-            <p>{loaderTimedOut ? 'No se pudo completar la validación de sesión.' : 'Cargando vista...'}</p>
-            {loaderTimedOut ? (
-                <button
-                    type="button"
-                    className="auth-guard-retry"
-                    onClick={onResetSession}
-                >
-                    Volver a iniciar sesión
-                </button>
-            ) : null}
-        </div>
+        <AppLoadingScreen
+            compact={preserveShell}
+            title={loaderTimedOut ? 'No se pudo validar la sesión' : 'Validando acceso'}
+            message="Estamos verificando tu sesión, rol y permisos."
+            timedOutMessage="La validación de sesión tardó demasiado. Puedes cerrar sesión y volver a intentarlo."
+            timeoutMs={LOADER_TIMEOUT_MS}
+            onLogout={onResetSession}
+        />
     );
 
     if (!preserveShell) {

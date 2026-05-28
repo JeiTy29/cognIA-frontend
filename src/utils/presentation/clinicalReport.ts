@@ -944,7 +944,7 @@ export function buildClinicalReportHtml(
                     </section>
                     ${pageSections.map((section) => `
                         <section class="report-section">
-                            <h3 class="report-answer-section-title">Secci?n: ${escapeHtml(section.title)}</h3>
+                            <h3 class="report-answer-section-title">Sección: ${escapeHtml(section.title)}</h3>
                             <div class="report-answer-table" role="table" aria-label="Respuestas de ${escapeHtml(section.title)}">
                                 <div class="report-answer-table-head" role="row">
                                     <span role="columnheader">Pregunta</span>
@@ -1224,19 +1224,19 @@ export function buildClinicalReportHtml(
                 <span>CognIA</span>
             </div>
             <div>
-                <p class="report-section-label">Reporte orientativo para revisi?n profesional</p>
+                <p class="report-section-label">Reporte orientativo para revisión profesional</p>
                 <h1>${escapeHtml(viewModel.title)}</h1>
-                <h2>Resultado de tamizaje y apoyo a revisi?n profesional.</h2>
+                <h2>Resultado de tamizaje y apoyo a revisión profesional.</h2>
             </div>
             <div class="report-cover-card">
-                <p>Este documento resume resultados orientativos del cuestionario. No reemplaza entrevista cl?nica, historia evolutiva ni juicio profesional. No constituye diagn?stico.</p>
+                <p>Este documento resume resultados orientativos del cuestionario. No reemplaza entrevista clínica, historia evolutiva ni juicio profesional. No constituye diagnóstico.</p>
                 <div class="report-meta-grid">
                     <div class="report-meta-card"><strong>ID cuestionario</strong><span>${escapeHtml(viewModel.questionnaireId)}</span></div>
                     <div class="report-meta-card"><strong>ID de sesión</strong><span>${escapeHtml(viewModel.sessionId)}</span></div>
                     <div class="report-meta-card"><strong>Fecha</strong><span>${escapeHtml(viewModel.generatedAt)}</span></div>
                     <div class="report-meta-card"><strong>Modo</strong><span>${escapeHtml(viewModel.modeLabel)}</span></div>
                     <div class="report-meta-card"><strong>Respondiente</strong><span>${escapeHtml(viewModel.roleLabel)}</span></div>
-                    <div class="report-meta-card"><strong>Versi?n</strong><span>${escapeHtml(viewModel.version)}</span></div>
+                    <div class="report-meta-card"><strong>Versión</strong><span>${escapeHtml(viewModel.version)}</span></div>
                 </div>
             </div>
         </div>
@@ -1279,7 +1279,7 @@ export function buildClinicalReportHtml(
         <section class="report-pdf-page report-pdf-page--content">
             <div class="report-page-group">
                 <section class="report-section">
-                    <h2>Recomendaci?n profesional</h2>
+                    <h2>Recomendación profesional</h2>
                     <p>${escapeHtml(viewModel.professionalRecommendation)}</p>
                 </section>
                 <section class="report-section">
@@ -1287,7 +1287,7 @@ export function buildClinicalReportHtml(
                     <p>${escapeHtml(viewModel.comorbidityText)}</p>
                 </section>
                 <section class="report-section">
-                    <h2>Aclaraci?n importante</h2>
+                    <h2>Aclaración importante</h2>
                     <p>${escapeHtml(viewModel.clarification)}</p>
                 </section>
                 <section class="report-section">

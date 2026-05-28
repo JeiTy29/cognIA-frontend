@@ -2,6 +2,7 @@ import { joinApiUrl } from '../api/url';
 import { getCsrfToken } from '../../utils/auth/csrf';
 import type { RefreshErrorResponse, RefreshResponse } from './auth.types';
 import { hasManualLogoutFlag } from '../../utils/auth/sessionLifecycle';
+import { fetchWithTimeout } from '../api/fetchWithTimeout';
 
 export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErrorResponse> {
     if (hasManualLogoutFlag()) {
@@ -22,7 +23,7 @@ export async function refreshAccessToken(): Promise<RefreshResponse | RefreshErr
     if (import.meta.env.DEV) {
         console.debug('[auth] refresh:request:start');
     }
-    const response = await fetch(joinApiUrl('/api/auth/refresh'), {
+    const response = await fetchWithTimeout(joinApiUrl('/api/auth/refresh'), {
         method: 'POST',
         headers: {
             Accept: 'application/json',

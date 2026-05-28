@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
     AreaChart,
+    DashboardEmptyState,
     DashboardSection,
     DonutChart,
     HeatmapChart,
@@ -508,6 +509,7 @@ export default function Usuarios() {
             ),
         [dashboardSample, roleStateColumns, roleStateRows]
     );
+    const hasDashboardData = dashboardSample.length > 0;
 
     const handleDownloadReport = async () => {
         setReportWorking(true);
@@ -902,63 +904,75 @@ export default function Usuarios() {
             ) : null}
 
             <div className="usuarios-dashboard-grid">
-                <DashboardSection
-                    title="Usuarios por rol"
-                    description="Muestra la composición de usuarios según rol."
-                    note={dashboardNote}
-                >
-                    <DonutChart
-                        data={usersByRoleChart}
-                        ariaLabel="Distribución de usuarios por rol"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
-                <DashboardSection
-                    title="Usuarios por estado"
-                    description="Resume el estado operativo de las cuentas."
-                    note={dashboardNote}
-                >
-                    <WaffleChart
-                        data={usersByStateChart}
-                        ariaLabel="Distribución de usuarios por estado"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
-                <DashboardSection
-                    title="Registros en el tiempo"
-                    description="Permite observar el crecimiento de usuarios registrados."
-                    note={dashboardNote}
-                >
-                    <AreaChart
-                        data={usersByMonthChart}
-                        ariaLabel="Crecimiento de usuarios registrados"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
-                <DashboardSection
-                    title="Usuarios por departamento"
-                    description="Presenta la distribución territorial de usuarios registrados."
-                    note={dashboardNote}
-                >
-                    <TreemapChart
-                        data={usersByDepartmentChart}
-                        ariaLabel="Distribución territorial de usuarios"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
-                <DashboardSection
-                    title="Composición rol + estado"
-                    description="Cruza rol y estado para identificar segmentos que requieren revisión."
-                    note={dashboardNote}
-                >
-                    <HeatmapChart
-                        rows={roleStateRows}
-                        columns={roleStateColumns}
-                        cells={roleStateCells}
-                        ariaLabel="Cruce entre rol y estado de usuario"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
+                {hasDashboardData ? (
+                    <>
+                        <DashboardSection
+                            title="Usuarios por rol"
+                            description="Muestra la composición de usuarios según rol."
+                            note={dashboardNote}
+                        >
+                            <DonutChart
+                                data={usersByRoleChart}
+                                ariaLabel="Distribución de usuarios por rol"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Usuarios por estado"
+                            description="Resume el estado operativo de las cuentas."
+                            note={dashboardNote}
+                        >
+                            <WaffleChart
+                                data={usersByStateChart}
+                                ariaLabel="Distribución de usuarios por estado"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Registros en el tiempo"
+                            description="Permite observar el crecimiento de usuarios registrados."
+                            note={dashboardNote}
+                        >
+                            <AreaChart
+                                data={usersByMonthChart}
+                                ariaLabel="Crecimiento de usuarios registrados"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Usuarios por departamento"
+                            description="Presenta la distribución territorial de usuarios registrados."
+                            note={dashboardNote}
+                        >
+                            <TreemapChart
+                                data={usersByDepartmentChart}
+                                ariaLabel="Distribución territorial de usuarios"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Composición rol + estado"
+                            description="Cruza rol y estado para identificar segmentos que requieren revisión."
+                            note={dashboardNote}
+                        >
+                            <HeatmapChart
+                                rows={roleStateRows}
+                                columns={roleStateColumns}
+                                cells={roleStateCells}
+                                ariaLabel="Cruce entre rol y estado de usuario"
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                            />
+                        </DashboardSection>
+                    </>
+                ) : (
+                    <DashboardSection
+                        className="admin-dashboard-empty-wide"
+                        title="Analítica de usuarios"
+                        description="Las gráficas se mostrarán cuando el backend entregue usuarios para los filtros actuales."
+                    >
+                        <DashboardEmptyState message="No encontramos datos útiles para construir el panel. Revisa permisos, amplía filtros o intenta actualizar la vista." />
+                    </DashboardSection>
+                )}
             </div>
 
             <div className="usuarios-controls">

@@ -1,10 +1,12 @@
-import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Footer from './components/Footer/Footer';
 import Header from './components/Header/Header';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import SidebarLayout from './components/SidebarLayout/SidebarLayout';
+import AppLoadingScreen from './components/AppLoadingScreen/AppLoadingScreen';
+import AppErrorBoundary from './components/ErrorBoundary/AppErrorBoundary';
 import { useAuth } from './hooks/auth/useAuth';
 import BienvenidaInicio from './pages/Inicio/Bienvenida/Bienvenida';
 import { assertApiClientConfig } from './services/api/url';
@@ -17,7 +19,7 @@ const InicioSesion = lazy(() => import('./pages/Autenticacion/InicioSesion/Inici
 const Registro = lazy(() => import('./pages/Autenticacion/Registro/Registro'));
 const BienvenidaAutenticacion = lazy(() => import('./pages/Autenticacion/Bienvenida/Bienvenida'));
 const MfaPage = lazy(() => import('./pages/Autenticacion/MFA/MFA'));
-const RestablecerContraseña = lazy(() => import('./pages/Autenticacion/RestablecerContraseña/RestablecerContraseña'));
+const RestablecerContrasena = lazy(() => import('./pages/Autenticacion/RestablecerContraseña/RestablecerContraseña'));
 const Cuestionario = lazy(() => import('./pages/Plataforma/Cuestionario/Cuestionario'));
 const HistorialPadre = lazy(() => import('./pages/Plataforma/HistorialPadre/HistorialPadre'));
 const MiCuenta = lazy(() => import('./pages/Plataforma/MiCuenta/MiCuenta'));
@@ -62,9 +64,13 @@ function ApiClientConfigBanner() {
 
 function RouteLoadingFallback() {
     return (
-        <div className="route-loading-fallback" aria-live="polite">
-            Cargando...
-        </div>
+        <AppLoadingScreen
+            compact
+            title="Cargando vista"
+            message="Estamos preparando los componentes de esta sección."
+            timedOutMessage="La vista tarda más de lo esperado. Puedes reintentar sin refrescar manualmente."
+            onRetry={() => window.location.reload()}
+        />
     );
 }
 
@@ -80,7 +86,7 @@ function WithChrome({ children }: Readonly<{ children: ReactNode }>) {
 
 export default function App() {
     return (
-        <>
+        <AppErrorBoundary>
             <ApiClientConfigBanner />
             <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
@@ -113,7 +119,7 @@ export default function App() {
                     <Route path="/inicio-sesion" element={<InicioSesion />} />
                     <Route path="/registro" element={<Registro />} />
                     <Route path="/bienvenida" element={<BienvenidaAutenticacion />} />
-                    <Route path="/restablecer-contrasena" element={<RestablecerContraseña />} />
+                    <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
                     <Route path="/mfa" element={<MfaPage />} />
                     <Route path="/cuestionario/compartido/:questionnaireId/:shareCode" element={<CuestionarioCompartido />} />
 
@@ -166,6 +172,6 @@ export default function App() {
                     <DevAuthToggle />
                 </Suspense>
             ) : null}
-        </>
+        </AppErrorBoundary>
     );
 }

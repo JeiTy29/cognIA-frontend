@@ -54,7 +54,22 @@ function resolveLabel(point: QuestionnaireDashboardChartPointDTO, index: number)
 export function normalizeChartSeries(points: QuestionnaireDashboardChartPointDTO[] | null | undefined): DashboardChartDatum[] {
     if (!Array.isArray(points) || points.length === 0) return [];
     return points.map((point, index) => {
-        const value = toNumber(point.value ?? point.count ?? point.total ?? point.sessions);
+        const record = point as QuestionnaireDashboardChartPointDTO & Record<string, unknown>;
+        let value = toNumber(point.value ?? point.count ?? point.total ?? point.sessions ?? record.sessions_with_alert);
+        if (value === 0) {
+            const probability = toNumber(record.max_probability ?? record.latest_probability ?? record.probability);
+            if (probability > 0) value = probability <= 1 ? Math.round(probability * 100) : probability;
+        }
+        if (value === 0 && Array.isArray(record.domains)) {
+            const domainValues = record.domains
+                .map((domain) => {
+                    const domainRecord = domain as Record<string, unknown>;
+                    const probability = toNumber(domainRecord.probability ?? domainRecord.max_probability ?? domainRecord.latest_probability);
+                    return probability <= 1 ? Math.round(probability * 100) : probability;
+                })
+                .filter((entry) => Number.isFinite(entry) && entry > 0);
+            value = domainValues.length > 0 ? Math.max(...domainValues) : 0;
+        }
         const alertCandidate = typeof point.alert_level === 'string' ? point.alert_level : null;
         return {
             id: String(point.key ?? point.label ?? index),
