@@ -1,4 +1,5 @@
 import { apiGet } from '../api/httpClient';
+import { demoAuditLogs, isAdminDevDemoEnabled } from '../../utils/admin/demoAdminData';
 
 const requestOptions = {
     auth: true,
@@ -181,6 +182,18 @@ export function normalizeAuditLogs(payload: unknown) {
 }
 
 export function getAuditLogs(page: number, pageSize: number) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve({
+            items: demoAuditLogs.slice((page - 1) * pageSize, page * pageSize),
+            pagination: {
+                page,
+                page_size: pageSize,
+                total: demoAuditLogs.length,
+                pages: Math.max(1, Math.ceil(demoAuditLogs.length / pageSize))
+            }
+        });
+    }
+
     const search = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize)
@@ -189,6 +202,10 @@ export function getAuditLogs(page: number, pageSize: number) {
 }
 
 export async function getAllAuditLogs() {
+    if (isAdminDevDemoEnabled()) {
+        return demoAuditLogs;
+    }
+
     const pageSize = 100;
     let page = 1;
     let pages = 1;

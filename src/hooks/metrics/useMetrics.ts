@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getEmailHealth, resolveEmailHealthBlockState, type EmailHealthBlockState } from '../../services/admin/emailHealth';
 import { getAdminMetrics } from '../../services/admin/metrics';
 import { ApiError } from '../../services/api/httpClient';
+import { fetchWithTimeout } from '../../services/api/fetchWithTimeout';
 import { joinBackendRootUrl } from '../../services/api/url';
 import {
     getDemoMetricsHistory,
@@ -233,7 +234,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
 
     const fetchHealth = useCallback(async () => {
         try {
-            const response = await fetch(joinBackendRootUrl('/healthz'), { headers: { Accept: 'application/json' } });
+            const response = await fetchWithTimeout(joinBackendRootUrl('/healthz'), { headers: { Accept: 'application/json' } });
             const data = await response.json().catch(() => null);
             if (response.ok && data?.status === 'ok') {
                 setServerState({
@@ -267,7 +268,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
 
     const fetchReady = useCallback(async () => {
         try {
-            const response = await fetch(joinBackendRootUrl('/readyz'), { headers: { Accept: 'application/json' } });
+            const response = await fetchWithTimeout(joinBackendRootUrl('/readyz'), { headers: { Accept: 'application/json' } });
             const { response: res, data } = await safeJson(response);
             if (res.ok && data?.status === 'ready') {
                 setDbState({

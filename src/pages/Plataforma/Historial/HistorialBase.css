@@ -248,6 +248,11 @@
     align-items: center;
 }
 
+.historial-dashboard-inline-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
 .historial-dashboard-list-header h2 {
     margin: 0;
 }
@@ -301,6 +306,37 @@
     padding: 10px 12px;
 }
 
+.historial-dashboard-warning.critical,
+.historial-dashboard-safety {
+    border-color: rgba(132, 42, 92, 0.22);
+    background: linear-gradient(135deg, rgba(132, 42, 92, 0.08), rgba(189, 31, 45, 0.06));
+    color: #5d173c;
+}
+
+.historial-dashboard-critical-summary {
+    border: 1px solid rgba(15, 95, 159, 0.14);
+    border-radius: 20px;
+    padding: 16px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(15, 95, 159, 0.08), transparent 30%),
+        #f8fbff;
+}
+
+.historial-dashboard-signal-pill {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    margin: 6px 8px 0 0;
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: #ffffff;
+    border: 1px solid rgba(132, 42, 92, 0.18);
+    color: #5d173c;
+    font-size: 0.82rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
 .historial-dashboard-helper {
     margin: 0;
     color: #5a6e82;
@@ -315,12 +351,18 @@
 .historial-dashboard-kv-grid div {
     display: grid;
     gap: 4px;
+    min-width: 0;
 }
 
 .historial-dashboard-kv-grid strong {
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.historial-dashboard-kv-grid span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .historial-dashboard-tags {
@@ -384,6 +426,8 @@
     padding: 10px;
     display: grid;
     gap: 10px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .historial-dashboard-actions-grid h4 {
@@ -393,7 +437,19 @@
 .historial-dashboard-share-form {
     display: grid;
     gap: 8px;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.historial-dashboard-actions-grid .historial-dashboard-kv-grid {
+    grid-template-columns: 1fr;
+}
+
+.historial-dashboard-actions-grid .historial-dashboard-share-form {
+    grid-template-columns: 1fr;
+}
+
+.historial-dashboard-actions-grid a {
+    overflow-wrap: anywhere;
 }
 
 .historial-dashboard-share-form input,

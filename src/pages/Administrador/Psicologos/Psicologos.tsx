@@ -164,7 +164,7 @@ export default function Psicologos() {
     const verificationChartItems = useMemo(
         () => [
             { label: 'Verificados', value: dashboardSample.filter((item) => item.colpsic_verified === true).length },
-            { label: 'Sin verificaci?n visible', value: dashboardSample.filter((item) => item.colpsic_verified !== true).length }
+            { label: 'Sin verificación visible', value: dashboardSample.filter((item) => item.colpsic_verified !== true).length }
         ].filter((item) => item.value > 0),
         [dashboardSample]
     );
@@ -320,66 +320,66 @@ export default function Psicologos() {
             ) : null}
             <div className="psicologos-dashboard-grid">
                 <DashboardSection
-                    title="Estado de aprobaci?n"
-                    description="Resume el estado del proceso de validaci?n de psic?logos."
+                    title="Estado de aprobación"
+                    description="Resume el estado del proceso de validación de psicólogos."
                     note={dashboardNote}
                 >
                     <DonutChart
                         data={approvalChartItems}
-                        ariaLabel="Distribuci?n por estado de aprobaci?n"
-                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                        ariaLabel="Distribución por estado de aprobación"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
                 <DashboardSection
-                    title="Registros de psic?logos en el tiempo"
-                    description="Muestra la evoluci?n de registros de psic?logos."
+                    title="Registros de psicólogos en el tiempo"
+                    description="Muestra la evolución de registros de psicólogos."
                     note={dashboardNote}
                 >
                     <AreaChart
                         data={psychologistsByMonth}
-                        ariaLabel="Registros de psic?logos en el tiempo"
-                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                        ariaLabel="Registros de psicólogos en el tiempo"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
                 <DashboardSection
-                    title="Psic?logos por departamento"
+                    title="Psicólogos por departamento"
                     description="Permite observar cobertura territorial de profesionales registrados."
                     note={dashboardNote}
                 >
                     <TreemapChart
                         data={psychologistsByDepartment}
-                        ariaLabel="Distribuci?n territorial de psic?logos"
-                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                        ariaLabel="Distribución territorial de psicólogos"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
                 <DashboardSection
-                    title="Verificaci?n profesional"
-                    description="Resume la proporci?n de psic?logos con verificaci?n profesional registrada."
+                    title="Verificación profesional"
+                    description="Resume la proporción de psicólogos con verificación profesional registrada."
                     note={dashboardNote}
                 >
                     <WaffleChart
                         data={verificationChartItems}
-                        ariaLabel="Proporci?n de psic?logos verificados"
-                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                        ariaLabel="Proporción de psicólogos verificados"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
                 <DashboardSection
-                    title="Solicitudes atendidas por psic?logos"
-                    description="Relaciona la carga de solicitudes con la respuesta de los psic?logos."
+                    title="Solicitudes atendidas por psicólogos"
+                    description="Relaciona la carga de solicitudes con la respuesta de los psicólogos."
                 >
-                    <DashboardEmptyState message="No hay datos agregados suficientes para generar esta gr?fica." />
+                    <DashboardEmptyState message="No hay datos agregados suficientes para generar esta gráfica." />
                 </DashboardSection>
                 <DashboardSection
                     title="Cobertura territorial vs demanda"
-                    description="Permite identificar diferencias entre disponibilidad profesional y demanda de revisi?n."
+                    description="Permite identificar diferencias entre disponibilidad profesional y demanda de revisión."
                     note={dashboardNote}
                 >
                     <HeatmapChart
                         rows={coverageRows}
                         columns={coverageColumns}
                         cells={coverageCells}
-                        ariaLabel="Cobertura territorial seg?n disponibilidad"
-                        emptyMessage="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado."
+                        ariaLabel="Cobertura territorial según disponibilidad"
+                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
             </div>
@@ -483,7 +483,7 @@ export default function Psicologos() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginación de psicólogos">
+            <footer className="admin-pagination" aria-label="Páginación de psicólogos">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>

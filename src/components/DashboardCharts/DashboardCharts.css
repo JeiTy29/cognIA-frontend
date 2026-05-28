@@ -661,21 +661,78 @@
     }
 }
 
-/* Donut visibility guard: Recharts remains the data source; this ring prevents visually empty donuts during first layout pass. */
-.dashboard-chart-donut::before {
-    content: '';
-    position: absolute;
-    inset: 22px;
-    border-radius: 50%;
-    background: conic-gradient(#0f5f9f 0 38%, #2f8f6b 38% 72%, #e67e22 72% 100%);
-    opacity: 0.18;
-    -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%);
-    mask: radial-gradient(circle, transparent 52%, #000 54%);
-    pointer-events: none;
-}
-
 .dashboard-chart-donut .recharts-responsive-container,
 .dashboard-chart-donut-total {
     position: relative;
     z-index: 1;
+}
+
+/* Product validation pass: charts must use real Recharts space, not placeholder rings. */
+.dashboard-chart-section,
+.dashboard-chart-card {
+    border-radius: 18px;
+    padding: 13px 14px;
+    gap: 8px;
+    box-shadow: 0 12px 30px rgba(15, 47, 78, 0.07);
+}
+
+.dashboard-chart-section h3,
+.dashboard-chart-card h3 {
+    font-size: clamp(14px, 1.15vw, 17px);
+}
+
+.dashboard-chart-section p,
+.dashboard-chart-card p,
+.dashboard-chart-section small {
+    font-size: 11px;
+}
+
+.dashboard-chart-canvas {
+    height: 212px;
+    min-height: 212px;
+}
+
+.dashboard-chart-canvas--large {
+    height: 228px;
+    min-height: 228px;
+}
+
+.dashboard-chart-donut-layout {
+    min-height: 208px;
+    grid-template-columns: minmax(150px, 0.8fr) minmax(160px, 1fr);
+}
+
+.dashboard-chart-donut {
+    height: 196px;
+    min-height: 196px;
+}
+
+.dashboard-metric-card,
+.historial-dashboard-kpi-card,
+.seguimiento-summary-card,
+.evaluaciones-summary-grid article,
+.solicitudes-revision__summary article {
+    min-height: 74px;
+    padding: 11px 12px;
+    border-radius: 15px;
+}
+
+.dashboard-metric-card::before,
+.historial-dashboard-kpi-card::before,
+.seguimiento-summary-card::before,
+.evaluaciones-summary-grid article::before,
+.solicitudes-revision__summary article::before {
+    top: 11px;
+    right: 11px;
+    width: 28px;
+    height: 28px;
+    border-radius: 11px;
+}
+
+.dashboard-metric-card strong,
+.historial-dashboard-kpi-card strong,
+.seguimiento-summary-card span,
+.evaluaciones-summary-grid article span,
+.solicitudes-revision__summary article strong {
+    font-size: clamp(20px, 2.2vw, 28px);
 }

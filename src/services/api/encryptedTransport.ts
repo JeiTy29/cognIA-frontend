@@ -1,4 +1,5 @@
 import { assertApiClientConfig, debugApiClient, joinApiUrl } from './url';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 const TRANSPORT_VERSION = 'transport_envelope_v1';
 const TRANSPORT_ALGORITHM = 'AES-256-GCM';
@@ -267,7 +268,7 @@ export async function fetchTransportKey(
     debugApiClient('request GET /api/v2/security/transport-key');
     const dynamicHeaders = requestContext?.getHeaders?.() ?? requestContext?.headers ?? {};
 
-    const response = await fetch(joinApiUrl('/api/v2/security/transport-key'), {
+    const response = await fetchWithTimeout(joinApiUrl('/api/v2/security/transport-key'), {
         method: 'GET',
         headers: {
             Accept: 'application/json',
@@ -391,7 +392,7 @@ async function executeEncryptedJsonFetch<T>(
     debugApiClient(`encrypted request enabled=true cryptoVersion=${envelope.version}`);
     const dynamicHeaders = options.getHeaders?.() ?? options.headers;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
         method: options.method ?? 'POST',
         headers: getEnvelopeHeaders(envelope.version, dynamicHeaders),
         credentials: options.credentials ?? 'include',
