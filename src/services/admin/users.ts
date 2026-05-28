@@ -1,4 +1,5 @@
 import { apiGet, apiPatch, apiPost, apiPostNoBody } from '../api/httpClient';
+import { demoAdminUsers, getDemoUsersResponse, isAdminDevDemoEnabled } from '../../utils/admin/demoAdminData';
 
 export interface User {
     id: string;
@@ -89,6 +90,10 @@ function appendBooleanParam(search: URLSearchParams, key: string, value: boolean
 }
 
 export function getUsers(params: UsersListParams) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve(getDemoUsersResponse(params));
+    }
+
     const search = new URLSearchParams({
         page: String(params.page),
         page_size: String(params.page_size)
@@ -108,6 +113,10 @@ export function getUsers(params: UsersListParams) {
 }
 
 export async function getAllUsers() {
+    if (isAdminDevDemoEnabled()) {
+        return demoAdminUsers;
+    }
+
     const pageSize = 100;
     let page = 1;
     let pages = 1;

@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from '../api/httpClient';
+import { getDemoQuestionnairesResponse, isAdminDevDemoEnabled } from '../../utils/admin/demoAdminData';
 
 const requestOptions = {
     auth: true,
@@ -127,6 +128,10 @@ function appendStringParam(search: URLSearchParams, key: string, value: string |
 }
 
 export function getAdminQuestionnaires(params: ListAdminQuestionnairesParams) {
+    if (isAdminDevDemoEnabled()) {
+        return Promise.resolve(getDemoQuestionnairesResponse(params));
+    }
+
     const search = new URLSearchParams({
         page: String(params.page),
         page_size: String(params.page_size)

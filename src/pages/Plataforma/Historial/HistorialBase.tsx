@@ -31,7 +31,6 @@ import type {
     QuestionnairePdfInfoV2DTO,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
-    QuestionnaireShareResponseDTO,
     QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
@@ -56,6 +55,11 @@ import {
     toHistoryStatusFilter,
     toOptionalFilterText
 } from '../../../utils/questionnaires/dashboardLabels';
+import {
+    normalizeAlertLevel,
+    normalizeBackendText,
+    normalizeDomainLabel
+} from '../../../utils/questionnaires/presentation';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -74,7 +78,7 @@ const statusOptions = [
     { value: 'archived', label: 'Archivado' }
 ];
 const pageSizeOptions = [{ value: '10', label: '10' }, { value: '20', label: '20' }, { value: '50', label: '50' }];
-const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'TDAH' }, { value: 'conduct', label: 'Conducta' }, { value: 'anxiety', label: 'Ansiedad' }, { value: 'depression', label: 'Depresion' }, { value: 'elimination', label: 'Eliminacion' }];
+const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'TDAH' }, { value: 'conduct', label: 'Conducta' }, { value: 'anxiety', label: 'Ansiedad' }, { value: 'depression', label: 'Depresión' }, { value: 'elimination', label: 'Eliminación' }];
 const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revisión prioritaria' }];
 const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revisión' }, { value: 'false', label: 'Sin revisión requerida' }];
 const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6 meses' }, { value: '12', label: '12 meses' }];
@@ -128,7 +132,7 @@ function makeTitle(role: HistorialRole) {
 }
 function makeDescription(role: HistorialRole) {
     return role === 'padre'
-        ? 'Consulta la evolucion de alertas orientativas por caso y dominio.'
+        ? 'Consulta la evolución de alertas orientativas por caso y dominio.'
         : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
 }
 async function loadDetail(sessionId: string) {
@@ -157,7 +161,7 @@ function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
         case_public_id: item.case_public_id,
         case_id: item.case_id
     });
-    return label === 'Caso sin etiqueta' ? getString(item.title, 'Sesion sin caso') : label;
+    return label === 'Caso sin etiqueta' ? getString(item.title, 'Sesión sin caso') : label;
 }
 function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
     if (!summary) return 0;
@@ -166,6 +170,22 @@ function summaryNumber(summary: Record<string, unknown> | null | undefined, keys
         if (Number.isFinite(value)) return value;
     }
     return 0;
+}
+function toTextList(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => normalizeBackendText(item, ''))
+        .filter((item) => item.trim().length > 0);
+}
+function firstDetailText(records: Array<Record<string, unknown> | null | undefined>, keys: string[], fallback = '--') {
+    for (const record of records) {
+        if (!record) continue;
+        for (const key of keys) {
+            const value = normalizeBackendText(record[key], '');
+            if (value) return value;
+        }
+    }
+    return fallback;
 }
 
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
@@ -192,7 +212,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
-    const [sharePayload, setSharePayload] = useState<QuestionnaireShareResponseDTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
@@ -324,7 +343,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailLoading(true);
         setDetailError(null);
         setDetailNotice(null);
-        setSharePayload(null);
         setPdfPayload(null);
         try {
             const detail = await loadDetail(sessionId);
@@ -343,7 +361,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(null);
         setResultsPayload(null);
         setClinicalSummaryPayload(null);
-        setSharePayload(null);
         setPdfPayload(null);
         setShareUrl(null);
         setDetailError(null);
@@ -386,9 +403,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 grantee_user_id: shareGranteeUserId.trim() || undefined
             });
             const nextUrl = payload.shared_url ?? payload.shared_path ?? null;
-            setSharePayload(payload);
             setShareUrl(nextUrl);
-            setDetailNotice(nextUrl ? 'Enlace generado.' : 'Se genero enlace sin URL publica.');
+            setDetailNotice(nextUrl ? 'Enlace generado.' : 'Se generó enlace sin URL pública.');
         } catch (error) {
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible generar enlace.'));
         }
@@ -446,7 +462,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
     const leadingAlert = historyCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
-        ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio mas frecuente es ${leadingDomain}.`
+        ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio más frecuente es ${leadingDomain}.`
         : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revisión y la alerta predominante es ${leadingAlert}.`;
     const filterSummary = filterChips.length > 0
         ? `${filterChips.length} filtros activos`
@@ -496,7 +512,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <div className="historial-dashboard-filters-grid">
                         <label>Estado<CustomSelect value={draftFilters.status ?? ''} options={statusOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, status: toHistoryStatusFilter(value) }))} ariaLabel="Filtrar por estado" /></label>
                         <label>Caso/etiqueta<input type="text" value={draftFilters.case_label ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_label: event.target.value }))} /></label>
-                        <label>Caso publico<input type="text" value={draftFilters.case_public_id ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_public_id: event.target.value }))} /></label>
+                        <label>Caso público<input type="text" value={draftFilters.case_public_id ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, case_public_id: event.target.value }))} /></label>
                         <label>Tag<input type="text" value={draftFilters.tag ?? ''} onChange={(event) => setDraftFilters((prev) => ({ ...prev, tag: event.target.value }))} /></label>
                         <label>Dominio<CustomSelect value={draftFilters.domain ?? ''} options={domainOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, domain: value }))} ariaLabel="Filtrar por dominio" /></label>
                         <label>Alerta<CustomSelect value={draftFilters.alert_level ?? ''} options={alertOptions} onChange={(value) => setDraftFilters((prev) => ({ ...prev, alert_level: value }))} ariaLabel="Filtrar por alerta" /></label>
@@ -592,7 +608,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <div className="historial-dashboard-charts">
                             <DashboardChartCard title="Alertas por dominio" data={psychologistCharts.byDomain} loading={psychologistLoading} />
                             <DashboardChartCard title="Alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} variant="donut" />
-                            <DashboardChartCard title="Revisiónes por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
+                            <DashboardChartCard title="Revisiones por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
                             <DashboardChartCard title="Alertas por fecha" data={psychologistCharts.byDate} loading={psychologistLoading} variant="area" />
                         </div>
                     </section>
@@ -617,9 +633,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         ))}
                     </div>
                     <div className="historial-dashboard-pagination">
-                        <label>Tamano<CustomSelect value={String(history.pageSize)} options={pageSizeOptions} onChange={(value) => history.changePageSize(Number(value))} ariaLabel="Cambiar tamano de pagina" /></label>
+                        <label>Tamaño<CustomSelect value={String(history.pageSize)} options={pageSizeOptions} onChange={(value) => history.changePageSize(Number(value))} ariaLabel="Cambiar tamaño de página" /></label>
                         <button type="button" className="historial-dashboard-btn secondary" onClick={() => history.setPage(Math.max(1, history.page - 1))} disabled={history.page <= 1}>Anterior</button>
-                        <span>Pagina {history.page} de {Math.max(1, history.pages)}</span>
+                        <span>Página {history.page} de {Math.max(1, history.pages)}</span>
                         <button type="button" className="historial-dashboard-btn secondary" onClick={() => history.setPage(Math.min(Math.max(1, history.pages), history.page + 1))} disabled={history.page >= Math.max(1, history.pages)}>Siguiente</button>
                     </div>
                 </section>
@@ -627,12 +643,103 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-dashboard-modal">
-                    <h2>Detalle de sesion</h2>
+                    <h2>Detalle de sesión</h2>
                     {detailLoading ? <div className="historial-dashboard-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-dashboard-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-dashboard-alert success">{detailNotice}</div> : null}
                     {!detailLoading && detailPayload ? (
                         <>
+                            {(() => {
+                                const resultRecord = toRecord(resultsPayload?.result ?? resultsPayload);
+                                const sessionRecord = toRecord(resultsPayload?.session);
+                                const safetyFlags = [
+                                    ...toTextList(detailPayload.safety_flags),
+                                    ...toTextList(resultRecord?.safety_flags)
+                                ];
+                                const safetySignals = [
+                                    ...toTextList(detailPayload.safety_signal_items),
+                                    ...toTextList(resultRecord?.safety_signal_items)
+                                ];
+                                const inconsistencyFlags = [
+                                    ...toTextList(detailPayload.inconsistency_flags),
+                                    ...toTextList(resultRecord?.inconsistency_flags),
+                                    ...toTextList(detailPayload.clinical_consistency_warnings),
+                                    ...toTextList(resultRecord?.clinical_consistency_warnings)
+                                ];
+                                const contextNotes = [
+                                    ...(Array.isArray(detailPayload.developmental_context_notes)
+                                        ? toTextList(detailPayload.developmental_context_notes)
+                                        : [normalizeBackendText(detailPayload.developmental_context_notes, '')].filter(Boolean)),
+                                    ...(Array.isArray(resultRecord?.developmental_context_notes)
+                                        ? toTextList(resultRecord?.developmental_context_notes)
+                                        : [normalizeBackendText(resultRecord?.developmental_context_notes, '')].filter(Boolean))
+                                ];
+                                const scoreLabel = firstDetailText([resultRecord, detailPayload], ['score_label']);
+                                const scoreExplanation = firstDetailText([resultRecord, detailPayload], ['score_explanation'], '');
+                                const completedBy = firstDetailText([detailPayload, sessionRecord], ['completed_by_display_name']);
+                                const completedRole = firstDetailText([detailPayload, sessionRecord], ['completed_by_role']);
+                                const relationship = firstDetailText([detailPayload, sessionRecord], ['respondent_relationship']);
+                                const appliedAt = firstDetailText([detailPayload, sessionRecord], ['applied_at', 'submitted_at', 'processed_at']);
+                                const domainLabel = normalizeDomainLabel(firstDetailText([detailPayload, resultRecord], ['domain_label', 'dominant_domain'], 'General'));
+                                const alertLabel = normalizeAlertLevel(firstDetailText([detailPayload, resultRecord], ['latest_alert_level', 'alert_level'], ''));
+
+                                return (
+                                    <>
+                                        <div className="historial-dashboard-modal-section historial-dashboard-critical-summary">
+                                            <h3>Lectura responsable del resultado</h3>
+                                            <div className="historial-dashboard-kv-grid">
+                                                <div><strong>Dominio principal</strong><span>{domainLabel}</span></div>
+                                                <div><strong>Nivel orientativo</strong><span>{alertLabel}</span></div>
+                                                <div><strong>Escala reportada</strong><span>{scoreLabel}</span></div>
+                                                <div><strong>Aplicación</strong><span>{appliedAt}</span></div>
+                                            </div>
+                                            {scoreExplanation ? (
+                                                <p className="historial-dashboard-helper">{scoreExplanation}</p>
+                                            ) : (
+                                                <p className="historial-dashboard-helper">
+                                                    El porcentaje o puntaje no representa una probabilidad diagnóstica. Debe leerse como una señal orientativa para seguimiento.
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="historial-dashboard-modal-section">
+                                            <h3>Trazabilidad de aplicación</h3>
+                                            <div className="historial-dashboard-kv-grid">
+                                                <div><strong>Completado por</strong><span>{completedBy}</span></div>
+                                                <div><strong>Rol</strong><span>{getRoleLabel(completedRole)}</span></div>
+                                                <div><strong>Relación</strong><span>{relationship}</span></div>
+                                                <div><strong>Procesado</strong><span>{formatDateTimeEsCO(detailPayload.processed_at)}</span></div>
+                                            </div>
+                                        </div>
+
+                                        {(safetyFlags.length > 0 || safetySignals.length > 0 || detailPayload.urgent_referral_recommended) ? (
+                                            <div className="historial-dashboard-modal-section historial-dashboard-safety">
+                                                <h3>Señales de seguridad</h3>
+                                                {detailPayload.urgent_referral_recommended ? (
+                                                    <div className="historial-dashboard-warning critical">
+                                                        Revisión prioritaria sugerida. Esta alerta no es diagnóstico, pero requiere atención profesional responsable.
+                                                    </div>
+                                                ) : null}
+                                                {[...safetyFlags, ...safetySignals].map((item) => (
+                                                    <span className="historial-dashboard-signal-pill" key={item}>{item}</span>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        {inconsistencyFlags.length > 0 || contextNotes.length > 0 ? (
+                                            <div className="historial-dashboard-modal-section">
+                                                <h3>Calidad y contexto</h3>
+                                                {inconsistencyFlags.map((item) => (
+                                                    <div className="historial-dashboard-warning" key={item}>{item}</div>
+                                                ))}
+                                                {contextNotes.map((item) => (
+                                                    <p className="historial-dashboard-helper" key={item}>{item}</p>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </>
+                                );
+                            })()}
                             <div className="historial-dashboard-kv-grid">
                                 <div><strong>Estado</strong><span>{getStatusLabel(detailPayload.status)}</span></div>
                                 <div><strong>Modo</strong><span>{getModeLabel(detailPayload.mode)}</span></div>
@@ -685,7 +792,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="Usuario destinatario autorizado" />
                                         </div>
                                         <button type="button" className="historial-dashboard-btn" onClick={() => generateShare().catch(() => undefined)}>Generar enlace</button>
-                                        {(shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path) ? <a href={shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path ?? undefined} target="_blank" rel="noreferrer">{shareUrl ?? sharePayload?.shared_url ?? sharePayload?.shared_path}</a> : <p className="historial-dashboard-helper">Aún no hay enlace compartido.</p>}
+                                        {shareUrl ? <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a> : <p className="historial-dashboard-helper">Aún no hay enlace compartido.</p>}
                                     </article>
                                     <article>
                                         <h4>PDF</h4>

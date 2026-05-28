@@ -363,7 +363,7 @@ export default function SolicitudesRevisionPsicologo() {
     };
     const topRequestDomain = requestsByDomainChartItems[0]?.label ?? 'Sin dominio dominante';
     const topRequestAlert = requestsByAlertChartItems[0]?.label ?? 'Sin alerta dominante';
-    const requestsInsightCopy = `Hay ${dashboardSummary?.pending_count ?? 0} solicitudes pendientes, ${dashboardSummary?.accepted_count ?? 0} aceptadas y ${dashboardSummary?.rejected_count ?? 0} rechazadas. El dominio mas frecuente es ${topRequestDomain} y la alerta predominante es ${topRequestAlert}.`;
+    const requestsInsightCopy = `Hay ${dashboardSummary?.pending_count ?? 0} solicitudes pendientes, ${dashboardSummary?.accepted_count ?? 0} aceptadas y ${dashboardSummary?.rejected_count ?? 0} rechazadas. El dominio más frecuente es ${topRequestDomain} y la alerta predominante es ${topRequestAlert}.`;
 
     return (
         <div className="plataforma-view">
@@ -380,7 +380,7 @@ export default function SolicitudesRevisionPsicologo() {
 
                 <section className="solicitudes-revision__insight" aria-label="Resumen ejecutivo de solicitudes">
                     <div>
-                        <span>Lectura rapida</span>
+                        <span>Lectura rápida</span>
                         <h2>Solicitudes recibidas para revisión</h2>
                         <p>{requestsInsightCopy}</p>
                     </div>

@@ -69,7 +69,10 @@ import {
     getDemoPsychologistDashboardV2,
     getDemoQuestionnaireCaseDetail,
     getDemoQuestionnaireCasesResponse,
+    getDemoQuestionnaireHistoryDetail,
     getDemoQuestionnaireHistoryResponse,
+    getDemoQuestionnairePdfInfo,
+    getDemoQuestionnaireShareResponse,
     getDemoShareRequests,
     isDevDashboardDemoEnabled
 } from '../../utils/questionnaires/demoDashboardData';
@@ -348,7 +351,10 @@ function normalizeReportPreview(value: unknown): QuestionnaireReportPreviewDTO {
         domains: asArray(record.domains),
         comorbidity: asArray(record.comorbidity),
         answers: asArray(record.answers),
-        professional_reviews: asArray(record.professional_reviews)
+        professional_reviews: asArray(record.professional_reviews),
+        permissions: asRecord(record.permissions),
+        warnings: asArray(record.warnings).map(String),
+        data_quality: asRecord(record.data_quality)
     } as QuestionnaireReportPreviewDTO;
 }
 
@@ -397,6 +403,12 @@ function normalizeSession(payload: unknown): QuestionnaireSessionV2DTO {
         mode_key: firstNonEmptyString([record.mode_key]),
         progress_pct: toNumberOrNull(record.progress_pct),
         version: firstNonEmptyString([record.version]),
+        submitted_at: firstNonEmptyString([record.submitted_at]),
+        applied_at: firstNonEmptyString([record.applied_at]),
+        completed_by_user_id: firstNonEmptyString([record.completed_by_user_id]),
+        completed_by_display_name: firstNonEmptyString([record.completed_by_display_name]),
+        completed_by_role: firstNonEmptyString([record.completed_by_role]),
+        respondent_relationship: firstNonEmptyString([record.respondent_relationship]),
         result,
         domains: normalizeEvaluationDomains(record.domains ?? resultPayload?.domains),
         comorbidity: normalizeEvaluationComorbidity(record.comorbidity ?? resultPayload?.comorbidity),
@@ -831,7 +843,23 @@ function normalizeHistoryItem(value: unknown): QuestionnaireHistoryDetailV2DTO |
         dominant_domain: firstNonEmptyString([record.dominant_domain, record.latest_domain]),
         needs_professional_review: toBooleanOrNull(record.needs_professional_review),
         submitted_at: firstNonEmptyString([record.submitted_at]),
-        processed_at: firstNonEmptyString([record.processed_at])
+        processed_at: firstNonEmptyString([record.processed_at]),
+        applied_at: firstNonEmptyString([record.applied_at]),
+        completed_by_user_id: firstNonEmptyString([record.completed_by_user_id]),
+        completed_by_display_name: firstNonEmptyString([record.completed_by_display_name]),
+        completed_by_role: firstNonEmptyString([record.completed_by_role]),
+        respondent_relationship: firstNonEmptyString([record.respondent_relationship]),
+        safety_flags: asArray(record.safety_flags).map(String),
+        urgent_referral_recommended: toBooleanOrNull(record.urgent_referral_recommended),
+        inconsistency_flags: asArray(record.inconsistency_flags).map(String),
+        score_label: firstNonEmptyString([record.score_label]),
+        score_explanation: firstNonEmptyString([record.score_explanation]),
+        permissions: asRecord(record.permissions),
+        safety_signal_items: asArray(record.safety_signal_items).map(String),
+        clinical_consistency_warnings: asArray(record.clinical_consistency_warnings).map(String),
+        developmental_context_notes: Array.isArray(record.developmental_context_notes)
+            ? asArray(record.developmental_context_notes).map(String)
+            : firstNonEmptyString([record.developmental_context_notes])
     } as QuestionnaireHistoryDetailV2DTO;
 }
 
@@ -1201,7 +1229,19 @@ function normalizeEvaluationResult(value: unknown) {
         operational_recommendation: firstNonEmptyString([record.operational_recommendation]),
         completion_quality_score: toNumberOrNull(record.completion_quality_score),
         missingness_score: toNumberOrNull(record.missingness_score),
-        needs_professional_review: toBooleanOrNull(record.needs_professional_review)
+        needs_professional_review: toBooleanOrNull(record.needs_professional_review),
+        safety_flags: asArray(record.safety_flags).map(String),
+        urgent_referral_recommended: toBooleanOrNull(record.urgent_referral_recommended),
+        safety_signal_items: asArray(record.safety_signal_items).map(String),
+        inconsistency_flags: asArray(record.inconsistency_flags).map(String),
+        clinical_consistency_warnings: asArray(record.clinical_consistency_warnings).map(String),
+        score_type: firstNonEmptyString([record.score_type]),
+        score_label: firstNonEmptyString([record.score_label]),
+        score_explanation: firstNonEmptyString([record.score_explanation]),
+        developmental_context_notes: Array.isArray(record.developmental_context_notes)
+            ? asArray(record.developmental_context_notes).map(String)
+            : firstNonEmptyString([record.developmental_context_notes]),
+        data_quality: asRecord(record.data_quality)
     };
 }
 
@@ -1211,7 +1251,9 @@ function normalizeEvaluationDomains(value: unknown) {
         .filter((item): item is Record<string, unknown> => Boolean(item))
         .map((domain) => ({
             ...domain,
-            domain: firstNonEmptyString([domain.domain]),
+            domain: firstNonEmptyString([domain.domain, domain.domain_code]),
+            domain_code: firstNonEmptyString([domain.domain_code, domain.domain]),
+            domain_label: firstNonEmptyString([domain.domain_label]),
             probability: toNumberOrNull(domain.probability),
             alert_level: firstNonEmptyString([domain.alert_level]),
             confidence_pct: toNumberOrNull(domain.confidence_pct),
@@ -1222,7 +1264,10 @@ function normalizeEvaluationDomains(value: unknown) {
             operational_class: firstNonEmptyString([domain.operational_class]),
             operational_caveat: firstNonEmptyString([domain.operational_caveat]),
             result_summary: firstNonEmptyString([domain.result_summary]),
-            needs_professional_review: toBooleanOrNull(domain.needs_professional_review)
+            needs_professional_review: toBooleanOrNull(domain.needs_professional_review),
+            score_type: firstNonEmptyString([domain.score_type]),
+            score_label: firstNonEmptyString([domain.score_label]),
+            score_explanation: firstNonEmptyString([domain.score_explanation])
         }));
 }
 
@@ -1635,7 +1680,12 @@ export function markQuestionnaireNotificationAsReadV2(notificationId: string) {
 }
 
 export function getQuestionnaireHistoryDetailV2(sessionId: string) {
-    return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}`, requestOptions).then(normalizeHistoryDetail);
+    return apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}`, requestOptions)
+        .then(normalizeHistoryDetail)
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireHistoryDetail(sessionId);
+            throw error;
+        });
 }
 
 export function getQuestionnaireReportPreviewV2(sessionId: string): Promise<QuestionnaireReportPreviewDTO> {
@@ -1701,14 +1751,29 @@ export function addQuestionnaireHistoryTagV2(sessionId: string, payload: AddQues
         `/api/v2/questionnaires/history/${sessionId}/tags`,
         payload,
         requestOptions
-    );
+    ).catch((error) => {
+        if (isDevDashboardDemoEnabled()) {
+            return {
+                tag: {
+                    id: `demo-tag-${Date.now()}`,
+                    label: payload.tag,
+                    color: payload.color,
+                    visibility: payload.visibility
+                }
+            };
+        }
+        throw error;
+    });
 }
 
 export function deleteQuestionnaireHistoryTagV2(sessionId: string, tagId: string) {
     return apiDelete<Record<string, unknown>>(
         `/api/v2/questionnaires/history/${sessionId}/tags/${tagId}`,
         requestOptions
-    );
+    ).catch((error) => {
+        if (isDevDashboardDemoEnabled()) return {};
+        throw error;
+    });
 }
 
 export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQuestionnairePayload) {
@@ -1717,13 +1782,23 @@ export function shareQuestionnaireHistoryV2(sessionId: string, payload?: ShareQu
             `/api/v2/questionnaires/history/${sessionId}/share`,
             payload,
             requestOptions
-        ).then(normalizeShareResponse);
+        )
+            .then(normalizeShareResponse)
+            .catch((error) => {
+                if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireShareResponse(sessionId);
+                throw error;
+            });
     }
 
     return apiPostNoBody<unknown>(
         `/api/v2/questionnaires/history/${sessionId}/share`,
         requestOptions
-    ).then(normalizeShareResponse);
+    )
+        .then(normalizeShareResponse)
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireShareResponse(sessionId);
+            throw error;
+        });
 }
 
 export function searchPsychologistsV2(params?: {
@@ -1777,7 +1852,10 @@ export function generateQuestionnaireHistoryPdfV2(sessionId: string) {
     return apiPostNoBody<Record<string, unknown>>(
         `/api/v2/questionnaires/history/${sessionId}/pdf/generate`,
         requestOptions
-    );
+    ).catch((error) => {
+        if (isDevDashboardDemoEnabled()) return getDemoQuestionnairePdfInfo(sessionId);
+        throw error;
+    });
 }
 
 export function getQuestionnaireHistoryPdfV2(sessionId: string) {
@@ -1788,19 +1866,34 @@ export function getQuestionnaireHistoryPdfV2(sessionId: string) {
         )
         : apiGet<unknown>(`/api/v2/questionnaires/history/${sessionId}/pdf`, requestOptions);
 
-    return request.then(normalizePdfInfo);
+    return request
+        .then(normalizePdfInfo)
+        .catch((error) => {
+            if (isDevDashboardDemoEnabled()) return getDemoQuestionnairePdfInfo(sessionId);
+            throw error;
+        });
 }
 
 export async function downloadQuestionnaireHistoryPdfV2(sessionId: string): Promise<DownloadPdfResult> {
-    const result = await apiGetBlobWithMeta(
-        `/api/v2/questionnaires/history/${sessionId}/pdf/download`,
-        requestOptions
-    );
-    const filename = extractFilenameFromHeaders(result.headers) ?? `cuestionario-${sessionId}.pdf`;
-    return {
-        blob: result.blob,
-        filename
-    };
+    try {
+        const result = await apiGetBlobWithMeta(
+            `/api/v2/questionnaires/history/${sessionId}/pdf/download`,
+            requestOptions
+        );
+        const filename = extractFilenameFromHeaders(result.headers) ?? `cuestionario-${sessionId}.pdf`;
+        return {
+            blob: result.blob,
+            filename
+        };
+    } catch (error) {
+        if (isDevDashboardDemoEnabled()) {
+            return {
+                blob: new Blob(['Reporte demo CognIA'], { type: 'application/pdf' }),
+                filename: `reporte-${sessionId}.pdf`
+            };
+        }
+        throw error;
+    }
 }
 
 export function getSharedQuestionnaireV2(questionnaireId: string, shareCode: string) {

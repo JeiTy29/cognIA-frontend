@@ -105,11 +105,23 @@ export interface QuestionnaireEvaluationResultDTO {
     completion_quality_score?: number | null;
     missingness_score?: number | null;
     needs_professional_review?: boolean | null;
+    safety_flags?: string[] | null;
+    urgent_referral_recommended?: boolean | null;
+    safety_signal_items?: string[] | null;
+    inconsistency_flags?: string[] | null;
+    clinical_consistency_warnings?: string[] | null;
+    score_type?: string | null;
+    score_label?: string | null;
+    score_explanation?: string | null;
+    developmental_context_notes?: string[] | string | null;
+    data_quality?: Record<string, unknown> | null;
     [key: string]: unknown;
 }
 
 export interface QuestionnaireEvaluationDomainDTO {
     domain?: string | null;
+    domain_code?: string | null;
+    domain_label?: string | null;
     probability?: number | null;
     alert_level?: string | null;
     confidence_pct?: number | null;
@@ -121,6 +133,9 @@ export interface QuestionnaireEvaluationDomainDTO {
     operational_caveat?: string | null;
     result_summary?: string | null;
     needs_professional_review?: boolean | null;
+    score_type?: string | null;
+    score_label?: string | null;
+    score_explanation?: string | null;
     [key: string]: unknown;
 }
 
@@ -249,6 +264,12 @@ export interface QuestionnaireSessionV2DTO {
     created_at?: string | null;
     updated_at?: string | null;
     processed_at?: string | null;
+    submitted_at?: string | null;
+    applied_at?: string | null;
+    completed_by_user_id?: string | null;
+    completed_by_display_name?: string | null;
+    completed_by_role?: string | null;
+    respondent_relationship?: string | null;
     answers?: QuestionnaireAnswerV2DTO[] | Record<string, QuestionnaireResponseValue>;
     [key: string]: unknown;
 }
@@ -280,6 +301,16 @@ export interface QuestionnaireHistoryItemV2DTO {
     needs_professional_review?: boolean | null;
     submitted_at?: string | null;
     processed_at?: string | null;
+    applied_at?: string | null;
+    completed_by_user_id?: string | null;
+    completed_by_display_name?: string | null;
+    completed_by_role?: string | null;
+    respondent_relationship?: string | null;
+    safety_flags?: string[] | null;
+    urgent_referral_recommended?: boolean | null;
+    inconsistency_flags?: string[] | null;
+    score_label?: string | null;
+    score_explanation?: string | null;
     status?: QuestionnaireV2Status;
     mode?: QuestionnaireV2Mode;
     role?: QuestionnaireV2Role;
@@ -595,6 +626,10 @@ export interface QuestionnaireHistoryDetailV2DTO extends QuestionnaireHistoryIte
     tags?: QuestionnaireTagDTO[];
     answers?: QuestionnaireAnswerV2DTO[] | Record<string, QuestionnaireResponseValue>;
     metadata?: Record<string, unknown> | null;
+    permissions?: Record<string, boolean> | null;
+    safety_signal_items?: string[] | null;
+    clinical_consistency_warnings?: string[] | null;
+    developmental_context_notes?: string[] | string | null;
     [key: string]: unknown;
 }
 
@@ -917,5 +952,9 @@ export interface QuestionnaireReportPreviewDTO {
     professional_reviews: QuestionnaireProfessionalReviewDTO[];
     pdf?: QuestionnaireReportPreviewPdfDTO | null;
     disclaimer?: string | null;
+    permissions?: Record<string, boolean> | null;
+    empty_state?: Record<string, unknown> | null;
+    warnings?: string[];
+    data_quality?: Record<string, unknown> | null;
     [key: string]: unknown;
 }

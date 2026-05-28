@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+﻿import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import {
     Area,
     AreaChart as ReAreaChart,
@@ -26,10 +26,15 @@ export interface DashboardChartItem {
     label?: string;
     name?: string;
     key?: string;
+    domain?: string;
+    alert_level?: string;
+    date?: string;
+    month?: string;
     value?: number;
     total?: number;
     count?: number;
     sessions?: number;
+    size?: number;
     tone?: string;
     color?: string;
     meta?: string;
@@ -89,6 +94,7 @@ interface CompatChartProps {
     emptyMessage?: string;
     series?: Array<Record<string, unknown>>;
     helper?: ReactNode;
+    type?: 'area' | 'donut' | 'heatmap' | 'line' | 'treemap' | 'bar' | 'histogram' | 'matrix' | 'delta';
     [key: string]: unknown;
 }
 
@@ -107,20 +113,20 @@ const CATEGORY_COLORS = ['#0f5f9f', '#2f8f6b', '#e67e22', '#c0392b', '#7c3aed', 
 const HUMAN_LABELS: Record<string, string> = {
     adhd: 'TDAH',
     anxiety: 'Ansiedad',
-    depression: 'Depresi\u00f3n',
+    depression: 'Depresión',
     conduct: 'Conducta',
-    elimination: 'Eliminaci\u00f3n',
-    inattention: 'Inatenci\u00f3n',
+    elimination: 'Eliminación',
+    inattention: 'Inatención',
     hyperactivity: 'Hiperactividad',
     impulsivity: 'Impulsividad',
-    sadness: 'Estado de \u00e1nimo bajo',
+    sadness: 'Estado de ánimo bajo',
     irritability: 'Irritabilidad',
     aggression: 'Conducta agresiva',
     low: 'Baja',
     moderate: 'Moderada',
     elevated: 'Elevada',
     high: 'Alta',
-    critical_review: 'Revisi\u00f3n prioritaria',
+    critical_review: 'Revisión prioritaria',
     draft: 'Borrador',
     in_progress: 'En progreso',
     submitted: 'Enviado',
@@ -130,8 +136,8 @@ const HUMAN_LABELS: Record<string, string> = {
     pending: 'Pendiente',
     reviewed: 'Revisado',
     closed: 'Cerrado',
-    orientation_recommended: 'Orientaci\u00f3n recomendada',
-    in_review: 'En revisi\u00f3n',
+    orientation_recommended: 'Orientación recomendada',
+    in_review: 'En revisión',
     accepted: 'Aceptada',
     rejected: 'Rechazada'
 };
@@ -143,8 +149,7 @@ function toNumber(value: unknown) {
 
 function cleanLabel(value: unknown, fallback: string) {
     const label = typeof value === 'string' ? value.trim() : '';
-    if (!label) return fallback;
-    return label;
+    return label || fallback;
 }
 
 function looksLikeTechnicalId(value: string) {
@@ -186,22 +191,26 @@ function defaultFormatter(value: number) {
 
 function resolveColor(item: NormalizedChartItem, index: number) {
     if (item.color) return item.color;
-    const tone = getAlertLevelMeta(item.tone ?? item.raw.alert_level as string | null | undefined);
+    const tone = getAlertLevelMeta(item.tone ?? (item.raw.alert_level as string | null | undefined));
     if (tone.tone !== 'unknown') return tone.color;
     return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+}
+
+function firstPresent(...values: unknown[]) {
+    return values.find((value) => value !== undefined && value !== null && value !== '');
 }
 
 function toChartItems(input?: Array<Record<string, unknown>>): NormalizedChartItem[] {
     return (input ?? [])
         .map((item, index) => {
             const label = humanizeLabel(
-                item.label ?? item.name ?? item.key ?? item.domain ?? item.alert_level ?? item.date ?? item.month,
+                firstPresent(item.label, item.name, item.key, item.domain, item.alert_level, item.date, item.month),
                 'Sin etiqueta'
             );
             return {
-                id: String(item.id ?? item.key ?? item.name ?? item.label ?? `chart-${index}`),
+                id: String(firstPresent(item.id, item.key, item.name, item.label, `chart-${index}`)),
                 label,
-                value: toNumber(item.value ?? item.total ?? item.count ?? item.sessions ?? item.size),
+                value: toNumber(firstPresent(item.value, item.total, item.count, item.sessions, item.size)),
                 tone: typeof item.tone === 'string' ? item.tone : typeof item.alert_level === 'string' ? item.alert_level : undefined,
                 color: typeof item.color === 'string' ? item.color : undefined,
                 meta: typeof item.meta === 'string' ? item.meta : undefined,
@@ -221,15 +230,14 @@ function normalizeSeriesData(data: Array<Record<string, unknown>> | undefined) {
         return source.map((item, index) => {
             const values = item.values as Record<string, unknown> | undefined;
             return {
-                label: humanizeLabel(item.label ?? item.date ?? item.month, `Periodo ${index + 1}`),
+                label: humanizeLabel(firstPresent(item.label, item.date, item.month), `Periodo ${index + 1}`),
                 meta: typeof item.meta === 'string' ? item.meta : undefined,
                 ...Object.fromEntries(Object.entries(values ?? {}).map(([key, value]) => [key, toNumber(value)]))
             };
         });
     }
 
-    const normalized = toChartItems(source);
-    return normalized.map((item) => ({
+    return toChartItems(source).map((item) => ({
         label: item.label,
         value: item.value,
         meta: item.meta
@@ -238,13 +246,8 @@ function normalizeSeriesData(data: Array<Record<string, unknown>> | undefined) {
 
 function hasLineValues(data: Array<Record<string, unknown>>, series: Array<{ key: string }>) {
     if (data.length === 0) return false;
-    if (!series?.length) return data.some((item) => toNumber(item.value) !== 0);
-    return data.some((item) =>
-        series.some((serie) => {
-            const key = String(serie.key ?? '');
-            return key.length > 0 && toNumber(item[key]) !== 0;
-        })
-    );
+    if (!series.length) return data.some((item) => toNumber(item.value) !== 0);
+    return data.some((item) => series.some((serie) => serie.key.length > 0 && toNumber(item[serie.key]) !== 0));
 }
 
 function DashboardSkeleton() {
@@ -264,7 +267,7 @@ function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ acti
         <div className="dashboard-chart-tooltip">
             <strong>{label}</strong>
             {payload.map((item) => (
-                <span key={`${item.name}-${item.value}`}>
+                <span key={`${item.name}-${String(item.value)}`}>
                     <i style={{ backgroundColor: item.color }} />
                     {item.name}: {formatter ? formatter(toNumber(item.value)) : defaultFormatter(toNumber(item.value))}
                 </span>
@@ -295,7 +298,7 @@ function SimpleAreaChart({ data, loading, emptyText, formatter }: Readonly<{ dat
                     <XAxis dataKey="label" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={14} />
                     <YAxis tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                    <Area type="monotone" dataKey="value" name="Total" stroke="#0f5f9f" fill="url(#dashboardAreaFill)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive />
+                    <Area type="monotone" dataKey="value" name="Total" stroke="#0f5f9f" fill="url(#dashboardAreaFill)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive={false} />
                 </ReAreaChart>
             </ResponsiveContainer>
         </div>
@@ -361,7 +364,7 @@ function SimpleLineChart({
                             dot={{ r: 3 }}
                             activeDot={{ r: 5 }}
                             connectNulls
-                            isAnimationActive
+                            isAnimationActive={false}
                         />
                     ))}
                 </ReLineChart>
@@ -387,7 +390,7 @@ function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Reado
                     <XAxis type="number" domain={[0, maxValue ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                    <Bar dataKey="value" name="Total" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive>
+                    <Bar dataKey="value" name="Total" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
                         {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
                     </Bar>
@@ -413,7 +416,7 @@ function SimpleDonutChart({ data, loading, emptyText, formatter }: Readonly<{ da
                 <ResponsiveContainer width="100%" height="100%">
                     <RePieChart>
                         <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                        <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2} isAnimationActive>
+                        <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2} isAnimationActive={false}>
                             {chartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                         </Pie>
                     </RePieChart>
@@ -447,14 +450,7 @@ function SimpleTreemapChart({ data, loading, emptyText }: Readonly<{ data: Norma
     return (
         <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
             <ResponsiveContainer width="100%" height="100%">
-                <Treemap
-                    data={chartData}
-                    dataKey="size"
-                    nameKey="name"
-                    stroke="#ffffff"
-                    fill="#0f5f9f"
-                    isAnimationActive
-                />
+                <Treemap data={chartData} dataKey="size" nameKey="name" stroke="#ffffff" fill="#0f5f9f" isAnimationActive={false} />
             </ResponsiveContainer>
         </div>
     );
@@ -463,10 +459,10 @@ function SimpleTreemapChart({ data, loading, emptyText }: Readonly<{ data: Norma
 function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?: string[]; columns?: string[]; cells?: Array<Record<string, unknown>>; loading?: boolean; emptyText: string }>) {
     const safeRows = (rows ?? []).map((row) => humanizeLabel(row));
     const safeColumns = (columns ?? []).map((column) => humanizeLabel(column));
-    const values = cells ?? [];
-    const max = values.reduce((accumulator, item) => Math.max(accumulator, toNumber(item.value)), 0);
+    const safeCells = cells ?? [];
+    const max = safeCells.reduce((accumulator, item) => Math.max(accumulator, toNumber(item.value)), 0);
 
-    if (loading || safeRows.length === 0 || safeColumns.length === 0 || values.length === 0 || max === 0) {
+    if (loading || safeRows.length === 0 || safeColumns.length === 0 || safeCells.length === 0 || max === 0) {
         return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
     }
 
@@ -478,7 +474,7 @@ function Heatmap({ rows, columns, cells, loading, emptyText }: Readonly<{ rows?:
                 <div key={row} className="dashboard-chart-heatmap-row">
                     <div className="dashboard-chart-heatmap-label is-row">{row}</div>
                     {safeColumns.map((column) => {
-                        const cell = values.find((item) => humanizeLabel(item.row) === row && humanizeLabel(item.column) === column);
+                        const cell = safeCells.find((item) => humanizeLabel(item.row) === row && humanizeLabel(item.column) === column);
                         const value = toNumber(cell?.value);
                         const opacity = max > 0 ? 0.18 + (value / max) * 0.72 : 0.1;
                         return (
@@ -562,7 +558,7 @@ function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data:
                     <XAxis type="number" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
-                    <Bar dataKey="value" name="Cambio" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive>
+                    <Bar dataKey="value" name="Cambio" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
                         {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
                     </Bar>
@@ -591,8 +587,8 @@ function CompatChart({
     type
 }: Readonly<CompatChartProps>) {
     const normalizedData = useMemo(() => toChartItems(data ?? items), [data, items]);
-    const title = ariaLabel ?? 'Grafica';
-    const emptyText = emptyMessage ?? 'No hay datos utiles para los filtros seleccionados.';
+    const title = ariaLabel ?? 'Gráfica';
+    const emptyText = emptyMessage ?? 'No hay datos útiles para los filtros seleccionados.';
 
     if (type === 'heatmap') {
         return <Heatmap rows={rows} columns={columns} cells={cells} emptyText={emptyText} />;
@@ -639,7 +635,7 @@ export function DashboardEmptyState({ message = 'No hay datos disponibles.' }: R
 export function DashboardMetricCard({ label, title, value, helper, tone, className }: Readonly<DashboardMetricCardProps>) {
     return (
         <article className={`dashboard-metric-card ${tone ? `is-${tone}` : ''} ${className ?? ''}`.trim()}>
-            <span>{label ?? title ?? 'Metrica'}</span>
+            <span>{label ?? title ?? 'Métrica'}</span>
             <strong>{value ?? '--'}</strong>
             {helper ? <small>{helper}</small> : null}
         </article>
@@ -659,7 +655,7 @@ export function HeatmapChart(props: Readonly<CompatChartProps>) {
 }
 
 export function TimelineChart(props: Readonly<CompatChartProps>) {
-    return <Timeline items={props.items ?? props.data} emptyText={props.emptyMessage ?? 'No hay eventos suficientes para mostrar esta linea temporal.'} />;
+    return <Timeline items={props.items ?? props.data} emptyText={props.emptyMessage ?? 'No hay eventos suficientes para mostrar esta línea temporal.'} />;
 }
 
 export function LineChart(props: Readonly<CompatChartProps>) {
@@ -695,7 +691,7 @@ export function DashboardChartCard({
     description,
     data,
     loading = false,
-    emptyText = 'No hay datos utiles para los filtros seleccionados.',
+    emptyText = 'No hay datos útiles para los filtros seleccionados.',
     variant = 'bars',
     formatter,
     className
