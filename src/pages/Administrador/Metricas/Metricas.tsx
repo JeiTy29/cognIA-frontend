@@ -464,9 +464,9 @@ export function Metricas() {
         <main className="metricas">
             <header className="metricas-header">
                 <div>
-                    <h1>Metricas del sistema</h1>
+                    <h1>Métricas del sistema</h1>
                     <p className="metricas-small">
-                        Estado operativo del backend, latencia, distribucion de solicitudes y disponibilidad de servicios.
+                        Estado operativo del backend, latencia, distribución de solicitudes y disponibilidad de servicios.
                     </p>
                 </div>
                 <div className="metricas-actions">
@@ -506,8 +506,8 @@ export function Metricas() {
 
             {metricsDisabled ? (
                 <section className="metricas-disabled">
-                    <strong>Metricas deshabilitadas</strong>
-                    <span>El sistema no esta exponiendo metricas en este momento.</span>
+                    <strong>Métricas deshabilitadas</strong>
+                    <span>El sistema no esta exponiendo métricas en este momento.</span>
                 </section>
             ) : null}
 
@@ -522,7 +522,7 @@ export function Metricas() {
                         {serverState.message}
                     </strong>
                     <span className="metricas-small">{serverState.detail}</span>
-                    <span className="metricas-micro">Ultima actualizacion: {formatDateTime(lastUpdated)}</span>
+                    <span className="metricas-micro">Última actualización: {formatDateTime(lastUpdated)}</span>
                 </article>
 
                 <article className={`metricas-block ${resolveDatabaseAccentClass(dbState.status)}`}>
@@ -558,13 +558,13 @@ export function Metricas() {
             </section>
 
             {errorMessage ? <div className="metricas-alert">{errorMessage}</div> : null}
-            {isLoading && !snapshot ? <div className="metricas-loading">Cargando metricas...</div> : null}
+            {isLoading && !snapshot ? <div className="metricas-loading">Cargando métricas...</div> : null}
 
             {snapshot ? (
                 <>
                     <section className="metricas-snapshot">
                         <div className="metricas-snapshot-main">
-                            <h2>Snapshot de metricas</h2>
+                            <h2>Snapshot de métricas</h2>
                             <div className="metricas-grid">
                                 <div>
                                     <span className="metricas-label">Tiempo activo</span>
@@ -574,7 +574,7 @@ export function Metricas() {
                                 <div>
                                     <span className="metricas-label">Solicitudes acumuladas</span>
                                     <div className="metricas-value">{formatCompactNumber(snapshot.requests_total)}</div>
-                                    <span className="metricas-small">Trafico acumulado desde el arranque.</span>
+                                    <span className="metricas-small">Tráfico acumulado desde el arranque.</span>
                                     {renderSparkline(requestHistory, 'Historial de solicitudes')}
                                 </div>
                                 <div>
@@ -584,16 +584,16 @@ export function Metricas() {
                                     {renderSparkline(latencyHistory, 'Historial de latencia')}
                                 </div>
                                 <div>
-                                    <span className="metricas-label">Latencia maxima</span>
+                                    <span className="metricas-label">Latencia máxima</span>
                                     <div className="metricas-value">{formatLatencyMs(snapshot.latency_ms_max)}</div>
-                                    <span className="metricas-small">Pico maximo observado en el periodo reportado.</span>
+                                    <span className="metricas-small">Pico máximo observado en el periodo reportado.</span>
                                 </div>
                             </div>
                         </div>
 
                         <aside className="metricas-snapshot-side">
                             <div>
-                                <span className="metricas-label">Distribucion de respuestas</span>
+                                <span className="metricas-label">Distribución de respuestas</span>
                                 <StatusDonut counts={statusCounts} />
                             </div>
                             {renderStatusBreakdown(groupedStatus, totalStatus)}
@@ -612,7 +612,7 @@ export function Metricas() {
                                 data={latencyLineData}
                                 series={[{ key: 'latency', label: 'Latencia', color: '#0f5f9f' }]}
                                 ariaLabel="Latencia en el tiempo"
-                                emptyMessage="No hay datos suficientes para generar esta grafica en el periodo seleccionado."
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                                 minY={0}
                                 maxY={Math.max(50, ...latencyHistory, 0)}
                                 formatter={formatLatencyMs}
@@ -626,7 +626,7 @@ export function Metricas() {
                             <HorizontalBarChart
                                 data={errorBreakdownItems}
                                 ariaLabel="Errores por tipo de respuesta"
-                                emptyMessage="No hay errores registrados en las metricas disponibles."
+                                emptyMessage="No hay errores registrados en las métricas disponibles."
                                 formatter={formatCompactNumber}
                             />
                         </DashboardSection>
@@ -648,7 +648,7 @@ export function Metricas() {
                             <HistogramChart
                                 data={latencyHistogram}
                                 ariaLabel="Distribucion de latencias del sistema"
-                                emptyMessage="No hay datos suficientes para generar esta grafica en el periodo seleccionado."
+                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                                 formatter={formatCompactNumber}
                             />
                         </DashboardSection>
@@ -659,7 +659,7 @@ export function Metricas() {
                             <HorizontalBarChart
                                 data={responseBreakdownItems}
                                 ariaLabel="Distribucion operativa de respuestas"
-                                emptyMessage="No hay respuestas registradas para construir la distribucion."
+                                emptyMessage="No hay respuestas registradas para construir la distribución."
                                 formatter={formatCompactNumber}
                             />
                         </DashboardSection>
@@ -668,7 +668,7 @@ export function Metricas() {
                     <section className="metricas-table" aria-label="Tabla resumen de metricas">
                         <div className="metricas-table-row header">
                             <span />
-                            <span>Metrica</span>
+                            <span>Métrica</span>
                             <span>Valor</span>
                             <span>Observacion</span>
                         </div>
@@ -715,7 +715,7 @@ export function Metricas() {
                 }}
             >
                 <div className="admin-report-modal">
-                    <h2>Configurar reporte de metricas</h2>
+                    <h2>Configurar reporte de métricas</h2>
                     <p>Selecciona el periodo y los bloques complementarios que deseas incluir dentro del PDF.</p>
 
                     <div className="admin-report-grid">
@@ -757,7 +757,7 @@ export function Metricas() {
                             }
                         />
                         <label htmlFor="metrics-report-http">
-                            <strong>Incluir distribucion HTTP</strong>
+                            <strong>Incluir distribución HTTP</strong>
                             <span>Resume las familias 2xx, 3xx, 4xx, 5xx y otros.</span>
                         </label>
                     </div>
@@ -819,5 +819,4 @@ export function Metricas() {
 }
 
 export default Metricas;
-
 

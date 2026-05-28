@@ -178,14 +178,14 @@ function resolveEvaluationAgingDate(item: PsychologistDashboardItemDTO) {
 }
 
 function resolveEvaluationCaseLabel(item: PsychologistDashboardItemDTO | null | undefined) {
-    if (!item) return 'Caso sin codigo publico';
+    if (!item) return 'Caso sin código público';
     const record = item as Record<string, unknown>;
     const displayLabel = normalizeBackendText(record.case_display_label ?? record.display_label ?? record.private_label, '');
     const publicId = normalizeBackendText(item.case_public_id, '');
     if (displayLabel && publicId && displayLabel !== publicId) return `${displayLabel} - ${publicId}`;
     if (displayLabel) return displayLabel;
     if (publicId) return `Caso ${publicId}`;
-    return 'Caso sin codigo publico';
+    return 'Caso sin código público';
 }
 
 export default function EvaluacionesCompartidas() {
@@ -579,7 +579,7 @@ export default function EvaluacionesCompartidas() {
         dateFrom !== defaultDateRange.dateFrom ? dateFrom : '',
         dateTo !== defaultDateRange.dateTo ? dateTo : ''
     ].filter(Boolean).length;
-    const filterSummary = activeFilterCount > 0 ? `${activeFilterCount} filtros activos` : 'Ultimos 3 meses, todos los dominios y alertas';
+    const filterSummary = activeFilterCount > 0 ? `${activeFilterCount} filtros activos` : 'Últimos 3 meses, todos los dominios y alertas';
     const clearFilters = () => {
         setQuery('');
         setCasePublicId('');
@@ -960,7 +960,7 @@ export default function EvaluacionesCompartidas() {
                                             <div key={answer.key} className="evaluaciones-answer-row">
                                                 <strong>{answer.questionText}</strong>
                                                 <span>{answer.answerLabel}</span>
-                                                <small>{answer.domainLabel} ? {answer.sectionLabel}</small>
+                                                <small>{answer.domainLabel} · {answer.sectionLabel}</small>
                                             </div>
                                         ))}
                                     </div>
@@ -979,10 +979,10 @@ export default function EvaluacionesCompartidas() {
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
                                                 <small>
-                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} ? Estado de revisión: {normalizeReviewStatus(review.review_status)}
+                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} · Estado de revisión: {normalizeReviewStatus(review.review_status)}
                                                 </small>
                                                 <small>
-                                                    Actualizada: {formatDateTime(review.updated_at)} ? {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
+                                                    Actualizada: {formatDateTime(review.updated_at)} · {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
                                                 </small>
                                             </article>
                                         ))}
@@ -1111,7 +1111,7 @@ export default function EvaluacionesCompartidas() {
                     <div className="evaluaciones-report-toggles">
                         <label className="evaluaciones-checkbox">
                             <input type="checkbox" checked={reportIncludeAggregates} onChange={(event) => setReportIncludeAggregates(event.target.checked)} />
-                            <span>Incluir agregados y distribuciones</span>
+                            <span>Incluir agregados y distribuciónes</span>
                         </label>
                         <label className="evaluaciones-checkbox">
                             <input type="checkbox" checked={reportIncludeEvaluations} onChange={(event) => setReportIncludeEvaluations(event.target.checked)} />

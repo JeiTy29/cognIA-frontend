@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+﻿import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     DashboardEmptyState,
@@ -74,7 +74,7 @@ const QUESTION_CODE_PREFIX: Record<QuestionnaireQuestionResponseType, string> = 
 
 const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTypeConfig> = {
     likert_0_4: {
-        label: 'Likert 0–4',
+        label: 'Likert 0-4',
         helper: 'Escala Likert de 0 a 4. Útil para medir frecuencia, acuerdo o intensidad en valores ordenados.',
         exampleQuestion: '¿Con qué frecuencia mantiene la atención durante una actividad?',
         exampleHint: '0 = Nunca, 4 = Siempre',
@@ -89,7 +89,7 @@ const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTy
         ]
     },
     likert_1_5: {
-        label: 'Likert 1–5',
+        label: 'Likert 1-5',
         helper: 'Escala Likert de 1 a 5. Útil para medir acuerdo o frecuencia de menor a mayor.',
         exampleQuestion: '¿Qué tan de acuerdo estás con la afirmación?',
         exampleHint: '1 = Muy en desacuerdo, 5 = Muy de acuerdo',
@@ -112,7 +112,7 @@ const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTy
         fixedResponses: [{ value: 'Sí' }, { value: 'No' }]
     },
     frequency_0_3: {
-        label: 'Frecuencia 0–3',
+        label: 'Frecuencia 0-3',
         helper: 'Frecuencia de 0 a 3. Ejemplo: 0 = Nunca, 3 = Muy frecuente.',
         exampleQuestion: '¿Con qué frecuencia ocurre esta conducta?',
         exampleHint: '0 = Nunca, 3 = Muy frecuente',
@@ -125,7 +125,7 @@ const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTy
         ]
     },
     intensity_0_10: {
-        label: 'Intensidad 0–10',
+        label: 'Intensidad 0-10',
         helper: 'Intensidad de 0 a 10.',
         exampleQuestion: '¿Qué tan intensa fue la conducta observada?',
         exampleHint: '0 = Nada intenso, 10 = Muy intenso',
@@ -158,11 +158,11 @@ const QUESTION_TYPE_CONFIG: Record<QuestionnaireQuestionResponseType, QuestionTy
 };
 
 const RESPONSE_TYPE_OPTIONS = [
-    { value: 'likert_0_4', label: 'Likert 0–4' },
-    { value: 'likert_1_5', label: 'Likert 1–5' },
+    { value: 'likert_0_4', label: 'Likert 0-4' },
+    { value: 'likert_1_5', label: 'Likert 1-5' },
     { value: 'boolean', label: 'Sí / No' },
-    { value: 'frequency_0_3', label: 'Frecuencia 0–3' },
-    { value: 'intensity_0_10', label: 'Intensidad 0–10' },
+    { value: 'frequency_0_3', label: 'Frecuencia 0-3' },
+    { value: 'intensity_0_10', label: 'Intensidad 0-10' },
     { value: 'count', label: 'Conteo' },
     { value: 'ordinal', label: 'Opciones ordenadas' },
     { value: 'text_context', label: 'Texto contextual' }
@@ -434,7 +434,7 @@ function buildDraftStorageKey(templateId: string) {
 function getDraftResponseSummary(draft: QuestionDraft) {
     if (draft.response_options && draft.response_options.length > 0) {
         return draft.response_options
-            .map((option) => `${option.value} — ${option.label}`)
+            .map((option) => `${option.value} - ${option.label}`)
             .join(' · ');
     }
 
@@ -767,7 +767,7 @@ export default function PreguntasCuestionario() {
                 </DashboardSection>
                 <DashboardSection
                     title="Cobertura por tipo"
-                    description="Permite revisar si el borrador est? balanceado entre formatos de respuesta."
+                    description="Permite revisar si el borrador está balanceado entre formatos de respuesta."
                     note="Resumen calculado sobre las preguntas cargadas en borrador."
                 >
                     <HorizontalBarChart data={draftQuestionsByTypeBars} ariaLabel="Cobertura por tipo de respuesta" formatter={(value) => String(value)} maxValue={Math.max(1, draftQuestions.length)} />
@@ -782,7 +782,7 @@ export default function PreguntasCuestionario() {
                     title="Preguntas por dominio"
                     description="Requiere un endpoint de consulta de preguntas persistidas con dominio asociado."
                 >
-                    <DashboardEmptyState message="No hay datos suficientes para generar esta gr?fica en el periodo seleccionado." />
+                    <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
                 </DashboardSection>
             </div>
 
@@ -875,7 +875,7 @@ export default function PreguntasCuestionario() {
                             <div className="preguntas-preview-list">
                                 {currentTypeConfig.fixedResponses.map((item) => (
                                     <span key={`${item.value}-${item.label ?? 'value'}`} className="preguntas-preview-chip">
-                                        {item.label ? `${item.value} — ${item.label}` : item.value}
+                                        {item.label ? `${item.value} - ${item.label}` : item.value}
                                     </span>
                                 ))}
                             </div>
@@ -904,7 +904,7 @@ export default function PreguntasCuestionario() {
                                     <div className="preguntas-preview-list">
                                         {parsedOrdinalPreview.map((option) => (
                                             <span key={`${option.value}-${option.label}`} className="preguntas-preview-chip">
-                                                {option.value} — {option.label}
+                                                {option.value} - {option.label}
                                             </span>
                                         ))}
                                     </div>
@@ -1021,7 +1021,7 @@ export default function PreguntasCuestionario() {
                                         <div className="preguntas-item-options">
                                             {question.response_options.map((option) => (
                                                 <span key={`${option.value}-${option.label}`}>
-                                                    {option.value} — {option.label}
+                                                    {option.value} - {option.label}
                                                 </span>
                                             ))}
                                         </div>

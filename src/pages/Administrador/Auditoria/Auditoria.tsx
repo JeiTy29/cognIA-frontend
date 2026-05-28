@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
 import {
     AreaChart,
+    DashboardEmptyState,
     DashboardSection,
     DonutChart,
     HeatmapChart,
@@ -198,6 +199,32 @@ const detailFieldLabels: Record<string, string> = {
     source_module: 'Módulo de origen',
     source_path: 'Pantalla o ruta de origen'
 };
+
+const auditSectionLabels: Record<string, string> = {
+    users: 'Usuarios',
+    user: 'Usuarios',
+    psychologists: 'Psicólogos',
+    psychologist: 'Psicólogos',
+    questionnaires: 'Cuestionarios',
+    questionnaire: 'Cuestionarios',
+    reports: 'Reportes',
+    report: 'Reportes',
+    problem_reports: 'Reportes de problema',
+    psychologist_dashboard: 'Panel de psicología',
+    auth: 'Autenticación',
+    security: 'Seguridad',
+    metrics: 'Métricas',
+    system: 'Sistema',
+    general: 'General'
+};
+
+function humanizeAuditSection(value?: string | null) {
+    const normalized = normalizeMojibakeText(value ?? '').trim();
+    if (!normalized) return 'General';
+    const key = normalized.toLowerCase().replaceAll(/[\s-]+/g, '_');
+    if (auditSectionLabels[key]) return auditSectionLabels[key];
+    return humanizeTechnicalKey(normalized);
+}
 
 function formatDateTime(value: string | null) {
     return formatDateTimeEsCO(value);
@@ -452,7 +479,7 @@ export default function Auditoria() {
                                 : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
                                     ? item.raw.source_module
                                     : 'General';
-                        return normalizeMojibakeText(section);
+                        return humanizeAuditSection(section);
                     })
                 )
             ),
@@ -472,7 +499,7 @@ export default function Auditoria() {
                             : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
                                 ? item.raw.source_module
                                 : 'General';
-                    return normalizeMojibakeText(section);
+                    return humanizeAuditSection(section);
                 },
                 (item) => {
                     const action = item.action.toUpperCase();
@@ -494,6 +521,7 @@ export default function Auditoria() {
             ),
         [auditRiskColumns, auditRiskRows, filteredRows]
     );
+    const hasAuditDashboardData = filteredRows.length > 0;
 
     const handleDownloadReport = async () => {
         if (reportForm.scope === 'all' && !reportForm.confirmedFullReport) {
@@ -594,47 +622,59 @@ export default function Auditoria() {
             {reportError ? <div className="admin-alert error">{reportError}</div> : null}
 
             <div className="admin-dashboard-grid">
-                <DashboardSection
-                    title="Acciones por tipo"
-                    description="Identifica los tipos de acciones más frecuentes en auditoría."
-                >
-                    <TreemapChart data={auditActionsChart} ariaLabel="Acciones por tipo" />
-                </DashboardSection>
-                <DashboardSection
-                    title="Eventos por rol"
-                    description="Distribuye la actividad registrada según el rol origen."
-                >
-                    <DonutChart data={auditRoleChart} ariaLabel="Eventos por rol" />
-                </DashboardSection>
-                <DashboardSection
-                    title="Actividad por fecha"
-                    description="Permite ubicar días con mayor actividad o eventos atípicos."
-                >
-                    <AreaChart data={auditActivityByDay} ariaLabel="Actividad por fecha" />
-                </DashboardSection>
-                <DashboardSection
-                    title="Resultado de acciones"
-                    description="Resume el resultado operativo de los eventos registrados."
-                >
-                    <DonutChart data={auditResultChart} ariaLabel="Resultado de acciones" />
-                </DashboardSection>
-                <DashboardSection
-                    title="Eventos sensibles"
-                    description="Destaca eventos que requieren mayor atención administrativa."
-                >
-                    <TimelineChart items={auditSensitiveTimeline} ariaLabel="Eventos sensibles" />
-                </DashboardSection>
-                <DashboardSection
-                    title="Riesgo por módulo"
-                    description="Permite identificar módulos con mayor concentración de eventos problemáticos."
-                >
-                    <HeatmapChart
-                        rows={auditRiskRows}
-                        columns={auditRiskColumns}
-                        cells={auditRiskCells}
-                        ariaLabel="Riesgo por módulo"
-                    />
-                </DashboardSection>
+                {hasAuditDashboardData ? (
+                    <>
+                        <DashboardSection
+                            title="Acciones por tipo"
+                            description="Identifica los tipos de acciones más frecuentes en auditoría."
+                        >
+                            <TreemapChart data={auditActionsChart} ariaLabel="Acciones por tipo" />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Eventos por rol"
+                            description="Distribuye la actividad registrada según el rol origen."
+                        >
+                            <DonutChart data={auditRoleChart} ariaLabel="Eventos por rol" />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Actividad por fecha"
+                            description="Permite ubicar días con mayor actividad o eventos atípicos."
+                        >
+                            <AreaChart data={auditActivityByDay} ariaLabel="Actividad por fecha" />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Resultado de acciones"
+                            description="Resume el resultado operativo de los eventos registrados."
+                        >
+                            <DonutChart data={auditResultChart} ariaLabel="Resultado de acciones" />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Eventos sensibles"
+                            description="Destaca eventos que requieren mayor atención administrativa."
+                        >
+                            <TimelineChart items={auditSensitiveTimeline} ariaLabel="Eventos sensibles" />
+                        </DashboardSection>
+                        <DashboardSection
+                            title="Riesgo por módulo"
+                            description="Permite identificar módulos con mayor concentración de eventos problemáticos."
+                        >
+                            <HeatmapChart
+                                rows={auditRiskRows}
+                                columns={auditRiskColumns}
+                                cells={auditRiskCells}
+                                ariaLabel="Riesgo por módulo"
+                            />
+                        </DashboardSection>
+                    </>
+                ) : (
+                    <DashboardSection
+                        className="admin-dashboard-empty-wide"
+                        title="Analítica de auditoría"
+                        description="Las gráficas de acciones, roles, resultados y riesgo aparecerán cuando existan eventos para el filtro actual."
+                    >
+                        <DashboardEmptyState message="No encontramos eventos suficientes para construir el panel. Ajusta filtros o revisa permisos de auditoría." />
+                    </DashboardSection>
+                )}
             </div>
 
             <section className="admin-controls" aria-label="Controles de auditoría">
@@ -990,7 +1030,7 @@ export default function Auditoria() {
                                 {selectedItem.section ? (
                                     <div className="admin-detail-row">
                                         <strong>Sección</strong>
-                                        <span>{normalizeMojibakeText(selectedItem.section)}</span>
+                                        <span>{humanizeAuditSection(selectedItem.section)}</span>
                                     </div>
                                 ) : null}
                             </div>
