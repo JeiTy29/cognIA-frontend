@@ -61,7 +61,7 @@ function mapErrorMessage(status: number, action: 'list' | 'status', businessCode
     if (status === 404) {
         return action === 'list'
             ? 'No se encontraron evaluaciones.'
-            : 'No se encontro la evaluacion seleccionada.';
+            : 'No se encontró la evaluación seleccionada.';
     }
     if (status === 409) return 'No fue posible completar la accion por conflicto de estado.';
     if (status >= 500) return 'Error del servidor. Intenta mas tarde.';

@@ -185,6 +185,28 @@ function formatCompact(value: number) {
     return new Intl.NumberFormat('es-CO', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+function compactChartLabel(label: string, maxLength = 24) {
+    const normalized = label.trim();
+    if (normalized.length <= maxLength) return normalized;
+    return `${normalized.slice(0, Math.max(8, maxLength - 1)).trim()}…`;
+}
+
+function limitRankedItems(data: NormalizedChartItem[], limit = 6) {
+    const useful = data.filter((item) => Number.isFinite(item.value) && item.value !== 0);
+    const top = useful.slice(0, limit);
+    const rest = useful.slice(limit);
+    if (rest.length === 0) return top;
+    return [
+        ...top,
+        {
+            id: 'chart-rest',
+            label: `+${rest.length} más`,
+            value: rest.reduce((total, item) => total + item.value, 0),
+            raw: {}
+        }
+    ];
+}
+
 function defaultFormatter(value: number) {
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(value);
 }
@@ -374,8 +396,9 @@ function SimpleLineChart({
 }
 
 function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number }>) {
-    const chartData = data.slice(0, 10).map((item, index) => ({
-        label: item.label,
+    const chartData = limitRankedItems(data, 6).map((item, index) => ({
+        label: compactChartLabel(item.label),
+        fullLabel: item.label,
         value: item.value,
         color: resolveColor(item, index)
     }));
@@ -388,11 +411,11 @@ function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Reado
                 <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 42, bottom: 4, left: 12 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
                     <XAxis type="number" domain={[0, maxValue ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={172} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
                     <Bar dataKey="value" name="Total" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
-                        {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
+                        {chartData.map((entry, index) => <Cell key={`${entry.label}-${index}`} fill={entry.color} />)}
                     </Bar>
                 </ReBarChart>
             </ResponsiveContainer>
@@ -417,7 +440,7 @@ function SimpleDonutChart({ data, loading, emptyText, formatter }: Readonly<{ da
                     <RePieChart>
                         <Tooltip content={<DashboardTooltip formatter={formatter} />} />
                         <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2} isAnimationActive={false}>
-                            {chartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                            {chartData.map((entry, index) => <Cell key={`${entry.name}-${index}`} fill={entry.color} />)}
                         </Pie>
                     </RePieChart>
                 </ResponsiveContainer>
@@ -427,8 +450,8 @@ function SimpleDonutChart({ data, loading, emptyText, formatter }: Readonly<{ da
                 </div>
             </div>
             <div className="dashboard-chart-legend">
-                {chartData.map((item) => (
-                    <span key={item.name}>
+                {chartData.map((item, index) => (
+                    <span key={`${item.name}-${index}`}>
                         <i style={{ backgroundColor: item.color }} />
                         {item.name} <strong>{formatter ? formatter(item.value) : defaultFormatter(item.value)}</strong>
                     </span>
@@ -560,7 +583,7 @@ function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data:
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
                     <Bar dataKey="value" name="Cambio" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
-                        {chartData.map((entry) => <Cell key={entry.label} fill={entry.color} />)}
+                        {chartData.map((entry, index) => <Cell key={`${entry.label}-${index}`} fill={entry.color} />)}
                     </Bar>
                 </ReBarChart>
             </ResponsiveContainer>

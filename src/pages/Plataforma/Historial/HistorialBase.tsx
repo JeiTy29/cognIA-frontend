@@ -18,7 +18,9 @@ import {
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryPdfV2,
     getQuestionnaireHistoryResultsV2,
-    shareQuestionnaireHistoryV2
+    getQuestionnaireProfessionalReviewsV2,
+    searchPsychologistsV2,
+    shareQuestionnaireWithPsychologistV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     QuestionnaireCaseDetailV2Response,
@@ -29,6 +31,8 @@ import type {
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
     QuestionnairePdfInfoV2DTO,
+    QuestionnaireProfessionalReviewDTO,
+    PsychologistSearchItemDTO,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
     QuestionnaireTagDTO,
@@ -58,7 +62,9 @@ import {
 import {
     normalizeAlertLevel,
     normalizeBackendText,
-    normalizeDomainLabel
+    normalizeDomainLabel,
+    normalizeRequestStatus,
+    normalizeReviewStatus
 } from '../../../utils/questionnaires/presentation';
 import './HistorialBase.css';
 
@@ -128,21 +134,26 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
     return normalized === 'submitted' || normalized === 'processed';
 }
 function makeTitle(role: HistorialRole) {
-    return role === 'padre' ? 'Seguimiento por casos' : 'Evaluaciones recibidas e historial';
+    return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
 }
 function makeDescription(role: HistorialRole) {
     return role === 'padre'
-        ? 'Consulta la evolución de alertas orientativas por caso y dominio.'
+        ? 'Consulta cuestionarios aplicados, resultados orientativos y evolución por caso.'
         : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
 }
 async function loadDetail(sessionId: string) {
     const detail = await getQuestionnaireHistoryDetailV2(sessionId);
-    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null };
-    const [results, summary] = await Promise.allSettled([getQuestionnaireHistoryResultsV2(sessionId), getQuestionnaireClinicalSummaryV2(sessionId)]);
+    const reviews = await getQuestionnaireProfessionalReviewsV2(sessionId).catch(() => []);
+    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null, reviews };
+    const [results, summary] = await Promise.allSettled([
+        getQuestionnaireHistoryResultsV2(sessionId),
+        getQuestionnaireClinicalSummaryV2(sessionId)
+    ]);
     return {
         detail,
         results: results.status === 'fulfilled' ? results.value : null,
-        summary: summary.status === 'fulfilled' ? summary.value : null
+        summary: summary.status === 'fulfilled' ? summary.value : null,
+        reviews
     };
 }
 function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
@@ -161,7 +172,7 @@ function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
         case_public_id: item.case_public_id,
         case_id: item.case_id
     });
-    return label === 'Caso sin etiqueta' ? getString(item.title, 'Sesión sin caso') : label;
+    return label === 'Caso sin etiqueta' ? getString(item.title, 'Cuestionario sin caso') : label;
 }
 function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
     if (!summary) return 0;
@@ -211,18 +222,22 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
+    const [professionalReviews, setProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
+    const [pdfWorking, setPdfWorking] = useState(false);
 
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
-    const [shareExpiresHours, setShareExpiresHours] = useState('24');
-    const [shareMaxUses, setShareMaxUses] = useState('');
-    const [shareGranteeUserId, setShareGranteeUserId] = useState('');
-    const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [psychologistQuery, setPsychologistQuery] = useState('');
+    const [psychologistResults, setPsychologistResults] = useState<PsychologistSearchItemDTO[]>([]);
+    const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
+    const [psychologistSearchLoading, setPsychologistSearchLoading] = useState(false);
+    const [shareWorking, setShareWorking] = useState(false);
+    const [shareStatus, setShareStatus] = useState<string | null>(null);
 
     const hasActiveFilters = useHistoryHasActiveFilters(history.filters);
     const filterChips = useMemo(() => buildActiveFilterChips(history.filters), [history.filters]);
@@ -243,37 +258,38 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         const loadGuardian = async () => {
             setGuardianLoading(true);
             setGuardianError(null);
-            try {
-                const [dashboard, cases] = await Promise.all([
-                    getGuardianDashboardV2({
-                        months: Number(period),
-                        case_label: history.filters.case_label,
-                        case_public_id: history.filters.case_public_id,
-                        q: history.filters.q,
-                        domain: history.filters.domain,
-                        alert_level: history.filters.alert_level,
-                        date_from: history.filters.date_from,
-                        date_to: history.filters.date_to
-                    }),
-                    getQuestionnaireCasesV2({
-                        status: history.filters.status,
-                        q: history.filters.q,
-                        label: history.filters.case_label,
-                        case_public_id: history.filters.case_public_id,
-                        latest_alert_level: history.filters.alert_level,
-                        date_from: history.filters.date_from,
-                        date_to: history.filters.date_to,
-                        page: 1,
-                        page_size: 12
-                    })
-                ]);
-                setGuardianDashboard(dashboard);
-                setGuardianCases(cases.items);
-            } catch (error) {
-                setGuardianError(mapApiErrorToUserMessage(error, 'No fue posible cargar el dashboard de seguimiento.'));
-            } finally {
-                setGuardianLoading(false);
-            }
+            const dashboardPromise = getGuardianDashboardV2({
+                months: Number(period),
+                case_label: history.filters.case_label,
+                case_public_id: history.filters.case_public_id,
+                q: history.filters.q,
+                domain: history.filters.domain,
+                alert_level: history.filters.alert_level,
+                date_from: history.filters.date_from,
+                date_to: history.filters.date_to
+            })
+                .then((dashboard) => setGuardianDashboard(dashboard))
+                .catch(() => setGuardianDashboard(null));
+
+            const casesPromise = getQuestionnaireCasesV2({
+                status: history.filters.status,
+                q: history.filters.q,
+                label: history.filters.case_label,
+                case_public_id: history.filters.case_public_id,
+                latest_alert_level: history.filters.alert_level,
+                date_from: history.filters.date_from,
+                date_to: history.filters.date_to,
+                page: 1,
+                page_size: 12
+            })
+                .then((cases) => setGuardianCases(cases.items))
+                .catch((error) => {
+                    setGuardianCases([]);
+                    setGuardianError(mapApiErrorToUserMessage(error, 'No fue posible cargar los casos relacionados.'));
+                });
+
+            await Promise.allSettled([dashboardPromise, casesPromise]);
+            setGuardianLoading(false);
         };
         loadGuardian().catch(() => undefined);
     }, [history.filters.alert_level, history.filters.case_label, history.filters.case_public_id, history.filters.date_from, history.filters.date_to, history.filters.domain, history.filters.q, history.filters.status, period, role]);
@@ -349,6 +365,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailPayload(detail.detail);
             setResultsPayload(detail.results);
             setClinicalSummaryPayload(detail.summary);
+            setProfessionalReviews(detail.reviews);
+            if (role === 'padre') {
+                searchPsychologists(true).catch(() => undefined);
+            }
         } catch (error) {
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible cargar el detalle.'));
         } finally {
@@ -361,14 +381,15 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailPayload(null);
         setResultsPayload(null);
         setClinicalSummaryPayload(null);
+        setProfessionalReviews([]);
         setPdfPayload(null);
-        setShareUrl(null);
         setDetailError(null);
         setDetailNotice(null);
         setNewTag('');
-        setShareExpiresHours('24');
-        setShareMaxUses('');
-        setShareGranteeUserId('');
+        setPsychologistQuery('');
+        setPsychologistResults([]);
+        setSelectedPsychologistId('');
+        setShareStatus(null);
     };
 
     const addTag = async () => {
@@ -394,41 +415,62 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible eliminar etiqueta.'));
         }
     };
-    const generateShare = async () => {
-        if (!detailSessionId) return;
+    const searchPsychologists = async (sameLocation = false) => {
+        setPsychologistSearchLoading(true);
+        setDetailError(null);
         try {
-            const payload = await shareQuestionnaireHistoryV2(detailSessionId, {
-                expires_in_hours: Number(shareExpiresHours) > 0 ? Number(shareExpiresHours) : undefined,
-                max_uses: Number(shareMaxUses) > 0 ? Number(shareMaxUses) : undefined,
-                grantee_user_id: shareGranteeUserId.trim() || undefined
+            const response = await searchPsychologistsV2({
+                q: sameLocation ? undefined : toOptionalFilterText(psychologistQuery),
+                same_location: sameLocation || undefined,
+                page: 1,
+                page_size: 8
             });
-            const nextUrl = payload.shared_url ?? payload.shared_path ?? null;
-            setShareUrl(nextUrl);
-            setDetailNotice(nextUrl ? 'Enlace generado.' : 'Se generó enlace sin URL pública.');
+            setPsychologistResults(response.items);
+            if (response.items.length === 1) setSelectedPsychologistId(response.items[0].user_id);
         } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible generar enlace.'));
+            setPsychologistResults([]);
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible buscar psicólogos.'));
+        } finally {
+            setPsychologistSearchLoading(false);
         }
     };
-    const generatePdf = async () => {
+    const sendToPsychologist = async () => {
         if (!detailSessionId) return;
+        if (!selectedPsychologistId) {
+            setDetailError('Selecciona un psicólogo para enviar la solicitud.');
+            return;
+        }
+        setShareWorking(true);
+        setDetailError(null);
         try {
-            await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId));
+            const payload = await shareQuestionnaireWithPsychologistV2(detailSessionId, {
+                grantee_user_id: selectedPsychologistId,
+                grant_can_download_pdf: true,
+                grant_can_tag: false,
+                share_scope: 'session'
+            });
+            const requestStatus = payload.grant?.request_status ?? 'pending';
+            setShareStatus(requestStatus);
+            setDetailNotice(`Solicitud enviada. Estado: ${normalizeRequestStatus(requestStatus)}.`);
+            setProfessionalReviews(await getQuestionnaireProfessionalReviewsV2(detailSessionId).catch(() => []));
         } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible generar PDF.'));
+            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible enviar la solicitud al psicólogo.'));
+        } finally {
+            setShareWorking(false);
         }
     };
-    const fetchPdf = async () => {
+    const downloadPdf = async (regenerate = false) => {
         if (!detailSessionId) return;
+        setPdfWorking(true);
+        setDetailError(null);
         try {
-            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId));
-        } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible consultar PDF.'));
-        }
-    };
-    const downloadPdf = async () => {
-        if (!detailSessionId) return;
-        try {
+            if (regenerate) {
+                await generateQuestionnaireHistoryPdfV2(detailSessionId);
+            }
+            if (!regenerate && !isPdfReady) {
+                await generateQuestionnaireHistoryPdfV2(detailSessionId);
+            }
+            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId).catch(() => pdfPayload));
             const file = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
             const href = URL.createObjectURL(file.blob);
             const anchor = document.createElement('a');
@@ -436,8 +478,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             anchor.download = file.filename;
             anchor.click();
             URL.revokeObjectURL(href);
+            setDetailNotice('PDF descargado correctamente.');
         } catch (error) {
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible descargar PDF.'));
+        } finally {
+            setPdfWorking(false);
         }
     };
 
@@ -453,6 +498,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         byCase: toChartData(guardianDashboard?.charts?.sessions_by_case),
         byAlert: toChartData(guardianDashboard?.charts?.cases_by_alert_level)
     };
+    const hasGuardianCharts = Object.values(guardianCharts).some((items) => items.length > 0);
     const psychologistCharts = {
         byDomain: toChartData(psychologistDashboard?.charts?.alerts_by_domain ?? psychologistDashboard?.aggregates?.by_domain),
         byLevel: toChartData(psychologistDashboard?.charts?.alerts_by_level ?? psychologistDashboard?.aggregates?.by_alert_level),
@@ -554,18 +600,20 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 {role === 'padre' ? (
                     <section className="historial-dashboard-role-block">
                         {guardianError ? <div className="historial-dashboard-alert error">{guardianError}</div> : null}
-                        <div className="historial-dashboard-charts">
-                            <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="area" />
-                            <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} loading={guardianLoading} />
-                            <DashboardChartCard title="Sesiones por caso" data={guardianCharts.byCase} loading={guardianLoading} />
-                            <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} variant="donut" />
-                        </div>
+                        {hasGuardianCharts || guardianLoading ? (
+                            <div className="historial-dashboard-charts">
+                                <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="area" />
+                                <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} loading={guardianLoading} />
+                                <DashboardChartCard title="Cuestionarios por caso" data={guardianCharts.byCase} loading={guardianLoading} />
+                                <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} variant="donut" />
+                            </div>
+                        ) : null}
                         <div className="historial-dashboard-cases-grid">
                             {guardianCases.map((caseItem) => (
                                 <article className="historial-dashboard-case-card" key={caseItem.case_id}>
                                     <h3>{resolveCaseLabel(caseItem)}</h3>
                                     <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
-                                    <div><strong>Sesiones:</strong> {caseItem.sessions_count ?? 0}</div>
+                                    <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
                                     <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
                                     <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
                                     <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
@@ -618,7 +666,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <div className="historial-dashboard-list-header"><h2>Listado detallado</h2><div>Mostrando {showFrom}-{showTo} de {history.total}</div></div>
                     {history.error ? <div className="historial-dashboard-alert error">{history.error}</div> : null}
                     {history.loading ? <div className="historial-dashboard-empty">Cargando registros...</div> : null}
-                    {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aún no hay sesiones registradas.'}</div> : null}
+                    {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aún no hay cuestionarios registrados.'}</div> : null}
                     <div className="historial-dashboard-session-list">
                         {history.items.map((item) => (
                             <article className="historial-dashboard-session-card" key={item.id}>
@@ -643,7 +691,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
             <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
                 <div className="historial-dashboard-modal">
-                    <h2>Detalle de sesión</h2>
+                    <h2>Detalle de cuestionario</h2>
                     {detailLoading ? <div className="historial-dashboard-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="historial-dashboard-alert error">{detailError}</div> : null}
                     {detailNotice ? <div className="historial-dashboard-alert success">{detailNotice}</div> : null}
@@ -781,26 +829,107 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     <button type="button" className="historial-dashboard-btn" onClick={() => addTag().catch(() => undefined)}>Agregar</button>
                                 </div>
                             </div>
+                            {role === 'padre' ? (
+                                <div className="historial-dashboard-modal-section">
+                                    <h3>Enviar a psicólogo</h3>
+                                    <div className="historial-dashboard-actions-grid historial-dashboard-actions-grid--single">
+                                        <article>
+                                            <h4>Seleccionar profesional</h4>
+                                            <p className="historial-dashboard-helper">
+                                                Vas a enviar este cuestionario al psicólogo seleccionado. Si acepta la solicitud, podrá revisar el cuestionario completo y enviarte comentarios orientativos.
+                                            </p>
+                                            <div className="historial-dashboard-share-toolbar">
+                                                <button type="button" className="historial-dashboard-btn secondary" onClick={() => searchPsychologists(true).catch(() => undefined)} disabled={psychologistSearchLoading}>
+                                                    Psicólogos recomendados por ubicación
+                                                </button>
+                                                <form
+                                                    className="historial-dashboard-share-search"
+                                                    onSubmit={(event) => {
+                                                        event.preventDefault();
+                                                        searchPsychologists(false).catch(() => undefined);
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="search"
+                                                        value={psychologistQuery}
+                                                        onChange={(event) => setPsychologistQuery(event.target.value)}
+                                                        placeholder="Buscar por nombre o username"
+                                                    />
+                                                    <button type="submit" className="historial-dashboard-btn" disabled={psychologistSearchLoading}>
+                                                        {psychologistSearchLoading ? 'Buscando...' : 'Buscar'}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {psychologistResults.length === 0 ? (
+                                                <p className="historial-dashboard-helper">Busca por ubicación o por username para seleccionar un psicólogo.</p>
+                                            ) : (
+                                                <div className="historial-dashboard-psychologist-list">
+                                                    {psychologistResults.map((psychologist) => {
+                                                        const fullName = normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psicólogo registrado');
+                                                        const location = normalizeBackendText([psychologist.city, psychologist.department].filter(Boolean).join(' · '), 'Ubicación no disponible');
+                                                        return (
+                                                            <button
+                                                                key={psychologist.user_id}
+                                                                type="button"
+                                                                className={`historial-dashboard-psychologist-card ${selectedPsychologistId === psychologist.user_id ? 'is-selected' : ''}`}
+                                                                onClick={() => setSelectedPsychologistId(psychologist.user_id)}
+                                                            >
+                                                                <strong>{fullName}</strong>
+                                                                <span>{normalizeBackendText(psychologist.username ?? psychologist.email, 'Usuario no disponible')}</span>
+                                                                <small>{location}{psychologist.same_city ? ' · Misma ciudad' : psychologist.same_department ? ' · Mismo departamento' : ''}</small>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {shareStatus ? <p className="historial-dashboard-helper">Estado de solicitud: {normalizeRequestStatus(shareStatus)}</p> : null}
+                                            <button type="button" className="historial-dashboard-btn" onClick={() => sendToPsychologist().catch(() => undefined)} disabled={!selectedPsychologistId || shareWorking}>
+                                                {shareWorking ? 'Enviando...' : 'Enviar a psicólogo'}
+                                            </button>
+                                        </article>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <div className="historial-dashboard-modal-section">
-                                <h3>Compartir y PDF</h3>
+                                <h3>Revisión profesional</h3>
+                                {professionalReviews.length === 0 ? (
+                                    <div className="historial-dashboard-actions-grid historial-dashboard-actions-grid--single">
+                                        <article>
+                                            <p className="historial-dashboard-helper">Aún no hay una revisión profesional visible para este cuestionario.</p>
+                                            {role === 'padre' ? <p className="historial-dashboard-helper">Puedes enviar este cuestionario a un psicólogo desde la sección anterior.</p> : null}
+                                        </article>
+                                    </div>
+                                ) : (
+                                    <div className="historial-dashboard-review-list">
+                                        {professionalReviews.map((review) => (
+                                            <article className="historial-dashboard-review-card" key={review.review_id}>
+                                                <div className="historial-dashboard-card-inline">
+                                                    <strong>{normalizeReviewStatus(review.review_status)}</strong>
+                                                    <span>{formatDateTimeEsCO(review.updated_at ?? review.created_at)}</span>
+                                                </div>
+                                                <p><strong>Concepto inicial:</strong> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
+                                                <p><strong>Recomendación:</strong> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                <p className="historial-dashboard-helper">Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</p>
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="historial-dashboard-modal-section">
+                                <h3>PDF</h3>
                                 <div className="historial-dashboard-actions-grid">
                                     <article>
-                                        <h4>Compartir</h4>
-                                        <div className="historial-dashboard-share-form">
-                                            <input type="number" min={1} value={shareExpiresHours} onChange={(event) => setShareExpiresHours(event.target.value)} placeholder="Expira en horas" />
-                                            <input type="number" min={1} value={shareMaxUses} onChange={(event) => setShareMaxUses(event.target.value)} placeholder="Max usos" />
-                                            <input type="text" value={shareGranteeUserId} onChange={(event) => setShareGranteeUserId(event.target.value)} placeholder="Usuario destinatario autorizado" />
-                                        </div>
-                                        <button type="button" className="historial-dashboard-btn" onClick={() => generateShare().catch(() => undefined)}>Generar enlace</button>
-                                        {shareUrl ? <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a> : <p className="historial-dashboard-helper">Aún no hay enlace compartido.</p>}
-                                    </article>
-                                    <article>
-                                        <h4>PDF</h4>
+                                        <h4>Reporte descargable</h4>
                                         <p className="historial-dashboard-helper">Estado: {getString(pdfPayload?.status, 'Sin generar')}</p>
                                         <div className="historial-dashboard-inline-actions">
-                                            <button type="button" className="historial-dashboard-btn" onClick={() => generatePdf().catch(() => undefined)}>Generar PDF</button>
-                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => fetchPdf().catch(() => undefined)}>Consultar estado</button>
-                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf().catch(() => undefined)} disabled={!isPdfReady}>Descargar</button>
+                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf(false).catch(() => undefined)} disabled={pdfWorking}>
+                                                {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
+                                            </button>
+                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => downloadPdf(true).catch(() => undefined)} disabled={pdfWorking}>
+                                                Regenerar PDF
+                                            </button>
                                         </div>
                                         <KeyValueRows data={toRecord(pdfPayload)} hidden={['download_url', 'file_id', 'mime_type']} emptyText="Sin metadatos adicionales del PDF." />
                                     </article>

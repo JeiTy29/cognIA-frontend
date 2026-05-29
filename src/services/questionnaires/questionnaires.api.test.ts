@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGet = vi.fn();
+const apiPost = vi.fn();
 const apiSecurePatch = vi.fn();
 const apiSecurePost = vi.fn();
 const apiSecurePostNoBody = vi.fn();
@@ -15,7 +16,7 @@ vi.mock('../api/httpClient', () => ({
     apiGet,
     apiGetBlobWithMeta: vi.fn(),
     apiPatch: vi.fn(),
-    apiPost: vi.fn(),
+    apiPost,
     apiPostNoBody: vi.fn(),
     apiPut: vi.fn(),
     apiSecurePatch,
@@ -161,5 +162,48 @@ describe('questionnaires.api secure endpoints', () => {
         expect(response.charts?.alerts_by_domain?.[0].count).toBe(4);
         expect(response.aggregates?.by_alert_level?.[0].value).toBe(3);
         expect(response.items?.[0].id).toBe('s1');
+    });
+
+    it('busca psicólogos en el endpoint público de psicólogos por username o ubicación', async () => {
+        apiGet.mockResolvedValueOnce({
+            items: [{ user_id: 'psych-1', username: 'syn_psych_dashboard_01' }],
+            pagination: { page: 1, page_size: 10, total: 1, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.searchPsychologistsV2({ q: 'syn_psych_dashboard_01', same_location: true });
+
+        expect(apiGet).toHaveBeenCalledWith(
+            '/api/v2/psychologists/search?q=syn_psych_dashboard_01&same_location=true&page=1&page_size=10',
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+    });
+
+    it('envia cuestionario a psicologo con permisos directos y sin link legacy', async () => {
+        apiPost.mockResolvedValueOnce({
+            grant: { request_status: 'pending' },
+            grantee: { username: 'syn_psych_dashboard_01' }
+        });
+
+        const module = await import('./questionnaires.api');
+        await module.shareQuestionnaireWithPsychologistV2('sess-1', {
+            grantee_user_id: 'psych-1',
+            expires_in_hours: 720,
+            max_uses: 100,
+            grant_can_download_pdf: true,
+            grant_can_tag: false,
+            share_scope: 'session'
+        });
+
+        expect(apiPost).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/share',
+            {
+                grantee_user_id: 'psych-1',
+                grant_can_download_pdf: true,
+                grant_can_tag: false,
+                share_scope: 'session'
+            },
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
     });
 });

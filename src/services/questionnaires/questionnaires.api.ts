@@ -1819,7 +1819,7 @@ export function searchPsychologistsV2(params?: {
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/search?${query}`, requestOptions).then((payload) => {
+    return apiGet<unknown>(`/api/v2/psychologists/search?${query}`, requestOptions).then((payload) => {
         const root = asRecord(pickRecord(payload, ['data', 'result']) ?? payload) ?? {};
         const items = asArray(root.items ?? root.results ?? root.psychologists)
             .map(normalizePsychologistSearchItem)
@@ -1838,12 +1838,10 @@ export function shareQuestionnaireWithPsychologistV2(
     payload: Record<string, unknown>
 ): Promise<QuestionnaireShareResponseDTO> {
     const requestPayload: ShareQuestionnairePayload = {
-        expires_in_hours: Number(payload.expires_in_hours),
-        max_uses: Number(payload.max_uses),
         grantee_user_id: typeof payload.grantee_user_id === 'string' ? payload.grantee_user_id : undefined,
-        grant_can_tag: typeof payload.grant_can_tag === 'boolean' ? payload.grant_can_tag : undefined,
-        grant_can_download_pdf:
-            typeof payload.grant_can_download_pdf === 'boolean' ? payload.grant_can_download_pdf : undefined
+        grant_can_download_pdf: payload.grant_can_download_pdf === false ? false : true,
+        grant_can_tag: payload.grant_can_tag === true,
+        share_scope: payload.share_scope === 'case' ? 'case' : 'session'
     };
     return shareQuestionnaireHistoryV2(sessionId, requestPayload);
 }

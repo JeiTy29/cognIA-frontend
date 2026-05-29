@@ -788,7 +788,7 @@ export function Metricas() {
                         />
                         <label htmlFor="metrics-report-quality">
                             <strong>Incluir calidad de datos</strong>
-                            <span>Usa informacion agregada de dashboard solo dentro del reporte.</span>
+                            <span>Usa información agregada de dashboard solo dentro del reporte.</span>
                         </label>
                     </div>
 
