@@ -76,7 +76,7 @@ export function resolveEmailHealthBlockState(payload: unknown): EmailHealthBlock
         return {
             status: 'error',
             label: 'No disponible',
-            detail: 'Sin respuesta valida',
+            detail: 'Sin respuesta válida',
             reason: null
         };
     }
@@ -123,7 +123,7 @@ export function resolveEmailHealthBlockState(payload: unknown): EmailHealthBlock
             detail: firstText([nested.provider, nested.service, nested.message, root.message, 'Servicio operativo']) ?? 'Servicio operativo',
             reason:
                 firstText([nested.reason, nested.details, root.reason, root.details]) ??
-                'Configuración de correo disponible'
+                'Configuraci?n de correo disponible'
         }
         : {
             status: 'error',

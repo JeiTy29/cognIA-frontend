@@ -39,7 +39,7 @@ const REFRESH_SKEW_MS = 60_000;
 function ensureApiClientConfig() {
     const assertion = assertApiClientConfig();
     if (!assertion.ok) {
-        throw new Error(assertion.message ?? 'La configuracion del cliente API no es valida.');
+        throw new Error(assertion.message ?? 'La configuración del cliente API no es válida.');
     }
 }
 

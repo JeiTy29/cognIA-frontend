@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
     DashboardSection,
@@ -689,7 +689,7 @@ export function Metricas() {
                             <span className="indicator yellow" />
                             <span>HTTP 4xx</span>
                             <span>{formatCompactNumber(groupedStatus.clientError)}</span>
-                            <span>Errores del cliente, validacion o autorizacion.</span>
+                            <span>Errores del cliente, validación o autorización.</span>
                         </div>
                         <div className="metricas-table-row">
                             <span className="indicator red" />

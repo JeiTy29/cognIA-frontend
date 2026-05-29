@@ -69,9 +69,9 @@ function mapErrorMessage(status: number, action: ActionType, businessCode: strin
     }
 
     if (status === 400) {
-        if (action === 'clone') return 'Debes ingresar una version valida para clonar.';
+        if (action === 'clone') return 'Debes ingresar una versión válida para clonar.';
         if (action === 'create') return 'Debes completar nombre y version para crear la plantilla.';
-        return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
+        return 'Solicitud inválida. Revisa los datos e intenta de nuevo.';
     }
 
     if (status === 404) {
@@ -81,7 +81,7 @@ function mapErrorMessage(status: number, action: ActionType, businessCode: strin
     }
 
     const statusMessages: Record<number, string> = {
-        401: 'Sesion expirada o no autenticado. Inicia sesion nuevamente.',
+        401: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.',
         403: 'No tienes permisos para realizar esta accion.',
         409: 'No fue posible completar la accion por conflicto de estado.'
     };
@@ -126,7 +126,7 @@ export function useAdminQuestionnaires() {
         logout('expired');
         navigate('/inicio-sesion', {
             replace: true,
-            state: { message: 'Sesion expirada o no autenticado. Inicia sesion nuevamente.' }
+            state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
         });
     }, [logout, navigate]);
 
