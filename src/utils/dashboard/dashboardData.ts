@@ -653,13 +653,13 @@ export function buildGuardianCaseDashboardViewModel(options: {
 
     const timelineItems = buildTimelineItems(allSessionsAsc, {
         getDate: (session) => resolveSessionTimelineDate(session),
-        getTitle: (session) => `${normalizeModeLabel(session.mode)} · ${normalizeSessionStatus(session.status)}`,
+        getTitle: (session) => `${normalizeModeLabel(session.mode)} - ${normalizeSessionStatus(session.status)}`,
         getDescription: (session) => {
             const alert = resolveAlertFromDomains(resolveSessionDomains(session));
             const alertDescription = alert
                 ? `${alert.domainLabel}: ${alert.alertLabel} (${formatProbabilityLabel(alert.probabilityValue)})`
                 : 'Sin alerta principal disponible';
-            return `${formatDashboardDateTime(resolveSessionTimelineDate(session))} · ${alertDescription}`;
+            return `${formatDashboardDateTime(resolveSessionTimelineDate(session))} - ${alertDescription}`;
         },
         getTone: (session) => {
             const alert = resolveAlertFromDomains(resolveSessionDomains(session))?.alertLabel.toLowerCase() ?? '';
@@ -680,11 +680,13 @@ export function buildGuardianCaseDashboardViewModel(options: {
 
     return {
         caseId: options.caseItem.case_id,
-        caseLabel:
+        caseLabel: normalizeBackendText(
             options.caseItem.display_label ??
             options.caseItem.private_label ??
             options.caseItem.case_public_id ??
             'Caso sin etiqueta',
+            'Caso sin etiqueta'
+        ),
         casePublicId: safeDisplayText(options.caseItem.case_public_id, ''),
         statusLabel: normalizeCaseStatus(options.caseItem.status),
         sessionsSortedAsc: allSessionsAsc,
@@ -764,12 +766,12 @@ export function formatHistoryTimelineDescription(options: {
     const caseLabel = getCaseOrEvaluationTitle(
         options.item.case_public_id ?? options.item.case?.case_public_id,
         options.item.questionnaire_id,
-        'Sesión sin caso'
+        'Cuestionario sin caso'
     );
     if (!options.alert) {
-        return `${caseLabel} · ${normalizeSessionStatus(options.item.status)} · Sin alerta visible`;
+        return `${caseLabel} - ${normalizeSessionStatus(options.item.status)} - Sin alerta visible`;
     }
-    return `${caseLabel} · ${options.alert.domainLabel}: ${options.alert.alertLabel} (${options.alert.probabilityLabel})`;
+    return `${caseLabel} - ${options.alert.domainLabel}: ${options.alert.alertLabel} (${options.alert.probabilityLabel})`;
 }
 
 export function formatGuardianTrendAxisLabel(value: string) {
@@ -805,10 +807,10 @@ export function buildAgingBuckets(
         .filter((value): value is number => typeof value === 'number');
 
     return buildHistogramItems(days, [
-        { label: '0–2 días', min: 0, max: 2 },
-        { label: '3–7 días', min: 3, max: 7 },
-        { label: '8–14 días', min: 8, max: 14 },
-        { label: '15–30 días', min: 15, max: 30 },
+        { label: '0-2 días', min: 0, max: 2 },
+        { label: '3-7 días', min: 3, max: 7 },
+        { label: '8-14 días', min: 8, max: 14 },
+        { label: '15-30 días', min: 15, max: 30 },
         { label: 'Más de 30 días', min: 31 }
     ]);
 }

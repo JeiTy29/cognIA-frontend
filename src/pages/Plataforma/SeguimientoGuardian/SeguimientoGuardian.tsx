@@ -370,6 +370,7 @@ export default function SeguimientoGuardian() {
     const [createCaseLabel, setCreateCaseLabel] = useState('');
     const [createCaseWorking, setCreateCaseWorking] = useState(false);
     const [createCaseError, setCreateCaseError] = useState<string | null>(null);
+    const [createdCaseFollowUp, setCreatedCaseFollowUp] = useState<QuestionnaireCaseDTO | null>(null);
 
     const [caseDetailsById, setCaseDetailsById] = useState<Record<string, QuestionnaireCaseDetailDTO>>({});
     const [caseLoadingById, setCaseLoadingById] = useState<Record<string, boolean>>({});
@@ -416,7 +417,7 @@ export default function SeguimientoGuardian() {
         setLoading(true);
         setError(null);
         try {
-            const [casesResponse, dashboardResponse] = await Promise.all([
+            const [casesResponse, dashboardResponse] = await Promise.allSettled([
                 getQuestionnaireCasesV2({
                     ...(caseStatusFilter === 'all' ? {} : { status: caseStatusFilter }),
                     page: 1,
@@ -427,8 +428,22 @@ export default function SeguimientoGuardian() {
                     ...(caseId ? { case_id: caseId } : {})
                 })
             ]);
-            setCases(casesResponse.items);
-            setDashboard(dashboardResponse);
+
+            if (casesResponse.status === 'fulfilled') {
+                setCases(casesResponse.value.items);
+            } else {
+                setCases([]);
+                setError('No fue posible cargar los casos. Intenta nuevamente.');
+            }
+
+            if (dashboardResponse.status === 'fulfilled') {
+                setDashboard(dashboardResponse.value);
+            } else {
+                setDashboard(null);
+                if (casesResponse.status === 'fulfilled') {
+                    setError('Los casos se cargaron correctamente, pero el resumen visual tardó demasiado. Puedes actualizar para reintentar.');
+                }
+            }
         } catch {
             setError('No fue posible cargar los casos. Intenta nuevamente.');
             setCases([]);
@@ -459,7 +474,7 @@ export default function SeguimientoGuardian() {
                 });
                 return normalizedDetail;
             } catch {
-                setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: 'No fue posible cargar las sesiones de este caso.' }));
+                setCaseErrorById((prev) => ({ ...prev, [nextCaseId]: 'No fue posible cargar los cuestionarios de este caso.' }));
                 setLoadedCaseDetailById((prev) => ({ ...prev, [nextCaseId]: true }));
                 return null;
             } finally {
@@ -501,7 +516,7 @@ export default function SeguimientoGuardian() {
     const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
     const insightCopy = topPriorityCase
         ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio más frecuente es ${topDomain}.`
-        : 'Aún no hay suficientes alertas procesadas para priorizar casos. Cuando existan sesiones procesadas, este panel mostrará evolución, dominios y casos que requieren atención.';
+        : 'Aún no hay suficientes alertas procesadas para priorizar casos. Cuando existan cuestionarios procesados, este panel mostrará evolución, dominios y casos que requieren atención.';
 
     const openCreateCaseModal = () => {
         setCreateCaseError(null);
@@ -537,10 +552,16 @@ export default function SeguimientoGuardian() {
                 private_label: createCaseLabel.trim(),
                 metadata: {}
             });
+            if (!createdCase) {
+                throw new Error('case_creation_without_payload');
+            }
             setCreateCaseModalOpen(false);
             setCreateCaseLabel('');
-            setPageNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente.`);
+            setCreatedCaseFollowUp(createdCase);
+            setSelectedCaseId(createdCase.case_id);
+            setPageNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente. Puedes asociar cuestionarios desde el detalle del cuestionario o usando etiquetas de seguimiento.`);
             await loadDashboard();
+            loadCaseDetail(createdCase.case_id).catch(() => undefined);
         } catch {
             setCreateCaseError('No fue posible crear el caso. Intenta nuevamente.');
         } finally {
@@ -657,7 +678,7 @@ export default function SeguimientoGuardian() {
                 : 'Aún no tienes casos activos.';
     const emptyCopy =
         caseStatusFilter === 'archived'
-            ? 'Cuando archives un caso aparecerá aquí, junto con sus sesiones y reportes disponibles.'
+            ? 'Cuando archives un caso aparecerá aquí, junto con sus cuestionarios y reportes disponibles.'
             : 'Cuando inicies un cuestionario podrás crear un caso para agrupar seguimientos.';
 
     return (
@@ -687,6 +708,26 @@ export default function SeguimientoGuardian() {
                 </div>
 
                 {pageNotice ? <div className="seguimiento-alert success">{pageNotice}</div> : null}
+                {createdCaseFollowUp ? (
+                    <div className="seguimiento-next-step-card" aria-label="Siguientes pasos del caso creado">
+                        <div>
+                            <span>Nuevo caso creado</span>
+                            <strong>{resolveCaseLabel(createdCaseFollowUp)}</strong>
+                            <p>El caso quedó seleccionado. Continúa con etiquetas, detalle o asociación desde un cuestionario procesado.</p>
+                        </div>
+                        <div className="seguimiento-next-step-actions">
+                            <button type="button" className="seguimiento-inline-btn" onClick={() => setSelectedCaseId(createdCaseFollowUp.case_id)}>
+                                Ver detalle
+                            </button>
+                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => setCreatedCaseFollowUp(null)}>
+                                Asignar etiqueta desde cuestionario
+                            </button>
+                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => setCreatedCaseFollowUp(null)}>
+                                Asociar cuestionarios
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
                 {error ? <div className="seguimiento-alert error">{error}</div> : null}
                 {caseStatusActionError ? <div className="seguimiento-alert error">{caseStatusActionError}</div> : null}
 
@@ -719,11 +760,11 @@ export default function SeguimientoGuardian() {
                                 <span>{summary?.total_cases ?? cases.length}</span>
                             </article>
                             <article className="seguimiento-summary-card">
-                                <strong>Sesiones</strong>
+                                <strong>Cuestionarios</strong>
                                 <span>{summary?.total_sessions ?? 0}</span>
                             </article>
                             <article className="seguimiento-summary-card">
-                                <strong>Sesiones procesadas</strong>
+                                <strong>Cuestionarios procesados</strong>
                                 <span>{summary?.processed_sessions ?? 0}</span>
                             </article>
                             <article className="seguimiento-summary-card">
@@ -753,7 +794,7 @@ export default function SeguimientoGuardian() {
                                 <AreaChart
                                     data={guardianVisuals.monthlyAlerts}
                                     ariaLabel="Evolucion temporal de alertas"
-                                    emptyMessage="Aún no hay suficientes sesiones procesadas para calcular tendencia temporal."
+                                    emptyMessage="Aún no hay suficientes cuestionarios procesados para calcular tendencia temporal."
                                 />
                             </DashboardSection>
                             <DashboardSection
@@ -783,7 +824,7 @@ export default function SeguimientoGuardian() {
                             >
                                 <HorizontalBarChart
                                     data={guardianVisuals.sessionsByCase}
-                                    ariaLabel="Sesiones por caso"
+                                    ariaLabel="Cuestionarios por caso"
                                     emptyMessage="Aún no hay actividad suficiente por caso para comparar."
                                 />
                             </DashboardSection>
@@ -803,7 +844,7 @@ export default function SeguimientoGuardian() {
                                             <span>{item.domainLabel}</span>
                                         </div>
                                         <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
-                                        <small>{item.sessions} sesiones · Última actividad: {formatDateTime(item.lastActivity)}</small>
+                                        <small>{item.sessions} cuestionarios · Última actividad: {formatDateTime(item.lastActivity)}</small>
                                         <button
                                             type="button"
                                             className="seguimiento-inline-btn ghost"
@@ -867,7 +908,7 @@ export default function SeguimientoGuardian() {
                         <div className="seguimiento-section-title seguimiento-section-title--list">
                             <span>Detalle bajo demanda</span>
                             <h2>Casos del seguimiento</h2>
-                            <p>El listado queda al final; selecciona un solo caso para cargar sesiones, reportes y gráficas de detalle.</p>
+                            <p>El listado queda al final; selecciona un solo caso para cargar cuestionarios, reportes y gráficas de detalle.</p>
                         </div>
 
                         <div className="seguimiento-case-list">
@@ -917,7 +958,7 @@ export default function SeguimientoGuardian() {
                                                         {normalizeCaseStatus(caseItem.status)}
                                                     </span>
                                                     <span className="seguimiento-case-badge">
-                                                        {sessionsCount} {sessionsCount === 1 ? 'sesión' : 'sesiones'}
+                                                        {sessionsCount} {sessionsCount === 1 ? 'cuestionario' : 'cuestionarios'}
                                                     </span>
                                                 </div>
                                                 <div className="seguimiento-case-actions">
@@ -992,13 +1033,13 @@ export default function SeguimientoGuardian() {
                                         </div>
 
                                         {!isCaseSelected ? (
-                                            <p className="seguimiento-case-collapsed-copy">Selecciona este caso para ver dominios, sesiones y reportes.</p>
+                                            <p className="seguimiento-case-collapsed-copy">Selecciona este caso para ver dominios, cuestionarios y reportes.</p>
                                         ) : (
                                             <>
                                                 <div className="seguimiento-domain-list">
                                             <h3>Última medición por dominio</h3>
                                             <p>
-                                                Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico.
+                                                Estos valores corresponden a el último cuestionario del caso dentro del periodo seleccionado. No representan un promedio histórico.
                                             </p>
                                             {dashboardViewModel.domains.length > 0 ? (
                                                 <div className="seguimiento-domain-table">
@@ -1043,13 +1084,13 @@ export default function SeguimientoGuardian() {
                                             <div className="case-dashboard-grid">
                                                 <div className="seguimiento-dashboard-metrics case-dashboard-wide">
                                                     <DashboardMetricCard
-                                                        label="Sesiones registradas"
+                                                        label="Cuestionarios registrados"
                                                         value={dashboardViewModel.sessionsCount}
                                                         helper={dashboardViewModel.casePublicId || 'Caso sin código público'}
                                                         tone="info"
                                                     />
                                                     <DashboardMetricCard
-                                                        label="Última sesión"
+                                                        label="Último cuestionario"
                                                         value={formatDateTime(dashboardViewModel.latestSessionAt)}
                                                         helper="Fecha más reciente dentro del caso."
                                                         tone="neutral"
@@ -1071,13 +1112,13 @@ export default function SeguimientoGuardian() {
                                                 <DashboardSection
                                                     className="case-dashboard-wide case-dashboard-chart-large"
                                                     title="Evolución por dominio"
-                                                    description="Permite observar cómo han variado los dominios evaluados a lo largo de las sesiones de este caso."
+                                                    description="Permite observar cómo han variado los dominios evaluados a lo largo de los cuestionarios de este caso."
                                                 >
                                                     <LineChart
                                                         data={dashboardViewModel.trendPoints}
                                                         series={[...guardianDomainSeries]}
                                                         ariaLabel={`Evolución por dominio de ${dashboardViewModel.caseLabel}`}
-                                                        emptyMessage="No hay suficientes sesiones para mostrar evolución en el periodo seleccionado."
+                                                        emptyMessage="No hay suficientes cuestionarios para mostrar evolución en el periodo seleccionado."
                                                         minY={0}
                                                         maxY={100}
                                                         formatter={formatChartPercent}
@@ -1089,7 +1130,7 @@ export default function SeguimientoGuardian() {
 
                                                 <DashboardSection
                                                     title="Última medición por dominio"
-                                                    description="Estos valores corresponden a la última sesión del caso dentro del periodo seleccionado. No representan un promedio histórico."
+                                                    description="Estos valores corresponden a el último cuestionario del caso dentro del periodo seleccionado. No representan un promedio histórico."
                                                 >
                                                     <HorizontalBarChart
                                                         data={latestBars}
@@ -1121,27 +1162,27 @@ export default function SeguimientoGuardian() {
 
                                                 <DashboardSection
                                                     className="case-dashboard-wide"
-                                                    title="Cambio frente a la sesión anterior"
-                                                    description="Muestra el aumento o disminución de cada dominio respecto a la sesión anterior."
+                                                    title="Cambio frente al cuestionario anterior"
+                                                    description="Muestra el aumento o disminución de cada dominio respecto al cuestionario anterior."
                                                 >
                                                     <DivergingDeltaChart
                                                         data={deltaBars}
-                                                        ariaLabel={`Cambio por dominio frente a la sesión anterior de ${dashboardViewModel.caseLabel}`}
-                                                        emptyMessage="No hay suficientes sesiones para comparar cambios."
+                                                        ariaLabel={`Cambio por dominio frente al cuestionario anterior de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay suficientes cuestionarios para comparar cambios."
                                                         formatter={formatChartPercent}
-                                                        helper="Valores positivos indican aumento frente a la sesión anterior; valores negativos indican disminución."
+                                                        helper="Valores positivos indican aumento frente al cuestionario anterior; valores negativos indican disminución."
                                                     />
                                                 </DashboardSection>
 
                                                 <DashboardSection
                                                     className="case-dashboard-wide case-dashboard-chart-large"
-                                                    title="Línea de sesiones del caso"
-                                                    description="Resume la secuencia de sesiones registradas para este caso."
+                                                    title="Línea de cuestionarios del caso"
+                                                    description="Resume la secuencia de cuestionarios registrados para este caso."
                                                 >
                                                     <TimelineChart
                                                         items={dashboardViewModel.timelineItems}
-                                                        ariaLabel={`Secuencia de sesiones de ${dashboardViewModel.caseLabel}`}
-                                                        emptyMessage="No hay sesiones suficientes para construir la línea temporal del caso."
+                                                        ariaLabel={`Secuencia de cuestionarios de ${dashboardViewModel.caseLabel}`}
+                                                        emptyMessage="No hay cuestionarios suficientes para construir la línea temporal del caso."
                                                     />
                                                 </DashboardSection>
                                             </div>
@@ -1149,14 +1190,14 @@ export default function SeguimientoGuardian() {
 
                                         <div className="seguimiento-sessions">
                                             <div className="seguimiento-sessions-header">
-                                                <h3>Sesiones del caso</h3>
+                                                <h3>Cuestionarios del caso</h3>
                                                 {!hasLoadedCaseDetail && !caseIsLoading ? (
                                                     <button
                                                         type="button"
                                                         className="seguimiento-inline-btn"
                                                         onClick={() => loadCaseDetail(caseItem.case_id).catch(() => undefined)}
                                                     >
-                                                        Cargar sesiones
+                                                        Cargar cuestionarios
                                                     </button>
                                                 ) : null}
                                                 {caseLoadError ? (
@@ -1171,9 +1212,9 @@ export default function SeguimientoGuardian() {
                                             </div>
 
                                             {!hasLoadedCaseDetail && !caseIsLoading ? (
-                                                <p className="seguimiento-session-empty">Carga las sesiones para ver el detalle de este caso.</p>
+                                                <p className="seguimiento-session-empty">Carga los cuestionarios para ver el detalle de este caso.</p>
                                             ) : null}
-                                            {caseIsLoading ? <p className="seguimiento-session-empty">Cargando sesiones del caso...</p> : null}
+                                            {caseIsLoading ? <p className="seguimiento-session-empty">Cargando cuestionarios del caso...</p> : null}
                                             {!caseIsLoading && hasLoadedCaseDetail && caseLoadError ? <p className="seguimiento-session-empty error">{caseLoadError}</p> : null}
                                             {!caseIsLoading && hasLoadedCaseDetail && !caseLoadError && caseSessions.length === 0 ? (
                                                 <p className="seguimiento-session-empty">Este caso aún no tiene cuestionarios asociados.</p>
@@ -1268,12 +1309,12 @@ export default function SeguimientoGuardian() {
                                                                                 className="seguimiento-inline-btn"
                                                                                 onClick={(event) => handleOpenReport(event, sessionKey)}
                                                                                 disabled={!isSessionProcessed(session)}
-                                                                                title={isSessionProcessed(session) ? 'Ver reporte de sesión' : 'Reporte disponible cuando la sesión esté procesada.'}
+                                                                                title={isSessionProcessed(session) ? 'Ver reporte de cuestionario' : 'Reporte disponible cuando el cuestionario esté procesado.'}
                                                                             >
                                                                                 Ver reporte
                                                                             </button>
                                                                             {!isSessionProcessed(session) ? (
-                                                                                <span className="seguimiento-session-hint">Reporte disponible cuando la sesión esté procesada.</span>
+                                                                                <span className="seguimiento-session-hint">Reporte disponible cuando el cuestionario esté procesado.</span>
                                                                             ) : null}
                                                                         </div>
                                                                     </div>
@@ -1405,7 +1446,7 @@ export default function SeguimientoGuardian() {
                     <div className="seguimiento-report-toggles">
                         <label className="seguimiento-report-toggle">
                             <input type="checkbox" checked={reportIncludeSessions} onChange={(event) => setReportIncludeSessions(event.target.checked)} />
-                            <span>Incluir sesiones recientes</span>
+                            <span>Incluir cuestionarios recientes</span>
                         </label>
                         <label className="seguimiento-report-toggle">
                             <input type="checkbox" checked={reportIncludeDomains} onChange={(event) => setReportIncludeDomains(event.target.checked)} />

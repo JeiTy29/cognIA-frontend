@@ -109,53 +109,34 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
-    [/ÃƒÂ¡/g, 'á'],
-    [/ÃƒÂ©/g, 'é'],
-    [/ÃƒÂ­/g, 'í'],
-    [/ÃƒÂ³/g, 'ó'],
-    [/ÃƒÂº/g, 'ú'],
-    [/ÃƒÂ/g, 'Á'],
-    [/Ãƒâ€°/g, 'É'],
-    [/ÃƒÂ/g, 'Í'],
-    [/Ãƒâ€œ/g, 'Ó'],
-    [/ÃƒÅ¡/g, 'Ú'],
-    [/ÃƒÂ±/g, 'ñ'],
-    [/Ãƒâ€˜/g, 'Ñ'],
-    [/Ã‚Â¿/g, '¿'],
-    [/Ã‚Â¡/g, '¡'],
-    [/Ã¢â‚¬â€œ/g, '–'],
-    [/Ã¢â‚¬â€/g, '—'],
-    [/Ã¢â‚¬Â¦/g, '…'],
-    [/Ã¢â‚¬Â¢/g, '•'],
-    [/Ã¢â‚¬Å“/g, '"'],
-    [/Ã¢â‚¬Â/g, '"'],
-    [/Ã¢â‚¬â„¢/g, "'"],
-    [/Ã‚Â·/g, '·'],
-    [/sesi\?n/gi, 'sesión'],
-    [/evaluaci\?n/gi, 'evaluación'],
-    [/diagn\?stico/gi, 'diagnóstico'],
-    [/cl\?nico/gi, 'clínico'],
-    [/informaci\?n/gi, 'información'],
-    [/psicol\?gica/gi, 'psicológica'],
-    [/m\?dica/gi, 'médica'],
-    [/orientaci\?n/gi, 'orientación'],
-    [/recomendaci\?n/gi, 'recomendación'],
-    [/s\?ntesis/gi, 'síntesis'],
-    [/aclaraci\?n/gi, 'aclaración'],
-    [/actualizaci\?n/gi, 'actualización'],
-    [/patr\?n/gi, 'patrón'],
-    [/se\?ales/gi, 'señales'],
-    [/tambi\?n/gi, 'también'],
-    [/seg\?n/gi, 'según'],
-    [/respondi\?/gi, 'respondió'],
-    [/\?ltima/gi, 'Última'],
-    [/preparaci\?n/gi, 'preparación'],
-    [/generaci\?n/gi, 'generación'],
-    [/todav\?a/gi, 'todavía'],
-    [/a\?n/gi, 'aún'],
-    [/l\?mite/gi, 'límite'],
-    [/tama\?o/gi, 'tamaño'],
-    [/p\?gina/gi, 'página']
+    [new RegExp('\\u00c3\\u00a1', 'g'), '\u00e1'],
+    [new RegExp('\\u00c3\\u00a9', 'g'), '\u00e9'],
+    [new RegExp('\\u00c3\\u00ad', 'g'), '\u00ed'],
+    [new RegExp('\\u00c3\\u00b3', 'g'), '\u00f3'],
+    [new RegExp('\\u00c3\\u00ba', 'g'), '\u00fa'],
+    [new RegExp('\\u00c3\\u0081', 'g'), '\u00c1'],
+    [new RegExp('\\u00c3\\u0089', 'g'), '\u00c9'],
+    [new RegExp('\\u00c3\\u008d', 'g'), '\u00cd'],
+    [new RegExp('\\u00c3\\u0093', 'g'), '\u00d3'],
+    [new RegExp('\\u00c3\\u009a', 'g'), '\u00da'],
+    [new RegExp('\\u00c3\\u00b1', 'g'), '\u00f1'],
+    [new RegExp('\\u00c3\\u0091', 'g'), '\u00d1'],
+    [new RegExp('\\u00c2\\u00bf', 'g'), '\u00bf'],
+    [new RegExp('\\u00c2\\u00a1', 'g'), '\u00a1'],
+    [new RegExp('\\u00e2\\u20ac\\u201c', 'g'), '-'],
+    [new RegExp('\\u00e2\\u20ac\\u009d', 'g'), '-'],
+    [new RegExp('\\u00e2\\u20ac\\u00a6', 'g'), '...'],
+    [new RegExp('\\u00e2\\u20ac\\u00a2', 'g'), '-'],
+    [new RegExp('\\u00e2\\u20ac\\u0153', 'g'), '"'],
+    [new RegExp('\\u00e2\\u20ac\\u009d', 'g'), '"'],
+    [new RegExp('\\u00e2\\u20ac\\u2122', 'g'), "'"],
+    [/sesi\?n/gi, 'sesi\u00f3n'],
+    [/evaluaci\?n/gi, 'evaluaci\u00f3n'],
+    [/diagn\?stico/gi, 'diagn\u00f3stico'],
+    [/psicol\?gica/gi, 'psicol\u00f3gica'],
+    [/m\?dica/gi, 'm\u00e9dica'],
+    [/informaci\?n/gi, 'informaci\u00f3n'],
+    [/revisi\?n/gi, 'revisi\u00f3n']
 ];
 
 const NON_TEXT_PATTERNS = [/https?:\/\//i, /^[A-Za-z0-9_-]{6,}$/];
@@ -280,7 +261,7 @@ function resolveSessionMetadataRows(
             includeTechnical: true,
             includeEmpty: false,
             customLabels: {
-                session_id: 'ID de sesión',
+                session_id: 'ID de cuestionario',
                 questionnaire_id: 'ID de cuestionario',
                 mode_key: 'Clave interna de modo'
             }
@@ -347,7 +328,7 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
     } catch (requestError) {
         return {
             ok: false,
-            error: mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de esta sesión.')
+            error: mapApiErrorToUserMessage(requestError, 'No fue posible cargar el detalle de este cuestionario.')
         };
     }
 }
@@ -663,9 +644,7 @@ export function QuestionnaireReportDetailModal({
                 grantee_user_id: selectedPsychologistId,
                 grant_can_tag: false,
                 grant_can_download_pdf: true,
-                share_scope: 'session',
-                expires_in_hours: 720,
-                max_uses: 100
+                share_scope: 'session'
             });
             const grantee = (payload as { grantee?: { full_name?: string | null; username?: string | null } }).grantee;
             const sharedName = normalizeBackendText(grantee?.full_name ?? grantee?.username, 'el psicólogo seleccionado');
@@ -789,7 +768,7 @@ export function QuestionnaireReportDetailModal({
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="historial-v2-modal">
-                <h2>Detalle de sesión</h2>
+                <h2>Detalle de cuestionario</h2>
                 {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                 {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                 {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
@@ -833,7 +812,7 @@ export function QuestionnaireReportDetailModal({
                                     </div>
                                 </div>
                             ) : (
-                                <p>No fue posible cargar el informe orientativo completo para esta sesión.</p>
+                                <p>No fue posible cargar el informe orientativo completo para este cuestionario.</p>
                             )}
 
                             {reportViewModel.comorbidityText ? (
@@ -887,7 +866,7 @@ export function QuestionnaireReportDetailModal({
                         <BulletList
                             title="Indicadores principales observados"
                             items={reportViewModel.indicators}
-                            emptyText="No se recibieron indicadores estructurados para esta sesión."
+                            emptyText="No se recibieron indicadores estructurados para este cuestionario."
                         />
 
                         <div className="historial-v2-section">
@@ -1029,10 +1008,10 @@ export function QuestionnaireReportDetailModal({
 
                         {role === 'padre' ? (
                             <div className="historial-v2-section">
-                                <h3>Compartir con psicólogo</h3>
+                                <h3>Enviar a psicólogo</h3>
                                 <div className="historial-v2-actions-card">
                                     <p className="historial-v2-helper-text">
-                                        Busca un psicólogo registrado por nombre, correo o ubicación para enviarle una solicitud de revisión desde su cuenta profesional.
+                                        Selecciona un psicólogo verificado para solicitar revisión del cuestionario. Puedes buscar por username, nombre o email.
                                     </p>
                                     <form
                                         className="historial-v2-share-search-form"
@@ -1134,7 +1113,7 @@ export function QuestionnaireReportDetailModal({
                                             onClick={() => { runHistoryTask(handleShareWithPsychologist); }}
                                             disabled={!selectedPsychologistId || shareWorking}
                                         >
-                                            {shareWorking ? 'Enviando solicitud...' : 'Compartir evaluación'}
+                                            {shareWorking ? 'Enviando solicitud...' : 'Enviar a psicólogo'}
                                         </button>
                                     </div>
                                 </div>
@@ -1155,7 +1134,7 @@ export function QuestionnaireReportDetailModal({
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="historial-v2-helper-text">Sin revisiones profesionales visibles para esta sesión.</p>
+                                    <p className="historial-v2-helper-text">Sin revisiones profesionales visibles para este cuestionario.</p>
                                 )}
                             </div>
                         ) : null}
@@ -1175,7 +1154,7 @@ export function QuestionnaireReportDetailModal({
                                         onClick={() => { runHistoryTask(handleDownloadReport); }}
                                         disabled={pdfWorking}
                                     >
-                                        {pdfWorking ? 'Generando PDF...' : 'Descargar PDF'}
+                                        {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
                                     </button>
                                 </div>
                             </div>

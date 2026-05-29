@@ -220,9 +220,11 @@
     border: 1px solid rgba(31, 77, 117, 0.14);
     border-radius: 12px;
     padding: 12px;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 6px;
     background: #fbfdff;
+    min-width: 0;
 }
 
 .historial-dashboard-case-card h3 {
@@ -234,7 +236,9 @@
     display: flex;
     justify-content: space-between;
     gap: 8px;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .historial-dashboard-list-header,
@@ -420,6 +424,10 @@
     gap: 12px;
 }
 
+.historial-dashboard-actions-grid--single {
+    grid-template-columns: 1fr;
+}
+
 .historial-dashboard-actions-grid article {
     border: 1px solid rgba(31, 77, 117, 0.14);
     border-radius: 10px;
@@ -460,6 +468,89 @@
     padding: 8px 10px;
 }
 
+.historial-dashboard-share-toolbar {
+    display: grid;
+    gap: 10px;
+}
+
+.historial-dashboard-share-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.historial-dashboard-share-search input {
+    min-width: 0;
+    min-height: 40px;
+    border: 1px solid rgba(31, 77, 117, 0.2);
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.historial-dashboard-psychologist-list,
+.historial-dashboard-review-list {
+    display: grid;
+    gap: 10px;
+}
+
+.historial-dashboard-psychologist-card,
+.historial-dashboard-review-card {
+    border: 1px solid rgba(31, 77, 117, 0.14);
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 12px;
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    text-align: left;
+}
+
+.historial-dashboard-psychologist-card {
+    cursor: pointer;
+}
+
+.historial-dashboard-psychologist-card strong,
+.historial-dashboard-review-card strong {
+    overflow-wrap: anywhere;
+}
+
+.historial-dashboard-psychologist-card span,
+.historial-dashboard-psychologist-card small,
+.historial-dashboard-review-card p {
+    color: #5a6e82;
+    overflow-wrap: anywhere;
+}
+
+.historial-dashboard-psychologist-card.is-selected {
+    border-color: #0f5f9f;
+    box-shadow: 0 0 0 3px rgba(15, 95, 159, 0.12);
+}
+
+.historial-dashboard-session-card,
+.historial-dashboard-case-card {
+    min-width: 0;
+}
+
+.historial-dashboard-session-card > button,
+.historial-dashboard-case-card > button {
+    margin-top: auto;
+    align-self: stretch;
+    width: 100%;
+}
+
+.historial-dashboard-pagination {
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+}
+
+.historial-dashboard-pagination label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
 @media (max-width: 1200px) {
     .historial-dashboard-kpis {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -492,6 +583,12 @@
     .historial-dashboard-share-form,
     .historial-dashboard-tag-form {
         grid-template-columns: 1fr;
+    }
+    .historial-dashboard-share-search {
+        grid-template-columns: 1fr;
+    }
+    .historial-dashboard-pagination {
+        justify-content: center;
     }
 }
 

@@ -204,7 +204,7 @@ export default function Evaluaciones() {
                     <span>ID</span>
                     <span>Estado</span>
                     <span>Edad</span>
-                    <span>Fecha de evaluacion</span>
+                    <span>Fecha de evaluación</span>
                     <span>Psicologo</span>
                     <span>Sujeto</span>
                     <span>Creado</span>
@@ -257,7 +257,7 @@ export default function Evaluaciones() {
                 ) : null}
             </section>
 
-            <footer className="admin-pagination" aria-label="Paginacion de evaluaciones">
+            <footer className="admin-pagination" aria-label="Paginación de evaluaciones">
                 <div>
                     Mostrando {displayFrom}-{displayTo} de {total}
                 </div>

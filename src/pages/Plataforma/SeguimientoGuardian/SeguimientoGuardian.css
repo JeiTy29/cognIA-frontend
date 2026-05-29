@@ -140,6 +140,39 @@
     color: #0f5132;
 }
 
+.seguimiento-next-step-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid rgba(25, 142, 80, 0.2);
+    border-radius: 18px;
+    background: linear-gradient(135deg, #ecfdf3 0%, #ffffff 100%);
+    box-shadow: 0 14px 32px rgba(33, 95, 143, 0.08);
+}
+
+.seguimiento-next-step-card span {
+    display: block;
+    color: #198e50;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.seguimiento-next-step-card strong,
+.seguimiento-next-step-card p {
+    margin: 0;
+}
+
+.seguimiento-next-step-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
 .seguimiento-empty,
 .seguimiento-empty-card {
     padding: 22px;
@@ -876,6 +909,19 @@
 }
 
 @media (max-width: 720px) {
+    .seguimiento-next-step-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .seguimiento-next-step-actions {
+        justify-content: stretch;
+    }
+
+    .seguimiento-next-step-actions button {
+        flex: 1 1 100%;
+    }
+
     .seguimiento-header,
     .seguimiento-hero-insight {
         grid-template-columns: 1fr;

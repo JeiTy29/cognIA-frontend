@@ -1,5 +1,6 @@
 import type { QuestionnaireHistoryStatusFilter } from '../../services/questionnaires/questionnaires.types';
 import { getAlertLevelMeta } from '../dashboard/alerts';
+import { normalizeBackendText } from './presentation';
 
 type CaseLike = {
     display_label?: string | null;
@@ -28,7 +29,9 @@ const domainLabels: Record<string, string> = {
 };
 
 function cleanText(value: unknown) {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
+    if (typeof value !== 'string') return '';
+    const normalized = normalizeBackendText(value, '').trim();
+    return normalized.length > 0 ? normalized : '';
 }
 
 function looksLikeTechnicalId(value: string) {
