@@ -91,8 +91,8 @@ function resolveErrorMessage(status: number | null, payload: DashboardApiErrorSh
         return payload.msg.trim();
     }
 
-    if (status === 400) return 'Solicitud invalida para este bloque de dashboard.';
-    if (status === 401) return 'Sesion expirada o autenticacion invalida.';
+    if (status === 400) return 'Solicitud inválida para este bloque de dashboard.';
+    if (status === 401) return 'Sesión expirada o autenticación inválida.';
     if (status === 403) return 'No tienes permisos para consultar este bloque.';
     if (status === 404) return 'Bloque no disponible en este entorno.';
     if (status === 429) return 'Demasiadas solicitudes. Intenta nuevamente en unos segundos.';

@@ -262,7 +262,7 @@ export async function fetchTransportKey(
 
     const assertion = assertApiClientConfig();
     if (!assertion.ok) {
-        throw new Error(assertion.message ?? 'No fue posible validar la configuracion del API client.');
+        throw new Error(assertion.message ?? 'No fue posible validar la configuración del API client.');
     }
 
     debugApiClient('request GET /api/v2/security/transport-key');

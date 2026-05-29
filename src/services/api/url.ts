@@ -34,7 +34,7 @@ function getRawBackendBaseUrl() {
         : alternativeValue;
 
     if (typeof value !== 'string' || value.trim().length === 0) {
-        console.warn(`[CognIA API] VITE_API_BASE_URL no esta configurado. Usando backend por defecto: ${DEFAULT_BACKEND_BASE_URL}`);
+        console.warn(`[CognIA API] VITE_API_BASE_URL no está configurado. Usando backend por defecto: ${DEFAULT_BACKEND_BASE_URL}`);
         return DEFAULT_BACKEND_BASE_URL;
     }
 
@@ -53,7 +53,7 @@ function normalizeTrailingSlash(value: string) {
 
 function normalizeRelativeBase(value: string) {
     if (!value.startsWith('/')) {
-        throw new Error(`VITE_API_BASE_URL no es una ruta relativa valida: ${value}`);
+        throw new Error(`VITE_API_BASE_URL no es una ruta relativa válida: ${value}`);
     }
 
     const normalized = normalizeTrailingSlash(value) || '/';
@@ -78,14 +78,14 @@ function parseBackendBaseConfig(): BackendBaseConfig {
     }
 
     if (!isAbsoluteBaseUrl(raw)) {
-        throw new Error(`VITE_API_BASE_URL no es una URL valida: ${raw}`);
+        throw new Error(`VITE_API_BASE_URL no es una URL válida: ${raw}`);
     }
 
     let parsed: URL;
     try {
         parsed = new URL(normalizeTrailingSlash(raw));
     } catch {
-        throw new Error(`VITE_API_BASE_URL no es una URL valida: ${raw}`);
+        throw new Error(`VITE_API_BASE_URL no es una URL válida: ${raw}`);
     }
 
     return {
@@ -188,7 +188,7 @@ export function assertApiClientConfig(): ApiClientConfigAssertion {
             relative: config.kind === 'relative'
         };
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'Configuracion invalida del cliente API.';
+        const message = error instanceof Error ? error.message : 'Configuración inválida del cliente API.';
         safeLogConfigError(message);
         return {
             ok: false,

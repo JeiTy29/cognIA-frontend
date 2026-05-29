@@ -55,13 +55,13 @@ function mapErrorMessage(status: number, action: 'list' | 'status', businessCode
     if (action === 'status' && businessCode === 'invalid_status') {
         return 'El estado seleccionado no es valido para este entorno.';
     }
-    if (status === 400) return 'Solicitud invalida. Revisa los datos e intenta de nuevo.';
-    if (status === 401) return 'Sesion expirada o no autenticado. Inicia sesion nuevamente.';
+    if (status === 400) return 'Solicitud inválida. Revisa los datos e intenta de nuevo.';
+    if (status === 401) return 'Sesión expirada o no autenticado. Inicia sesión nuevamente.';
     if (status === 403) return 'No tienes permisos para realizar esta accion.';
     if (status === 404) {
         return action === 'list'
             ? 'No se encontraron evaluaciones.'
-            : 'No se encontró la evaluación seleccionada.';
+            : 'No se encontr? la evaluaci?n seleccionada.';
     }
     if (status === 409) return 'No fue posible completar la accion por conflicto de estado.';
     if (status >= 500) return 'Error del servidor. Intenta mas tarde.';
@@ -102,7 +102,7 @@ export function useAdminEvaluations() {
         logout('expired');
         navigate('/inicio-sesion', {
             replace: true,
-            state: { message: 'Sesion expirada o no autenticado. Inicia sesion nuevamente.' }
+            state: { message: 'Sesión expirada o no autenticado. Inicia sesión nuevamente.' }
         });
     }, [logout, navigate]);
 
