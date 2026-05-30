@@ -31,6 +31,7 @@ type ApiRequestOptions = {
     credentials?: RequestCredentials;
     auth?: boolean;
     retryAuth?: boolean;
+    timeoutMs?: number;
 };
 
 let refreshPromise: Promise<RefreshResponse | { error: string }> | null = null;
@@ -187,7 +188,7 @@ async function runStandardJsonRequest<T>(
     const response = await fetchWithTimeout(joinApiUrl(path), {
         ...init,
         credentials: getRequestCredentials(options)
-    });
+    }, options?.timeoutMs);
 
     if (!response.ok) {
         const shouldRetry = await handleFailedResponse(response, options);
@@ -215,7 +216,7 @@ async function runStandardBlobRequest(
         method: 'GET',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)
-    });
+    }, options?.timeoutMs);
 
     if (!response.ok) {
         const shouldRetry = await handleFailedResponse(response, options);
@@ -262,7 +263,8 @@ async function runEncryptedJsonRequest<T>(
             getHeaders: () => buildHeaders(options, false),
             credentials: getRequestCredentials(options),
             requireEncryptedResponse,
-            onUnauthorized: options?.retryAuth === false ? undefined : attemptRefresh
+            onUnauthorized: options?.retryAuth === false ? undefined : attemptRefresh,
+            timeoutMs: options?.timeoutMs
         });
 
         if (!result.response.ok) {
@@ -355,7 +357,7 @@ export async function apiPostNoBody<T>(
         method: 'POST',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)
-    });
+    }, options?.timeoutMs);
 
     if (!response.ok) {
         const shouldRetry = await handleFailedResponse(response, options);
@@ -383,7 +385,7 @@ export async function apiPostFormData<T>(
         headers: buildHeaders(options, false),
         body,
         credentials: getRequestCredentials(options)
-    });
+    }, options?.timeoutMs);
 
     if (!response.ok) {
         const shouldRetry = await handleFailedResponse(response, options);
@@ -442,7 +444,7 @@ export async function apiDelete<T>(
         method: 'DELETE',
         headers: buildHeaders(options, false),
         credentials: getRequestCredentials(options)
-    });
+    }, options?.timeoutMs);
 
     if (!response.ok) {
         const shouldRetry = await handleFailedResponse(response, options);

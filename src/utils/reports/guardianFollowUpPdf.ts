@@ -193,7 +193,7 @@ function buildTrendCharts(cases: GuardianDashboardCaseDTO[], caseDetails: Questi
     const byDomain = new Map<string, Array<{ sort: number; label: string; value: number }>>();
     for (const point of sourceTrends) {
         const sort = point.date ? Date.parse(point.date) : Number.NaN;
-        const label = point.date ? buildTrendPointLabel(point.date) : 'Fecha no disponible';
+        const label = point.date ? buildTrendPointLabel(point.date) : 'Sin fecha registrada';
         for (const domain of point.domains ?? []) {
             const value = Number(domain.probability);
             if (!Number.isFinite(value)) continue;
@@ -295,17 +295,17 @@ export function downloadGuardianFollowUpReportPdf({
         const recentSessionRows = buildRecentSessionsRows(caseDetails);
         if (recentSessionRows.length > 0) {
             addDataTable(context, {
-                title: 'Sesiones recientes por caso',
+                title: 'Cuestionarios recientes por caso',
                 description:
-                    'La siguiente tabla resume hasta tres sesiones recientes por caso, con estado, modo, progreso y señal de revisión profesional si está disponible.',
+                    'La siguiente tabla resume hasta tres cuestionarios recientes por caso, con estado, modo, progreso y señal de revisión profesional si está disponible.',
                 head: ['Caso', 'Fecha', 'Estado', 'Modo', 'Progreso', 'Revisión profesional'],
                 body: recentSessionRows
             });
         } else {
             addNoticeBox(
                 context,
-                'Sesiones recientes por caso',
-                'No hay datos suficientes para listar sesiones recientes en el periodo seleccionado.',
+                'Cuestionarios recientes por caso',
+                'No hay datos suficientes para listar cuestionarios recientes en el periodo seleccionado.',
                 'info'
             );
         }
@@ -315,12 +315,12 @@ export function downloadGuardianFollowUpReportPdf({
         const sessionsPerCase = buildSessionsPerCasePoints(includedCases);
         if (sessionsPerCase.length > 0) {
             drawHorizontalBarChart(context, {
-                title: 'Sesiones por caso',
+                title: 'Cuestionarios por caso',
                 description: 'Esta gráfica compara cuántas sesiones están asociadas a cada caso dentro del periodo consultado.',
                 points: sessionsPerCase
             });
         } else {
-            addNoticeBox(context, 'Sesiones por caso', 'No hay datos suficientes para generar esta gráfica en el periodo seleccionado.', 'info');
+            addNoticeBox(context, 'Cuestionarios por caso', 'No hay datos suficientes para generar esta gráfica en el periodo seleccionado.', 'info');
         }
 
         const latestDomainPoints = buildLatestDomainChartPoints(domainRows);

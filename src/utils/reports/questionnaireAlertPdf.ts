@@ -226,8 +226,8 @@ function addAnsweredQuestionsTable(context: ReportContext, dataset: Questionnair
         head: [['#', 'Sección', 'Dominio', 'Pregunta', 'Respuesta']],
         body: dataset.answeredQuestions.map((row) => [
             normalizePdfTableCell(formatReportNumber(row.index)),
-            normalizePdfTableCell(row.sectionLabel, 'General'),
-            normalizePdfTableCell(row.domainLabel, 'General'),
+            normalizePdfTableCell(row.sectionLabel, 'Sin dominio predominante'),
+            normalizePdfTableCell(row.domainLabel, 'Sin dominio predominante'),
             normalizePdfTableCell(row.questionText, '--'),
             normalizePdfTableCell(row.answerLabel, '--')
         ]),
@@ -476,7 +476,7 @@ export async function buildQuestionnaireAlertPdf({
             margin: { left: context.marginX, right: context.marginX, bottom: 20 },
             head: [['Dominio', 'Pregunta', 'Respuesta', 'Intensidad']],
             body: dataset.highIntensityQuestions.map((row) => [
-                normalizePdfTableCell(row.domainLabel, 'General'),
+                normalizePdfTableCell(row.domainLabel, 'Sin dominio predominante'),
                 normalizePdfTableCell(row.questionText, '--'),
                 normalizePdfTableCell(row.answerLabel, '--'),
                 normalizePdfTableCell(row.intensityLabel, '--')

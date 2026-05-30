@@ -107,6 +107,57 @@ function resolveTagId(tag: QuestionnaireTagDTO) {
 function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
 }
+function incrementChartBucket(map: Map<string, { label: string; value: number; tone?: string }>, key: string, label: string, tone?: string) {
+    const current = map.get(key);
+    map.set(key, { label, value: (current?.value ?? 0) + 1, tone: tone ?? current?.tone });
+}
+function readHistoryDate(item: QuestionnaireHistoryItemV2DTO) {
+    return item.applied_at ?? item.submitted_at ?? item.processed_at ?? item.updated_at ?? item.created_at ?? null;
+}
+function formatHistoryMonth(value: string | null | undefined) {
+    if (!value) return 'Sin fecha registrada';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return 'Sin fecha registrada';
+    return new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' }).format(date);
+}
+function chartRowsFromMap(map: Map<string, { label: string; value: number; tone?: string }>, limit = 6) {
+    return [...map.entries()]
+        .map(([id, item]) => ({ id, label: item.label, value: item.value, tone: item.tone }))
+        .sort((left, right) => right.value - left.value)
+        .slice(0, limit);
+}
+function buildFallbackHistoryCharts(items: QuestionnaireHistoryItemV2DTO[]) {
+    const byDate = new Map<string, { label: string; value: number }>();
+    const byCase = new Map<string, { label: string; value: number }>();
+    const byDomain = new Map<string, { label: string; value: number }>();
+    const byLevel = new Map<string, { label: string; value: number; tone?: string }>();
+
+    items.forEach((item) => {
+        const dateLabel = formatHistoryMonth(readHistoryDate(item));
+        incrementChartBucket(byDate, dateLabel, dateLabel);
+        const caseLabel = resolveHistoryItemCaseLabel(item);
+        incrementChartBucket(byCase, item.case_id ?? item.case_public_id ?? caseLabel, caseLabel);
+
+        const domainLabel = normalizeDomainLabel(item.dominant_domain);
+        if (domainLabel !== 'Sin dominio predominante') {
+            incrementChartBucket(byDomain, domainLabel, domainLabel);
+        }
+
+        if (item.latest_alert_level) {
+            const alertLabel = normalizeAlertLevel(item.latest_alert_level);
+            if (alertLabel && alertLabel !== '--') {
+                incrementChartBucket(byLevel, alertLabel, alertLabel, item.latest_alert_level);
+            }
+        }
+    });
+
+    return {
+        byDate: [...byDate.entries()].map(([id, item]) => ({ id, label: item.label, value: item.value })),
+        byCase: chartRowsFromMap(byCase),
+        byDomain: chartRowsFromMap(byDomain),
+        byLevel: chartRowsFromMap(byLevel)
+    };
+}
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
     return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
 }
@@ -208,7 +259,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [guardianDashboard, setGuardianDashboard] = useState<QuestionnaireGuardianDashboardV2Response | null>(null);
     const [guardianCases, setGuardianCases] = useState<QuestionnaireCaseV2DTO[]>([]);
     const [guardianError, setGuardianError] = useState<string | null>(null);
-    const [guardianLoading, setGuardianLoading] = useState(role === 'padre');
 
     const [psychologistDashboard, setPsychologistDashboard] = useState<QuestionnairePsychologistDashboardV2Response | null>(null);
     const [psychologistError, setPsychologistError] = useState<string | null>(null);
@@ -256,7 +306,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     useEffect(() => {
         if (role !== 'padre') return;
         const loadGuardian = async () => {
-            setGuardianLoading(true);
             setGuardianError(null);
             const dashboardPromise = getGuardianDashboardV2({
                 months: Number(period),
@@ -289,7 +338,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 });
 
             await Promise.allSettled([dashboardPromise, casesPromise]);
-            setGuardianLoading(false);
         };
         loadGuardian().catch(() => undefined);
     }, [history.filters.alert_level, history.filters.case_label, history.filters.case_public_id, history.filters.date_from, history.filters.date_to, history.filters.domain, history.filters.q, history.filters.status, period, role]);
@@ -486,12 +534,19 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         }
     };
 
-    const historyCharts = {
-        byDate: toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month),
-        byCase: toChartData(history.charts?.history_by_case ?? history.charts?.sessions_by_case),
-        byDomain: toChartData(history.charts?.alerts_by_domain),
-        byLevel: toChartData(history.charts?.alerts_by_level)
-    };
+    const historyCharts = useMemo(() => {
+        const fallback = buildFallbackHistoryCharts(history.items);
+        const byDate = toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month);
+        const byCase = toChartData(history.charts?.history_by_case ?? history.charts?.sessions_by_case);
+        const byDomain = toChartData(history.charts?.alerts_by_domain);
+        const byLevel = toChartData(history.charts?.alerts_by_level);
+        return {
+            byDate: byDate.length > 0 ? byDate : fallback.byDate,
+            byCase: byCase.length > 0 ? byCase : fallback.byCase,
+            byDomain: byDomain.length > 0 ? byDomain : fallback.byDomain,
+            byLevel: byLevel.length > 0 ? byLevel : fallback.byLevel
+        };
+    }, [history.charts, history.items]);
     const guardianCharts = {
         byMonth: toChartData(guardianDashboard?.charts?.alerts_by_month),
         byDomain: toChartData(guardianDashboard?.charts?.alerts_by_domain),
@@ -600,12 +655,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 {role === 'padre' ? (
                     <section className="historial-dashboard-role-block">
                         {guardianError ? <div className="historial-dashboard-alert error">{guardianError}</div> : null}
-                        {hasGuardianCharts || guardianLoading ? (
+                        {hasGuardianCharts ? (
                             <div className="historial-dashboard-charts">
-                                <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} loading={guardianLoading} variant="area" />
-                                <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} loading={guardianLoading} />
-                                <DashboardChartCard title="Cuestionarios por caso" data={guardianCharts.byCase} loading={guardianLoading} />
-                                <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} loading={guardianLoading} variant="donut" />
+                                <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} variant="area" />
+                                <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} />
+                                <DashboardChartCard title="Cuestionarios por caso" data={guardianCharts.byCase} />
+                                <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} variant="donut" />
                             </div>
                         ) : null}
                         <div className="historial-dashboard-cases-grid">
@@ -728,7 +783,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 const completedRole = firstDetailText([detailPayload, sessionRecord], ['completed_by_role']);
                                 const relationship = firstDetailText([detailPayload, sessionRecord], ['respondent_relationship']);
                                 const appliedAt = firstDetailText([detailPayload, sessionRecord], ['applied_at', 'submitted_at', 'processed_at']);
-                                const domainLabel = normalizeDomainLabel(firstDetailText([detailPayload, resultRecord], ['domain_label', 'dominant_domain'], 'General'));
+                                const domainLabel = normalizeDomainLabel(firstDetailText([detailPayload, resultRecord], ['domain_label', 'dominant_domain'], 'Sin dominio predominante'));
                                 const alertLabel = normalizeAlertLevel(firstDetailText([detailPayload, resultRecord], ['latest_alert_level', 'alert_level'], ''));
 
                                 return (

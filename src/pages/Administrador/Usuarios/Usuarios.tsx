@@ -444,14 +444,20 @@ export default function Usuarios() {
     const [dashboardSampleTotal, setDashboardSampleTotal] = useState<number>(0);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const analyticsUsers = dashboardSample.length > 0 ? dashboardSample : items;
     const dashboardNote = useMemo(
-        () => (dashboardSampleTotal > dashboardSample.length ? 'Resumen calculado sobre los usuarios cargados.' : undefined),
-        [dashboardSample.length, dashboardSampleTotal]
+        () =>
+            dashboardSample.length === 0 && items.length > 0
+                ? 'Resumen calculado con los usuarios visibles de la tabla.'
+                : dashboardSampleTotal > dashboardSample.length
+                    ? 'Resumen calculado sobre los usuarios cargados.'
+                    : undefined,
+        [dashboardSample.length, dashboardSampleTotal, items.length]
     );
     const usersByRoleChart = useMemo(
         () =>
             mapCountsToItems(
-                dashboardSample.reduce((accumulator, user) => {
+                analyticsUsers.reduce((accumulator, user) => {
                     const label = hasAdminRole(user)
                         ? 'Administrador'
                         : normalizeEditableUserType(user) === 'psychologist'
@@ -461,40 +467,40 @@ export default function Usuarios() {
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [dashboardSample]
+        [analyticsUsers]
     );
     const usersByStateChart = useMemo(
         () =>
             mapCountsToItems(
-                dashboardSample.reduce((accumulator, user) => {
+                analyticsUsers.reduce((accumulator, user) => {
                     const label = user.is_active ? 'Activos' : 'Inactivos';
                     accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [dashboardSample]
+        [analyticsUsers]
     );
     const usersByMonthChart = useMemo(
-        () => buildMonthlyCountItems(dashboardSample.map((user) => user.created_at)),
-        [dashboardSample]
+        () => buildMonthlyCountItems(analyticsUsers.map((user) => user.created_at)),
+        [analyticsUsers]
     );
     const usersByDepartmentChart = useMemo(
         () =>
             mapCountsToItems(
-                dashboardSample.reduce((accumulator, user) => {
+                analyticsUsers.reduce((accumulator, user) => {
                     const department = (user as User & { department?: string | null }).department?.trim() || 'Sin departamento';
                     accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
-        [dashboardSample]
+        [analyticsUsers]
     );
     const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Administrador'], []);
     const roleStateColumns = useMemo(() => ['Activos', 'Inactivos'], []);
     const roleStateCells = useMemo(
         () =>
             buildHeatmapCells(
-                dashboardSample.map((user) => ({
+                analyticsUsers.map((user) => ({
                     role: hasAdminRole(user)
                         ? 'Administrador'
                         : normalizeEditableUserType(user) === 'psychologist'
@@ -507,9 +513,9 @@ export default function Usuarios() {
                 (entry) => entry.role,
                 (entry) => entry.state
             ),
-        [dashboardSample, roleStateColumns, roleStateRows]
+        [analyticsUsers, roleStateColumns, roleStateRows]
     );
-    const hasDashboardData = dashboardSample.length > 0;
+    const hasDashboardData = analyticsUsers.length > 0;
 
     const handleDownloadReport = async () => {
         setReportWorking(true);
@@ -798,14 +804,13 @@ export default function Usuarios() {
                             <button
                                 type="button"
                                 className="icon-btn usuarios-id-copy has-tooltip"
-                                data-tooltip="Copiar ID"
+                                data-tooltip="Copiar ID interno"
+                                aria-label={`Copiar ID interno de ${user.username}`}
                                 onClick={() => handleCopyIdAction(user.id)}
                             >
                                 <CopyIcon />
                             </button>
-                            <span className="usuarios-id-value" title={user.id}>
-                                {user.id}
-                            </span>
+                            <span className="usuarios-id-value">ID interno disponible</span>
                         </div>
                     </div>
 
@@ -951,6 +956,7 @@ export default function Usuarios() {
                             />
                         </DashboardSection>
                         <DashboardSection
+                            className="usuarios-dashboard-wide"
                             title="Composición rol + estado"
                             description="Cruza rol y estado para identificar segmentos que requieren revisión."
                             note={dashboardNote}

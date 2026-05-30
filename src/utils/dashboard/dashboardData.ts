@@ -75,7 +75,7 @@ function normalizeGenericLabel(value: string) {
 
 export function normalizeDashboardDomain(value: unknown) {
     const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
-    if (!raw) return 'General';
+    if (!raw || raw === 'general' || raw === 'none' || raw === 'sin_dominio') return 'Sin dominio predominante';
     if (
         raw.includes('gad') ||
         raw.includes('agor') ||
@@ -421,7 +421,7 @@ function formatProbabilityLabel(value: number | null) {
 
 function formatDashboardDateTime(value: string | null | undefined) {
     const parsed = value ? new Date(value) : null;
-    if (!parsed || Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+    if (!parsed || Number.isNaN(parsed.getTime())) return 'Sin actividad registrada';
     return new Intl.DateTimeFormat('es-CO', {
         day: '2-digit',
         month: 'short',
@@ -736,7 +736,7 @@ export function resolveHistoryItemAlert(
     if (directAlert && directAlert !== '--') {
         return {
             alertLabel: directAlert,
-            domainLabel: getDominantDomain((item as Record<string, unknown>).domains as Array<{ domain?: unknown; probability?: unknown }> | undefined) ?? 'General',
+            domainLabel: getDominantDomain((item as Record<string, unknown>).domains as Array<{ domain?: unknown; probability?: unknown }> | undefined) ?? 'Sin dominio predominante',
             probabilityLabel: '--',
             probabilityValue: null
         };
@@ -776,7 +776,7 @@ export function formatHistoryTimelineDescription(options: {
 
 export function formatGuardianTrendAxisLabel(value: string) {
     const raw = safeDisplayText(value, '');
-    if (!raw) return 'Fecha no disponible';
+    if (!raw) return 'Sin actividad';
     const parsed = new Date(raw);
     if (Number.isNaN(parsed.getTime())) return raw;
     const day = new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(parsed);

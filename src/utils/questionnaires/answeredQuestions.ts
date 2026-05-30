@@ -270,7 +270,7 @@ function resolveSectionLabel(answer: PreviewAnswerLike, matchingQuestion: Questi
         if (label) return label;
     }
 
-    return 'General';
+    return 'Sin sección definida';
 }
 
 function inferDomainLabel(rawValue: string) {
@@ -309,7 +309,7 @@ function resolveDomainLabel(answer: PreviewAnswerLike, matchingQuestion: Questio
         if (raw) return inferDomainLabel(raw);
     }
 
-    return 'General';
+    return 'Sin dominio predominante';
 }
 
 export function resolveAnsweredQuestionRows({

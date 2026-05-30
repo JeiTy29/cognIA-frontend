@@ -25,7 +25,9 @@ const domainLabels: Record<string, string> = {
     anxiety: 'Ansiedad',
     depression: 'Depresi\u00f3n',
     conduct: 'Conducta',
-    elimination: 'Eliminaci\u00f3n'
+    elimination: 'Eliminaci\u00f3n',
+    general: 'Sin dominio predominante',
+    none: 'Sin dominio predominante'
 };
 
 function cleanText(value: unknown) {
@@ -76,8 +78,8 @@ export function resolveCaseCompositeLabel(caseLike: CaseLike | null | undefined)
 
 export function getDashboardDomainLabel(value: string | null | undefined) {
     const normalized = cleanText(value).toLowerCase();
-    if (!normalized) return 'Sin dominio';
-    return domainLabels[normalized] ?? value?.trim() ?? 'Sin dominio';
+    if (!normalized) return 'Sin dominio predominante';
+    return domainLabels[normalized] ?? value?.trim() ?? 'Sin dominio predominante';
 }
 
 export function getDashboardAlertLabel(value: string | null | undefined) {

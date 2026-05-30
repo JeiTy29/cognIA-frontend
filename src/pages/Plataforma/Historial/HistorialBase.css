@@ -827,3 +827,291 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* Adaptive history rows: avoid clipped dashboard cards with real labels. */
+.historial-dashboard-cases-grid,
+.historial-dashboard-session-list {
+    display: flex !important;
+    flex-direction: column;
+    grid-template-columns: none !important;
+    gap: 10px;
+}
+
+.historial-dashboard-case-card,
+.historial-dashboard-session-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border-radius: 18px !important;
+    padding: 12px 14px !important;
+    overflow: visible;
+}
+
+.historial-dashboard-card-inline {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.historial-dashboard-card-inline > *,
+.historial-dashboard-session-card > *,
+.historial-dashboard-case-card > * {
+    min-width: 0;
+}
+
+.historial-dashboard-card-inline span,
+.historial-dashboard-session-card p,
+.historial-dashboard-case-card p {
+    overflow-wrap: anywhere;
+}
+
+.historial-dashboard-inline-actions,
+.historial-dashboard-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.historial-dashboard-pagination {
+    justify-content: center;
+    white-space: normal;
+}
+
+.historial-dashboard-inline-actions button,
+.historial-dashboard-pagination button {
+    min-width: max-content;
+}
+
+@media (max-width: 720px) {
+    .historial-dashboard-card-inline {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-dashboard-inline-actions button,
+    .historial-dashboard-pagination button {
+        width: auto;
+        min-width: 0;
+    }
+}
+
+/* Productized questionnaire detail modal. */
+.modal-content:has(.historial-v2-modal) {
+    width: min(1040px, calc(100vw - 28px));
+    max-width: 1040px;
+    padding: 0;
+    border-radius: 26px;
+    overflow: hidden;
+    background: #f6f9fc;
+}
+
+.historial-v2-modal {
+    max-height: 88vh;
+    overflow-y: auto;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    color: #17324d;
+}
+
+.historial-v2-modal-hero {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 18px 20px;
+    border: 1px solid rgba(31, 77, 117, 0.12);
+    border-radius: 22px;
+    background: linear-gradient(135deg, #ffffff 0%, #eef7fc 100%);
+    box-shadow: 0 18px 45px rgba(20, 60, 92, 0.1);
+}
+
+.historial-v2-modal-hero span,
+.historial-v2-section-label {
+    color: #0f5f9f;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.historial-v2-modal-hero h2 {
+    margin: 4px 0;
+    font-size: clamp(24px, 3vw, 34px);
+    letter-spacing: -0.04em;
+}
+
+.historial-v2-modal-hero p,
+.historial-v2-helper-text,
+.historial-v2-text-block,
+.historial-v2-section p {
+    color: #52677a;
+    line-height: 1.55;
+}
+
+.historial-v2-risk-chip {
+    display: grid;
+    gap: 4px;
+    min-width: 150px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(15, 95, 159, 0.1);
+    color: #1f4d75;
+    text-align: right;
+}
+
+.historial-v2-risk-chip strong {
+    font-size: 17px;
+}
+
+.historial-v2-warning,
+.historial-v2-empty-panel,
+.historial-v2-actions-card {
+    border: 1px solid rgba(31, 77, 117, 0.12);
+    border-radius: 18px;
+    padding: 14px;
+    background: #ffffff;
+}
+
+.historial-v2-warning--primary {
+    border-color: rgba(191, 109, 30, 0.24);
+    background: #fff8ee;
+    color: #7a4512;
+}
+
+.historial-v2-detail-list,
+.historial-v2-kv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.historial-v2-detail-item,
+.historial-v2-kv-grid > div {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid rgba(31, 77, 117, 0.1);
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.historial-v2-detail-item strong,
+.historial-v2-kv-grid strong {
+    color: #52677a;
+    font-size: 12px;
+}
+
+.historial-v2-detail-item span,
+.historial-v2-kv-grid span,
+.historial-v2-review-card p,
+.historial-v2-review-card strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.historial-v2-section {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid rgba(31, 77, 117, 0.11);
+    border-radius: 20px;
+    background: #ffffff;
+}
+
+.historial-v2-section h3 {
+    margin: 0;
+    color: #1f4d75;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+}
+
+.historial-v2-bullet-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #263f57;
+}
+
+.historial-v2-review-list,
+.historial-v2-psychologist-list {
+    display: grid;
+    gap: 10px;
+}
+
+.historial-v2-review-card,
+.historial-v2-psychologist-item {
+    min-width: 0;
+    border: 1px solid rgba(31, 77, 117, 0.12);
+    border-radius: 16px;
+    padding: 12px;
+    background: #fbfdff;
+}
+
+.historial-v2-psychologist-item {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+.historial-v2-psychologist-item.is-selected {
+    outline: 3px solid rgba(15, 95, 159, 0.22);
+    border-color: #0f5f9f;
+}
+
+.historial-v2-tag-form,
+.historial-v2-share-search-grid,
+.historial-v2-section-actions,
+.historial-v2-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+}
+
+.historial-v2-share-search-grid {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(240px, 1fr) auto;
+    align-items: end;
+}
+
+.historial-v2-inline-toggle {
+    grid-column: 1 / -1;
+}
+
+.historial-v2-section-actions,
+.historial-v2-modal-actions {
+    justify-content: flex-end;
+}
+
+.historial-v2-btn {
+    min-width: max-content;
+    white-space: normal;
+}
+
+@media (max-width: 760px) {
+    .historial-v2-modal {
+        padding: 12px;
+    }
+
+    .historial-v2-modal-hero,
+    .historial-v2-share-search-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-v2-risk-chip {
+        text-align: left;
+    }
+
+    .historial-v2-section-actions .historial-v2-btn,
+    .historial-v2-modal-actions .historial-v2-btn,
+    .historial-v2-tag-form .historial-v2-btn {
+        width: 100%;
+    }
+}

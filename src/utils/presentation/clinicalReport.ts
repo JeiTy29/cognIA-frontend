@@ -503,8 +503,8 @@ export function buildReportAnswersViewModel(
             typeof rawQuestion.answer_value === 'string' ? rawQuestion.answer_value : null
         );
         const sectionTitle = normalizeClinicalTextPresentation(
-            typeof rawQuestion.section === 'string' && rawQuestion.section.trim().length > 0 ? rawQuestion.section : 'General',
-            'General'
+            typeof rawQuestion.section === 'string' && rawQuestion.section.trim().length > 0 ? rawQuestion.section : 'Sin secci?n definida',
+            'Sin secci?n definida'
         );
         const questionText = normalizeClinicalTextPresentation(question.text, question.text);
         const item: ReportAnswerItem = {

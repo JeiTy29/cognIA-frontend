@@ -332,12 +332,12 @@ function resolveQuestionDomain(question: QuestionnaireQuestionV2DTO) {
         }
     }
 
-    return 'General';
+    return 'Sin dominio predominante';
 }
 
 function resolveSectionLabel(question: QuestionnaireQuestionV2DTO) {
     const raw = question as Record<string, unknown>;
-    return normalizeClinicalTextPresentation(raw.section_title ?? raw.section ?? 'General', 'General');
+    return normalizeClinicalTextPresentation(raw.section_title ?? raw.section ?? 'Sin sección definida', 'Sin sección definida');
 }
 
 function getQuestionScale(question: QuestionnaireQuestionV2DTO) {
@@ -543,7 +543,7 @@ function buildFallbackAnswerRows(
                 typeof record.question_code === 'string'
                     ? record.question_code
                     : (typeof record.question_id === 'string' ? record.question_id : '')
-            ) ?? 'General';
+            ) ?? 'Sin dominio predominante';
 
             const answerLabel =
                 typeof answer === 'boolean'
@@ -557,7 +557,7 @@ function buildFallbackAnswerRows(
 
             return {
                 index: index + 1,
-                sectionLabel: normalizeClinicalTextPresentation(record.section, 'General'),
+                sectionLabel: normalizeClinicalTextPresentation(record.section, 'Sin dominio predominante'),
                 domainLabel,
                 questionText: 'No fue posible recuperar el texto completo de la pregunta.',
                 answerLabel,
@@ -573,7 +573,7 @@ function buildPreviewAnswerRows(reportPreview: QuestionnaireReportPreviewDTO | n
     const answers = reportPreview?.answers ?? [];
     return answers
         .map((item, index) => {
-            const domainLabel = resolveKnownDomain(item.domain) ?? inferDomainFromText(item.question_code ?? item.prompt ?? '') ?? 'General';
+            const domainLabel = resolveKnownDomain(item.domain) ?? inferDomainFromText(item.question_code ?? item.prompt ?? '') ?? 'Sin dominio predominante';
             const answerLabel = normalizeMojibakeText(item.normalized_answer ?? item.raw_answer_display ?? String(item.raw_answer ?? '--'));
             const pseudoQuestion = {
                 response_type: 'text',
@@ -585,7 +585,7 @@ function buildPreviewAnswerRows(reportPreview: QuestionnaireReportPreviewDTO | n
 
             return {
                 index: index + 1,
-                sectionLabel: normalizeClinicalTextPresentation(item.section_title, 'General'),
+                sectionLabel: normalizeClinicalTextPresentation(item.section_title, 'Sin dominio predominante'),
                 domainLabel,
                 questionText: normalizeClinicalTextPresentation(item.prompt, 'Pregunta no disponible'),
                 answerLabel,

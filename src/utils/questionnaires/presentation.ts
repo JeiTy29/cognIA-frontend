@@ -75,7 +75,8 @@ const DOMAIN_LABELS: Record<string, string> = {
     elimination: 'Eliminaci\u00f3n',
     anxiety: 'Ansiedad',
     depression: 'Depresi\u00f3n',
-    general: 'General'
+    general: 'Sin dominio predominante',
+    none: 'Sin dominio predominante'
 };
 
 const ALERT_LEVEL_LABELS: Record<string, string> = {
@@ -221,7 +222,7 @@ export function normalizeBackendText(value: unknown, fallback = '--') {
 
 export function normalizeDomainLabel(value: unknown) {
     const raw = readText(value).toLowerCase().replace(/[_-]+/g, '_');
-    if (!raw) return 'General';
+    if (!raw || raw === 'general' || raw === 'none' || raw === 'sin_dominio') return 'Sin dominio predominante';
     if (
         raw.includes('gad') ||
         raw.includes('agor') ||
@@ -320,7 +321,7 @@ export function formatPercent(value: unknown, maximumFractionDigits = 1) {
     }).format(normalized)} %`;
 }
 
-export function formatDate(value: unknown, fallback = 'Fecha no disponible') {
+export function formatDate(value: unknown, fallback = 'Sin fecha registrada') {
     const raw = readText(value);
     if (!raw) return fallback;
     const parsed = new Date(raw);
@@ -332,7 +333,7 @@ export function formatDate(value: unknown, fallback = 'Fecha no disponible') {
     }).format(parsed);
 }
 
-export function formatDateTime(value: unknown, fallback = 'Fecha no disponible') {
+export function formatDateTime(value: unknown, fallback = 'Sin fecha registrada') {
     const raw = readText(value);
     if (!raw) return fallback;
     const parsed = new Date(raw);
