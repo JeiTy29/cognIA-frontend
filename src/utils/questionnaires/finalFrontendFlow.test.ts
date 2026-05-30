@@ -81,6 +81,8 @@ describe('frontend final dashboard copy and flows', () => {
         expect(history).toContain('Requiere derivaci\u00f3n urgente');
         expect(history).toContain('Nivel de se\u00f1al de seguridad');
         expect(history).toContain('\u00cdndice de carga sintom\u00e1tica');
+        expect(history).toContain('diagn\u00f3stica');
+        expect(history).toContain('evaluaci\u00f3n');
         expect(renderSection).not.toMatch(/urgent referral recommended|safety signal level|score type|symptom load index/i);
         expect(history).not.toMatch(/URGENT REFERRAL RECOMMENDED|SAFETY SIGNAL LEVEL|SCORE TYPE|SYMPTOM LOAD INDEX/);
     });
