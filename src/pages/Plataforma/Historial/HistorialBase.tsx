@@ -208,9 +208,25 @@ const structuredResultLabels: Record<string, string> = {
 function normalizeStructuredResultLabel(key: string, label: string) {
     return structuredResultLabels[normalizeStructuredKey(key)] ?? normalizeBackendText(label, label);
 }
+function normalizeClinicalSpanishText(value: string) {
+    return value
+        .replace(/\bIndice\b/g, 'Índice')
+        .replace(/\bindice\b/g, 'índice')
+        .replace(/sintomatica/gi, 'sintomática')
+        .replace(/diagnostica/gi, 'diagnóstica')
+        .replace(/diagnostico/gi, 'diagnóstico')
+        .replace(/clinico/gi, 'clínico')
+        .replace(/evaluacion/gi, 'evaluación')
+        .replace(/psicologica/gi, 'psicológica')
+        .replace(/medica/gi, 'médica')
+        .replace(/informacion/gi, 'información')
+        .replace(/estadisticos/gi, 'estadísticos')
+        .replace(/clinicas/gi, 'clínicas')
+        .replace(/terapeuticas/gi, 'terapéuticas');
+}
 function normalizeStructuredResultValue(key: string, value: string) {
     const normalizedKey = normalizeStructuredKey(key);
-    const normalizedValue = normalizeBackendText(value, value);
+    const normalizedValue = normalizeClinicalSpanishText(normalizeBackendText(value, value));
     const lower = normalizedValue.trim().toLowerCase();
     if (lower === 'none') return 'Ninguna';
     if (normalizedKey === 'score_type' && lower === 'symptom load index') return 'Índice de carga sintomática';
