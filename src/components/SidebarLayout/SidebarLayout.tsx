@@ -15,6 +15,12 @@ function resolveLayoutRole(primaryRole: string | null, pathname: string): Role {
     return 'padre';
 }
 
+function getRoleLabel(role: Role) {
+    if (role === 'admin') return 'Administrador';
+    if (role === 'psicologo') return 'Psicólogo';
+    return 'Padre/Tutor';
+}
+
 export default function SidebarLayout() {
     const location = useLocation();
     const { primaryRole } = useAuth();
@@ -24,6 +30,9 @@ export default function SidebarLayout() {
             <Sidebar role={role} />
             <div className="app-main">
                 <div className="app-topbar">
+                    <div className="app-current-role" aria-label={`Rol actual: ${getRoleLabel(role)}`}>
+                        {getRoleLabel(role)}
+                    </div>
                     <div className="app-topbar__actions">
                         <NotificationsBell />
                     </div>

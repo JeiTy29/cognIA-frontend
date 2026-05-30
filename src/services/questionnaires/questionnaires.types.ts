@@ -102,6 +102,8 @@ export interface QuestionnaireOptionDTO {
 export interface QuestionnaireEvaluationResultDTO {
     summary?: string | null;
     operational_recommendation?: string | null;
+    primary_domain?: QuestionnaireEvaluationDomainDTO | null;
+    observed_indicators?: QuestionnaireObservedIndicatorDTO[] | string[] | null;
     completion_quality_score?: number | null;
     missingness_score?: number | null;
     needs_professional_review?: boolean | null;
@@ -136,6 +138,52 @@ export interface QuestionnaireEvaluationDomainDTO {
     score_type?: string | null;
     score_label?: string | null;
     score_explanation?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireObservedIndicatorDTO {
+    code?: string | null;
+    label?: string | null;
+    text?: string | null;
+    question?: string | null;
+    question_text?: string | null;
+    answer?: string | number | boolean | null;
+    answer_label?: string | null;
+    value?: number | null;
+    score?: number | null;
+    domain?: string | null;
+    domain_code?: string | null;
+    domain_label?: string | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireHistoryResponseItemDTO {
+    question_id?: string | null;
+    question_code?: string | null;
+    code?: string | null;
+    prompt?: string | null;
+    question?: string | null;
+    question_text?: string | null;
+    text?: string | null;
+    section?: string | null;
+    section_title?: string | null;
+    domain?: string | null;
+    domain_code?: string | null;
+    domain_label?: string | null;
+    answer?: QuestionnaireResponseValue;
+    answer_value?: QuestionnaireResponseValue;
+    answer_label?: string | null;
+    value?: QuestionnaireResponseValue;
+    missing?: boolean | null;
+    is_missing?: boolean | null;
+    [key: string]: unknown;
+}
+
+export interface QuestionnaireHistoryResponsesV2Response {
+    session_id?: string | null;
+    items: QuestionnaireHistoryResponseItemDTO[];
+    warnings?: string[];
+    permissions?: Record<string, unknown> | null;
     [key: string]: unknown;
 }
 
@@ -496,6 +544,15 @@ export interface QuestionnairePsychologistShareRequestV2DTO {
 export interface QuestionnairePsychologistShareRequestsV2Response {
     items: QuestionnairePsychologistShareRequestV2DTO[];
     pagination: PaginationDTO;
+    summary?: Record<string, unknown> | null;
+    charts?: {
+        by_status?: QuestionnaireDashboardChartPointDTO[];
+        by_alert_level?: QuestionnaireDashboardChartPointDTO[];
+        by_domain?: QuestionnaireDashboardChartPointDTO[];
+        over_time?: QuestionnaireDashboardChartPointDTO[];
+        pending_age?: QuestionnaireDashboardChartPointDTO[];
+        [key: string]: QuestionnaireDashboardChartPointDTO[] | undefined;
+    } | null;
     warnings?: string[];
     [key: string]: unknown;
 }

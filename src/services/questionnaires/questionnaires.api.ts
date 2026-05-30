@@ -29,6 +29,8 @@ import type {
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryListV2Response,
+    QuestionnaireHistoryResponseItemDTO,
+    QuestionnaireHistoryResponsesV2Response,
     QuestionnaireNotificationsV2Response,
     QuestionnaireClinicalComorbidityV2DTO,
     QuestionnaireClinicalDomainV2DTO,
@@ -47,6 +49,7 @@ import type {
     QuestionnairePsychologistDashboardV2Response,
     QuestionnairePsychologistShareRequestV2DTO,
     QuestionnairePsychologistShareRequestsV2Response,
+    QuestionnaireObservedIndicatorDTO,
     GuardianDashboardDTO,
     PsychologistDashboardDTO,
     PsychologistSearchItemDTO,
@@ -361,6 +364,86 @@ function normalizeReportPreview(value: unknown): QuestionnaireReportPreviewDTO {
         warnings: asArray(record.warnings).map(String),
         data_quality: asRecord(record.data_quality)
     } as QuestionnaireReportPreviewDTO;
+}
+
+function normalizeObservedIndicator(value: unknown): QuestionnaireObservedIndicatorDTO | null {
+    const record = asRecord(value);
+    if (!record) {
+        if (typeof value === 'string' && value.trim()) {
+            return { label: value.trim(), text: value.trim() };
+        }
+        return null;
+    }
+
+    return {
+        ...record,
+        code: firstNonEmptyString([record.code, record.indicator_code, record.question_code]),
+        label: firstNonEmptyString([record.label, record.title, record.text, record.question_text]),
+        text: firstNonEmptyString([record.text, record.question_text, record.question, record.label]),
+        question: firstNonEmptyString([record.question, record.question_text, record.text]),
+        question_text: firstNonEmptyString([record.question_text, record.question, record.text]),
+        answer: (record.answer ?? record.answer_value ?? record.value ?? null) as QuestionnaireObservedIndicatorDTO['answer'],
+        answer_label: firstNonEmptyString([record.answer_label, record.answer_text, record.response_label]),
+        value: toNumberOrNull(record.value),
+        score: toNumberOrNull(record.score),
+        domain: firstNonEmptyString([record.domain, record.domain_code]),
+        domain_code: firstNonEmptyString([record.domain_code, record.domain]),
+        domain_label: firstNonEmptyString([record.domain_label])
+    };
+}
+
+function normalizeHistoryResponseItem(value: unknown): QuestionnaireHistoryResponseItemDTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+    return {
+        ...record,
+        question_id: firstNonEmptyString([record.question_id, record.id]),
+        question_code: firstNonEmptyString([record.question_code, record.code]),
+        code: firstNonEmptyString([record.code, record.question_code]),
+        prompt: firstNonEmptyString([record.prompt, record.question_text, record.question, record.text, record.label]),
+        question: firstNonEmptyString([record.question, record.question_text, record.prompt, record.text]),
+        question_text: firstNonEmptyString([record.question_text, record.question, record.prompt, record.text]),
+        text: firstNonEmptyString([record.text, record.question_text, record.question, record.prompt]),
+        section: firstNonEmptyString([record.section, record.section_key]),
+        section_title: firstNonEmptyString([record.section_title, record.section_label, record.domain_label]),
+        domain: firstNonEmptyString([record.domain, record.domain_code]),
+        domain_code: firstNonEmptyString([record.domain_code, record.domain]),
+        domain_label: firstNonEmptyString([record.domain_label]),
+        answer: (record.answer ?? record.answer_value ?? record.value ?? null) as QuestionnaireHistoryResponseItemDTO['answer'],
+        answer_value: (record.answer_value ?? record.answer ?? record.value ?? null) as QuestionnaireHistoryResponseItemDTO['answer_value'],
+        answer_label: firstNonEmptyString([record.answer_label, record.answer_text, record.response_label]),
+        value: (record.value ?? record.answer_value ?? record.answer ?? null) as QuestionnaireHistoryResponseItemDTO['value'],
+        missing: toBooleanOrNull(record.missing ?? record.is_missing),
+        is_missing: toBooleanOrNull(record.is_missing ?? record.missing)
+    };
+}
+
+function normalizeHistoryResponsesResponse(payload: unknown): QuestionnaireHistoryResponsesV2Response {
+    if (Array.isArray(payload)) {
+        return {
+            items: payload
+                .map(normalizeHistoryResponseItem)
+                .filter((item): item is QuestionnaireHistoryResponseItemDTO => Boolean(item)),
+            warnings: []
+        };
+    }
+    const root = pickRecord(payload, ['data', 'result', 'responses']) ?? asRecord(payload);
+    if (!root) {
+        return {
+            items: [],
+            warnings: []
+        };
+    }
+    const itemsSource = root.items ?? root.responses ?? root.answers ?? root.data;
+    return {
+        ...root,
+        session_id: firstNonEmptyString([root.session_id, root.id]),
+        items: asArray(itemsSource)
+            .map(normalizeHistoryResponseItem)
+            .filter((item): item is QuestionnaireHistoryResponseItemDTO => Boolean(item)),
+        warnings: asArray(root.warnings).map(String),
+        permissions: asRecord(root.permissions)
+    };
 }
 
 function normalizeProfessionalReview(value: unknown): QuestionnaireProfessionalReviewDTO | null {
@@ -775,10 +858,21 @@ function normalizeShareRequestsResponse(payload: unknown, page: number, pageSize
     const items = asArray(root.items)
         .map(normalizeShareRequest)
         .filter((item): item is QuestionnairePsychologistShareRequestV2DTO => Boolean(item));
+    const chartsRoot = asRecord(root.charts);
     return {
         ...root,
         items,
         pagination: normalizePagination(root.pagination, page, pageSize),
+        summary: asRecord(root.summary),
+        charts: chartsRoot
+            ? {
+                by_status: normalizeChartPoints(chartsRoot.by_status),
+                by_alert_level: normalizeChartPoints(chartsRoot.by_alert_level),
+                by_domain: normalizeChartPoints(chartsRoot.by_domain),
+                over_time: normalizeChartPoints(chartsRoot.over_time),
+                pending_age: normalizeChartPoints(chartsRoot.pending_age)
+            }
+            : null,
         warnings: asArray(root.warnings).map(String)
     } as QuestionnairePsychologistShareRequestsV2Response;
 }
@@ -918,7 +1012,9 @@ function normalizeHistoryDetail(payload: unknown): QuestionnaireHistoryDetailV2D
 }
 
 function normalizeSecureResults(payload: unknown): QuestionnaireSecureResultsV2DTO {
-    const root = pickRecord(payload, ['results', 'result', 'data']);
+    const payloadRecord = asRecord(payload);
+    const resultsWrapper = asRecord(payloadRecord?.results);
+    const root = asRecord(payloadRecord?.data) ?? (resultsWrapper?.session || resultsWrapper?.result ? resultsWrapper : payloadRecord);
     if (!root) {
         return {
             session: { id: '' },
@@ -929,11 +1025,22 @@ function normalizeSecureResults(payload: unknown): QuestionnaireSecureResultsV2D
     }
 
     const sessionSource = asRecord(root.session) ?? root;
+    const rawResult =
+        asRecord(root.result) ??
+        asRecord(root.results) ??
+        (root.primary_domain || root.observed_indicators || root.summary || root.operational_recommendation ? root : null);
+    const result = normalizeEvaluationResult(rawResult);
+    const domains = normalizeEvaluationDomains(root.domains ?? rawResult?.domains);
+    const normalizedDomains = domains.length > 0
+        ? domains
+        : result?.primary_domain
+            ? [result.primary_domain]
+            : [];
     return {
         ...root,
         session: normalizeSession(sessionSource),
-        result: normalizeEvaluationResult(asRecord(root.result) ?? asRecord(root.results) ?? null),
-        domains: normalizeEvaluationDomains(root.domains),
+        result,
+        domains: normalizedDomains,
         comorbidity: normalizeEvaluationComorbidity(root.comorbidity)
     };
 }
@@ -1228,10 +1335,15 @@ function normalizeSharedQuestionnaire(payload: unknown): QuestionnaireSharedData
 function normalizeEvaluationResult(value: unknown) {
     const record = asRecord(value);
     if (!record) return null;
+    const primaryDomainSource = asRecord(record.primary_domain) ?? asRecord(record.primaryDomain);
     return {
         ...record,
         summary: firstNonEmptyString([record.summary]),
         operational_recommendation: firstNonEmptyString([record.operational_recommendation]),
+        primary_domain: primaryDomainSource ? normalizeEvaluationDomains([primaryDomainSource])[0] ?? null : null,
+        observed_indicators: asArray(record.observed_indicators ?? record.observedIndicators ?? record.indicators)
+            .map(normalizeObservedIndicator)
+            .filter((item): item is QuestionnaireObservedIndicatorDTO => Boolean(item)),
         completion_quality_score: toNumberOrNull(record.completion_quality_score),
         missingness_score: toNumberOrNull(record.missingness_score),
         needs_professional_review: toBooleanOrNull(record.needs_professional_review),
@@ -1708,6 +1820,13 @@ export function getQuestionnaireHistoryResultsV2(sessionId: string) {
         `/api/v2/questionnaires/history/${sessionId}/results-secure`,
         requestOptions
     ).then(normalizeSecureResults);
+}
+
+export function getQuestionnaireHistoryResponsesV2(sessionId: string): Promise<QuestionnaireHistoryResponsesV2Response> {
+    return apiGet<unknown>(
+        `/api/v2/questionnaires/history/${sessionId}/responses`,
+        requestOptions
+    ).then(normalizeHistoryResponsesResponse);
 }
 
 export function getQuestionnaireClinicalSummaryV2(sessionId: string) {

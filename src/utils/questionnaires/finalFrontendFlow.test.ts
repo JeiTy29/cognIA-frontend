@@ -7,6 +7,10 @@ const detailModalSource = () => readFileSync('src/components/questionnaires/Ques
 const guardianCasesSource = () => readFileSync('src/pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian.tsx', 'utf8');
 const guardianCssSource = () => readFileSync('src/pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian.css', 'utf8');
 const chartsSource = () => readFileSync('src/components/DashboardCharts/index.tsx', 'utf8');
+const apiSource = () => readFileSync('src/services/questionnaires/questionnaires.api.ts', 'utf8');
+const solicitudesSource = () => readFileSync('src/pages/Plataforma/SolicitudesRevisionPsicologo/SolicitudesRevisionPsicologo.tsx', 'utf8');
+const evaluacionesSource = () => readFileSync('src/pages/Plataforma/EvaluacionesCompartidas/EvaluacionesCompartidas.tsx', 'utf8');
+const sidebarLayoutSource = () => readFileSync('src/components/SidebarLayout/SidebarLayout.tsx', 'utf8');
 
 describe('frontend final dashboard copy and flows', () => {
     it('usa envio directo a psicologo y no enlace como flujo principal en historial', () => {
@@ -97,5 +101,45 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('fullLabel');
         expect(source).toContain('minHeight: Math.max');
         expect(source).not.toContain('+${rest.length} m\u00e1s');
+    });
+
+    it('integra respuestas detalladas para guardian y psicologo aceptado', () => {
+        expect(apiSource()).toContain('/api/v2/questionnaires/history/${sessionId}/responses');
+        expect(historySource()).toContain('getQuestionnaireHistoryResponsesV2');
+        expect(detailModalSource()).toContain('getQuestionnaireHistoryResponsesV2');
+        expect(evaluacionesSource()).toContain('getQuestionnaireHistoryResponsesV2');
+        expect(historySource()).toContain('Respuestas registradas');
+        expect(detailModalSource()).toContain('Respuestas registradas');
+        expect(evaluacionesSource()).toContain('Respuestas registradas');
+    });
+
+    it('usa resultados normalizados y evita strings crudos indice/riesgo', () => {
+        const api = apiSource();
+        const history = historySource();
+        expect(api).toContain('primary_domain');
+        expect(api).toContain('observed_indicators');
+        expect(history).toContain('Resultados por dominio');
+        expect(history).not.toContain('indice=');
+        expect(history).not.toContain('riesgo=');
+    });
+
+    it('solicitudes de psicologo consumen charts del backend y no doble hero', () => {
+        const source = solicitudesSource();
+        expect(source).toContain('dashboardCharts');
+        expect(source).toContain('by_status');
+        expect(source).toContain('by_alert_level');
+        expect(source).toContain('by_domain');
+        expect(source).toContain('over_time');
+        expect(source).toContain('pending_age');
+        expect(source).toContain('solicitudes-revision__header-insight');
+        expect(source).not.toContain('className="solicitudes-revision__insight"');
+    });
+
+    it('muestra rol actual en espanol sin enums internos visibles', () => {
+        const source = sidebarLayoutSource();
+        expect(source).toContain('Padre/Tutor');
+        expect(source).toContain('Psicólogo');
+        expect(source).toContain('Administrador');
+        expect(source).toContain('app-current-role');
     });
 });

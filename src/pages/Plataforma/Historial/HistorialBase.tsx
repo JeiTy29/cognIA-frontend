@@ -17,6 +17,7 @@ import {
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryPdfV2,
+    getQuestionnaireHistoryResponsesV2,
     getQuestionnaireHistoryResultsV2,
     getQuestionnaireProfessionalReviewsV2,
     searchPsychologistsV2,
@@ -30,6 +31,7 @@ import type {
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
+    QuestionnaireHistoryResponsesV2Response,
     QuestionnairePdfInfoV2DTO,
     QuestionnaireProfessionalReviewDTO,
     PsychologistSearchItemDTO,
@@ -195,7 +197,8 @@ function makeDescription(role: HistorialRole) {
 async function loadDetail(sessionId: string) {
     const detail = await getQuestionnaireHistoryDetailV2(sessionId);
     const reviews = await getQuestionnaireProfessionalReviewsV2(sessionId).catch(() => []);
-    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null, reviews };
+    const responses = await getQuestionnaireHistoryResponsesV2(sessionId).catch(() => ({ items: [], warnings: [] }));
+    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null, reviews, responses };
     const [results, summary] = await Promise.allSettled([
         getQuestionnaireHistoryResultsV2(sessionId),
         getQuestionnaireClinicalSummaryV2(sessionId)
@@ -204,7 +207,8 @@ async function loadDetail(sessionId: string) {
         detail,
         results: results.status === 'fulfilled' ? results.value : null,
         summary: summary.status === 'fulfilled' ? summary.value : null,
-        reviews
+        reviews,
+        responses
     };
 }
 function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
@@ -239,6 +243,30 @@ function toTextList(value: unknown) {
         .map((item) => normalizeBackendText(item, ''))
         .filter((item) => item.trim().length > 0);
 }
+function formatPercentValue(value: unknown) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '--';
+    const percent = numeric > 1 ? numeric : numeric * 100;
+    return `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: percent < 1 ? 1 : 0 }).format(percent)}%`;
+}
+function responseQuestionText(item: Record<string, unknown>) {
+    return normalizeBackendText(item.prompt ?? item.question_text ?? item.question ?? item.text, 'Pregunta registrada');
+}
+function responseAnswerText(item: Record<string, unknown>) {
+    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
+    return normalizeBackendText(item.answer_label ?? item.answer ?? item.answer_value ?? item.value, 'Sin respuesta registrada');
+}
+function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
+    const groups = new Map<string, Record<string, unknown>[]>();
+    (responses?.items ?? []).forEach((item) => {
+        const record = toRecord(item);
+        if (!record) return;
+        const groupLabel = normalizeDomainLabel(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section);
+        const safeLabel = groupLabel === 'General' ? 'Señales globales' : groupLabel;
+        groups.set(safeLabel, [...(groups.get(safeLabel) ?? []), record]);
+    });
+    return [...groups.entries()].map(([label, items]) => ({ label, items }));
+}
 function firstDetailText(records: Array<Record<string, unknown> | null | undefined>, keys: string[], fallback = '--') {
     for (const record of records) {
         if (!record) continue;
@@ -271,6 +299,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
+    const [responsesPayload, setResponsesPayload] = useState<QuestionnaireHistoryResponsesV2Response | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [professionalReviews, setProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
@@ -408,10 +437,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailError(null);
         setDetailNotice(null);
         setPdfPayload(null);
+        setDetailPayload(null);
+        setResultsPayload(null);
+        setResponsesPayload(null);
+        setClinicalSummaryPayload(null);
+        setProfessionalReviews([]);
         try {
             const detail = await loadDetail(sessionId);
             setDetailPayload(detail.detail);
             setResultsPayload(detail.results);
+            setResponsesPayload(detail.responses);
             setClinicalSummaryPayload(detail.summary);
             setProfessionalReviews(detail.reviews);
             if (role === 'padre') {
@@ -428,6 +463,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailSessionId(null);
         setDetailPayload(null);
         setResultsPayload(null);
+        setResponsesPayload(null);
         setClinicalSummaryPayload(null);
         setProfessionalReviews([]);
         setPdfPayload(null);
@@ -718,7 +754,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 )}
 
                 <section className="historial-dashboard-list">
-                    <div className="historial-dashboard-list-header"><h2>Listado detallado</h2><div>Mostrando {showFrom}-{showTo} de {history.total}</div></div>
+                    <div className="historial-dashboard-list-header">
+                        <div>
+                            <h2>Cuestionarios y casos recientes</h2>
+                            <p>Selecciona un registro para revisar resultados, respuestas, PDF o revisión profesional.</p>
+                        </div>
+                        <div>Mostrando {showFrom}-{showTo} de {history.total}</div>
+                    </div>
                     {history.error ? <div className="historial-dashboard-alert error">{history.error}</div> : null}
                     {history.loading ? <div className="historial-dashboard-empty">Cargando registros...</div> : null}
                     {!history.loading && history.items.length === 0 ? <div className="historial-dashboard-empty">{hasActiveFilters ? 'No hay resultados para los filtros aplicados.' : 'Aún no hay cuestionarios registrados.'}</div> : null}
@@ -782,8 +824,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 const completedBy = firstDetailText([detailPayload, sessionRecord], ['completed_by_display_name']);
                                 const completedRole = firstDetailText([detailPayload, sessionRecord], ['completed_by_role']);
                                 const relationship = firstDetailText([detailPayload, sessionRecord], ['respondent_relationship']);
-                                const appliedAt = firstDetailText([detailPayload, sessionRecord], ['applied_at', 'submitted_at', 'processed_at']);
-                                const domainLabel = normalizeDomainLabel(firstDetailText([detailPayload, resultRecord], ['domain_label', 'dominant_domain'], 'Sin dominio predominante'));
+                                const appliedAtRaw = firstDetailText([detailPayload, sessionRecord], ['applied_at', 'submitted_at', 'processed_at'], '');
+                                const appliedAt = appliedAtRaw ? formatDateTimeEsCO(appliedAtRaw) : 'Sin fecha registrada';
+                                const primaryDomain = toRecord(resultRecord?.primary_domain);
+                                const domainLabel = normalizeDomainLabel(firstDetailText([primaryDomain, detailPayload, resultRecord], ['domain_label', 'domain', 'domain_code', 'dominant_domain'], 'Sin dominio predominante'));
                                 const alertLabel = normalizeAlertLevel(firstDetailText([detailPayload, resultRecord], ['latest_alert_level', 'alert_level'], ''));
 
                                 return (
@@ -864,13 +908,62 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 ) : <p className="historial-dashboard-helper">No hay informe orientativo disponible.</p>}
                             </div>
                             <div className="historial-dashboard-modal-section">
+                                <h3>Resultados por dominio</h3>
+                                {resultsPayload?.domains?.length ? (
+                                    <div className="historial-dashboard-domain-bars">
+                                        {resultsPayload.domains.slice(0, 6).map((domain, index) => {
+                                            const label = normalizeDomainLabel(domain.domain_label ?? domain.domain ?? domain.domain_code);
+                                            const percent = formatPercentValue(domain.probability ?? domain.confidence_pct);
+                                            const width = Math.max(4, Math.min(100, Number(domain.probability) > 1 ? Number(domain.probability) : Number(domain.probability) * 100));
+                                            return (
+                                                <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
+                                                    <div>
+                                                        <strong>{label}</strong>
+                                                        <span>{percent} · {normalizeAlertLevel(domain.alert_level)}</span>
+                                                    </div>
+                                                    <div className="historial-dashboard-domain-track" aria-hidden="true">
+                                                        <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="historial-dashboard-helper">Aún no hay resultados por dominio para este cuestionario.</p>
+                                )}
+                            </div>
+                            <div className="historial-dashboard-modal-section">
+                                <h3>Respuestas registradas</h3>
+                                {responsesPayload?.items?.length ? (
+                                    <div className="historial-dashboard-response-groups">
+                                        {groupedResponses(responsesPayload).map((group) => (
+                                            <article className="historial-dashboard-response-group" key={group.label}>
+                                                <h4>{group.label}</h4>
+                                                {group.items.slice(0, 12).map((item, index) => (
+                                                    <div className="historial-dashboard-response-row" key={`${group.label}-${index}`}>
+                                                        <strong>{responseQuestionText(item)}</strong>
+                                                        <span>{responseAnswerText(item)}</span>
+                                                    </div>
+                                                ))}
+                                            </article>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="historial-dashboard-helper">No hay respuestas visibles para este cuestionario con los permisos actuales.</p>
+                                )}
+                            </div>
+                            <div className="historial-dashboard-modal-section">
                                 <h3>Resultados estructurados</h3>
                                 <KeyValueRows data={toRecord(resultsPayload?.result ?? resultsPayload)} hidden={['id', 'session_id', 'questionnaire_id', 'metadata']} emptyText="Sin resultados complementarios." />
                                 <p className="historial-dashboard-helper">{clinicalDisclaimer}</p>
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Etiquetas</h3>
-                                {tags.length === 0 ? <p className="historial-dashboard-helper">Sin etiquetas.</p> : (
+                                {tags.length === 0 ? (
+                                    <p className="historial-dashboard-helper">
+                                        Sin etiquetas adicionales. La relación principal con el caso se conserva por asociación directa del cuestionario.
+                                    </p>
+                                ) : (
                                     <div className="historial-dashboard-tags">{tags.map((tag, index) => {
                                         if (typeof tag === 'string') return <div className="historial-dashboard-tag" key={`${tag}-${index}`}><span>{tag}</span></div>;
                                         const tagId = resolveTagId(tag);
