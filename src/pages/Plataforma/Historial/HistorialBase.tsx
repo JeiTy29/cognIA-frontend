@@ -1016,7 +1016,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             <div className="historial-dashboard-modal-section">
                                 <h3>Resultados estructurados</h3>
                                 <KeyValueRows data={toRecord(resultsPayload?.result ?? resultsPayload)} hidden={['id', 'session_id', 'questionnaire_id', 'metadata']} emptyText="Sin resultados complementarios." />
-                                <p className="historial-dashboard-helper">{clinicalDisclaimer}</p>
+                                                <p className="historial-dashboard-helper">{normalizeClinicalSpanishText(normalizeBackendText(clinicalDisclaimer, clinicalDisclaimer))}</p>
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Etiquetas</h3>
