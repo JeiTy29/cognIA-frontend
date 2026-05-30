@@ -34,6 +34,35 @@
     line-height: 1.6;
 }
 
+.solicitudes-revision__header-insight {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 14px;
+    max-width: 920px;
+}
+
+.solicitudes-revision__header-insight span {
+    color: #0f5f9f;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.solicitudes-revision__header-insight strong {
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(15, 95, 159, 0.1);
+    color: #183b57;
+}
+
+.solicitudes-revision__header-insight p {
+    flex-basis: 100%;
+    margin: 0;
+}
+
 .solicitudes-revision__insight,
 .solicitudes-revision__filter-panel {
     border: 1px solid rgba(33, 95, 143, 0.14);
@@ -428,7 +457,29 @@
 .solicitudes-revision__card {
     border-radius: 26px;
     background: #ffffff;
+    border-left: 6px solid rgba(15, 95, 159, 0.18);
     transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.solicitudes-revision__card.alert-alto,
+.solicitudes-revision__card.alert-alta,
+.solicitudes-revision__card.alert-revisi-n-prioritaria {
+    border-left-color: #9f1239;
+}
+
+.solicitudes-revision__card.alert-elevado,
+.solicitudes-revision__card.alert-elevada {
+    border-left-color: #d97706;
+}
+
+.solicitudes-revision__card.alert-moderado,
+.solicitudes-revision__card.alert-moderada {
+    border-left-color: #0f5f9f;
+}
+
+.solicitudes-revision__card.alert-bajo,
+.solicitudes-revision__card.alert-baja {
+    border-left-color: #198e50;
 }
 
 .solicitudes-revision__card:hover {

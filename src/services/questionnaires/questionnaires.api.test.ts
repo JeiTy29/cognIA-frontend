@@ -206,4 +206,69 @@ describe('questionnaires.api secure endpoints', () => {
             expect.objectContaining({ auth: true, credentials: 'include' })
         );
     });
+    it('consulta responses del cuestionario y normaliza pregunta/respuesta humana', async () => {
+        apiGet.mockResolvedValueOnce({
+            items: [
+                {
+                    question_code: 'adhd_hypimp_01_fidgets',
+                    question_text: 'Se mueve constantemente o parece inquieto',
+                    answer_label: 'Frecuentemente',
+                    domain_code: 'adhd',
+                    domain_label: 'TDAH'
+                }
+            ]
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getQuestionnaireHistoryResponsesV2('sess-1');
+
+        expect(apiGet).toHaveBeenCalledWith(
+            '/api/v2/questionnaires/history/sess-1/responses',
+            expect.objectContaining({ auth: true, credentials: 'include' })
+        );
+        expect(response.items[0].question_text).toBe('Se mueve constantemente o parece inquieto');
+        expect(response.items[0].answer_label).toBe('Frecuentemente');
+    });
+
+    it('normaliza primary_domain y observed_indicators desde results secure', async () => {
+        apiSecurePostNoBody.mockResolvedValueOnce({
+            session: { id: 'sess-1', session_id: 'sess-1' },
+            result: {
+                primary_domain: { domain_code: 'adhd', domain_label: 'TDAH', probability: 0.9, alert_level: 'high' },
+                observed_indicators: [{ question_text: 'Se mueve constantemente', answer_label: 'Frecuentemente' }]
+            },
+            comorbidity: []
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getQuestionnaireHistoryResultsV2('sess-1');
+
+        expect(response.result?.primary_domain?.domain_label).toBe('TDAH');
+        expect(response.result?.observed_indicators?.[0]).toMatchObject({ answer_label: 'Frecuentemente' });
+        expect(response.domains[0].domain_label).toBe('TDAH');
+    });
+
+    it('normaliza charts poblados de share-requests de psicologo', async () => {
+        apiGet.mockResolvedValueOnce({
+            items: [],
+            summary: { pending_count: 1, accepted_count: 2, rejected_count: 0 },
+            charts: {
+                by_status: [{ label: 'pending', count: 1 }],
+                by_alert_level: [{ alert_level: 'high', value: 2 }],
+                by_domain: [{ domain: 'adhd', value: 3 }],
+                over_time: [{ date: '2026-05-01', value: 4 }],
+                pending_age: [{ label: '0-2 días', value: 1 }]
+            },
+            pagination: { page: 1, page_size: 20, total: 0, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getPsychologistShareRequestsV2({ status: 'all', page: 1, page_size: 20 });
+
+        expect(response.charts?.by_status?.[0].count).toBe(1);
+        expect(response.charts?.by_alert_level?.[0].value).toBe(2);
+        expect(response.charts?.by_domain?.[0].value).toBe(3);
+        expect(response.charts?.over_time?.[0].value).toBe(4);
+        expect(response.charts?.pending_age?.[0].value).toBe(1);
+    });
 });

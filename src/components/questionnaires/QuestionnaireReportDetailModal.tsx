@@ -10,6 +10,7 @@ import {
     getAllQuestionnaireSessionQuestionsV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
+    getQuestionnaireHistoryResponsesV2,
     getQuestionnaireHistoryResultsV2,
     getQuestionnaireProfessionalReviewsV2,
     getQuestionnaireReportPreviewV2,
@@ -20,6 +21,7 @@ import {
 import type {
     QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireHistoryResponsesV2Response,
     QuestionnaireProfessionalReviewDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireReportPreviewDTO,
@@ -178,6 +180,45 @@ function toRecord(payload: unknown): Record<string, unknown> | null {
     return payload as Record<string, unknown>;
 }
 
+function formatPercentValue(value: unknown) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '--';
+    const percent = numeric > 1 ? numeric : numeric * 100;
+    return `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: percent < 1 ? 1 : 0 }).format(percent)}%`;
+}
+
+function responseQuestionText(item: Record<string, unknown>) {
+    return normalizeClinicalTextPresentation(
+        item.prompt ?? item.question_text ?? item.question ?? item.text,
+        'Pregunta registrada'
+    );
+}
+
+function responseAnswerText(item: Record<string, unknown>) {
+    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
+    return normalizeClinicalTextPresentation(
+        item.answer_label ?? item.answer ?? item.answer_value ?? item.value,
+        'Sin respuesta registrada'
+    );
+}
+
+function normalizeDomainText(value: unknown, fallback = 'Sin dominio predominante') {
+    const raw = normalizeBackendText(value, '').trim();
+    const key = raw.toLowerCase();
+    return DOMAIN_LABELS[key] ?? normalizeClinicalTextPresentation(raw, fallback);
+}
+
+function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
+    const groups = new Map<string, Record<string, unknown>[]>();
+    (responses?.items ?? []).forEach((item) => {
+        const record = toRecord(item);
+        if (!record) return;
+        const label = normalizeDomainText(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section, 'Señales globales');
+        groups.set(label, [...(groups.get(label) ?? []), record]);
+    });
+    return [...groups.entries()].map(([label, items]) => ({ label, items }));
+}
+
 function resolveTagId(tag: QuestionnaireTagDTO) {
     if (typeof tag.id === 'string' && tag.id.trim().length > 0) return tag.id;
     if (typeof tag.tag_id === 'string' && tag.tag_id.trim().length > 0) return tag.tag_id;
@@ -267,6 +308,7 @@ type HistoryDetailLoadResult =
         results: QuestionnaireSecureResultsV2DTO | null;
         summary: QuestionnaireClinicalSummaryV2DTO | null;
         preview: QuestionnaireReportPreviewDTO | null;
+        responses: QuestionnaireHistoryResponsesV2Response | null;
         visibleReviews: QuestionnaireProfessionalReviewDTO[];
         notice: string | null;
     }
@@ -278,6 +320,7 @@ type HistoryDetailLoadResult =
 async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadResult> {
     try {
         const detail = await getQuestionnaireHistoryDetailV2(sessionId);
+        const responsesResponse = await getQuestionnaireHistoryResponsesV2(sessionId).catch(() => null);
         if (!canLoadClinicalArtifacts(detail.status)) {
             return {
                 ok: true,
@@ -285,6 +328,7 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
                 results: null,
                 summary: null,
                 preview: null,
+                responses: responsesResponse,
                 visibleReviews: [],
                 notice: null
             };
@@ -319,6 +363,7 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
             results,
             summary,
             preview,
+            responses: responsesResponse,
             visibleReviews,
             notice
         };
@@ -395,6 +440,7 @@ export function QuestionnaireReportDetailModal({
 }: Readonly<QuestionnaireReportDetailModalProps>) {
     const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
     const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
+    const [responsesPayload, setResponsesPayload] = useState<QuestionnaireHistoryResponsesV2Response | null>(null);
     const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
     const [reportPreviewPayload, setReportPreviewPayload] = useState<QuestionnaireReportPreviewDTO | null>(null);
     const [visibleProfessionalReviews, setVisibleProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
@@ -470,6 +516,7 @@ export function QuestionnaireReportDetailModal({
             setDetailError(null);
             setDetailNotice(null);
             setReportPreviewPayload(null);
+            setResponsesPayload(null);
             setVisibleProfessionalReviews([]);
             setClinicalSummaryPayload(null);
             resetActionMessages();
@@ -481,6 +528,7 @@ export function QuestionnaireReportDetailModal({
                 setDetailError(detailLoad.error);
                 setDetailPayload(null);
                 setResultsPayload(null);
+                setResponsesPayload(null);
                 setClinicalSummaryPayload(null);
                 setReportPreviewPayload(null);
                 setVisibleProfessionalReviews([]);
@@ -490,6 +538,7 @@ export function QuestionnaireReportDetailModal({
 
             setDetailPayload(detailLoad.detail);
             setResultsPayload(detailLoad.results);
+            setResponsesPayload(detailLoad.responses);
             setClinicalSummaryPayload(detailLoad.summary);
             setReportPreviewPayload(detailLoad.preview);
             setVisibleProfessionalReviews(detailLoad.visibleReviews);
@@ -508,6 +557,7 @@ export function QuestionnaireReportDetailModal({
 
         setDetailPayload(null);
         setResultsPayload(null);
+        setResponsesPayload(null);
         setClinicalSummaryPayload(null);
         setReportPreviewPayload(null);
         setVisibleProfessionalReviews([]);
@@ -876,6 +926,53 @@ export function QuestionnaireReportDetailModal({
                             items={reportViewModel.indicators}
                             emptyText="No se recibieron indicadores estructurados para este cuestionario."
                         />
+
+                        <div className="historial-v2-section">
+                            <h3>Resultados por dominio</h3>
+                            {resultsPayload?.domains?.length ? (
+                                <div className="historial-dashboard-domain-bars">
+                                    {resultsPayload.domains.slice(0, 6).map((domain, index) => {
+                                        const label = normalizeDomainText(domain.domain_label ?? domain.domain ?? domain.domain_code);
+                                        const percent = formatPercentValue(domain.probability ?? domain.confidence_pct);
+                                        const width = Math.max(4, Math.min(100, Number(domain.probability) > 1 ? Number(domain.probability) : Number(domain.probability) * 100));
+                                        return (
+                                            <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
+                                                <div>
+                                                    <strong>{label}</strong>
+                                                    <span>{percent} · {normalizeClinicalTextPresentation(domain.alert_level, '--')}</span>
+                                                </div>
+                                                <div className="historial-dashboard-domain-track" aria-hidden="true">
+                                                    <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="historial-v2-helper-text">Aún no hay resultados por dominio para este cuestionario.</p>
+                            )}
+                        </div>
+
+                        <div className="historial-v2-section">
+                            <h3>Respuestas registradas</h3>
+                            {responsesPayload?.items?.length ? (
+                                <div className="historial-dashboard-response-groups">
+                                    {groupedResponses(responsesPayload).map((group) => (
+                                        <article className="historial-dashboard-response-group" key={group.label}>
+                                            <h4>{group.label}</h4>
+                                            {group.items.slice(0, 12).map((item, index) => (
+                                                <div className="historial-dashboard-response-row" key={`${group.label}-${index}`}>
+                                                    <strong>{responseQuestionText(item)}</strong>
+                                                    <span>{responseAnswerText(item)}</span>
+                                                </div>
+                                            ))}
+                                        </article>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="historial-v2-helper-text">No hay respuestas visibles para este cuestionario con los permisos actuales.</p>
+                            )}
+                        </div>
 
                         <div className="historial-v2-section">
                             <h3>Impacto funcional</h3>

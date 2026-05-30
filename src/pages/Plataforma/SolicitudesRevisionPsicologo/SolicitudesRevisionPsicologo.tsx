@@ -16,7 +16,7 @@ import {
     getPsychologistShareRequestsV2,
     rejectPsychologistShareRequestV2
 } from '../../../services/questionnaires/questionnaires.api';
-import type { PsychologistShareRequestDTO } from '../../../services/questionnaires/questionnaires.types';
+import type { PsychologistShareRequestDTO, QuestionnaireDashboardChartPointDTO } from '../../../services/questionnaires/questionnaires.types';
 import {
     buildAgingBuckets,
     buildHeatmapCells,
@@ -81,6 +81,23 @@ type RequestDashboardInsight = {
     dominantDomainLabel: string;
     requestedAt: string | null;
 };
+
+type ShareRequestCharts = {
+    by_status?: QuestionnaireDashboardChartPointDTO[];
+    by_alert_level?: QuestionnaireDashboardChartPointDTO[];
+    by_domain?: QuestionnaireDashboardChartPointDTO[];
+    over_time?: QuestionnaireDashboardChartPointDTO[];
+    pending_age?: QuestionnaireDashboardChartPointDTO[];
+} | null;
+
+function chartPointsToItems(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
+    return (points ?? [])
+        .map((point) => ({
+            label: normalizeBackendText(point.label ?? point.name ?? point.domain ?? point.alert_level ?? point.month ?? point.date ?? point.key, 'Sin clasificar'),
+            value: Number(point.value ?? point.count ?? point.total ?? point.sessions ?? 0)
+        }))
+        .filter((item) => Number.isFinite(item.value) && item.value > 0);
+}
 
 function sortRequestDomainsByProbability(domains: RequestDomainCandidate[] | null | undefined) {
     if (!Array.isArray(domains)) return [];
@@ -152,6 +169,7 @@ export default function SolicitudesRevisionPsicologo() {
     const [summary, setSummary] = useState<{ pending_count?: number | null; accepted_count?: number | null; rejected_count?: number | null } | null>(null);
     const [dashboardRequests, setDashboardRequests] = useState<PsychologistShareRequestDTO[]>([]);
     const [dashboardSummary, setDashboardSummary] = useState<{ pending_count?: number | null; accepted_count?: number | null; rejected_count?: number | null } | null>(null);
+    const [dashboardCharts, setDashboardCharts] = useState<ShareRequestCharts>(null);
     const [dashboardSampleTotal, setDashboardSampleTotal] = useState<number | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<PsychologistShareRequestDTO | null>(null);
     const [actionIntent, setActionIntent] = useState<ActionIntent>(null);
@@ -208,10 +226,12 @@ export default function SolicitudesRevisionPsicologo() {
                 });
                 setDashboardRequests(response.items);
                 setDashboardSummary(response.summary ?? null);
+                setDashboardCharts(response.charts ?? null);
                 setDashboardSampleTotal(response.pagination?.total ?? response.items.length);
             } catch {
                 setDashboardRequests([]);
                 setDashboardSummary(null);
+                setDashboardCharts(null);
                 setDashboardSampleTotal(null);
             }
         };
@@ -302,39 +322,51 @@ export default function SolicitudesRevisionPsicologo() {
             }),
         [dashboardRequests]
     );
-    const requestStateChartItems = useMemo(() => buildRequestStateItems(dashboardSummary), [dashboardSummary]);
+    const requestStateChartItems = useMemo(() => {
+        const backend = chartPointsToItems(dashboardCharts?.by_status);
+        return backend.length > 0 ? backend : buildRequestStateItems(dashboardSummary);
+    }, [dashboardCharts?.by_status, dashboardSummary]);
     const requestsByAlertChartItems = useMemo(
-        () =>
-            mapCountsToItems(
+        () => {
+            const backend = chartPointsToItems(dashboardCharts?.by_alert_level);
+            return backend.length > 0 ? backend : mapCountsToItems(
                 dashboardInsights.reduce((accumulator, request) => {
                     accumulator.set(request.alertLabel, (accumulator.get(request.alertLabel) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
-            ),
-        [dashboardInsights]
+            );
+        },
+        [dashboardCharts?.by_alert_level, dashboardInsights]
     );
     const requestsByDomainChartItems = useMemo(
-        () =>
-            mapCountsToItems(
+        () => {
+            const backend = chartPointsToItems(dashboardCharts?.by_domain);
+            return backend.length > 0 ? backend : mapCountsToItems(
                 dashboardInsights.reduce((accumulator, request) => {
                     accumulator.set(request.dominantDomainLabel, (accumulator.get(request.dominantDomainLabel) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
-            ),
-        [dashboardInsights]
+            );
+        },
+        [dashboardCharts?.by_domain, dashboardInsights]
     );
     const requestTimelineItems = useMemo(
-        () => buildMonthlyCountItems(dashboardInsights.map((request) => request.requestedAt)),
-        [dashboardInsights]
+        () => {
+            const backend = chartPointsToItems(dashboardCharts?.over_time);
+            return backend.length > 0 ? backend : buildMonthlyCountItems(dashboardInsights.map((request) => request.requestedAt));
+        },
+        [dashboardCharts?.over_time, dashboardInsights]
     );
     const pendingRequestAging = useMemo(
-        () =>
-            buildAgingBuckets(
+        () => {
+            const backend = chartPointsToItems(dashboardCharts?.pending_age);
+            return backend.length > 0 ? backend : buildAgingBuckets(
                 dashboardInsights
                     .filter((request) => String(request.request.request_status ?? '').toLowerCase() === 'pending')
                     .map((request) => request.requestedAt)
-            ),
-        [dashboardInsights]
+            );
+        },
+        [dashboardCharts?.pending_age, dashboardInsights]
     );
     const heatmapRows = useMemo(() => ['Pendiente', 'Aceptada', 'Rechazada'], []);
     const heatmapColumns = useMemo(() => {
@@ -372,20 +404,16 @@ export default function SolicitudesRevisionPsicologo() {
                     <div>
                         <h1>Solicitudes de revisión</h1>
                         <p>Administra las solicitudes pendientes antes de que las evaluaciones aparezcan en tus evaluaciones recibidas.</p>
+                        <div className="solicitudes-revision__header-insight">
+                            <span>Lectura rápida</span>
+                            <strong>{topRequestAlert}</strong>
+                            <p>{requestsInsightCopy}</p>
+                        </div>
                     </div>
                     <button type="button" onClick={() => loadRequests().catch(() => undefined)}>
                         Actualizar
                     </button>
                 </div>
-
-                <section className="solicitudes-revision__insight" aria-label="Resumen ejecutivo de solicitudes">
-                    <div>
-                        <span>Lectura rápida</span>
-                        <h2>Solicitudes recibidas para revisión</h2>
-                        <p>{requestsInsightCopy}</p>
-                    </div>
-                    <strong>{topRequestAlert}</strong>
-                </section>
 
                 <section className={`solicitudes-revision__filter-panel ${filtersOpen ? 'is-open' : 'is-collapsed'}`} aria-label="Filtros de solicitudes">
                     <div className="solicitudes-revision__filter-summary">
@@ -518,7 +546,10 @@ export default function SolicitudesRevisionPsicologo() {
                 {!loading && requests.length > 0 ? (
                     <div className="solicitudes-revision__list">
                         {requests.map((request) => (
-                            <article key={request.grant_id} className="solicitudes-revision__card">
+                            <article
+                                key={request.grant_id}
+                                className={`solicitudes-revision__card alert-${String(resolveRequestAlertLabel(request)).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                            >
                                 <div className="solicitudes-revision__card-top">
                                     <div>
                                         <h2>{resolveRequestTitle(request)}</h2>
@@ -622,7 +653,7 @@ export default function SolicitudesRevisionPsicologo() {
                                             type="button"
                                             onClick={() => navigate('/psicologo/evaluaciones', { state: { openEvaluationSessionId: request.session?.session_id } })}
                                         >
-                                            Ver evaluación
+                                            Ver respuestas del cuestionario
                                         </button>
                                     ) : null}
                                 </div>

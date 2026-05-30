@@ -572,6 +572,16 @@ export default function SeguimientoGuardian() {
         setReportSessionId(nextSessionId);
     };
 
+    const selectCaseForDetail = (caseIdToOpen: string) => {
+        setSelectedCaseId(caseIdToOpen);
+        if (!loadedCaseDetailById[caseIdToOpen] && !caseLoadingById[caseIdToOpen]) {
+            loadCaseDetail(caseIdToOpen).catch(() => undefined);
+        }
+        window.setTimeout(() => {
+            document.getElementById('seguimiento-case-detail-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+    };
+
     const handleCreateCase = async () => {
         const validationError = validateCaseLabel(createCaseLabel);
         if (validationError) {
@@ -594,7 +604,7 @@ export default function SeguimientoGuardian() {
             setCreateCaseLabel('');
             setCreatedCaseFollowUp(createdCase);
             setSelectedCaseId(createdCase.case_id);
-            setPageNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente. Puedes asociar cuestionarios desde el detalle del cuestionario o usando etiquetas de seguimiento.`);
+            setPageNotice(`Caso creado correctamente: "${resolveCaseLabel(createdCase)}". Los cuestionarios se relacionan al caso mediante asociación directa al iniciar o continuar el cuestionario. Las etiquetas son complementarias.`);
             await loadDashboard({ preserveNotice: true });
             loadCaseDetail(createdCase.case_id).catch(() => undefined);
         } catch {
@@ -713,7 +723,7 @@ export default function SeguimientoGuardian() {
                 : 'Aún no tienes casos activos.';
     const emptyCopy =
         caseStatusFilter === 'archived'
-            ? 'Cuando archives un caso aparecerá aquí, junto con sus cuestionarios y reportes disponibles.'
+            ? 'Cuando archives un caso aparecerá aquí­, junto con sus cuestionarios y reportes disponibles.'
             : 'Cuando inicies un cuestionario podrás crear un caso para agrupar seguimientos.';
 
     return (
@@ -748,10 +758,10 @@ export default function SeguimientoGuardian() {
                         <div>
                             <span>Nuevo caso creado</span>
                             <strong>{resolveCaseLabel(createdCaseFollowUp)}</strong>
-                            <p>El caso quedó seleccionado. Continúa con etiquetas, detalle o asociación desde un cuestionario procesado.</p>
+                            <p>El caso quedó seleccionado. Puedes ver el detalle, asignar etiquetas complementarias o añadir un cuestionario asociado directamente al caso.</p>
                         </div>
                         <div className="seguimiento-next-step-actions">
-                            <button type="button" className="seguimiento-inline-btn" onClick={() => setSelectedCaseId(createdCaseFollowUp.case_id)}>
+                            <button type="button" className="seguimiento-inline-btn" onClick={() => selectCaseForDetail(createdCaseFollowUp.case_id)}>
                                 Ver detalle
                             </button>
                             <button type="button" className="seguimiento-inline-btn ghost" onClick={() => navigate('/padre/historial')}>
@@ -837,7 +847,7 @@ export default function SeguimientoGuardian() {
                             </DashboardSection>
                             <DashboardSection
                                 title="Alertas por dominio"
-                                description="Áreas con más señales orientativas."
+                                description="Conteo de señales orientativas acumuladas por dominio, considerando todos los niveles de alerta."
                             >
                                 <HorizontalBarChart
                                     data={guardianVisuals.alertsByDomain}
@@ -890,12 +900,7 @@ export default function SeguimientoGuardian() {
                                             <button
                                                 type="button"
                                                 className="seguimiento-inline-btn ghost"
-                                                onClick={() => {
-                                                    setSelectedCaseId(item.caseItem.case_id);
-                                                    if (!loadedCaseDetailById[item.caseItem.case_id] && !caseLoadingById[item.caseItem.case_id]) {
-                                                        loadCaseDetail(item.caseItem.case_id).catch(() => undefined);
-                                                    }
-                                                }}
+                                                onClick={() => selectCaseForDetail(item.caseItem.case_id)}
                                             >
                                                 Ver detalle
                                             </button>
@@ -995,6 +1000,7 @@ export default function SeguimientoGuardian() {
                                 return (
                                     <article
                                         key={caseItem.case_id}
+                                        id={isCaseSelected ? 'seguimiento-case-detail-panel' : undefined}
                                         className={`seguimiento-case-card ${isCaseSelected ? 'is-selected' : 'is-collapsed'}`}
                                     >
                                         <div className="seguimiento-case-top">
@@ -1023,10 +1029,7 @@ export default function SeguimientoGuardian() {
                                                                 setSelectedCaseId('');
                                                                 return;
                                                             }
-                                                            setSelectedCaseId(caseItem.case_id);
-                                                            if (!hasLoadedCaseDetail && !caseIsLoading) {
-                                                                loadCaseDetail(caseItem.case_id).catch(() => undefined);
-                                                            }
+                                                            selectCaseForDetail(caseItem.case_id);
                                                         }}
                                                     >
                                                         {isCaseSelected ? 'Ocultar detalle' : 'Ver detalle'}

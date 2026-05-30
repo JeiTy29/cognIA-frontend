@@ -20,6 +20,7 @@ import {
     getAllQuestionnaireSessionQuestionsV2,
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
+    getQuestionnaireHistoryResponsesV2,
     getQuestionnaireHistoryResultsV2,
     getQuestionnaireProfessionalReviewsV2,
     getQuestionnaireReportPreviewV2,
@@ -31,6 +32,7 @@ import type {
     PsychologistDashboardDTO,
     PsychologistDashboardItemDTO,
     QuestionnaireHistoryDetailV2DTO,
+    QuestionnaireHistoryResponsesV2Response,
     QuestionnaireProfessionalReviewDTO,
     QuestionnaireQuestionV2DTO,
     QuestionnaireReportPreviewDTO,
@@ -84,6 +86,27 @@ const filterDomainOptions = [
     { value: 'anxiety', label: 'Ansiedad' },
     { value: 'depression', label: 'Depresión' }
 ];
+
+function responseQuestionText(item: Record<string, unknown>) {
+    return normalizeBackendText(item.prompt ?? item.question_text ?? item.question ?? item.text, 'Pregunta registrada');
+}
+
+function responseAnswerText(item: Record<string, unknown>) {
+    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
+    return normalizeBackendText(item.answer_label ?? item.answer ?? item.answer_value ?? item.value, 'Sin respuesta registrada');
+}
+
+function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
+    const groups = new Map<string, Record<string, unknown>[]>();
+    (responses?.items ?? []).forEach((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return;
+        const record = item as Record<string, unknown>;
+        const label = normalizeDomainLabel(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section);
+        const safeLabel = label === 'General' ? 'Señales globales' : label;
+        groups.set(safeLabel, [...(groups.get(safeLabel) ?? []), record]);
+    });
+    return [...groups.entries()].map(([label, items]) => ({ label, items }));
+}
 
 const reportPeriodOptions = [
     { value: '3', label: '3 meses' },
@@ -209,6 +232,7 @@ export default function EvaluacionesCompartidas() {
     const [preview, setPreview] = useState<QuestionnaireReportPreviewDTO | null>(null);
     const [reviews, setReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [detailSession, setDetailSession] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
+    const [detailResponses, setDetailResponses] = useState<QuestionnaireHistoryResponsesV2Response | null>(null);
     const [detailQuestions, setDetailQuestions] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
@@ -280,10 +304,11 @@ export default function EvaluacionesCompartidas() {
         setReviewError(null);
         setReviewNotice(null);
         try {
-            const [previewResponse, reviewsResponse, detailResponse, questionsResponse] = await Promise.allSettled([
+            const [previewResponse, reviewsResponse, detailResponse, responsesResponse, questionsResponse] = await Promise.allSettled([
                 getQuestionnaireReportPreviewV2(item.session_id),
                 getQuestionnaireProfessionalReviewsV2(item.session_id),
                 getQuestionnaireHistoryDetailV2(item.session_id),
+                getQuestionnaireHistoryResponsesV2(item.session_id),
                 getAllQuestionnaireSessionQuestionsV2(item.session_id)
             ]);
             const nextPreview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
@@ -291,6 +316,7 @@ export default function EvaluacionesCompartidas() {
                 ? reviewsResponse.value
                 : (nextPreview?.professional_reviews ?? []);
             const nextDetail = detailResponse.status === 'fulfilled' ? detailResponse.value : null;
+            const nextResponses = responsesResponse.status === 'fulfilled' ? responsesResponse.value : null;
             const nextQuestions = questionsResponse.status === 'fulfilled' ? questionsResponse.value : [];
             if (!nextPreview) {
                 throw new Error('preview_unavailable');
@@ -298,6 +324,7 @@ export default function EvaluacionesCompartidas() {
             setPreview(nextPreview);
             setReviews(nextReviews);
             setDetailSession(nextDetail);
+            setDetailResponses(nextResponses);
             setDetailQuestions(Array.isArray(nextQuestions) ? nextQuestions : []);
             const ownReview = currentUserId
                 ? nextReviews.find((review: { psychologist_user_id?: string | null }) => review.psychologist_user_id === currentUserId)
@@ -310,6 +337,7 @@ export default function EvaluacionesCompartidas() {
             setPreview(null);
             setReviews([]);
             setDetailSession(null);
+            setDetailResponses(null);
             setDetailQuestions([]);
             setDetailError('No fue posible cargar el detalle de esta evaluación. Intenta nuevamente.');
         } finally {
@@ -331,6 +359,7 @@ export default function EvaluacionesCompartidas() {
         setPreview(null);
         setReviews([]);
         setDetailSession(null);
+        setDetailResponses(null);
         setDetailQuestions([]);
         setDetailLoading(false);
         setDetailError(null);
@@ -954,7 +983,21 @@ export default function EvaluacionesCompartidas() {
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Respuestas registradas</h3>
-                                {answeredQuestionRows.length > 0 ? (
+                                {detailResponses?.items?.length ? (
+                                    <div className="evaluaciones-answer-list">
+                                        {groupedResponses(detailResponses).map((group) => (
+                                            <article key={group.label} className="evaluaciones-answer-group">
+                                                <h4>{group.label}</h4>
+                                                {group.items.slice(0, 14).map((answer, index) => (
+                                                    <div key={`${group.label}-${index}`} className="evaluaciones-answer-row">
+                                                        <strong>{responseQuestionText(answer)}</strong>
+                                                        <span>{responseAnswerText(answer)}</span>
+                                                    </div>
+                                                ))}
+                                            </article>
+                                        ))}
+                                    </div>
+                                ) : answeredQuestionRows.length > 0 ? (
                                     <div className="evaluaciones-answer-list">
                                         {answeredQuestionRows.map((answer) => (
                                             <div key={answer.key} className="evaluaciones-answer-row">
