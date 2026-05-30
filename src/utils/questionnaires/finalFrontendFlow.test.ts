@@ -58,6 +58,19 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('no constituye diagn\u00f3stico definitivo');
     });
 
+    it('solo permite descargar PDF cuando el cuestionario esta procesado', () => {
+        const history = historySource();
+        const detail = detailModalSource();
+        expect(history).toContain('canDownloadPdfForStatus');
+        expect(history).toContain("toLowerCase() === 'processed'");
+        expect(history).toContain('Disponible cuando el cuestionario esté procesado.');
+        expect(history).toContain('disabled={pdfWorking || !canDownloadDetailPdf}');
+        expect(detail).toContain('canDownloadPdfForStatus');
+        expect(detail).toContain("toLowerCase() === 'processed'");
+        expect(detail).toContain('El reporte PDF estará disponible cuando el cuestionario esté procesado.');
+        expect(detail).toContain('disabled={pdfWorking || !canDownloadDetailPdf}');
+    });
+
     it('humaniza el detalle y no muestra labels internos en ingles como copy visible', () => {
         const source = detailModalSource();
         const renderSection = source.slice(source.indexOf('return ('), source.indexOf('export'));
