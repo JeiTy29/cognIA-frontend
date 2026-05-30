@@ -40,6 +40,16 @@
     margin-bottom: 20px;
 }
 
+.usuarios-dashboard-wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 900px) {
+    .usuarios-dashboard-wide {
+        grid-column: 1 / -1;
+    }
+}
+
 .usuarios-btn {
     display: inline-flex;
     align-items: center;

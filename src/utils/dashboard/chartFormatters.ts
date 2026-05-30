@@ -25,9 +25,9 @@ export function formatChartDateTime(value: unknown) {
 
 export function formatShortDate(value: unknown) {
     const raw = typeof value === 'string' ? value.trim() : '';
-    if (!raw) return 'Fecha no disponible';
+    if (!raw) return 'Sin actividad registrada';
     const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+    if (Number.isNaN(parsed.getTime())) return 'Sin actividad registrada';
     return new Intl.DateTimeFormat('es-CO', {
         day: '2-digit',
         month: 'short'
@@ -36,9 +36,9 @@ export function formatShortDate(value: unknown) {
 
 export function formatShortDateTime(value: unknown) {
     const raw = typeof value === 'string' ? value.trim() : '';
-    if (!raw) return 'Fecha no disponible';
+    if (!raw) return 'Sin actividad registrada';
     const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+    if (Number.isNaN(parsed.getTime())) return 'Sin actividad registrada';
     return new Intl.DateTimeFormat('es-CO', {
         day: '2-digit',
         month: 'short',
@@ -61,5 +61,5 @@ export function formatMonthLabel(value: unknown) {
 export function truncateChartLabel(value: string, limit = 28) {
     const normalized = normalizeBackendText(value, '');
     if (normalized.length <= limit) return normalized;
-    return `${normalized.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
+    return `${normalized.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }

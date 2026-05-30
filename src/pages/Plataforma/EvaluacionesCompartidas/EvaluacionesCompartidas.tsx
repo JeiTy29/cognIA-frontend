@@ -106,8 +106,8 @@ function buildInitialReportDates(monthsBack: number) {
 
 function buildPsychologistReportPeriodLabel(period: ReportPeriodValue, dateFrom: string, dateTo: string) {
     if (period === 'custom') {
-        const fromLabel = dateFrom ? formatDateTime(dateFrom).split(',')[0] ?? 'Fecha no disponible' : 'Fecha no disponible';
-        const toLabel = dateTo ? formatDateTime(dateTo).split(',')[0] ?? 'Fecha no disponible' : 'Fecha no disponible';
+        const fromLabel = dateFrom ? formatDateTime(dateFrom).split(',')[0] ?? 'Sin fecha registrada' : 'Sin fecha registrada';
+        const toLabel = dateTo ? formatDateTime(dateTo).split(',')[0] ?? 'Sin fecha registrada' : 'Sin fecha registrada';
         return `Del ${fromLabel} al ${toLabel}`;
     }
     return `Últimos ${period} meses`;
@@ -758,7 +758,7 @@ export default function EvaluacionesCompartidas() {
 
                 {!loading && summary ? (
                     <div className="evaluaciones-summary-grid">
-                        <article><strong>Sesiones compartidas</strong><span>{summary.total_shared_sessions ?? 0}</span></article>
+                        <article><strong>Evaluaciones compartidas</strong><span>{summary.total_shared_sessions ?? 0}</span></article>
                         <article><strong>Casos</strong><span>{summary.total_cases ?? 0}</span></article>
                         <article><strong>Revisiones pendientes</strong><span>{summary.pending_reviews ?? 0}</span></article>
                         <article><strong>Casos revisados</strong><span>{summary.reviewed_cases ?? 0}</span></article>

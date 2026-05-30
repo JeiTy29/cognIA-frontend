@@ -82,6 +82,11 @@ const requestOptions = {
     credentials: 'include' as const
 };
 
+const dashboardRequestOptions = {
+    ...requestOptions,
+    timeoutMs: 45_000
+};
+
 const publicRequestOptions = {
     credentials: 'include' as const
 };
@@ -1464,9 +1469,9 @@ export function getQuestionnaireHistoryV2(params?: QuestionnaireHistoryFiltersV2
                 page,
                 page_size: pageSize
             },
-            requestOptions
+            dashboardRequestOptions
         )
-        : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, requestOptions);
+        : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, dashboardRequestOptions);
 
     return request
         .then((payload) => {
@@ -1547,7 +1552,7 @@ export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFi
     const path = query.length > 0
         ? `/api/v2/questionnaires/guardian/dashboard?${query}`
         : '/api/v2/questionnaires/guardian/dashboard';
-    return apiGet<unknown>(path, requestOptions)
+    return apiGet<unknown>(path, dashboardRequestOptions)
         .then((payload) => {
             const response = normalizeGuardianDashboardResponse(payload);
             if (isDevDashboardDemoEnabled() && !response.cases?.length) {
@@ -1584,7 +1589,7 @@ export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDas
         page,
         page_size: pageSize
     });
-    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, requestOptions)
+    return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, dashboardRequestOptions)
         .then((payload) => {
             const response = normalizePsychologistDashboardResponse(payload);
             if (isDevDashboardDemoEnabled() && !response.items?.length) {

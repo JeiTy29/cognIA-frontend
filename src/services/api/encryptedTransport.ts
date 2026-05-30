@@ -64,6 +64,7 @@ export interface EncryptedFetchOptions {
     credentials?: RequestCredentials;
     requireEncryptedResponse?: boolean;
     onUnauthorized?: () => Promise<boolean>;
+    timeoutMs?: number;
 }
 
 export interface EncryptedFetchResult<T> {
@@ -397,7 +398,7 @@ async function executeEncryptedJsonFetch<T>(
         headers: getEnvelopeHeaders(envelope.version, dynamicHeaders),
         credentials: options.credentials ?? 'include',
         body: JSON.stringify(envelope)
-    });
+    }, options.timeoutMs);
 
     const payload = await parseResponseJson(response);
     const encryptedHeader = response.headers.get(ENCRYPTED_HEADER) === '1';

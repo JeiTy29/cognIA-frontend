@@ -192,7 +192,9 @@ function compactChartLabel(label: string, maxLength = 24) {
 }
 
 function limitRankedItems(data: NormalizedChartItem[], limit = 6) {
-    const useful = data.filter((item) => Number.isFinite(item.value) && item.value !== 0);
+    const useful = data
+        .filter((item) => Number.isFinite(item.value) && item.value !== 0)
+        .sort((left, right) => Math.abs(right.value) - Math.abs(left.value));
     const top = useful.slice(0, limit);
     const rest = useful.slice(limit);
     if (rest.length === 0) return top;
@@ -200,8 +202,9 @@ function limitRankedItems(data: NormalizedChartItem[], limit = 6) {
         ...top,
         {
             id: 'chart-rest',
-            label: `+${rest.length} más`,
+            label: 'Otros casos',
             value: rest.reduce((total, item) => total + item.value, 0),
+            meta: `${rest.length} casos adicionales`,
             raw: {}
         }
     ];
@@ -283,11 +286,14 @@ function DashboardSkeleton() {
     );
 }
 
-function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ active?: boolean; payload?: Array<{ value?: unknown; name?: string; color?: string }>; label?: string; formatter?: (value: number) => string }>) {
+function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ active?: boolean; payload?: Array<{ value?: unknown; name?: string; color?: string; payload?: { fullLabel?: string; meta?: string } }>; label?: string; formatter?: (value: number) => string }>) {
     if (!active || !payload?.length) return null;
+    const fullLabel = payload[0]?.payload?.fullLabel ?? label;
+    const meta = payload[0]?.payload?.meta;
     return (
         <div className="dashboard-chart-tooltip">
-            <strong>{label}</strong>
+            <strong>{fullLabel}</strong>
+            {meta ? <small>{meta}</small> : null}
             {payload.map((item) => (
                 <span key={`${item.name}-${String(item.value)}`}>
                     <i style={{ backgroundColor: item.color }} />
@@ -396,9 +402,11 @@ function SimpleLineChart({
 }
 
 function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number }>) {
-    const chartData = limitRankedItems(data, 6).map((item, index) => ({
-        label: compactChartLabel(item.label),
+    const limitedItems = limitRankedItems(data, 5);
+    const chartData = limitedItems.map((item, index) => ({
+        label: compactChartLabel(item.label, 20),
         fullLabel: item.label,
+        meta: item.meta,
         value: item.value,
         color: resolveColor(item, index)
     }));
@@ -406,12 +414,12 @@ function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Reado
     if (loading || chartData.length === 0) return <EmptyOrSkeleton loading={loading === true} emptyText={emptyText} />;
 
     return (
-        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large" style={{ minHeight: Math.max(250, chartData.length * 44 + 72) }}>
             <ResponsiveContainer width="100%" height="100%">
-                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 42, bottom: 4, left: 12 }}>
+                <ReBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 46, bottom: 4, left: 18 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e6eef6" horizontal={false} />
                     <XAxis type="number" domain={[0, maxValue ?? 'auto']} tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={172} interval={0} />
+                    <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={188} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
                     <Bar dataKey="value" name="Total" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
@@ -611,7 +619,7 @@ function CompatChart({
 }: Readonly<CompatChartProps>) {
     const normalizedData = useMemo(() => toChartItems(data ?? items), [data, items]);
     const title = ariaLabel ?? 'Gráfica';
-    const emptyText = emptyMessage ?? 'No hay datos útiles para los filtros seleccionados.';
+    const emptyText = emptyMessage ?? 'Aún no hay datos procesados suficientes para esta visualización.';
 
     if (type === 'heatmap') {
         return <Heatmap rows={rows} columns={columns} cells={cells} emptyText={emptyText} />;
@@ -714,7 +722,7 @@ export function DashboardChartCard({
     description,
     data,
     loading = false,
-    emptyText = 'No hay datos útiles para los filtros seleccionados.',
+    emptyText = 'Aún no hay datos procesados suficientes para esta visualización.',
     variant = 'bars',
     formatter,
     className

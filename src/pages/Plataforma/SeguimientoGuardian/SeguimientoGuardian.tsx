@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './SeguimientoGuardian.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
@@ -102,6 +103,39 @@ function parseSortableDate(...candidates: Array<string | null | undefined>) {
         if (Number.isFinite(parsed)) return parsed;
     }
     return 0;
+}
+
+function formatActivityDate(...candidates: Array<string | null | undefined>) {
+    const candidate = candidates.find((value) => {
+        if (!value) return false;
+        return Number.isFinite(Date.parse(value));
+    });
+    return candidate ? formatDateTime(candidate, 'Sin actividad registrada') : 'Sin actividad registrada';
+}
+
+function normalizeDominantDomain(value: unknown) {
+    const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    const normalized = normalizeDomainLabel(value);
+    if (!raw || raw === 'general' || raw === 'none' || raw === 'sin_dominio' || normalized === '--' || normalized === 'General') {
+        return 'Sin dominio predominante';
+    }
+    return normalized;
+}
+
+function limitCaseChartItems(items: Array<{ label: string; value: number; tone?: string }>, limit = 5) {
+    const useful = items
+        .filter((item) => Number.isFinite(item.value) && item.value > 0)
+        .sort((left, right) => right.value - left.value);
+    const top = useful.slice(0, limit);
+    const rest = useful.slice(limit);
+    if (rest.length === 0) return top;
+    return [
+        ...top,
+        {
+            label: 'Otros casos',
+            value: rest.reduce((total, item) => total + item.value, 0)
+        }
+    ];
 }
 
 function resolveOptionalSessionTimestamp(session: QuestionnaireSessionV2DTO, key: 'submitted_at') {
@@ -251,8 +285,8 @@ function buildGuardianVisualCharts(
     const sessionsByCase = normalizeChartPoints(charts.sessions_by_case, { labelType: 'case', cases });
 
     const fallbackByDomain = cases.reduce((accumulator, caseItem) => {
-        const domainLabel = normalizeDomainLabel(caseItem.latest_domain);
-        if (domainLabel === '--') return accumulator;
+        const domainLabel = normalizeDominantDomain(caseItem.latest_domain);
+        if (domainLabel === 'Sin dominio predominante') return accumulator;
         accumulator.set(domainLabel, (accumulator.get(domainLabel) ?? 0) + 1);
         return accumulator;
     }, new Map<string, number>());
@@ -290,14 +324,14 @@ function buildGuardianVisualCharts(
                 label: resolveCaseCompositeLabel(caseItem),
                 alertLabel: alertMeta.label,
                 alertTone: alertMeta.tone,
-                domainLabel: normalizeDomainLabel(caseItem.latest_domain) === '--' ? 'Sin dominio principal' : normalizeDomainLabel(caseItem.latest_domain),
+                domainLabel: normalizeDominantDomain(caseItem.latest_domain),
                 sessions,
                 lastActivity,
                 score: alertPriorityScore(caseItem.latest_alert_level) * 100 + sessions
             };
         })
         .sort((left, right) => right.score - left.score || parseSortableDate(right.lastActivity) - parseSortableDate(left.lastActivity))
-        .slice(0, 4);
+        .slice(0, 3);
 
     return {
         monthlyAlerts: monthlyAlerts.length > 0
@@ -309,7 +343,7 @@ function buildGuardianVisualCharts(
         alertsByLevel: alertsByLevel.length > 0
             ? alertsByLevel
             : [...fallbackByLevel.values()].sort((left, right) => right.value - left.value),
-        sessionsByCase: sessionsByCase.length > 0 ? sessionsByCase : fallbackByCase,
+        sessionsByCase: limitCaseChartItems(sessionsByCase.length > 0 ? sessionsByCase : fallbackByCase, 5),
         priorityCases
     };
 }
@@ -357,9 +391,10 @@ function buildInitialReportDates(months: number) {
 }
 
 export default function SeguimientoGuardian() {
-    const [months, setMonths] = useState('3');
+    const navigate = useNavigate();
+    const [months, setMonths] = useState('6');
     const [caseId, setCaseId] = useState('');
-    const [caseStatusFilter, setCaseStatusFilter] = useState<CaseStatusFilter>('active');
+    const [caseStatusFilter, setCaseStatusFilter] = useState<CaseStatusFilter>('all');
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
     const [cases, setCases] = useState<QuestionnaireCaseDTO[]>([]);
     const [loading, setLoading] = useState(true);
@@ -413,9 +448,12 @@ export default function SeguimientoGuardian() {
         );
     }, [caseId, cases]);
 
-    const loadDashboard = useCallback(async () => {
+    const loadDashboard = useCallback(async (options?: { preserveNotice?: boolean }) => {
         setLoading(true);
         setError(null);
+        if (!options?.preserveNotice) {
+            setPageNotice(null);
+        }
         try {
             const [casesResponse, dashboardResponse] = await Promise.allSettled([
                 getQuestionnaireCasesV2({
@@ -440,9 +478,6 @@ export default function SeguimientoGuardian() {
                 setDashboard(dashboardResponse.value);
             } else {
                 setDashboard(null);
-                if (casesResponse.status === 'fulfilled') {
-                    setError('Los casos se cargaron correctamente, pero el resumen visual tardó demasiado. Puedes actualizar para reintentar.');
-                }
             }
         } catch {
             setError('No fue posible cargar los casos. Intenta nuevamente.');
@@ -511,7 +546,7 @@ export default function SeguimientoGuardian() {
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
     const guardianVisuals = useMemo(() => buildGuardianVisualCharts(dashboard, visibleCases), [dashboard, visibleCases]);
     const topPriorityCase = guardianVisuals.priorityCases[0] ?? null;
-    const topDomain = guardianVisuals.alertsByDomain[0]?.label ?? 'Sin dominio dominante';
+    const topDomain = guardianVisuals.alertsByDomain[0]?.label ?? 'Sin dominio predominante';
     const casesWithAlert = visibleCases.filter((item) => getAlertLevelMeta(item.latest_alert_level).tone !== 'unknown').length;
     const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
     const insightCopy = topPriorityCase
@@ -560,7 +595,7 @@ export default function SeguimientoGuardian() {
             setCreatedCaseFollowUp(createdCase);
             setSelectedCaseId(createdCase.case_id);
             setPageNotice(`El caso "${resolveCaseLabel(createdCase)}" se creó correctamente. Puedes asociar cuestionarios desde el detalle del cuestionario o usando etiquetas de seguimiento.`);
-            await loadDashboard();
+            await loadDashboard({ preserveNotice: true });
             loadCaseDetail(createdCase.case_id).catch(() => undefined);
         } catch {
             setCreateCaseError('No fue posible crear el caso. Intenta nuevamente.');
@@ -719,11 +754,11 @@ export default function SeguimientoGuardian() {
                             <button type="button" className="seguimiento-inline-btn" onClick={() => setSelectedCaseId(createdCaseFollowUp.case_id)}>
                                 Ver detalle
                             </button>
-                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => setCreatedCaseFollowUp(null)}>
+                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => navigate('/padre/historial')}>
                                 Asignar etiqueta desde cuestionario
                             </button>
-                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => setCreatedCaseFollowUp(null)}>
-                                Asociar cuestionarios
+                            <button type="button" className="seguimiento-inline-btn ghost" onClick={() => navigate('/padre/cuestionario')}>
+                                Añadir cuestionarios
                             </button>
                         </div>
                     </div>
@@ -747,10 +782,13 @@ export default function SeguimientoGuardian() {
                                 <span>Resumen ejecutivo</span>
                                 <h2>{`${alertsTotal || casesWithAlert} alertas visibles · ${casesWithAlert} casos con atención`}</h2>
                                 <p>{insightCopy}</p>
+                                <small className="seguimiento-period-chip">
+                                    {months === '6' ? 'Mostrando últimos 6 meses' : `Mostrando últimos ${months} meses`}
+                                </small>
                             </div>
                             <div className="seguimiento-hero-priority">
                                 <strong>{topPriorityCase?.label ?? 'Sin caso prioritario'}</strong>
-                                <span>{topPriorityCase ? `${topPriorityCase.alertLabel} - ${topPriorityCase.domainLabel}` : 'Sin alerta visible'}</span>
+                                <span>{topPriorityCase ? `${topPriorityCase.alertLabel} · ${topPriorityCase.domainLabel}` : 'Sin alerta visible'}</span>
                             </div>
                         </section>
 
@@ -837,26 +875,31 @@ export default function SeguimientoGuardian() {
                                 <p>Top 3 por severidad, actividad y última actualización.</p>
                             </div>
                             <div className="seguimiento-priority-grid">
-                                {guardianVisuals.priorityCases.map((item) => (
+                                {guardianVisuals.priorityCases.slice(0, 3).map((item, index) => (
                                     <article className="seguimiento-priority-card" key={item.caseItem.case_id}>
-                                        <div>
+                                        <span className="seguimiento-priority-index">{index + 1}</span>
+                                        <div className="seguimiento-priority-main">
                                             <strong>{item.label}</strong>
-                                            <span>{item.domainLabel}</span>
+                                            <span>{item.caseItem.case_public_id ?? 'Caso sin código público'} · {item.domainLabel}</span>
+                                            <small>
+                                                {item.sessions} cuestionarios · Última actividad: {formatActivityDate(item.lastActivity)}
+                                            </small>
                                         </div>
-                                        <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
-                                        <small>{item.sessions} cuestionarios · Última actividad: {formatDateTime(item.lastActivity)}</small>
-                                        <button
-                                            type="button"
-                                            className="seguimiento-inline-btn ghost"
-                                            onClick={() => {
-                                                setSelectedCaseId(item.caseItem.case_id);
-                                                if (!loadedCaseDetailById[item.caseItem.case_id] && !caseLoadingById[item.caseItem.case_id]) {
-                                                    loadCaseDetail(item.caseItem.case_id).catch(() => undefined);
-                                                }
-                                            }}
-                                        >
-                                            Ver detalle
-                                        </button>
+                                        <div className="seguimiento-priority-side">
+                                            <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
+                                            <button
+                                                type="button"
+                                                className="seguimiento-inline-btn ghost"
+                                                onClick={() => {
+                                                    setSelectedCaseId(item.caseItem.case_id);
+                                                    if (!loadedCaseDetailById[item.caseItem.case_id] && !caseLoadingById[item.caseItem.case_id]) {
+                                                        loadCaseDetail(item.caseItem.case_id).catch(() => undefined);
+                                                    }
+                                                }}
+                                            >
+                                                Ver detalle
+                                            </button>
+                                        </div>
                                     </article>
                                 ))}
                             </div>
@@ -868,7 +911,7 @@ export default function SeguimientoGuardian() {
                                     <strong>{caseId ? 'Caso filtrado' : 'Todos los casos visibles'}</strong>
                                     <p>Periodo {months} meses - {caseStatusFilter === 'all' ? 'todos los estados' : normalizeCaseStatus(caseStatusFilter)}</p>
                                 </div>
-                                <button type="button" className="seguimiento-inline-btn ghost" onClick={() => { setMonths('3'); setCaseId(''); setCaseStatusFilter('active'); }}>
+                                <button type="button" className="seguimiento-inline-btn ghost" onClick={() => { setMonths('6'); setCaseId(''); setCaseStatusFilter('all'); }}>
                                     Limpiar filtros
                                 </button>
                             </div>
@@ -941,6 +984,13 @@ export default function SeguimientoGuardian() {
                                 const isDashboardExpanded = expandedDashboardByCaseId[caseItem.case_id] ?? false;
                                 const hasLoadedCaseDetail = loadedCaseDetailById[caseItem.case_id] === true;
                                 const isCaseSelected = selectedCaseId === caseItem.case_id;
+                                const caseAlertTone = getAlertLevelMeta(caseItem.latest_alert_level).tone;
+                                const caseLastActivity = formatActivityDate(
+                                    dashboardViewModel.latestSessionAt,
+                                    caseItem.latest_processed_at,
+                                    caseItem.updated_at,
+                                    caseItem.created_at
+                                );
 
                                 return (
                                     <article
@@ -959,6 +1009,9 @@ export default function SeguimientoGuardian() {
                                                     </span>
                                                     <span className="seguimiento-case-badge">
                                                         {sessionsCount} {sessionsCount === 1 ? 'cuestionario' : 'cuestionarios'}
+                                                    </span>
+                                                    <span className={`seguimiento-alert-pill is-${caseAlertTone}`}>
+                                                        {dashboardViewModel.highestAlertLabel}
                                                     </span>
                                                 </div>
                                                 <div className="seguimiento-case-actions">
@@ -1024,7 +1077,7 @@ export default function SeguimientoGuardian() {
                                             </div>
                                             <div>
                                                 <strong>Último procesamiento</strong>
-                                                <span>{formatDateTime(dashboardViewModel.latestSessionAt)}</span>
+                                                <span>{caseLastActivity}</span>
                                             </div>
                                             <div>
                                                 <strong>Alerta principal</strong>
@@ -1091,7 +1144,7 @@ export default function SeguimientoGuardian() {
                                                     />
                                                     <DashboardMetricCard
                                                         label="Último cuestionario"
-                                                        value={formatDateTime(dashboardViewModel.latestSessionAt)}
+                                                        value={caseLastActivity}
                                                         helper="Fecha más reciente dentro del caso."
                                                         tone="neutral"
                                                     />
@@ -1235,7 +1288,7 @@ export default function SeguimientoGuardian() {
                                                                     onClick={() => setExpandedSessionByCaseId((prev) => ({ ...prev, [caseItem.case_id]: sessionKey }))}
                                                                     aria-expanded={isExpanded}
                                                                 >
-                                                                    <span>{formatDateTime(session.processed_at ?? session.updated_at ?? session.created_at)}</span>
+                                                                    <span>{formatActivityDate(session.processed_at, session.updated_at, session.created_at)}</span>
                                                                     <span>{normalizeSessionStatus(session.status)}</span>
                                                                     <span>{normalizeQuestionnaireMode(session.mode)}</span>
                                                                     <span>{sessionAlert ? `${sessionAlert.domainLabel} - ${sessionAlert.alertLabel}` : 'Sin alerta visible'}</span>
@@ -1250,11 +1303,11 @@ export default function SeguimientoGuardian() {
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Creada</strong>
-                                                                                <span>{formatDateTime(session.created_at)}</span>
+                                                                                <span>{formatActivityDate(session.created_at)}</span>
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Procesada</strong>
-                                                                                <span>{formatDateTime(session.processed_at)}</span>
+                                                                                <span>{formatActivityDate(session.processed_at)}</span>
                                                                             </div>
                                                                             <div>
                                                                                 <strong>Modo</strong>

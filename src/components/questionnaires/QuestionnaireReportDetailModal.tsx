@@ -11,6 +11,7 @@ import {
     getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryResultsV2,
+    getQuestionnaireProfessionalReviewsV2,
     getQuestionnaireReportPreviewV2,
     getQuestionnaireSessionV2,
     searchPsychologistsV2,
@@ -105,7 +106,25 @@ const DOMAIN_LABELS: Record<string, string> = {
     anxiety: 'Ansiedad',
     anxiety_disorder: 'Ansiedad',
     depression: 'Depresión',
-    depressive_disorder: 'Depresión'
+    depressive_disorder: 'Depresión',
+    general: 'Sin dominio predominante',
+    none: 'Sin dominio predominante'
+};
+
+const TECHNICAL_TEXT_LABELS: Record<string, string> = {
+    urgent_referral_recommended: 'Requiere derivación urgente',
+    safety_signal_level: 'Nivel de señal de seguridad',
+    score_type: 'Tipo de puntuación',
+    symptom_load_index: 'Índice de carga sintomática',
+    session: 'Cuestionario',
+    questionnaire_session: 'Cuestionario',
+    none: 'Ninguna',
+    reviewed: 'Revisado',
+    pending: 'Pendiente',
+    accepted: 'Aceptada',
+    rejected: 'Rechazada',
+    critical_review: 'Revisión prioritaria',
+    general: 'Sin dominio predominante'
 };
 
 const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -191,6 +210,8 @@ function normalizeMojibakeText(value: string) {
 
 function normalizeClinicalTextPresentation(value: unknown, fallback = 'No disponible') {
     if (typeof value !== 'string' || value.trim().length === 0) return fallback;
+    const normalizedKey = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (TECHNICAL_TEXT_LABELS[normalizedKey]) return TECHNICAL_TEXT_LABELS[normalizedKey];
     return normalizeMojibakeText(value);
 }
 
@@ -235,38 +256,8 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
     return normalized === 'submitted' || normalized === 'processed';
 }
 
-function resolveQuestionnaireId(detail: QuestionnaireHistoryDetailV2DTO | null) {
-    const candidates: unknown[] = [detail?.questionnaire_id, detail?.questionnaire_template_id];
-    for (const candidate of candidates) {
-        if (typeof candidate === 'string' && candidate.trim().length > 0) {
-            return candidate.trim();
-        }
-    }
-
-    return null;
-}
-
-function resolveSessionMetadataRows(
-    detail: QuestionnaireHistoryDetailV2DTO | null,
-    detailSessionId: string | null,
-    questionnaireIdForShare: string | null
-) {
-    return buildSafeDisplayRows(
-        {
-            session_id: detail?.id ?? detailSessionId,
-            questionnaire_id: questionnaireIdForShare,
-            mode_key: detail?.mode_key ?? null
-        },
-        {
-            includeTechnical: true,
-            includeEmpty: false,
-            customLabels: {
-                session_id: 'ID de cuestionario',
-                questionnaire_id: 'ID de cuestionario',
-                mode_key: 'Clave interna de modo'
-            }
-        }
-    );
+function resolveSessionMetadataRows(): Array<{ key: string; label: string; value: string }> {
+    return [];
 }
 
 type HistoryDetailLoadResult =
@@ -299,18 +290,24 @@ async function loadHistoryDetail(sessionId: string): Promise<HistoryDetailLoadRe
             };
         }
 
-        const [resultsResponse, summaryResponse, previewResponse] = await Promise.allSettled([
+        const [resultsResponse, summaryResponse, previewResponse, reviewsResponse] = await Promise.allSettled([
             getQuestionnaireHistoryResultsV2(sessionId),
             getQuestionnaireClinicalSummaryV2(sessionId),
-            getQuestionnaireReportPreviewV2(sessionId)
+            getQuestionnaireReportPreviewV2(sessionId),
+            getQuestionnaireProfessionalReviewsV2(sessionId)
         ]);
 
         const results = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
         const summary = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
         const preview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
-        const visibleReviews = (preview?.professional_reviews ?? []).filter(
-            (review: { visible_to_guardian?: boolean | null }) => review.visible_to_guardian !== false
-        );
+        const endpointReviews = reviewsResponse.status === 'fulfilled' ? reviewsResponse.value : [];
+        const visibleReviews = [
+            ...new Map(
+                [...endpointReviews, ...(preview?.professional_reviews ?? [])]
+                    .filter((review: { visible_to_guardian?: boolean | null }) => review.visible_to_guardian !== false)
+                    .map((review) => [review.review_id, review])
+            ).values()
+        ];
         const notice =
             summaryResponse.status === 'fulfilled' || resultsResponse.status !== 'fulfilled'
                 ? null
@@ -422,17 +419,16 @@ export function QuestionnaireReportDetailModal({
     const [shareQuery, setShareQuery] = useState('');
     const [shareDepartment, setShareDepartment] = useState('');
     const [shareCity, setShareCity] = useState('');
-    const [shareSameLocation, setShareSameLocation] = useState(false);
+    const [shareSameLocation, setShareSameLocation] = useState(true);
     const [shareWarnings, setShareWarnings] = useState<string[]>([]);
     const [shareResults, setShareResults] = useState<PsychologistSearchItemDTO[]>([]);
     const [shareSearchLoading, setShareSearchLoading] = useState(false);
     const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
 
     const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
-    const questionnaireIdForShare = useMemo(() => resolveQuestionnaireId(detailPayload), [detailPayload]);
     const internalReferenceRows = useMemo(
-        () => resolveSessionMetadataRows(detailPayload, sessionId, questionnaireIdForShare),
-        [detailPayload, questionnaireIdForShare, sessionId]
+        () => resolveSessionMetadataRows(),
+        []
     );
 
     const reportViewModel = useMemo(
@@ -527,7 +523,7 @@ export function QuestionnaireReportDetailModal({
         setShareQuery('');
         setShareDepartment('');
         setShareCity('');
-        setShareSameLocation(false);
+        setShareSameLocation(true);
         setShareWarnings([]);
         setShareResults([]);
         setSelectedPsychologistId('');
@@ -768,13 +764,29 @@ export function QuestionnaireReportDetailModal({
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="historial-v2-modal">
-                <h2>Detalle de cuestionario</h2>
+                <div className="historial-v2-modal-hero">
+                    <div>
+                        <span>Cuestionario</span>
+                        <h2>Detalle del cuestionario</h2>
+                        <p>Lectura orientativa, trazabilidad, etiquetas, revisión profesional y PDF en un solo panel.</p>
+                    </div>
+                    {detailPayload ? (
+                        <div className="historial-v2-risk-chip">
+                            <strong>{reportViewModel.overallRiskLabel}</strong>
+                            <span>{reportViewModel.statusLabel}</span>
+                        </div>
+                    ) : null}
+                </div>
                 {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                 {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
                 {detailNotice ? <div className="historial-v2-alert success">{detailNotice}</div> : null}
 
                 {!detailLoading && detailPayload ? (
                     <>
+                        <div className="historial-v2-warning historial-v2-warning--primary">
+                            <strong>Lectura responsable.</strong> Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
+                        </div>
+
                         <div className="historial-v2-detail-list">
                             <div className="historial-v2-detail-item">
                                 <strong>Estado</strong>
@@ -794,12 +806,8 @@ export function QuestionnaireReportDetailModal({
                             </div>
                         </div>
 
-                        <div className="historial-v2-warning">
-                            Este resultado es orientativo y sirve como apoyo de alerta temprana; no constituye diagnóstico clínico definitivo.
-                        </div>
-
                         <div className="historial-v2-section">
-                            <h3>Diagnóstico clínico orientativo</h3>
+                            <h3>Resumen orientativo</h3>
                             {clinicalSummaryPayload ? (
                                 <div className="historial-v2-detail-list">
                                     <div className="historial-v2-detail-item">
@@ -817,7 +825,7 @@ export function QuestionnaireReportDetailModal({
 
                             {reportViewModel.comorbidityText ? (
                                 <div className="historial-v2-warning">
-                                    <strong>Posible coexistencia de señales.</strong> {reportViewModel.comorbidityText}
+                                    <strong>Señales relevantes.</strong> {reportViewModel.comorbidityText}
                                 </div>
                             ) : null}
                         </div>
@@ -887,6 +895,9 @@ export function QuestionnaireReportDetailModal({
 
                         <div className="historial-v2-section">
                             <h3>Resultados estructurados complementarios</h3>
+                            <p className="historial-v2-helper-text">
+                                Campos normalizados del backend mostrados con etiquetas humanas; los identificadores internos se ocultan.
+                            </p>
                             <KeyValueRows
                                 data={toRecord(resultsPayload?.result ?? resultsPayload)}
                                 exclude={hiddenResultFields}
@@ -898,7 +909,7 @@ export function QuestionnaireReportDetailModal({
                             <div className="historial-v2-section">
                                 <h3>Vista previa estructurada del reporte</h3>
                                 <p className="historial-v2-helper-text">
-                                    Esta vista usa la respuesta segura del reporte para resumir dominios, respuestas normalizadas y revisiones profesionales visibles.
+                                    Esta vista resume dominios, respuestas normalizadas y revisiones profesionales visibles sin exponer datos técnicos internos.
                                 </p>
                                 {previewAnswerRows.length > 0 ? (
                                     <div className="historial-v2-review-list">
@@ -1013,6 +1024,9 @@ export function QuestionnaireReportDetailModal({
                                     <p className="historial-v2-helper-text">
                                         Selecciona un psicólogo verificado para solicitar revisión del cuestionario. Puedes buscar por username, nombre o email.
                                     </p>
+                                    <div className="historial-v2-warning">
+                                        Vas a enviar este cuestionario al psicólogo seleccionado. Si acepta la solicitud, podrá revisar el cuestionario completo y enviarte comentarios orientativos.
+                                    </div>
                                     <form
                                         className="historial-v2-share-search-form"
                                         onSubmit={(event) => handleHistoryFormSubmit(event, handleSearchPsychologists)}
@@ -1122,19 +1136,31 @@ export function QuestionnaireReportDetailModal({
 
                         {role === 'padre' ? (
                             <div className="historial-v2-section">
-                                <h3>Observaciones profesionales visibles</h3>
+                                <h3>Revisión profesional</h3>
                                 {visibleProfessionalReviews.length > 0 ? (
                                     <div className="historial-v2-review-list">
                                         {visibleProfessionalReviews.map((review) => (
                                             <article key={review.review_id} className="historial-v2-review-card">
                                                 <strong>{normalizeReviewStatus(review.review_status)}</strong>
+                                                <p>
+                                                    <span>Psicólogo:</span>{' '}
+                                                    {normalizeBackendText(
+                                                        review.psychologist_display_name ?? review.psychologist_name ?? review.psychologist_username,
+                                                        'Psicólogo asignado'
+                                                    )}
+                                                </p>
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                <p><span>Fecha:</span> {formatDateTimeEsCO(review.updated_at ?? review.created_at)}</p>
+                                                <small>Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</small>
                                             </article>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="historial-v2-helper-text">Sin revisiones profesionales visibles para este cuestionario.</p>
+                                    <div className="historial-v2-empty-panel">
+                                        <strong>Aún no hay revisión profesional visible.</strong>
+                                        <p>Envía este cuestionario a un psicólogo para solicitar comentarios orientativos.</p>
+                                    </div>
                                 )}
                             </div>
                         ) : null}
@@ -1143,7 +1169,7 @@ export function QuestionnaireReportDetailModal({
                             <h3>Reporte PDF</h3>
                             <div className="historial-v2-actions-card">
                                 <p className="historial-v2-helper-text">
-                                    Genera y descarga la versión enriquecida del reporte con preguntas respondidas, revisiones visibles y gráficas interpretativas.
+                                    Descarga el reporte en un solo paso. Si el archivo aún no existe, CognIA lo prepara automáticamente antes de descargarlo.
                                 </p>
                                 {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                 {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}

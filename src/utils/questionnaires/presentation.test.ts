@@ -9,17 +9,19 @@ import {
 
 describe('questionnaire presentation labels', () => {
     it('normaliza mojibake comun de backend a texto legible', () => {
-        expect(normalizeBackendText('RevisiÃ³n profesional')).toBe('Revisión profesional');
-        expect(normalizeBackendText('sesiÃ³n procesada')).toBe('sesión procesada');
+        expect(normalizeBackendText('Revisi\u00c3\u00b3n profesional')).toBe('Revisi\u00f3n profesional');
+        expect(normalizeBackendText('sesi\u00c3\u00b3n procesada')).toBe('sesi\u00f3n procesada');
     });
 
     it('traduce dominios, alertas y estados sin claves tecnicas visibles', () => {
         expect(normalizeDomainLabel('adhd')).toBe('TDAH');
         expect(normalizeDomainLabel('TDAH')).toBe('TDAH');
-        expect(normalizeDomainLabel('depression')).toBe('Depresión');
-        expect(normalizeAlertLevel('critical_review')).toBe('Revisión prioritaria');
+        expect(normalizeDomainLabel('depression')).toBe('Depresi\u00f3n');
+        expect(normalizeDomainLabel('general')).toBe('Sin dominio predominante');
+        expect(normalizeDomainLabel(null)).toBe('Sin dominio predominante');
+        expect(normalizeAlertLevel('critical_review')).toBe('Revisi\u00f3n prioritaria');
         expect(normalizeAlertLevel('low')).toBe('Baja');
         expect(normalizeSessionStatus('in_progress')).toBe('En progreso');
-        expect(normalizeReviewStatus('in_review')).toBe('En revisión');
+        expect(normalizeReviewStatus('in_review')).toBe('En revisi\u00f3n');
     });
 });
