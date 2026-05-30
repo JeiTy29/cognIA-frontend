@@ -74,10 +74,15 @@ describe('frontend final dashboard copy and flows', () => {
     it('humaniza el detalle y no muestra labels internos en ingles como copy visible', () => {
         const source = detailModalSource();
         const renderSection = source.slice(source.indexOf('return ('), source.indexOf('export'));
+        const history = historySource();
         expect(source).toContain('Requiere derivaci\u00f3n urgente');
         expect(source).toContain('Nivel de se\u00f1al de seguridad');
         expect(source).toContain('\u00cdndice de carga sintom\u00e1tica');
+        expect(history).toContain('Requiere derivaci\u00f3n urgente');
+        expect(history).toContain('Nivel de se\u00f1al de seguridad');
+        expect(history).toContain('\u00cdndice de carga sintom\u00e1tica');
         expect(renderSection).not.toMatch(/urgent referral recommended|safety signal level|score type|symptom load index/i);
+        expect(history).not.toMatch(/URGENT REFERRAL RECOMMENDED|SAFETY SIGNAL LEVEL|SCORE TYPE|SYMPTOM LOAD INDEX/);
     });
 
     it('guia el siguiente paso despues de crear caso', () => {

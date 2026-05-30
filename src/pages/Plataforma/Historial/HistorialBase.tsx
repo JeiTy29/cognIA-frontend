@@ -189,6 +189,34 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
 function canDownloadPdfForStatus(status: string | null | undefined) {
     return (status ?? '').trim().toLowerCase() === 'processed';
 }
+function normalizeStructuredKey(key: string) {
+    return key.trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+const structuredResultLabels: Record<string, string> = {
+    urgent_referral_recommended: 'Requiere derivación urgente',
+    safety_signal_level: 'Nivel de señal de seguridad',
+    score_type: 'Tipo de puntuación',
+    symptom_load_index: 'Índice de carga sintomática',
+    score_label: 'Etiqueta de puntuación',
+    score_explanation: 'Explicación de la puntuación',
+    summary: 'Resumen',
+    operational_recommendation: 'Recomendación operativa',
+    completion_quality_score: 'Calidad de completitud',
+    missingness_score: 'Datos faltantes',
+    needs_professional_review: 'Requiere valoración profesional'
+};
+function normalizeStructuredResultLabel(key: string, label: string) {
+    return structuredResultLabels[normalizeStructuredKey(key)] ?? normalizeBackendText(label, label);
+}
+function normalizeStructuredResultValue(key: string, value: string) {
+    const normalizedKey = normalizeStructuredKey(key);
+    const normalizedValue = normalizeBackendText(value, value);
+    const lower = normalizedValue.trim().toLowerCase();
+    if (lower === 'none') return 'Ninguna';
+    if (normalizedKey === 'score_type' && lower === 'symptom load index') return 'Índice de carga sintomática';
+    if (normalizedKey === 'safety_signal_level' && lower === 'none') return 'Ninguna';
+    return normalizedValue;
+}
 function makeTitle(role: HistorialRole) {
     return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
 }
@@ -217,7 +245,16 @@ async function loadDetail(sessionId: string) {
 function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
     const rows = buildSafeDisplayRows(data, { includeTechnical: false, includeEmpty: false, hiddenFields: hidden });
     if (rows.length === 0) return <p className="historial-dashboard-helper">{emptyText}</p>;
-    return <div className="historial-dashboard-kv-grid">{rows.map((row) => <div key={row.key}><strong>{row.label}</strong><span>{row.value}</span></div>)}</div>;
+    return (
+        <div className="historial-dashboard-kv-grid">
+            {rows.map((row) => (
+                <div key={row.key}>
+                    <strong>{normalizeStructuredResultLabel(row.key, row.label)}</strong>
+                    <span>{normalizeStructuredResultValue(row.key, row.value)}</span>
+                </div>
+            ))}
+        </div>
+    );
 }
 function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
     return resolveCaseCompositeLabel(caseItem);
