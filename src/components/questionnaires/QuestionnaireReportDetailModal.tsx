@@ -296,6 +296,9 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
     return normalized === 'submitted' || normalized === 'processed';
 }
+function canDownloadPdfForStatus(status: string | null | undefined) {
+    return (status ?? '').trim().toLowerCase() === 'processed';
+}
 
 function resolveSessionMetadataRows(): Array<{ key: string; label: string; value: string }> {
     return [];
@@ -472,6 +475,7 @@ export function QuestionnaireReportDetailModal({
     const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
 
     const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
+    const canDownloadDetailPdf = useMemo(() => canDownloadPdfForStatus(detailPayload?.status), [detailPayload?.status]);
     const internalReferenceRows = useMemo(
         () => resolveSessionMetadataRows(),
         []
@@ -726,6 +730,11 @@ export function QuestionnaireReportDetailModal({
 
     const handleDownloadReport = async () => {
         if (!sessionId) return;
+        if (!canDownloadDetailPdf) {
+            setPdfError('El PDF estará disponible cuando el cuestionario esté procesado.');
+            setPdfNotice(null);
+            return;
+        }
         setPdfWorking(true);
         setPdfError(null);
         setPdfNotice(null);
@@ -1266,7 +1275,9 @@ export function QuestionnaireReportDetailModal({
                             <h3>Reporte PDF</h3>
                             <div className="historial-v2-actions-card">
                                 <p className="historial-v2-helper-text">
-                                    Descarga el reporte en un solo paso. Si el archivo aún no existe, CognIA lo prepara automáticamente antes de descargarlo.
+                                    {canDownloadDetailPdf
+                                        ? 'Descarga el reporte en un solo paso. Si el archivo aún no existe, CognIA lo prepara automáticamente antes de descargarlo.'
+                                        : 'El reporte PDF estará disponible cuando el cuestionario esté procesado.'}
                                 </p>
                                 {pdfNotice ? <div className="historial-v2-inline-feedback success">{pdfNotice}</div> : null}
                                 {pdfError ? <div className="historial-v2-inline-feedback error">{pdfError}</div> : null}
@@ -1275,7 +1286,7 @@ export function QuestionnaireReportDetailModal({
                                         type="button"
                                         className="historial-v2-btn"
                                         onClick={() => { runHistoryTask(handleDownloadReport); }}
-                                        disabled={pdfWorking}
+                                        disabled={pdfWorking || !canDownloadDetailPdf}
                                     >
                                         {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
                                     </button>

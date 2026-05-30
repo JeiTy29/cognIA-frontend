@@ -186,6 +186,9 @@ function canLoadClinicalArtifacts(status: string | null | undefined) {
     const normalized = (status ?? '').trim().toLowerCase();
     return normalized === 'submitted' || normalized === 'processed';
 }
+function canDownloadPdfForStatus(status: string | null | undefined) {
+    return (status ?? '').trim().toLowerCase() === 'processed';
+}
 function makeTitle(role: HistorialRole) {
     return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
 }
@@ -327,6 +330,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const clinicalDisclaimer = useMemo(() => getSafeClinicalDisclaimer(clinicalSummaryPayload), [clinicalSummaryPayload]);
     const clinicalComorbiditySummary = useMemo(() => getClinicalComorbiditySummary(clinicalSummaryPayload), [clinicalSummaryPayload]);
     const isPdfReady = useMemo(() => ['ready', 'completed', 'generated', 'available', 'done'].includes(String(pdfPayload?.status ?? '').toLowerCase()), [pdfPayload?.status]);
+    const canDownloadDetailPdf = useMemo(() => canDownloadPdfForStatus(detailPayload?.status), [detailPayload?.status]);
 
     useEffect(() => {
         setDraftFilters((previous) => ({ ...previous, ...history.filters }));
@@ -545,6 +549,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     };
     const downloadPdf = async (regenerate = false) => {
         if (!detailSessionId) return;
+        if (!canDownloadDetailPdf) {
+            setDetailError('El PDF estará disponible cuando el cuestionario esté procesado.');
+            return;
+        }
         setPdfWorking(true);
         setDetailError(null);
         try {
@@ -1070,12 +1078,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 <div className="historial-dashboard-actions-grid">
                                     <article>
                                         <h4>Reporte descargable</h4>
-                                        <p className="historial-dashboard-helper">Estado: {getString(pdfPayload?.status, 'Sin generar')}</p>
+                                        <p className="historial-dashboard-helper">
+                                            {canDownloadDetailPdf
+                                                ? `Estado: ${getString(pdfPayload?.status, 'Sin generar')}`
+                                                : 'Disponible cuando el cuestionario esté procesado.'}
+                                        </p>
                                         <div className="historial-dashboard-inline-actions">
-                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf(false).catch(() => undefined)} disabled={pdfWorking}>
+                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf(false).catch(() => undefined)} disabled={pdfWorking || !canDownloadDetailPdf}>
                                                 {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
                                             </button>
-                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => downloadPdf(true).catch(() => undefined)} disabled={pdfWorking}>
+                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => downloadPdf(true).catch(() => undefined)} disabled={pdfWorking || !canDownloadDetailPdf}>
                                                 Regenerar PDF
                                             </button>
                                         </div>
