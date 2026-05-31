@@ -168,6 +168,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(historySource()).not.toContain('Regenerar PDF');
         expect(detailModalSource()).toContain('Respuestas registradas');
         expect(evaluacionesSource()).toContain('Respuestas registradas');
+        expect(detailModalSource().indexOf('Respuestas registradas')).toBeLessThan(
+            detailModalSource().indexOf('Síntesis general')
+        );
     });
 
     it('mantiene detalle normalizado en casos, historial y psicologo', () => {
