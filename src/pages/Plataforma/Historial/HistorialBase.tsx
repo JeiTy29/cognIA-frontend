@@ -1,55 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
-import { Modal } from '../../../components/Modal/Modal';
-import { ColombiaLocationSelect } from '../../../components/Location/ColombiaLocationSelect';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import { DashboardChartCard } from '../../../components/DashboardCharts';
 import { ActiveFilterChips } from '../../../components/ActiveFilterChips/ActiveFilterChips';
-import { QuestionnaireResponseGroups } from '../../../components/questionnaires/QuestionnaireResponseGroups';
-import { ApiError } from '../../../services/api/httpClient';
+import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useHistoryHasActiveFilters, useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
 import {
-    addQuestionnaireHistoryTagV2,
-    deleteQuestionnaireHistoryTagV2,
-    downloadQuestionnaireHistoryPdfV2,
-    generateQuestionnaireHistoryPdfV2,
     getGuardianDashboardV2,
     getPsychologistDashboardV2,
     getQuestionnaireCaseDetailV2,
-    getQuestionnaireCasesV2,
-    getQuestionnaireClinicalSummaryV2,
-    getQuestionnaireHistoryDetailV2,
-    getQuestionnaireHistoryPdfV2,
-    getQuestionnaireHistoryResponsesV2,
-    getQuestionnaireHistoryResultsV2,
-    getQuestionnaireProfessionalReviewsV2,
-    searchPsychologistsV2,
-    shareQuestionnaireWithPsychologistV2
+    getQuestionnaireCasesV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type {
     QuestionnaireCaseDetailV2Response,
     QuestionnaireCaseV2DTO,
-    QuestionnaireClinicalSummaryV2DTO,
     QuestionnaireDashboardChartPointDTO,
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
-    QuestionnaireHistoryResponsesV2Response,
-    QuestionnairePdfInfoV2DTO,
-    QuestionnaireProfessionalReviewDTO,
-    PsychologistSearchItemDTO,
-    QuestionnairePsychologistDashboardV2Response,
-    QuestionnaireSecureResultsV2DTO,
-    QuestionnaireTagVisibility
+    QuestionnairePsychologistDashboardV2Response
 } from '../../../services/questionnaires/questionnaires.types';
 import {
-    buildClinicalSummarySections,
-    getClinicalComorbiditySummary,
-    getRiskLevelPresentation,
-    getSafeClinicalDisclaimer
-} from '../../../services/questionnaires/clinicalSummary';
-import {
-    buildSafeDisplayRows,
     formatDateTimeEsCO,
     getModeLabel,
     getRoleLabel,
@@ -65,18 +36,9 @@ import {
 } from '../../../utils/questionnaires/dashboardLabels';
 import {
     normalizeAlertLevel,
-    normalizeBackendText,
-    normalizeDomainLabel,
-    normalizeRequestStatus,
-    normalizeReviewStatus
+    normalizeDomainLabel
 } from '../../../utils/questionnaires/presentation';
-import {
-    resolveQuestionnaireTagColor,
-    resolveQuestionnaireTagId,
-    resolveQuestionnaireTagLabel
-} from '../../../utils/questionnaires/tags';
 import './HistorialBase.css';
-import '../../../components/Location/ColombiaLocationSelect.css';
 
 type HistorialRole = 'padre' | 'psicologo';
 
@@ -98,14 +60,6 @@ const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'T
 const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revisión prioritaria' }];
 const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revisión' }, { value: 'false', label: 'Sin revisión requerida' }];
 const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6 meses' }, { value: '12', label: '12 meses' }];
-const tagVisibilityOptions = [{ value: 'private', label: 'Privado' }, { value: 'shared', label: 'Compartido' }];
-const tagColorOptions = [{ value: '#215f8f', label: 'Azul' }, { value: '#1f7a46', label: 'Verde' }, { value: '#d97a1f', label: 'Naranja' }, { value: '#5f2a8f', label: 'Morado' }, { value: '#bd1f2d', label: 'Rojo' }];
-const defaultTagColor = tagColorOptions[0].value;
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    return value as Record<string, unknown>;
-}
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
 }
@@ -185,63 +139,6 @@ function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2): Question
         needs_professional_review: filters.needs_professional_review
     };
 }
-function canLoadClinicalArtifacts(status: string | null | undefined) {
-    const normalized = (status ?? '').trim().toLowerCase();
-    return normalized === 'submitted' || normalized === 'processed';
-}
-function canDownloadPdfForStatus(status: string | null | undefined) {
-    return (status ?? '').trim().toLowerCase() === 'processed';
-}
-function normalizeStructuredKey(key: string) {
-    return key.trim().toLowerCase().replace(/[\s-]+/g, '_');
-}
-const structuredResultLabels: Record<string, string> = {
-    urgent_referral_recommended: 'Requiere derivación urgente',
-    safety_signal_level: 'Nivel de señal de seguridad',
-    score_type: 'Tipo de puntuación',
-    symptom_load_index: 'Índice de carga sintomática',
-    score_label: 'Etiqueta de puntuación',
-    score_explanation: 'Explicación de la puntuación',
-    summary: 'Resumen',
-    operational_recommendation: 'Recomendación operativa',
-    completion_quality_score: 'Calidad de completitud',
-    missingness_score: 'Datos faltantes',
-    needs_professional_review: 'Requiere valoración profesional'
-};
-function normalizeStructuredResultLabel(key: string, label: string) {
-    return structuredResultLabels[normalizeStructuredKey(key)] ?? normalizeBackendText(label, label);
-}
-function normalizeClinicalSpanishText(value: string) {
-    return value
-        .replace(/\bIndice\b/g, 'Índice')
-        .replace(/\bindice\b/g, 'índice')
-        .replace(/sintomatica/gi, 'sintomática')
-        .replace(/diagnostica/gi, 'diagnóstica')
-        .replace(/diagnostico/gi, 'diagnóstico')
-        .replace(/clinico/gi, 'clínico')
-        .replace(/evaluacion/gi, 'evaluación')
-        .replace(/psicologica/gi, 'psicológica')
-        .replace(/medica/gi, 'médica')
-        .replace(/informacion/gi, 'información')
-        .replace(/estadisticos/gi, 'estadísticos')
-        .replace(/clinicas/gi, 'clínicas')
-        .replace(/terapeuticas/gi, 'terapéuticas');
-}
-function normalizeStructuredResultValue(key: string, value: string) {
-    const normalizedKey = normalizeStructuredKey(key);
-    const normalizedValue = normalizeClinicalSpanishText(normalizeBackendText(value, value));
-    const lower = normalizedValue.trim().toLowerCase();
-    if (lower === 'none') return 'Ninguna';
-    if (normalizedKey === 'score_type' && lower === 'symptom load index') return 'Índice de carga sintomática';
-    if (normalizedKey === 'safety_signal_level' && lower === 'none') return 'Ninguna';
-    return normalizedValue;
-}
-function getApiErrorCode(error: unknown) {
-    if (!(error instanceof ApiError)) return null;
-    const payload = toRecord(error.payload);
-    const code = getString(payload?.error ?? payload?.code ?? payload?.msg, '');
-    return code ? code.trim().toLowerCase() : null;
-}
 function makeTitle(role: HistorialRole) {
     return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
 }
@@ -249,20 +146,6 @@ function makeDescription(role: HistorialRole) {
     return role === 'padre'
         ? 'Consulta cuestionarios aplicados, resultados orientativos y evolución por caso.'
         : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
-}
-function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
-    const rows = buildSafeDisplayRows(data, { includeTechnical: false, includeEmpty: false, hiddenFields: hidden });
-    if (rows.length === 0) return <p className="historial-dashboard-helper">{emptyText}</p>;
-    return (
-        <div className="historial-dashboard-kv-grid">
-            {rows.map((row) => (
-                <div key={row.key}>
-                    <strong>{normalizeStructuredResultLabel(row.key, row.label)}</strong>
-                    <span>{normalizeStructuredResultValue(row.key, row.value)}</span>
-                </div>
-            ))}
-        </div>
-    );
 }
 function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
     return resolveCaseCompositeLabel(caseItem);
@@ -285,29 +168,6 @@ function summaryNumber(summary: Record<string, unknown> | null | undefined, keys
     }
     return 0;
 }
-function toTextList(value: unknown) {
-    if (!Array.isArray(value)) return [];
-    return value
-        .map((item) => normalizeBackendText(item, ''))
-        .filter((item) => item.trim().length > 0);
-}
-function formatPercentValue(value: unknown) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return '--';
-    const percent = numeric > 1 ? numeric : numeric * 100;
-    return `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: percent < 1 ? 1 : 0 }).format(percent)}%`;
-}
-function firstDetailText(records: Array<Record<string, unknown> | null | undefined>, keys: string[], fallback = '--') {
-    for (const record of records) {
-        if (!record) continue;
-        for (const key of keys) {
-            const value = normalizeBackendText(record[key], '');
-            if (value) return value;
-        }
-    }
-    return fallback;
-}
-
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const history = useQuestionnaireHistoryV2({ initialFilters: { page: 1, page_size: 10 } });
     const [draftFilters, setDraftFilters] = useState<QuestionnaireHistoryFiltersV2>(() => defaultFilters());
@@ -327,42 +187,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [caseDetailLoading, setCaseDetailLoading] = useState(false);
 
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
-    const [detailPayload, setDetailPayload] = useState<QuestionnaireHistoryItemV2DTO | null>(null);
-    const [resultsPayload, setResultsPayload] = useState<QuestionnaireSecureResultsV2DTO | null>(null);
-    const [responsesPayload, setResponsesPayload] = useState<QuestionnaireHistoryResponsesV2Response | null>(null);
-    const [clinicalSummaryPayload, setClinicalSummaryPayload] = useState<QuestionnaireClinicalSummaryV2DTO | null>(null);
-    const [professionalReviews, setProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
-    const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
-    const [detailLoading, setDetailLoading] = useState(false);
-    const [detailArtifactsLoading, setDetailArtifactsLoading] = useState(false);
-    const detailRequestRef = useRef(0);
-    const [detailError, setDetailError] = useState<string | null>(null);
-    const [detailNotice, setDetailNotice] = useState<string | null>(null);
-    const [pdfWorking, setPdfWorking] = useState(false);
-
-    const [newTag, setNewTag] = useState('');
-    const [newTagColor, setNewTagColor] = useState(defaultTagColor);
-    const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
-    const [psychologistQuery, setPsychologistQuery] = useState('');
-    const [psychologistDepartment, setPsychologistDepartment] = useState('');
-    const [psychologistCity, setPsychologistCity] = useState('');
-    const [psychologistSameLocation, setPsychologistSameLocation] = useState(true);
-    const [psychologistResults, setPsychologistResults] = useState<PsychologistSearchItemDTO[]>([]);
-    const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
-    const [psychologistSearchLoading, setPsychologistSearchLoading] = useState(false);
-    const [shareWorking, setShareWorking] = useState(false);
-    const [shareStatus, setShareStatus] = useState<string | null>(null);
 
     const hasActiveFilters = useHistoryHasActiveFilters(history.filters);
     const filterChips = useMemo(() => buildActiveFilterChips(history.filters), [history.filters]);
     const kpis = useMemo(() => buildHistoryKpis(history.items, history.summary, history.total), [history.items, history.summary, history.total]);
-    const tags = useMemo(() => detailPayload?.tags ?? [], [detailPayload]);
-    const clinicalSections = useMemo(() => buildClinicalSummarySections(clinicalSummaryPayload), [clinicalSummaryPayload]);
-    const clinicalRisk = useMemo(() => getRiskLevelPresentation(clinicalSummaryPayload?.overall_risk_level ?? null), [clinicalSummaryPayload?.overall_risk_level]);
-    const clinicalDisclaimer = useMemo(() => getSafeClinicalDisclaimer(clinicalSummaryPayload), [clinicalSummaryPayload]);
-    const clinicalComorbiditySummary = useMemo(() => getClinicalComorbiditySummary(clinicalSummaryPayload), [clinicalSummaryPayload]);
-    const isPdfReady = useMemo(() => ['ready', 'completed', 'generated', 'available', 'done'].includes(String(pdfPayload?.status ?? '').toLowerCase()), [pdfPayload?.status]);
-    const canDownloadDetailPdf = useMemo(() => canDownloadPdfForStatus(detailPayload?.status), [detailPayload?.status]);
 
     useEffect(() => {
         setDraftFilters((previous) => ({ ...previous, ...history.filters }));
@@ -466,205 +294,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             return next as QuestionnaireHistoryFiltersV2;
         });
     };
-
     const openDetail = async (sessionId: string) => {
-        const requestId = detailRequestRef.current + 1;
-        detailRequestRef.current = requestId;
         setDetailSessionId(sessionId);
-        setDetailLoading(true);
-        setDetailArtifactsLoading(false);
-        setDetailError(null);
-        setDetailNotice(null);
-        setPdfPayload(null);
-        setDetailPayload(null);
-        setResultsPayload(null);
-        setResponsesPayload(null);
-        setClinicalSummaryPayload(null);
-        setProfessionalReviews([]);
-        try {
-            const detail = await getQuestionnaireHistoryDetailV2(sessionId);
-            if (detailRequestRef.current !== requestId) return;
-            setDetailPayload(detail);
-            setDetailLoading(false);
-            setDetailArtifactsLoading(true);
-            if (role === 'padre') {
-                searchPsychologists(true).catch(() => undefined);
-            }
-
-            const secondaryTasks: Promise<unknown>[] = [
-                getQuestionnaireProfessionalReviewsV2(sessionId)
-                    .then((reviews) => {
-                        if (detailRequestRef.current === requestId) setProfessionalReviews(reviews);
-                    })
-                    .catch(() => undefined),
-                getQuestionnaireHistoryResponsesV2(sessionId)
-                    .then((responses) => {
-                        if (detailRequestRef.current === requestId) setResponsesPayload(responses);
-                    })
-                    .catch(() => {
-                        if (detailRequestRef.current === requestId) setResponsesPayload({ items: [], warnings: [] });
-                    })
-            ];
-
-            if (canLoadClinicalArtifacts(detail.status)) {
-                secondaryTasks.push(
-                    getQuestionnaireHistoryResultsV2(sessionId)
-                        .then((results) => {
-                            if (detailRequestRef.current === requestId) setResultsPayload(results);
-                        })
-                        .catch(() => undefined),
-                    getQuestionnaireClinicalSummaryV2(sessionId)
-                        .then((summary) => {
-                            if (detailRequestRef.current === requestId) setClinicalSummaryPayload(summary);
-                        })
-                        .catch(() => undefined)
-                );
-            }
-
-            Promise.allSettled(secondaryTasks).finally(() => {
-                if (detailRequestRef.current === requestId) setDetailArtifactsLoading(false);
-            });
-        } catch (error) {
-            if (detailRequestRef.current !== requestId) return;
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible cargar el detalle.'));
-            setDetailLoading(false);
-            setDetailArtifactsLoading(false);
-        }
     };
     const closeDetail = () => {
-        detailRequestRef.current += 1;
         setDetailSessionId(null);
-        setDetailLoading(false);
-        setDetailArtifactsLoading(false);
-        setDetailPayload(null);
-        setResultsPayload(null);
-        setResponsesPayload(null);
-        setClinicalSummaryPayload(null);
-        setProfessionalReviews([]);
-        setPdfPayload(null);
-        setDetailError(null);
-        setDetailNotice(null);
-        setNewTag('');
-        setPsychologistQuery('');
-        setPsychologistDepartment('');
-        setPsychologistCity('');
-        setPsychologistSameLocation(true);
-        setPsychologistResults([]);
-        setSelectedPsychologistId('');
-        setShareStatus(null);
     };
-
-    const addTag = async () => {
-        if (!detailSessionId || !newTag.trim()) return;
-        try {
-            await addQuestionnaireHistoryTagV2(detailSessionId, { tag: newTag.trim(), color: newTagColor, visibility: newTagVisibility });
-            setDetailPayload(await getQuestionnaireHistoryDetailV2(detailSessionId));
-            setNewTag('');
-            setDetailNotice('Etiqueta agregada.');
-            await history.reload();
-        } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible agregar etiqueta.'));
-        }
-    };
-    const deleteTag = async (tagId: string) => {
-        if (!detailSessionId) return;
-        try {
-            await deleteQuestionnaireHistoryTagV2(detailSessionId, tagId);
-            setDetailPayload(await getQuestionnaireHistoryDetailV2(detailSessionId));
-            setDetailNotice('Etiqueta eliminada.');
-            await history.reload();
-        } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible eliminar etiqueta.'));
-        }
-    };
-    const searchPsychologists = async (sameLocation = false, allLocations = false) => {
-        setPsychologistSearchLoading(true);
-        setDetailError(null);
-        try {
-            const response = await searchPsychologistsV2({
-                q: toOptionalFilterText(psychologistQuery),
-                department: sameLocation || allLocations ? undefined : toOptionalFilterText(psychologistDepartment),
-                city: sameLocation || allLocations ? undefined : toOptionalFilterText(psychologistCity),
-                same_location: sameLocation || undefined,
-                recommended: sameLocation || undefined,
-                page: 1,
-                page_size: 8
-            });
-            setPsychologistResults(response.items);
-            if (response.items.length === 1) setSelectedPsychologistId(response.items[0].user_id);
-        } catch (error) {
-            setPsychologistResults([]);
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible buscar psicólogos.'));
-        } finally {
-            setPsychologistSearchLoading(false);
-        }
-    };
-    const sendToPsychologist = async () => {
-        if (!detailSessionId) return;
-        if (!selectedPsychologistId) {
-            setDetailError('Selecciona un psicólogo para enviar la solicitud.');
-            return;
-        }
-        setShareWorking(true);
-        setDetailError(null);
-        try {
-            const payload = await shareQuestionnaireWithPsychologistV2(detailSessionId, {
-                grantee_user_id: selectedPsychologistId,
-                grant_can_download_pdf: true,
-                grant_can_tag: false,
-                share_scope: 'session'
-            });
-            const requestStatus = payload.grant?.request_status ?? 'pending';
-            setShareStatus(requestStatus);
-            setDetailNotice(`Solicitud enviada. Estado: ${normalizeRequestStatus(requestStatus)}.`);
-            setProfessionalReviews(await getQuestionnaireProfessionalReviewsV2(detailSessionId).catch(() => []));
-        } catch (error) {
-            const code = getApiErrorCode(error);
-            if (code === 'share_request_already_accepted') {
-                setShareStatus('accepted');
-                setDetailNotice('Este cuestionario ya fue aceptado por el psicólogo.');
-                setProfessionalReviews(await getQuestionnaireProfessionalReviewsV2(detailSessionId).catch(() => []));
-            } else if (code === 'share_request_already_pending') {
-                setShareStatus('pending');
-                setDetailNotice('Ya existe una solicitud pendiente para este psicólogo.');
-            } else {
-                setDetailError(mapApiErrorToUserMessage(error, 'No fue posible enviar la solicitud al psicólogo.'));
-            }
-        } finally {
-            setShareWorking(false);
-        }
-    };
-    const downloadPdf = async (regenerate = false) => {
-        if (!detailSessionId) return;
-        if (!canDownloadDetailPdf) {
-            setDetailError('El PDF estará disponible cuando el cuestionario esté procesado.');
-            return;
-        }
-        setPdfWorking(true);
-        setDetailError(null);
-        try {
-            if (regenerate) {
-                await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            }
-            if (!regenerate && !isPdfReady) {
-                await generateQuestionnaireHistoryPdfV2(detailSessionId);
-            }
-            setPdfPayload(await getQuestionnaireHistoryPdfV2(detailSessionId).catch(() => pdfPayload));
-            const file = await downloadQuestionnaireHistoryPdfV2(detailSessionId);
-            const href = URL.createObjectURL(file.blob);
-            const anchor = document.createElement('a');
-            anchor.href = href;
-            anchor.download = file.filename;
-            anchor.click();
-            URL.revokeObjectURL(href);
-            setDetailNotice('PDF descargado correctamente.');
-        } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible descargar PDF.'));
-        } finally {
-            setPdfWorking(false);
-        }
-    };
-
     const historyCharts = useMemo(() => {
         const fallback = buildFallbackHistoryCharts(history.items);
         const byDate = toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month);
@@ -880,349 +515,13 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     </div>
                 </section>
             </section>
-
-            <Modal isOpen={detailSessionId !== null} onClose={closeDetail}>
-                <div className="historial-dashboard-modal">
-                    <h2>Detalle de cuestionario</h2>
-                    {detailLoading ? <div className="historial-dashboard-empty">Cargando detalle...</div> : null}
-                    {detailError ? <div className="historial-dashboard-alert error">{detailError}</div> : null}
-                    {detailNotice ? <div className="historial-dashboard-alert success">{detailNotice}</div> : null}
-                    {!detailLoading && detailPayload ? (
-                        <>
-                            {(() => {
-                                const resultRecord = toRecord(resultsPayload?.result ?? resultsPayload);
-                                const sessionRecord = toRecord(resultsPayload?.session);
-                                const safetyFlags = [
-                                    ...toTextList(detailPayload.safety_flags),
-                                    ...toTextList(resultRecord?.safety_flags)
-                                ];
-                                const safetySignals = [
-                                    ...toTextList(detailPayload.safety_signal_items),
-                                    ...toTextList(resultRecord?.safety_signal_items)
-                                ];
-                                const inconsistencyFlags = [
-                                    ...toTextList(detailPayload.inconsistency_flags),
-                                    ...toTextList(resultRecord?.inconsistency_flags),
-                                    ...toTextList(detailPayload.clinical_consistency_warnings),
-                                    ...toTextList(resultRecord?.clinical_consistency_warnings)
-                                ];
-                                const contextNotes = [
-                                    ...(Array.isArray(detailPayload.developmental_context_notes)
-                                        ? toTextList(detailPayload.developmental_context_notes)
-                                        : [normalizeBackendText(detailPayload.developmental_context_notes, '')].filter(Boolean)),
-                                    ...(Array.isArray(resultRecord?.developmental_context_notes)
-                                        ? toTextList(resultRecord?.developmental_context_notes)
-                                        : [normalizeBackendText(resultRecord?.developmental_context_notes, '')].filter(Boolean))
-                                ];
-                                const scoreLabel = firstDetailText([resultRecord, detailPayload], ['score_label']);
-                                const scoreExplanation = firstDetailText([resultRecord, detailPayload], ['score_explanation'], '');
-                                const completedBy = firstDetailText([detailPayload, sessionRecord], ['completed_by_display_name']);
-                                const completedRole = firstDetailText([detailPayload, sessionRecord], ['completed_by_role']);
-                                const relationship = firstDetailText([detailPayload, sessionRecord], ['respondent_relationship']);
-                                const appliedAtRaw = firstDetailText([detailPayload, sessionRecord], ['applied_at', 'submitted_at', 'processed_at'], '');
-                                const appliedAt = appliedAtRaw ? formatDateTimeEsCO(appliedAtRaw) : 'Sin fecha registrada';
-                                const primaryDomain = toRecord(resultRecord?.primary_domain);
-                                const domainLabel = normalizeDomainLabel(firstDetailText([primaryDomain, detailPayload, resultRecord], ['domain_label', 'domain', 'domain_code', 'dominant_domain'], 'Sin dominio predominante'));
-                                const alertLabel = normalizeAlertLevel(firstDetailText([detailPayload, resultRecord], ['latest_alert_level', 'alert_level'], ''));
-
-                                return (
-                                    <>
-                                        <div className="historial-dashboard-modal-section historial-dashboard-critical-summary">
-                                            <h3>Lectura responsable del resultado</h3>
-                                            <div className="historial-dashboard-kv-grid">
-                                                <div><strong>Dominio principal</strong><span>{domainLabel}</span></div>
-                                                <div><strong>Nivel orientativo</strong><span>{alertLabel}</span></div>
-                                                <div><strong>Escala reportada</strong><span>{scoreLabel}</span></div>
-                                                <div><strong>Aplicación</strong><span>{appliedAt}</span></div>
-                                            </div>
-                                            {scoreExplanation ? (
-                                                <p className="historial-dashboard-helper">{scoreExplanation}</p>
-                                            ) : (
-                                                <p className="historial-dashboard-helper">
-                                                    El porcentaje o puntaje no representa una probabilidad diagnóstica. Debe leerse como una señal orientativa para seguimiento.
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="historial-dashboard-modal-section">
-                                            <h3>Trazabilidad de aplicación</h3>
-                                            <div className="historial-dashboard-kv-grid">
-                                                <div><strong>Completado por</strong><span>{completedBy}</span></div>
-                                                <div><strong>Rol</strong><span>{getRoleLabel(completedRole)}</span></div>
-                                                <div><strong>Relación</strong><span>{relationship}</span></div>
-                                                <div><strong>Procesado</strong><span>{formatDateTimeEsCO(detailPayload.processed_at)}</span></div>
-                                            </div>
-                                        </div>
-
-                                        {(safetyFlags.length > 0 || safetySignals.length > 0 || detailPayload.urgent_referral_recommended) ? (
-                                            <div className="historial-dashboard-modal-section historial-dashboard-safety">
-                                                <h3>Señales de seguridad</h3>
-                                                {detailPayload.urgent_referral_recommended ? (
-                                                    <div className="historial-dashboard-warning critical">
-                                                        Revisión prioritaria sugerida. Esta alerta no es diagnóstico, pero requiere atención profesional responsable.
-                                                    </div>
-                                                ) : null}
-                                                {[...safetyFlags, ...safetySignals].map((item) => (
-                                                    <span className="historial-dashboard-signal-pill" key={item}>{item}</span>
-                                                ))}
-                                            </div>
-                                        ) : null}
-
-                                        {inconsistencyFlags.length > 0 || contextNotes.length > 0 ? (
-                                            <div className="historial-dashboard-modal-section">
-                                                <h3>Calidad y contexto</h3>
-                                                {inconsistencyFlags.map((item) => (
-                                                    <div className="historial-dashboard-warning" key={item}>{item}</div>
-                                                ))}
-                                                {contextNotes.map((item) => (
-                                                    <p className="historial-dashboard-helper" key={item}>{item}</p>
-                                                ))}
-                                            </div>
-                                        ) : null}
-                                    </>
-                                );
-                            })()}
-                            <div className="historial-dashboard-kv-grid">
-                                <div><strong>Estado</strong><span>{getStatusLabel(detailPayload.status)}</span></div>
-                                <div><strong>Modo</strong><span>{getModeLabel(detailPayload.mode)}</span></div>
-                                <div><strong>Rol</strong><span>{getRoleLabel(detailPayload.role)}</span></div>
-                                <div><strong>Actualizado</strong><span>{formatDateTimeEsCO(detailPayload.updated_at)}</span></div>
-                            </div>
-                            <div className="historial-dashboard-warning">Este resultado es orientativo y no constituye diagnóstico clínico definitivo.</div>
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Informe orientativo</h3>
-                                {clinicalSummaryPayload ? (
-                                    <>
-                                        <div className="historial-dashboard-kv-grid">
-                                            <div><strong>Nivel de alerta</strong><span>{clinicalRisk.label}</span></div>
-                                            <div><strong>Generado</strong><span>{formatDateTimeEsCO(clinicalSummaryPayload.generated_at)}</span></div>
-                                        </div>
-                                        {clinicalComorbiditySummary ? <div className="historial-dashboard-warning"><strong>Posible coexistencia de señales.</strong> {clinicalComorbiditySummary}</div> : null}
-                                        <div className="historial-dashboard-kv-grid">{clinicalSections.map((section) => <div key={section.key}><strong>{section.title}</strong><span>{section.content}</span></div>)}</div>
-                                    </>
-                                ) : <p className="historial-dashboard-helper">No hay informe orientativo disponible.</p>}
-                            </div>
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Resultados por dominio</h3>
-                                {detailArtifactsLoading && !resultsPayload ? (
-                                    <p className="historial-dashboard-helper">Cargando resultados normalizados...</p>
-                                ) : resultsPayload?.domains?.length ? (
-                                    <div className="historial-dashboard-domain-bars">
-                                        {resultsPayload.domains.slice(0, 6).map((domain, index) => {
-                                            const label = normalizeDomainLabel(domain.domain_label ?? domain.domain ?? domain.domain_code);
-                                            const percent = formatPercentValue(domain.probability ?? domain.confidence_pct);
-                                            const width = Math.max(4, Math.min(100, Number(domain.probability) > 1 ? Number(domain.probability) : Number(domain.probability) * 100));
-                                            return (
-                                                <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
-                                                    <div>
-                                                        <strong>{label}</strong>
-                                                        <span>{percent} · {normalizeAlertLevel(domain.alert_level)}</span>
-                                                    </div>
-                                                    <div className="historial-dashboard-domain-track" aria-hidden="true">
-                                                        <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <p className="historial-dashboard-helper">Aún no hay resultados por dominio para este cuestionario.</p>
-                                )}
-                            </div>
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Respuestas registradas</h3>
-                                {detailArtifactsLoading && !responsesPayload ? (
-                                    <p className="historial-dashboard-helper">Cargando respuestas registradas...</p>
-                                ) : (
-                                    <QuestionnaireResponseGroups
-                                        responses={responsesPayload}
-                                        maxItemsPerGroup={12}
-                                        emptyText="No hay respuestas visibles para este cuestionario con los permisos actuales."
-                                    />
-                                )}
-                            </div>
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Resultados estructurados</h3>
-                                <KeyValueRows data={toRecord(resultsPayload?.result ?? resultsPayload)} hidden={['id', 'session_id', 'questionnaire_id', 'metadata']} emptyText="Sin resultados complementarios." />
-                                                <p className="historial-dashboard-helper">{normalizeClinicalSpanishText(normalizeBackendText(clinicalDisclaimer, clinicalDisclaimer))}</p>
-                            </div>
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Etiquetas</h3>
-                                {tags.length === 0 ? (
-                                    <p className="historial-dashboard-helper">
-                                        Sin etiquetas adicionales. La relación principal con el caso se conserva por asociación directa del cuestionario.
-                                    </p>
-                                ) : (
-                                    <div className="historial-dashboard-tags">{tags.map((tag, index) => {
-                                        const tagId = resolveQuestionnaireTagId(tag);
-                                        const tagLabel = resolveQuestionnaireTagLabel(tag);
-                                        const tagColor = resolveQuestionnaireTagColor(tag);
-                                        return <div className="historial-dashboard-tag" key={tagId || `${tagLabel}-${index}`} style={{ borderLeftColor: tagColor }}><span>{tagLabel}</span>{tagId ? <button type="button" onClick={() => deleteTag(tagId).catch(() => undefined)}>Eliminar</button> : null}</div>;
-                                    })}</div>
-                                )}
-                                <div className="historial-dashboard-tag-form">
-                                    <input type="text" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Nueva etiqueta" />
-                                    <CustomSelect value={newTagVisibility} options={tagVisibilityOptions} onChange={(value) => setNewTagVisibility(value as QuestionnaireTagVisibility)} ariaLabel="Visibilidad de etiqueta" />
-                                    <div className="historial-dashboard-colors" role="radiogroup" aria-label="Color de etiqueta">{tagColorOptions.map((option) => <button key={option.value} type="button" className={`historial-dashboard-color ${newTagColor === option.value ? 'is-selected' : ''}`} role="radio" aria-checked={newTagColor === option.value} style={{ backgroundColor: option.value }} onClick={() => setNewTagColor(option.value)} />)}</div>
-                                    <button type="button" className="historial-dashboard-btn" onClick={() => addTag().catch(() => undefined)}>Agregar</button>
-                                </div>
-                            </div>
-                            {role === 'padre' ? (
-                                <div className="historial-dashboard-modal-section">
-                                    <h3>Enviar a psicólogo</h3>
-                                    <div className="historial-dashboard-actions-grid historial-dashboard-actions-grid--single">
-                                        <article>
-                                            <h4>Seleccionar profesional</h4>
-                                            <p className="historial-dashboard-helper">
-                                                Vas a enviar este cuestionario al psicólogo seleccionado. Si acepta la solicitud, podrá revisar el cuestionario completo y enviarte comentarios orientativos.
-                                            </p>
-                                            <div className="historial-dashboard-share-toolbar">
-                                                <button type="button" className="historial-dashboard-btn secondary" onClick={() => searchPsychologists(true).catch(() => undefined)} disabled={psychologistSearchLoading}>
-                                                    Psicólogos recomendados
-                                                </button>
-                                                <form
-                                                    className="historial-dashboard-share-search"
-                                                    onSubmit={(event) => {
-                                                        event.preventDefault();
-                                                        searchPsychologists(psychologistSameLocation).catch(() => undefined);
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="search"
-                                                        value={psychologistQuery}
-                                                        onChange={(event) => setPsychologistQuery(event.target.value)}
-                                                        placeholder="Buscar por nombre o username"
-                                                    />
-                                                    <ColombiaLocationSelect
-                                                        value={{ department: psychologistDepartment, city: psychologistCity }}
-                                                        onChange={(nextValue) => {
-                                                            setPsychologistDepartment(nextValue.department);
-                                                            setPsychologistCity(nextValue.city);
-                                                        }}
-                                                        disabled={psychologistSameLocation}
-                                                        departmentLabel="Departamento"
-                                                        cityLabel="Ciudad"
-                                                        className="historial-dashboard-share-location"
-                                                    />
-                                                    <label className="historial-dashboard-inline-toggle">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={psychologistSameLocation}
-                                                            onChange={(event) => {
-                                                                const checked = event.target.checked;
-                                                                setPsychologistSameLocation(checked);
-                                                                if (checked) {
-                                                                    setPsychologistDepartment('');
-                                                                    setPsychologistCity('');
-                                                                }
-                                                            }}
-                                                        />
-                                                        <span>Solo mi ciudad</span>
-                                                    </label>
-                                                    <button type="submit" className="historial-dashboard-btn" disabled={psychologistSearchLoading}>
-                                                        {psychologistSearchLoading ? 'Buscando...' : 'Buscar'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="historial-dashboard-btn secondary"
-                                                        disabled={psychologistSearchLoading}
-                                                        onClick={() => {
-                                                            setPsychologistSameLocation(false);
-                                                            setPsychologistDepartment('');
-                                                            setPsychologistCity('');
-                                                            searchPsychologists(false, true).catch(() => undefined);
-                                                        }}
-                                                    >
-                                                        Buscar en todas las ciudades
-                                                    </button>
-                                                </form>
-                                            </div>
-                                            {psychologistResults.length === 0 ? (
-                                                <p className="historial-dashboard-helper">Busca por ubicación o por username para seleccionar un psicólogo.</p>
-                                            ) : (
-                                                <div className="historial-dashboard-psychologist-list">
-                                                    {psychologistResults.map((psychologist) => {
-                                                        const fullName = normalizeBackendText(psychologist.full_name ?? psychologist.username, 'Psicólogo registrado');
-                                                        const location = normalizeBackendText([psychologist.city, psychologist.department].filter(Boolean).join(' · '), 'Ubicación no disponible');
-                                                        return (
-                                                            <button
-                                                                key={psychologist.user_id}
-                                                                type="button"
-                                                                className={`historial-dashboard-psychologist-card ${selectedPsychologistId === psychologist.user_id ? 'is-selected' : ''}`}
-                                                                onClick={() => setSelectedPsychologistId(psychologist.user_id)}
-                                                            >
-                                                                <strong>{fullName}</strong>
-                                                                <span>{normalizeBackendText(psychologist.username ?? psychologist.email, 'Usuario no disponible')}</span>
-                                                                <small>{location}{psychologist.same_city ? ' · Misma ciudad' : psychologist.same_department ? ' · Mismo departamento' : ''}</small>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                            {shareStatus ? <p className="historial-dashboard-helper">Estado de solicitud: {normalizeRequestStatus(shareStatus)}</p> : null}
-                                            <button type="button" className="historial-dashboard-btn" onClick={() => sendToPsychologist().catch(() => undefined)} disabled={!selectedPsychologistId || shareWorking}>
-                                                {shareWorking ? 'Enviando...' : 'Enviar a psicólogo'}
-                                            </button>
-                                        </article>
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            <div className="historial-dashboard-modal-section">
-                                <h3>Revisión profesional</h3>
-                                {detailArtifactsLoading && professionalReviews.length === 0 ? (
-                                    <p className="historial-dashboard-helper">Cargando revisiones profesionales...</p>
-                                ) : professionalReviews.length === 0 ? (
-                                    <div className="historial-dashboard-actions-grid historial-dashboard-actions-grid--single">
-                                        <article>
-                                            <p className="historial-dashboard-helper">Aún no hay una revisión profesional visible para este cuestionario.</p>
-                                            {role === 'padre' ? <p className="historial-dashboard-helper">Puedes enviar este cuestionario a un psicólogo desde la sección anterior.</p> : null}
-                                        </article>
-                                    </div>
-                                ) : (
-                                    <div className="historial-dashboard-review-list">
-                                        {professionalReviews.map((review) => (
-                                            <article className="historial-dashboard-review-card" key={review.review_id}>
-                                                <div className="historial-dashboard-card-inline">
-                                                    <strong>{normalizeReviewStatus(review.review_status)}</strong>
-                                                    <span>{formatDateTimeEsCO(review.updated_at ?? review.created_at)}</span>
-                                                </div>
-                                                <p><strong>Concepto inicial:</strong> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
-                                                <p><strong>Recomendación:</strong> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
-                                                <p className="historial-dashboard-helper">Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</p>
-                                            </article>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="historial-dashboard-modal-section">
-                                <h3>PDF</h3>
-                                <div className="historial-dashboard-actions-grid">
-                                    <article>
-                                        <h4>Reporte descargable</h4>
-                                        <p className="historial-dashboard-helper">
-                                            {canDownloadDetailPdf
-                                                ? `Estado: ${getString(pdfPayload?.status, 'Sin generar')}`
-                                                : 'Disponible cuando el cuestionario esté procesado.'}
-                                        </p>
-                                        <div className="historial-dashboard-inline-actions">
-                                            <button type="button" className="historial-dashboard-btn" onClick={() => downloadPdf(false).catch(() => undefined)} disabled={pdfWorking || !canDownloadDetailPdf}>
-                                                {pdfWorking ? 'Preparando PDF...' : 'Descargar PDF'}
-                                            </button>
-                                            <button type="button" className="historial-dashboard-btn secondary" onClick={() => downloadPdf(true).catch(() => undefined)} disabled={pdfWorking || !canDownloadDetailPdf}>
-                                                Regenerar PDF
-                                            </button>
-                                        </div>
-                                        <KeyValueRows data={toRecord(pdfPayload)} hidden={['download_url', 'file_id', 'mime_type']} emptyText="Sin metadatos adicionales del PDF." />
-                                    </article>
-                                </div>
-                            </div>
-                        </>
-                    ) : null}
-                    <div className="historial-dashboard-modal-actions"><button type="button" className="historial-dashboard-btn secondary" onClick={closeDetail}>Cerrar</button></div>
-                </div>
-            </Modal>
+            <QuestionnaireReportDetailModal
+                isOpen={detailSessionId !== null}
+                sessionId={detailSessionId}
+                role={role}
+                onClose={closeDetail}
+                onDataChanged={() => history.reload()}
+            />
         </div>
     );
 }

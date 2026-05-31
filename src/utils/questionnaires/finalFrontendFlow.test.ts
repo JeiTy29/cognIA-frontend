@@ -19,10 +19,11 @@ const notificationsCssSource = () => readFileSync('src/components/Notifications/
 
 describe('frontend final dashboard copy and flows', () => {
     it('usa envio directo a psicologo y no enlace como flujo principal en historial', () => {
-        const source = historySource();
+        const source = detailModalSource();
         expect(source).toContain('Enviar a psic\u00f3logo');
         expect(source).toContain('searchPsychologistsV2');
         expect(source).toContain('shareQuestionnaireWithPsychologistV2');
+        expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(source).not.toContain('Generar enlace');
         expect(source).not.toContain('Max usos');
         expect(source).not.toContain('Usuario destinatario autorizado');
@@ -81,10 +82,7 @@ describe('frontend final dashboard copy and flows', () => {
     it('solo permite descargar PDF cuando el cuestionario esta procesado', () => {
         const history = historySource();
         const detail = detailModalSource();
-        expect(history).toContain('canDownloadPdfForStatus');
-        expect(history).toContain("toLowerCase() === 'processed'");
-        expect(history).toContain('Disponible cuando el cuestionario esté procesado.');
-        expect(history).toContain('disabled={pdfWorking || !canDownloadDetailPdf}');
+        expect(history).toContain('QuestionnaireReportDetailModal');
         expect(detail).toContain('canDownloadPdfForStatus');
         expect(detail).toContain("toLowerCase() === 'processed'");
         expect(detail).toContain('El reporte PDF estará disponible cuando el cuestionario esté procesado.');
@@ -107,11 +105,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('Requiere derivaci\u00f3n urgente');
         expect(source).toContain('Nivel de se\u00f1al de seguridad');
         expect(source).toContain('\u00cdndice de carga sintom\u00e1tica');
-        expect(history).toContain('Requiere derivaci\u00f3n urgente');
-        expect(history).toContain('Nivel de se\u00f1al de seguridad');
-        expect(history).toContain('\u00cdndice de carga sintom\u00e1tica');
-        expect(history).toContain('diagn\u00f3stica');
-        expect(history).toContain('evaluaci\u00f3n');
+        expect(history).toContain('QuestionnaireReportDetailModal');
+        expect(source).toContain('diagn\u00f3stico');
+        expect(source).toContain('evaluaci\u00f3n');
         expect(renderSection).not.toMatch(/urgent referral recommended|safety signal level|score type|symptom load index/i);
         expect(history).not.toMatch(/URGENT REFERRAL RECOMMENDED|SAFETY SIGNAL LEVEL|SCORE TYPE|SYMPTOM LOAD INDEX/);
     });
@@ -159,15 +155,15 @@ describe('frontend final dashboard copy and flows', () => {
 
     it('integra respuestas detalladas para guardian y psicologo aceptado', () => {
         expect(apiSource()).toContain('/api/v2/questionnaires/history/${sessionId}/responses');
-        expect(historySource()).toContain('getQuestionnaireHistoryResponsesV2');
+        expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detailModalSource()).toContain('getQuestionnaireHistoryResponsesV2');
         expect(evaluacionesSource()).toContain('getQuestionnaireHistoryResponsesV2');
         expect(responseGroupsSource()).toContain('Pregunta');
         expect(responseGroupsSource()).toContain('Respuesta');
-        expect(historySource()).toContain('QuestionnaireResponseGroups');
+        expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detailModalSource()).toContain('QuestionnaireResponseGroups');
         expect(evaluacionesSource()).toContain('QuestionnaireResponseGroups');
-        expect(historySource()).toContain('Respuestas registradas');
+        expect(historySource()).not.toContain('Regenerar PDF');
         expect(detailModalSource()).toContain('Respuestas registradas');
         expect(evaluacionesSource()).toContain('Respuestas registradas');
     });
@@ -184,7 +180,8 @@ describe('frontend final dashboard copy and flows', () => {
         expect(evaluations).not.toContain('buildQuestionnaireAlertPdf');
         expect(evaluations).toContain('generateQuestionnaireHistoryPdfV2(item.session_id)');
         expect(evaluations).toContain('downloadQuestionnaireHistoryPdfV2(item.session_id)');
-        expect(history).toContain('QuestionnaireResponseGroups');
+        expect(history).toContain('QuestionnaireReportDetailModal');
+        expect(history).toContain('detailSessionId');
         expect(detail).not.toMatch(/responseQuestionText\(item\)|responseAnswerText\(item\)/);
         expect(evaluations).not.toMatch(/responseQuestionText|responseAnswerText|groupedResponses/);
     });
@@ -197,7 +194,7 @@ describe('frontend final dashboard copy and flows', () => {
         expect(tags).toContain('resolveQuestionnaireTagColor');
         expect(tags).toContain('hashText');
         expect(api).toContain('resolveQuestionnaireTagColor');
-        expect(historySource()).toContain('resolveQuestionnaireTagLabel');
+        expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detail).toContain('resolveQuestionnaireTagLabel');
         expect(detail).toContain('Añadir etiqueta');
         expect(detail).toContain('setTagFormOpen(true)');
@@ -209,9 +206,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(apiSource()).toContain('department: params?.department');
         expect(apiSource()).toContain('city: params?.city');
         expect(apiSource()).toContain('same_location: params?.same_location');
-        expect(history).toContain('ColombiaLocationSelect');
-        expect(history).toContain('Solo mi ciudad');
-        expect(history).toContain('Buscar en todas las ciudades');
+        expect(history).toContain('QuestionnaireReportDetailModal');
+        expect(detail).toContain('ColombiaLocationSelect');
+        expect(detail).toContain('Buscar psicólogos de mi misma ubicación');
         expect(detail).toContain('Nombre o usuario');
         expect(detail).toContain('Buscar en todas las ciudades');
     });
@@ -224,12 +221,12 @@ describe('frontend final dashboard copy and flows', () => {
 
     it('usa resultados normalizados y evita strings crudos indice/riesgo', () => {
         const api = apiSource();
-        const history = historySource();
+        const detail = detailModalSource();
         expect(api).toContain('primary_domain');
         expect(api).toContain('observed_indicators');
-        expect(history).toContain('Resultados por dominio');
-        expect(history).not.toContain('indice=');
-        expect(history).not.toContain('riesgo=');
+        expect(detail).toContain('Resultados por dominio');
+        expect(detail).not.toContain('indice=');
+        expect(detail).not.toContain('riesgo=');
     });
 
     it('solicitudes de psicologo consumen charts del backend y no doble hero', () => {
