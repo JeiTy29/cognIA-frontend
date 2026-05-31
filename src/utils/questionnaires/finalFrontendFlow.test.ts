@@ -160,6 +160,7 @@ describe('frontend final dashboard copy and flows', () => {
         expect(evaluacionesSource()).toContain('getQuestionnaireHistoryResponsesV2');
         expect(responseGroupsSource()).toContain('Pregunta');
         expect(responseGroupsSource()).toContain('Respuesta');
+        expect(responseGroupsSource()).toContain('responses?.sections');
         expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detailModalSource()).toContain('QuestionnaireResponseGroups');
         expect(detailModalSource()).toContain('fallbackRows={previewAnswerRows}');
