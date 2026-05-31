@@ -40,7 +40,7 @@ type AuthProviderProps = Readonly<{
     children: ReactNode;
 }>;
 
-const SESSION_TIMEOUT_MS = 10000;
+const SESSION_TIMEOUT_MS = 25000;
 const REFRESH_SKEW_MS = 60_000;
 
 function debugAuth(label: string, payload?: unknown) {
@@ -334,8 +334,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         const verificationTask: Promise<boolean> = (async () => {
+            let preserveOnTransientFailure = false;
             try {
                 const snapshot = authSnapshotRef.current;
+                preserveOnTransientFailure = snapshot.authStatus === 'authenticated' && snapshot.sessionVerified;
                 debugAuth('verifySession:start', {
                     options,
                     authStatus: snapshot.authStatus,
@@ -376,13 +378,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             let startedEpoch = authEpochRef.current;
             const allowRefresh = options?.allowRefresh ?? true;
-            if (!options?.silent) {
+            const preserveAuthenticatedSession = preserveOnTransientFailure;
+            if (!options?.silent && !preserveAuthenticatedSession) {
                 setIsAuthLoading(true);
             }
+            if (preserveAuthenticatedSession) {
+                setIsSessionRefreshing(true);
+            }
 
-            setAuthStatus('checking');
-            setSessionVerified(false);
-            setProfileStatus('loading');
+            if (!preserveAuthenticatedSession) {
+                setAuthStatus('checking');
+                setSessionVerified(false);
+                setProfileStatus('loading');
+            }
             setProfileErrorStatus(null);
 
             debugAuth('verifySession:me:first');
@@ -443,6 +451,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             debugAuth('verifySession:error', meResponse);
+            if (preserveAuthenticatedSession && !isUnauthorizedMeResponse(meResponse)) {
+                setAuthStatus('authenticated');
+                setSessionVerified(true);
+                setIsAuthLoading(false);
+                setIsSessionRefreshing(false);
+                setProfileErrorStatus(meResponse.status);
+                return true;
+            }
             setProfile(null);
             setProfileStatus('error');
             setProfileErrorStatus(meResponse.status);
@@ -453,6 +469,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 if (hasManualLogoutFlag()) {
                     applyAnonymousState('manual');
                     return false;
+                }
+
+                if (preserveOnTransientFailure) {
+                    setAuthStatus('authenticated');
+                    setSessionVerified(true);
+                    setIsAuthLoading(false);
+                    setIsSessionRefreshing(false);
+                    setProfileErrorStatus(error instanceof Error && error.message === 'auth_timeout' ? 408 : 500);
+                    return true;
                 }
 
                 setProfile(null);
