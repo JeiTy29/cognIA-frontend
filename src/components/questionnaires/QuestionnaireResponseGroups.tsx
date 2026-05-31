@@ -18,6 +18,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function toCollection(value: unknown): unknown[] {
+    if (Array.isArray(value)) return value;
+    if (isRecord(value)) return Object.values(value);
+    return [];
+}
+
 function questionnaireResponseQuestionText(item: Record<string, unknown>) {
     return normalizeBackendText(
         item.prompt ?? item.question_text ?? item.question ?? item.text,
@@ -42,7 +48,23 @@ function groupQuestionnaireResponses(
     responses: QuestionnaireHistoryResponsesV2Response | null | undefined
 ): QuestionnaireResponseGroup[] {
     const groups = new Map<string, QuestionnaireHistoryResponseItemDTO[]>();
-    (responses?.items ?? []).forEach((item) => {
+    const directItems = responses?.items ?? [];
+    const sectionItems = directItems.length > 0
+        ? []
+        : toCollection(responses?.sections ?? responses?.groups ?? responses?.domains).flatMap((section) => {
+            if (!isRecord(section)) return [];
+            return toCollection(section.items ?? section.responses ?? section.answers ?? section.questions).map((item) => {
+                if (!isRecord(item)) return item;
+                return {
+                    ...section,
+                    ...item,
+                    section_title: item.section_title ?? item.section_label ?? section.section_title ?? section.title ?? section.label,
+                    domain_code: item.domain_code ?? item.domain ?? section.domain_code ?? section.domain,
+                    domain_label: item.domain_label ?? section.domain_label ?? section.label ?? section.title
+                };
+            });
+        });
+    [...directItems, ...sectionItems].forEach((item) => {
         if (!isRecord(item)) return;
         const label = normalizeDomainLabel(
             item.domain_label ?? item.domain ?? item.domain_code ?? item.section_title ?? item.section
