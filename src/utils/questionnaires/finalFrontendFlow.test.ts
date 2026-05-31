@@ -162,6 +162,7 @@ describe('frontend final dashboard copy and flows', () => {
         expect(responseGroupsSource()).toContain('Respuesta');
         expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detailModalSource()).toContain('QuestionnaireResponseGroups');
+        expect(detailModalSource()).toContain('fallbackRows={previewAnswerRows}');
         expect(evaluacionesSource()).toContain('QuestionnaireResponseGroups');
         expect(historySource()).not.toContain('Regenerar PDF');
         expect(detailModalSource()).toContain('Respuestas registradas');

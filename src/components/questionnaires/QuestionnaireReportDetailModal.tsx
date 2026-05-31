@@ -951,7 +951,11 @@ export function QuestionnaireReportDetailModal({
 
                         <div className="historial-v2-section">
                             <h3>Respuestas registradas</h3>
-                            <QuestionnaireResponseGroups responses={responsesPayload} maxItemsPerGroup={12} />
+                            <QuestionnaireResponseGroups
+                                responses={responsesPayload}
+                                fallbackRows={previewAnswerRows}
+                                maxItemsPerGroup={12}
+                            />
                         </div>
 
                         <div className="historial-v2-section">
