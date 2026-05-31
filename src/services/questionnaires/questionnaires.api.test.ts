@@ -262,6 +262,38 @@ describe('questionnaires.api secure endpoints', () => {
         });
     });
 
+    it('normaliza responses cuando backend entrega sections como objeto agrupado', async () => {
+        apiGet.mockResolvedValueOnce({
+            session_id: 'sess-1',
+            sections: {
+                adhd: {
+                    title: 'TDAH',
+                    domain_code: 'adhd',
+                    domain_label: 'TDAH',
+                    questions: {
+                        adhd_hypimp_01_fidgets: {
+                            question_text: 'Se mueve constantemente o parece inquieto',
+                            answer_label: 'Frecuentemente',
+                            value: 3
+                        }
+                    }
+                }
+            }
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getQuestionnaireHistoryResponsesV2('sess-1');
+
+        expect(response.items).toHaveLength(1);
+        expect(response.items[0]).toMatchObject({
+            section_title: 'TDAH',
+            domain_code: 'adhd',
+            domain_label: 'TDAH',
+            question_text: 'Se mueve constantemente o parece inquieto',
+            answer_label: 'Frecuentemente'
+        });
+    });
+
     it('normaliza primary_domain y observed_indicators desde results secure', async () => {
         apiSecurePostNoBody.mockResolvedValueOnce({
             session: { id: 'sess-1', session_id: 'sess-1' },

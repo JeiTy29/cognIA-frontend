@@ -419,15 +419,22 @@ function normalizeHistoryResponseItem(value: unknown): QuestionnaireHistoryRespo
     };
 }
 
+function asCollectionArray(value: unknown): unknown[] {
+    if (Array.isArray(value)) return value;
+    const record = asRecord(value);
+    if (!record) return [];
+    return Object.values(record);
+}
+
 function collectHistoryResponseItems(root: Record<string, unknown>) {
-    const directItems = asArray(root.items ?? root.responses ?? root.answers ?? root.data);
+    const directItems = asCollectionArray(root.items ?? root.responses ?? root.answers ?? root.data);
     if (directItems.length > 0) return directItems;
 
-    const groupedSources = asArray(root.sections ?? root.domains ?? root.groups);
+    const groupedSources = asCollectionArray(root.sections ?? root.domains ?? root.groups);
     return groupedSources.flatMap((section) => {
         const sectionRecord = asRecord(section);
         if (!sectionRecord) return [];
-        const sectionItems = asArray(sectionRecord.items ?? sectionRecord.responses ?? sectionRecord.answers ?? sectionRecord.questions);
+        const sectionItems = asCollectionArray(sectionRecord.items ?? sectionRecord.responses ?? sectionRecord.answers ?? sectionRecord.questions);
         return sectionItems.map((item) => {
             const itemRecord = asRecord(item);
             if (!itemRecord) return item;
