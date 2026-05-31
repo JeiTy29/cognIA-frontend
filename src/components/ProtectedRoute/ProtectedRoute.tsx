@@ -22,7 +22,7 @@ const roleMap: Record<string, string[]> = {
     ADMIN: ['ADMIN']
 };
 
-const LOADER_TIMEOUT_MS = 9000;
+const LOADER_TIMEOUT_MS = 25000;
 
 function normalizeRole(value: string) {
     return value.trim().toUpperCase();
