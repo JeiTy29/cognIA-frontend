@@ -169,6 +169,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(detailModalSource()).toContain('Respuestas registradas');
         expect(evaluacionesSource()).toContain('Respuestas registradas');
         expect(detailModalSource().indexOf('Respuestas registradas')).toBeLessThan(
+            detailModalSource().indexOf('Resultados por dominio')
+        );
+        expect(detailModalSource().indexOf('Respuestas registradas')).toBeLessThan(
             detailModalSource().indexOf('Síntesis general')
         );
     });
