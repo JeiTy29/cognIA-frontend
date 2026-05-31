@@ -54,6 +54,8 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('grant_can_download_pdf: true');
         expect(source).toContain('grant_can_tag: false');
         expect(source).toContain("share_scope: 'session'");
+        expect(source).toContain('recommended: shareSameLocation || undefined');
+        expect(source).toContain('Este cuestionario ya fue aceptado por el psicólogo.');
         expect(source).toContain('Revisi\u00f3n profesional');
         expect(source).toContain('no constituye diagn\u00f3stico definitivo');
     });
@@ -69,6 +71,15 @@ describe('frontend final dashboard copy and flows', () => {
         expect(detail).toContain("toLowerCase() === 'processed'");
         expect(detail).toContain('El reporte PDF estará disponible cuando el cuestionario esté procesado.');
         expect(detail).toContain('disabled={pdfWorking || !canDownloadDetailPdf}');
+    });
+
+    it('usa el PDF profesional del backend como accion principal del detalle', () => {
+        const detail = detailModalSource();
+        expect(detail).toContain('generateQuestionnaireHistoryPdfV2(sessionId)');
+        expect(detail).toContain('downloadQuestionnaireHistoryPdfV2(sessionId)');
+        expect(detail).toContain('Preparando PDF...');
+        expect(detail).not.toContain('buildQuestionnaireAlertPdf');
+        expect(detail).not.toContain('buildQuestionnaireAlertPdfFileName');
     });
 
     it('humaniza el detalle y no muestra labels internos en ingles como copy visible', () => {
@@ -93,6 +104,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('Añadir cuestionarios');
         expect(source).toContain('Asignar etiqueta desde cuestionario');
         expect(source).toContain('Ver detalle');
+        expect(source).toContain('Caso asociado directamente');
+        expect(source).toContain('setExpandedDashboardByCaseId');
+        expect(source).toContain('resolvePriorityReason');
         expect(source).toContain('Cuestionarios por caso');
         expect(source).not.toContain('Sesiones por caso');
     });
@@ -159,7 +173,21 @@ describe('frontend final dashboard copy and flows', () => {
         const source = sidebarLayoutSource();
         expect(source).toContain('Padre/Tutor');
         expect(source).toContain('Psicólogo');
-        expect(source).toContain('Administrador');
+        expect(source).toContain('Adm. Sistema');
         expect(source).toContain('app-current-role');
+    });
+
+    it('admin consume labels humanos nuevos y evita el rol legacy en visual principal', () => {
+        const users = readFileSync('src/pages/Administrador/Usuarios/Usuarios.tsx', 'utf8');
+        const userService = readFileSync('src/services/admin/users.ts', 'utf8');
+        const auditService = readFileSync('src/services/admin/audit.ts', 'utf8');
+        expect(userService).toContain('role_label?: string | null');
+        expect(userService).toContain('department_label?: string | null');
+        expect(userService).toContain('has_department?: boolean | null');
+        expect(users).toContain('Adm. Sistema');
+        expect(users).toContain('resolveUserDepartmentLabel');
+        expect(users).toContain('No hay departamento registrado para estos usuarios.');
+        expect(auditService).toContain('actor_display_name');
+        expect(auditService).toContain('actor_role_label');
     });
 });

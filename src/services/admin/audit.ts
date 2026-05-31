@@ -63,6 +63,11 @@ function describeValue(value: unknown): string {
 }
 
 function resolveActor(record: Record<string, unknown>): string {
+    const display = pickString(record, ['actor_display_name', 'actor_name']);
+    const roleLabel = pickString(record, ['actor_role_label']);
+    if (display && roleLabel) return `${display} (${normalizeAdminRoleLabel(roleLabel)})`;
+    if (display) return display;
+
     const direct = pickString(record, ['actor_username', 'username', 'actor', 'user', 'email', 'actor_id']);
     if (direct) return direct;
 
@@ -73,6 +78,13 @@ function resolveActor(record: Record<string, unknown>): string {
     if (!actorObject) return '--';
     const described = pickString(actorObject, ['username', 'email', 'id', 'name']) ?? describeValue(actorObject);
     return described || '--';
+}
+
+function normalizeAdminRoleLabel(value: string) {
+    if (/admin|administrador/i.test(value)) return 'Adm. Sistema';
+    if (/psic/i.test(value)) return 'Psicólogo';
+    if (/padre|tutor|guardian/i.test(value)) return 'Padre/Tutor';
+    return value;
 }
 
 function resolveTarget(record: Record<string, unknown>): string {

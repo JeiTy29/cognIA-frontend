@@ -44,6 +44,15 @@ describe('dashboardLabels', () => {
         ).toBe('Hijo mayor - CASO-E79FCF');
     });
 
+    it('normaliza prefijos QA visibles en labels de caso', () => {
+        expect(
+            resolveCaseCompositeLabel({
+                private_label: 'QA Dashboard ? Crear caso produccion synjuan',
+                case_public_id: 'CASO-QA01'
+            })
+        ).toBe('Crear caso producción synjuan - CASO-QA01');
+    });
+
     it('traduce dominios y alertas para vista de usuario', () => {
         expect(getDashboardDomainLabel('adhd')).toBe('TDAH');
         expect(getDashboardDomainLabel('anxiety')).toBe('Ansiedad');

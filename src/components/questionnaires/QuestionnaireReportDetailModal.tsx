@@ -14,7 +14,6 @@ import {
     getQuestionnaireHistoryResultsV2,
     getQuestionnaireProfessionalReviewsV2,
     getQuestionnaireReportPreviewV2,
-    getQuestionnaireSessionV2,
     searchPsychologistsV2,
     shareQuestionnaireWithPsychologistV2
 } from '../../services/questionnaires/questionnaires.api';
@@ -26,7 +25,6 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireReportPreviewDTO,
     QuestionnaireSecureResultsV2DTO,
-    QuestionnaireSessionV2DTO,
     QuestionnaireTagDTO,
     PsychologistSearchItemDTO
 } from '../../services/questionnaires/questionnaires.types';
@@ -37,7 +35,6 @@ import {
     mapApiErrorToUserMessage
 } from '../../utils/presentation/naturalLanguage';
 import { downloadPdfBlob } from '../../utils/presentation/reportPdf';
-import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../utils/reports/questionnaireAlertPdf';
 import {
     normalizeBackendText,
     normalizeReviewStatus
@@ -664,6 +661,7 @@ export function QuestionnaireReportDetailModal({
                 department: shareSameLocation ? undefined : (shareDepartment.trim() || undefined),
                 city: shareSameLocation ? undefined : (shareCity.trim() || undefined),
                 same_location: shareSameLocation || undefined,
+                recommended: shareSameLocation || undefined,
                 page: 1,
                 page_size: 10
             });
@@ -715,9 +713,9 @@ export function QuestionnaireReportDetailModal({
             } else if (code === 'share_grantee_not_found') {
                 setShareError('No se encontró el psicólogo seleccionado.');
             } else if (code === 'share_request_already_pending') {
-                setShareError('Ya existe una solicitud pendiente para este psicólogo.');
+                setShareNotice('Ya existe una solicitud pendiente para este psicólogo.');
             } else if (code === 'share_request_already_accepted') {
-                setShareError('Este psicólogo ya aceptó revisar esta evaluación.');
+                setShareNotice('Este cuestionario ya fue aceptado por el psicólogo.');
             } else if (code === 'forbidden_history_access') {
                 setShareError('No tienes permisos para compartir esta evaluación.');
             } else {
@@ -739,82 +737,20 @@ export function QuestionnaireReportDetailModal({
         setPdfError(null);
         setPdfNotice(null);
         try {
-            let nextResults = resultsPayload;
-            let nextSummary = clinicalSummaryPayload;
             let nextDetail = detailPayload;
-            let nextSessionSnapshot: QuestionnaireSessionV2DTO | null = null;
-            let nextQuestions: QuestionnaireQuestionV2DTO[] = [];
-            let nextPreview = reportPreviewPayload;
 
             if (!nextDetail) {
                 nextDetail = await getQuestionnaireHistoryDetailV2(sessionId);
                 setDetailPayload(nextDetail);
             }
 
-            if (!nextResults && canLoadClinicalArtifacts(nextDetail?.status)) {
-                try {
-                    nextResults = await getQuestionnaireHistoryResultsV2(sessionId);
-                    setResultsPayload(nextResults);
-                } catch {
-                    nextResults = null;
-                }
-            }
-
-            if (!nextSummary && canLoadClinicalArtifacts(nextDetail?.status)) {
-                try {
-                    nextSummary = await getQuestionnaireClinicalSummaryV2(sessionId);
-                    setClinicalSummaryPayload(nextSummary);
-                } catch {
-                    nextSummary = null;
-                }
-            }
-
-            if (!nextPreview && canLoadClinicalArtifacts(nextDetail?.status)) {
-                try {
-                    nextPreview = await getQuestionnaireReportPreviewV2(sessionId);
-                    setReportPreviewPayload(nextPreview);
-                    setVisibleProfessionalReviews((nextPreview?.professional_reviews ?? []).filter((review) => review.visible_to_guardian !== false));
-                } catch {
-                    nextPreview = null;
-                }
-            }
-
-            try {
-                const [sessionSnapshot, sessionQuestions] = await Promise.all([
-                    getQuestionnaireSessionV2(sessionId),
-                    getAllQuestionnaireSessionQuestionsV2(sessionId)
-                ]);
-                nextSessionSnapshot = sessionSnapshot;
-                nextQuestions = sessionQuestions;
-            } catch {
-                nextSessionSnapshot = null;
-                nextQuestions = [];
-            }
-
-            const pdfBlob = await buildQuestionnaireAlertPdf({
-                sessionId,
-                results: nextResults,
-                clinicalSummary: nextSummary,
-                sessionDetail: nextDetail,
-                sessionSnapshot: nextSessionSnapshot,
-                sessionQuestions: nextQuestions,
-                reportPreview: nextPreview,
-                professionalReviews: nextPreview?.professional_reviews ?? visibleProfessionalReviews,
-                audience: role === 'psicologo' ? 'psychologist' : 'guardian'
-            });
-            downloadPdfBlob(pdfBlob, buildQuestionnaireAlertPdfFileName(nextSessionSnapshot ?? nextDetail));
+            await generateQuestionnaireHistoryPdfV2(sessionId);
+            const { blob, filename } = await downloadQuestionnaireHistoryPdfV2(sessionId);
+            downloadPdfBlob(blob, filename || buildAlertReportFallbackFileName());
             setPdfNotice('PDF descargado correctamente.');
         } catch (actionError) {
-            try {
-                await generateQuestionnaireHistoryPdfV2(sessionId);
-                const { blob, filename } = await downloadQuestionnaireHistoryPdfV2(sessionId);
-                downloadPdfBlob(blob, filename || buildAlertReportFallbackFileName());
-                setPdfNotice('No fue posible generar el PDF enriquecido. Se descargó la versión disponible del servidor.');
-                setPdfError(null);
-            } catch {
-                setPdfError(buildActionErrorMessage(actionError, 'No se pudo generar el PDF. Intenta nuevamente.'));
-                setPdfNotice(null);
-            }
+            setPdfError(buildActionErrorMessage(actionError, 'No se pudo generar o descargar el PDF. Intenta nuevamente.'));
+            setPdfNotice(null);
         } finally {
             setPdfWorking(false);
         }
@@ -1130,6 +1066,7 @@ export function QuestionnaireReportDetailModal({
                                     <p className="historial-v2-helper-text">
                                         Selecciona un psicólogo verificado para solicitar revisión del cuestionario. Puedes buscar por username, nombre o email.
                                     </p>
+                                    <h4>Psicólogos recomendados</h4>
                                     <div className="historial-v2-warning">
                                         Vas a enviar este cuestionario al psicólogo seleccionado. Si acepta la solicitud, podrá revisar el cuestionario completo y enviarte comentarios orientativos.
                                     </div>

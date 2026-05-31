@@ -32,7 +32,11 @@ const domainLabels: Record<string, string> = {
 
 function cleanText(value: unknown) {
     if (typeof value !== 'string') return '';
-    const normalized = normalizeBackendText(value, '').trim();
+    const normalized = normalizeBackendText(value, '')
+        .replace(/^QA Dashboard\s*(?:[?·-]\s*)?/i, '')
+        .replace(/\bproduccion\b/gi, 'producción')
+        .replace(/\bsintetico\b/gi, 'sintético')
+        .trim();
     return normalized.length > 0 ? normalized : '';
 }
 
@@ -85,4 +89,3 @@ export function getDashboardDomainLabel(value: string | null | undefined) {
 export function getDashboardAlertLabel(value: string | null | undefined) {
     return getAlertLevelMeta(value).label;
 }
-

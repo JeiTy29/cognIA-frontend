@@ -89,7 +89,7 @@ const roleFilterOptions: CustomSelectOption[] = [
     { value: 'all', label: 'Todos los roles' },
     { value: 'GUARDIAN', label: 'Padre/Tutor' },
     { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
-    { value: 'ADMIN', label: 'Administrador' }
+    { value: 'ADMIN', label: 'Adm. Sistema' }
 ];
 
 const statusOptions: CustomSelectOption[] = [
@@ -152,7 +152,7 @@ function getUsersReportOrderLabel(value: UsersReportOrder) {
 }
 
 function getUsersReportRoleLabel(value: UsersReportModalState['role']) {
-    if (value === 'ADMIN') return 'Administrador';
+    if (value === 'ADMIN') return 'Adm. Sistema';
     if (value === 'GUARDIAN') return 'Padre o tutor';
     if (value === 'PSYCHOLOGIST') return 'Psicólogo';
     return 'Todos';
@@ -184,18 +184,41 @@ function hasAdminRole(user: User) {
 
 function mapRoleLabel(role: string) {
     const normalized = role.trim().toUpperCase();
-    if (normalized === 'ADMIN') return 'Administrador';
+    if (normalized === 'ADMIN') return 'Adm. Sistema';
     if (normalized === 'PSYCHOLOGIST') return 'Psicólogo';
     if (normalized === 'GUARDIAN') return 'Padre/Tutor';
     if (normalized === 'TEACHER') return 'Docente (legacy)';
     return 'No contemplado';
 }
 
+function normalizeBackendRoleLabel(value: string | null | undefined) {
+    const label = (value ?? '').trim();
+    if (!label) return null;
+    if (/admin|administrador/i.test(label)) return 'Adm. Sistema';
+    if (/psic/i.test(label)) return 'Psicólogo';
+    if (/padre|tutor|guardian/i.test(label)) return 'Padre/Tutor';
+    return label;
+}
+
 function getVisibleRoles(user: User) {
+    const backendRoleLabel = normalizeBackendRoleLabel(user.role_label);
+    if (backendRoleLabel) {
+        return [backendRoleLabel];
+    }
     if (user.roles.length === 0) {
         return ['Sin rol asignado'];
     }
     return user.roles.map(mapRoleLabel);
+}
+
+function resolveUserRoleForAnalytics(user: User) {
+    return getVisibleRoles(user)[0] ?? 'Sin rol asignado';
+}
+
+function resolveUserDepartmentLabel(user: User) {
+    if (user.has_department === false) return null;
+    const label = (user.department_label ?? user.department ?? '').trim();
+    return label.length > 0 ? label : null;
 }
 
 function validateEmail(value: string) {
@@ -458,11 +481,7 @@ export default function Usuarios() {
         () =>
             mapCountsToItems(
                 analyticsUsers.reduce((accumulator, user) => {
-                    const label = hasAdminRole(user)
-                        ? 'Administrador'
-                        : normalizeEditableUserType(user) === 'psychologist'
-                            ? 'Psicólogo'
-                            : 'Padre/Tutor';
+                    const label = resolveUserRoleForAnalytics(user);
                     accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
@@ -488,24 +507,22 @@ export default function Usuarios() {
         () =>
             mapCountsToItems(
                 analyticsUsers.reduce((accumulator, user) => {
-                    const department = (user as User & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    const department = resolveUserDepartmentLabel(user);
+                    if (!department) return accumulator;
                     accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
         [analyticsUsers]
     );
-    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Administrador'], []);
+    const hasDepartmentData = usersByDepartmentChart.length > 0;
+    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Adm. Sistema'], []);
     const roleStateColumns = useMemo(() => ['Activos', 'Inactivos'], []);
     const roleStateCells = useMemo(
         () =>
             buildHeatmapCells(
                 analyticsUsers.map((user) => ({
-                    role: hasAdminRole(user)
-                        ? 'Administrador'
-                        : normalizeEditableUserType(user) === 'psychologist'
-                            ? 'Psicólogo'
-                            : 'Padre/Tutor',
+                    role: resolveUserRoleForAnalytics(user),
                     state: user.is_active ? 'Activos' : 'Inactivos'
                 })),
                 roleStateRows,
@@ -946,14 +963,18 @@ export default function Usuarios() {
                         </DashboardSection>
                         <DashboardSection
                             title="Usuarios por departamento"
-                            description="Presenta la distribución territorial de usuarios registrados."
+                            description={hasDepartmentData ? 'Presenta la distribución territorial de usuarios registrados.' : 'No hay departamento registrado para estos usuarios.'}
                             note={dashboardNote}
                         >
-                            <TreemapChart
-                                data={usersByDepartmentChart}
-                                ariaLabel="Distribución territorial de usuarios"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
+                            {hasDepartmentData ? (
+                                <TreemapChart
+                                    data={usersByDepartmentChart}
+                                    ariaLabel="Distribución territorial de usuarios"
+                                    emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
+                                />
+                            ) : (
+                                <DashboardEmptyState message="No hay departamento registrado para estos usuarios." />
+                            )}
                         </DashboardSection>
                         <DashboardSection
                             className="usuarios-dashboard-wide"
@@ -1316,7 +1337,7 @@ export default function Usuarios() {
                             <div><strong>Correo:</strong> {editingUser.email}</div>
                             {editingUser.full_name ? <div><strong>Nombre completo:</strong> {editingUser.full_name}</div> : null}
                             {hasAdminRole(editingUser) ? (
-                                <div><strong>Rol actual:</strong> Administrador</div>
+                                <div><strong>Rol actual:</strong> Adm. Sistema</div>
                             ) : null}
                         </div>
                     ) : null}

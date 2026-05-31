@@ -32,7 +32,7 @@ export function isAdminProfile(profile: AuthMeResponse | null) {
 }
 
 export function getAccountTypeLabel(profile: AuthMeResponse | null) {
-    if (isAdminProfile(profile)) return 'Administrador';
+    if (isAdminProfile(profile)) return 'Adm. Sistema';
     if (isGuardianProfile(profile)) return 'Padre o tutor';
     if (isPsychologistProfile(profile)) return 'Psicólogo';
     return 'Cuenta';
