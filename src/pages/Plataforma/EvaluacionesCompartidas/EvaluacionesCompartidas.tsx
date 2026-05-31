@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../Plataforma.css';
 import './EvaluacionesCompartidas.css';
@@ -211,6 +211,8 @@ export default function EvaluacionesCompartidas() {
     const [detailResponses, setDetailResponses] = useState<QuestionnaireHistoryResponsesV2Response | null>(null);
     const [detailQuestions, setDetailQuestions] = useState<QuestionnaireQuestionV2DTO[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [detailArtifactsLoading, setDetailArtifactsLoading] = useState(false);
+    const detailRequestRef = useRef(0);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [reviewWorking, setReviewWorking] = useState(false);
     const [pdfSessionId, setPdfSessionId] = useState<string | null>(null);
@@ -274,53 +276,84 @@ export default function EvaluacionesCompartidas() {
 
     const loadDetail = useCallback(async (item: PsychologistDashboardItemDTO | null) => {
         if (!item?.session_id) return;
+        const requestId = detailRequestRef.current + 1;
+        detailRequestRef.current = requestId;
         setActiveSession(item);
-        setDetailLoading(true);
+        setDetailLoading(false);
+        setDetailArtifactsLoading(true);
         setDetailError(null);
         setReviewError(null);
         setReviewNotice(null);
-        try {
-            const [previewResponse, reviewsResponse, detailResponse, responsesResponse, questionsResponse] = await Promise.allSettled([
-                getQuestionnaireReportPreviewV2(item.session_id),
-                getQuestionnaireProfessionalReviewsV2(item.session_id),
-                getQuestionnaireHistoryDetailV2(item.session_id),
-                getQuestionnaireHistoryResponsesV2(item.session_id),
-                getAllQuestionnaireSessionQuestionsV2(item.session_id)
-            ]);
-            const nextPreview = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
-            const nextReviews = reviewsResponse.status === 'fulfilled'
-                ? reviewsResponse.value
-                : (nextPreview?.professional_reviews ?? []);
-            const nextDetail = detailResponse.status === 'fulfilled' ? detailResponse.value : null;
-            const nextResponses = responsesResponse.status === 'fulfilled' ? responsesResponse.value : null;
-            const nextQuestions = questionsResponse.status === 'fulfilled' ? questionsResponse.value : [];
-            if (!nextPreview) {
-                throw new Error('preview_unavailable');
-            }
-            setPreview(nextPreview);
-            setReviews(nextReviews);
-            setDetailSession(nextDetail);
-            setDetailResponses(nextResponses);
-            setDetailQuestions(Array.isArray(nextQuestions) ? nextQuestions : []);
-            const ownReview = currentUserId
-                ? nextReviews.find((review: { psychologist_user_id?: string | null }) => review.psychologist_user_id === currentUserId)
-                : null;
-            setReviewStatusValue((ownReview?.review_status as QuestionnaireReviewStatus | undefined) ?? (item.review_status as QuestionnaireReviewStatus | undefined) ?? 'pending');
-            setInitialConcept(ownReview?.initial_concept ?? '');
-            setRecommendation(ownReview?.recommendation ?? '');
-            setVisibleToGuardian(ownReview?.visible_to_guardian ?? true);
-        } catch {
-            setPreview(null);
-            setReviews([]);
-            setDetailSession(null);
-            setDetailResponses(null);
-            setDetailQuestions([]);
-            setDetailError('No fue posible cargar el detalle de esta evaluación. Intenta nuevamente.');
-        } finally {
-            setDetailLoading(false);
-        }
-    }, [currentUserId]);
+        setPreview(null);
+        setReviews([]);
+        setDetailSession(null);
+        setDetailResponses(null);
+        setDetailQuestions([]);
+        setReviewStatusValue((item.review_status as QuestionnaireReviewStatus | undefined) ?? 'pending');
+        setInitialConcept('');
+        setRecommendation('');
+        setVisibleToGuardian(true);
 
+        let loadedAnything = false;
+        const markLoaded = () => { loadedAnything = true; };
+        const secondaryTasks: Promise<unknown>[] = [
+            getQuestionnaireReportPreviewV2(item.session_id)
+                .then((nextPreview) => {
+                    if (detailRequestRef.current !== requestId) return;
+                    markLoaded();
+                    setPreview(nextPreview);
+                    if (nextPreview.professional_reviews?.length) {
+                        setReviews(nextPreview.professional_reviews);
+                    }
+                })
+                .catch(() => undefined),
+            getQuestionnaireProfessionalReviewsV2(item.session_id)
+                .then((nextReviews) => {
+                    if (detailRequestRef.current !== requestId) return;
+                    markLoaded();
+                    setReviews(nextReviews);
+                    const review = currentUserId
+                        ? nextReviews.find((itemReview: { psychologist_user_id?: string | null }) => itemReview.psychologist_user_id === currentUserId)
+                        : null;
+                    setReviewStatusValue((review?.review_status as QuestionnaireReviewStatus | undefined) ?? (item.review_status as QuestionnaireReviewStatus | undefined) ?? 'pending');
+                    setInitialConcept(review?.initial_concept ?? '');
+                    setRecommendation(review?.recommendation ?? '');
+                    setVisibleToGuardian(review?.visible_to_guardian ?? true);
+                })
+                .catch(() => undefined),
+            getQuestionnaireHistoryDetailV2(item.session_id)
+                .then((nextDetail) => {
+                    if (detailRequestRef.current !== requestId) return;
+                    markLoaded();
+                    setDetailSession(nextDetail);
+                })
+                .catch(() => undefined),
+            getQuestionnaireHistoryResponsesV2(item.session_id)
+                .then((nextResponses) => {
+                    if (detailRequestRef.current !== requestId) return;
+                    markLoaded();
+                    setDetailResponses(nextResponses);
+                })
+                .catch(() => {
+                    if (detailRequestRef.current === requestId) setDetailResponses({ items: [], warnings: [] });
+                }),
+            getAllQuestionnaireSessionQuestionsV2(item.session_id)
+                .then((nextQuestions) => {
+                    if (detailRequestRef.current !== requestId) return;
+                    markLoaded();
+                    setDetailQuestions(Array.isArray(nextQuestions) ? nextQuestions : []);
+                })
+                .catch(() => undefined)
+        ];
+
+        Promise.allSettled(secondaryTasks).finally(() => {
+            if (detailRequestRef.current !== requestId) return;
+            setDetailArtifactsLoading(false);
+            if (!loadedAnything) {
+                setDetailError('No fue posible cargar el detalle de esta evaluación. Intenta nuevamente.');
+            }
+        });
+    }, [currentUserId]);
     useEffect(() => {
         if (!locationState?.openEvaluationSessionId || !dashboard?.items?.length) return;
         const matchingItem = dashboard.items.find((item) => item.session_id === locationState.openEvaluationSessionId) ?? null;
@@ -331,6 +364,7 @@ export default function EvaluacionesCompartidas() {
     }, [dashboard?.items, loadDetail, location.pathname, locationState?.openEvaluationSessionId, navigate]);
 
     const closeDetail = () => {
+        detailRequestRef.current += 1;
         setActiveSession(null);
         setPreview(null);
         setReviews([]);
@@ -338,6 +372,7 @@ export default function EvaluacionesCompartidas() {
         setDetailResponses(null);
         setDetailQuestions([]);
         setDetailLoading(false);
+        setDetailArtifactsLoading(false);
         setDetailError(null);
         setReviewError(null);
         setReviewNotice(null);
@@ -910,20 +945,22 @@ export default function EvaluacionesCompartidas() {
                     {detailLoading ? <div className="evaluaciones-empty">Cargando detalle...</div> : null}
                     {detailError ? <div className="evaluaciones-alert error">{detailError}</div> : null}
 
-                    {!detailLoading && preview ? (
+                    {!detailLoading && activeSession ? (
                         <>
                             <div className="evaluaciones-detail-grid">
                                 <div><strong>Caso</strong><span>{resolveEvaluationCaseLabel(activeSession)}</span></div>
-                                <div><strong>Estado</strong><span>{normalizeSessionStatus(preview.session?.status ?? activeSession?.status)}</span></div>
-                                <div><strong>Procesado</strong><span>{formatDateTime(activeSession?.processed_at ?? preview.session?.updated_at)}</span></div>
-                                <div><strong>PDF servidor</strong><span>{preview.pdf?.available ? 'Disponible' : 'No disponible'}</span></div>
+                                <div><strong>Estado</strong><span>{normalizeSessionStatus(preview?.session?.status ?? activeSession?.status)}</span></div>
+                                <div><strong>Procesado</strong><span>{formatDateTime(activeSession?.processed_at ?? preview?.session?.updated_at)}</span></div>
+                                <div><strong>PDF servidor</strong><span>{preview?.pdf?.available ? 'Disponible' : 'No disponible'}</span></div>
                             </div>
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Resultados por dominio</h3>
-                                {(preview.domains ?? []).length > 0 ? (
+                                {detailArtifactsLoading && !preview ? (
+                                    <p>Cargando resultados normalizados...</p>
+                                ) : (preview?.domains ?? []).length > 0 ? (
                                     <div className="evaluaciones-detail-domains">
-                                        {preview.domains.map((domainItem, index) => (
+                                        {(preview?.domains ?? []).map((domainItem, index) => (
                                             <div key={`${domainItem.domain}-${index}`} className="evaluaciones-domain-pill">
                                                 <strong>{normalizeDomainLabel(domainItem.domain)}</strong>
                                                 <span>{formatPercent(domainItem.probability)}</span>
@@ -938,16 +975,22 @@ export default function EvaluacionesCompartidas() {
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Respuestas registradas</h3>
-                                <QuestionnaireResponseGroups
-                                    responses={detailResponses}
-                                    fallbackRows={answeredQuestionRows}
-                                    emptyText="Sin respuestas estructuradas disponibles para esta evaluación."
-                                />
+                                {detailArtifactsLoading && !detailResponses && answeredQuestionRows.length === 0 ? (
+                                    <p>Cargando respuestas registradas...</p>
+                                ) : (
+                                    <QuestionnaireResponseGroups
+                                        responses={detailResponses}
+                                        fallbackRows={answeredQuestionRows}
+                                        emptyText="Sin respuestas estructuradas disponibles para esta evaluación."
+                                    />
+                                )}
                             </div>
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Revisiones profesionales</h3>
-                                {reviews.length > 0 ? (
+                                {detailArtifactsLoading && reviews.length === 0 ? (
+                                    <p>Cargando revisiones profesionales...</p>
+                                ) : reviews.length > 0 ? (
                                     <div className="evaluaciones-review-list">
                                         {reviews.map((review) => (
                                             <article key={review.review_id} className="evaluaciones-review-card">
