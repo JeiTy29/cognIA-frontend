@@ -171,10 +171,10 @@ describe('questionnaires.api secure endpoints', () => {
         });
 
         const module = await import('./questionnaires.api');
-        await module.searchPsychologistsV2({ q: 'syn_psych_dashboard_01', same_location: true });
+        await module.searchPsychologistsV2({ q: 'syn_psych_dashboard_01', same_location: true, recommended: true });
 
         expect(apiGet).toHaveBeenCalledWith(
-            '/api/v2/psychologists/search?q=syn_psych_dashboard_01&same_location=true&page=1&page_size=10',
+            '/api/v2/psychologists/search?q=syn_psych_dashboard_01&same_location=true&recommended=true&page=1&page_size=10',
             expect.objectContaining({ auth: true, credentials: 'include' })
         );
     });
@@ -230,6 +230,38 @@ describe('questionnaires.api secure endpoints', () => {
         expect(response.items[0].answer_label).toBe('Frecuentemente');
     });
 
+    it('normaliza responses agrupadas por secciones del backend', async () => {
+        apiGet.mockResolvedValueOnce({
+            session_id: 'sess-1',
+            sections: [
+                {
+                    title: 'TDAH',
+                    domain_code: 'adhd',
+                    domain_label: 'TDAH',
+                    responses: [
+                        {
+                            question_text: 'Se mueve constantemente o parece inquieto',
+                            answer_label: 'Frecuentemente',
+                            value: 3
+                        }
+                    ]
+                }
+            ]
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getQuestionnaireHistoryResponsesV2('sess-1');
+
+        expect(response.items).toHaveLength(1);
+        expect(response.items[0]).toMatchObject({
+            section_title: 'TDAH',
+            domain_code: 'adhd',
+            domain_label: 'TDAH',
+            question_text: 'Se mueve constantemente o parece inquieto',
+            answer_label: 'Frecuentemente'
+        });
+    });
+
     it('normaliza primary_domain y observed_indicators desde results secure', async () => {
         apiSecurePostNoBody.mockResolvedValueOnce({
             session: { id: 'sess-1', session_id: 'sess-1' },
@@ -270,5 +302,29 @@ describe('questionnaires.api secure endpoints', () => {
         expect(response.charts?.by_domain?.[0].value).toBe(3);
         expect(response.charts?.over_time?.[0].value).toBe(4);
         expect(response.charts?.pending_age?.[0].value).toBe(1);
+    });
+
+    it('normaliza solicitudes de psicologo cuando backend usa requests en lugar de items', async () => {
+        apiGet.mockResolvedValueOnce({
+            requests: [
+                {
+                    grant_id: 'grant-1',
+                    request_status: 'accepted',
+                    session: { session_id: 'sess-1' },
+                    can_download_pdf: true
+                }
+            ],
+            pagination: { page: 1, page_size: 20, total: 1, pages: 1 }
+        });
+
+        const module = await import('./questionnaires.api');
+        const response = await module.getPsychologistShareRequestsV2({ status: 'all', page: 1, page_size: 20 });
+
+        expect(response.items).toHaveLength(1);
+        expect(response.items[0]).toMatchObject({
+            grant_id: 'grant-1',
+            request_status: 'accepted',
+            can_download_pdf: true
+        });
     });
 });

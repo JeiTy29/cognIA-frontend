@@ -18,6 +18,10 @@ export interface User {
     psychologist_status?: string | null;
     rejection_reason?: string | null;
     review_reason?: string | null;
+    role_label?: string | null;
+    department?: string | null;
+    department_label?: string | null;
+    has_department?: boolean | null;
 }
 
 export interface PaginatedUsersResponse {

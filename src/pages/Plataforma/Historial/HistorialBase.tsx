@@ -4,6 +4,7 @@ import { Modal } from '../../../components/Modal/Modal';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import { DashboardChartCard } from '../../../components/DashboardCharts';
 import { ActiveFilterChips } from '../../../components/ActiveFilterChips/ActiveFilterChips';
+import { ApiError } from '../../../services/api/httpClient';
 import { useHistoryHasActiveFilters, useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
 import {
     addQuestionnaireHistoryTagV2,
@@ -232,6 +233,12 @@ function normalizeStructuredResultValue(key: string, value: string) {
     if (normalizedKey === 'score_type' && lower === 'symptom load index') return 'Índice de carga sintomática';
     if (normalizedKey === 'safety_signal_level' && lower === 'none') return 'Ninguna';
     return normalizedValue;
+}
+function getApiErrorCode(error: unknown) {
+    if (!(error instanceof ApiError)) return null;
+    const payload = toRecord(error.payload);
+    const code = getString(payload?.error ?? payload?.code ?? payload?.msg, '');
+    return code ? code.trim().toLowerCase() : null;
 }
 function makeTitle(role: HistorialRole) {
     return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
@@ -563,6 +570,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             const response = await searchPsychologistsV2({
                 q: sameLocation ? undefined : toOptionalFilterText(psychologistQuery),
                 same_location: sameLocation || undefined,
+                recommended: sameLocation || undefined,
                 page: 1,
                 page_size: 8
             });
@@ -595,7 +603,17 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailNotice(`Solicitud enviada. Estado: ${normalizeRequestStatus(requestStatus)}.`);
             setProfessionalReviews(await getQuestionnaireProfessionalReviewsV2(detailSessionId).catch(() => []));
         } catch (error) {
-            setDetailError(mapApiErrorToUserMessage(error, 'No fue posible enviar la solicitud al psicólogo.'));
+            const code = getApiErrorCode(error);
+            if (code === 'share_request_already_accepted') {
+                setShareStatus('accepted');
+                setDetailNotice('Este cuestionario ya fue aceptado por el psicólogo.');
+                setProfessionalReviews(await getQuestionnaireProfessionalReviewsV2(detailSessionId).catch(() => []));
+            } else if (code === 'share_request_already_pending') {
+                setShareStatus('pending');
+                setDetailNotice('Ya existe una solicitud pendiente para este psicólogo.');
+            } else {
+                setDetailError(mapApiErrorToUserMessage(error, 'No fue posible enviar la solicitud al psicólogo.'));
+            }
         } finally {
             setShareWorking(false);
         }
@@ -1049,7 +1067,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             </p>
                                             <div className="historial-dashboard-share-toolbar">
                                                 <button type="button" className="historial-dashboard-btn secondary" onClick={() => searchPsychologists(true).catch(() => undefined)} disabled={psychologistSearchLoading}>
-                                                    Psicólogos recomendados por ubicación
+                                                    Psicólogos recomendados
                                                 </button>
                                                 <form
                                                     className="historial-dashboard-share-search"

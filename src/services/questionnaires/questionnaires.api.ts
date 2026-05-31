@@ -418,6 +418,30 @@ function normalizeHistoryResponseItem(value: unknown): QuestionnaireHistoryRespo
     };
 }
 
+function collectHistoryResponseItems(root: Record<string, unknown>) {
+    const directItems = asArray(root.items ?? root.responses ?? root.answers ?? root.data);
+    if (directItems.length > 0) return directItems;
+
+    const groupedSources = asArray(root.sections ?? root.domains ?? root.groups);
+    return groupedSources.flatMap((section) => {
+        const sectionRecord = asRecord(section);
+        if (!sectionRecord) return [];
+        const sectionItems = asArray(sectionRecord.items ?? sectionRecord.responses ?? sectionRecord.answers ?? sectionRecord.questions);
+        return sectionItems.map((item) => {
+            const itemRecord = asRecord(item);
+            if (!itemRecord) return item;
+            return {
+                ...sectionRecord,
+                ...itemRecord,
+                section: itemRecord.section ?? itemRecord.section_key ?? sectionRecord.section ?? sectionRecord.key,
+                section_title: itemRecord.section_title ?? itemRecord.section_label ?? sectionRecord.section_title ?? sectionRecord.title ?? sectionRecord.label,
+                domain_code: itemRecord.domain_code ?? itemRecord.domain ?? sectionRecord.domain_code ?? sectionRecord.domain,
+                domain_label: itemRecord.domain_label ?? sectionRecord.domain_label ?? sectionRecord.label ?? sectionRecord.title
+            };
+        });
+    });
+}
+
 function normalizeHistoryResponsesResponse(payload: unknown): QuestionnaireHistoryResponsesV2Response {
     if (Array.isArray(payload)) {
         return {
@@ -434,11 +458,10 @@ function normalizeHistoryResponsesResponse(payload: unknown): QuestionnaireHisto
             warnings: []
         };
     }
-    const itemsSource = root.items ?? root.responses ?? root.answers ?? root.data;
     return {
         ...root,
         session_id: firstNonEmptyString([root.session_id, root.id]),
-        items: asArray(itemsSource)
+        items: collectHistoryResponseItems(root)
             .map(normalizeHistoryResponseItem)
             .filter((item): item is QuestionnaireHistoryResponseItemDTO => Boolean(item)),
         warnings: asArray(root.warnings).map(String),
@@ -855,7 +878,8 @@ function normalizeShareRequestsResponse(payload: unknown, page: number, pageSize
             warnings: []
         };
     }
-    const items = asArray(root.items)
+    const itemsSource = root.items ?? root.requests ?? root.share_requests ?? root.grants ?? root.data;
+    const items = asArray(itemsSource)
         .map(normalizeShareRequest)
         .filter((item): item is QuestionnairePsychologistShareRequestV2DTO => Boolean(item));
     const chartsRoot = asRecord(root.charts);
@@ -1930,6 +1954,7 @@ export function searchPsychologistsV2(params?: {
     department?: string;
     city?: string;
     same_location?: boolean;
+    recommended?: boolean;
     page?: number;
     page_size?: number;
 }): Promise<PsychologistSearchResponseDTO> {
@@ -1940,6 +1965,7 @@ export function searchPsychologistsV2(params?: {
         department: params?.department,
         city: params?.city,
         same_location: params?.same_location,
+        recommended: params?.recommended,
         page,
         page_size: pageSize
     });

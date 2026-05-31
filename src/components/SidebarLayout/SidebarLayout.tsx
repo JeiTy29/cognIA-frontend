@@ -16,7 +16,7 @@ function resolveLayoutRole(primaryRole: string | null, pathname: string): Role {
 }
 
 function getRoleLabel(role: Role) {
-    if (role === 'admin') return 'Administrador';
+    if (role === 'admin') return 'Adm. Sistema';
     if (role === 'psicologo') return 'Psicólogo';
     return 'Padre/Tutor';
 }

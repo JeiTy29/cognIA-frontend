@@ -38,10 +38,10 @@ const ROLE_LABELS: Record<string, string> = {
     guardian: 'Padre o tutor',
     caregiver: 'Padre o tutor',
     psychologist: 'Psicólogo',
-    admin: 'Administrador',
+    admin: 'Adm. Sistema',
     guardian_upper: 'Padre o tutor',
     psychologist_upper: 'Psicólogo',
-    admin_upper: 'Administrador'
+    admin_upper: 'Adm. Sistema'
 };
 
 const STATUS_LABELS: Record<string, string> = {

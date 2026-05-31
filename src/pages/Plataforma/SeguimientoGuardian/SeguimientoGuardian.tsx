@@ -185,6 +185,7 @@ type GuardianVisualCharts = {
         domainLabel: string;
         sessions: number;
         lastActivity: string | null;
+        reason: string;
         score: number;
     }>;
 };
@@ -274,6 +275,13 @@ function alertPriorityScore(value: string | null | undefined) {
     return 0;
 }
 
+function resolvePriorityReason(alertTone: string, sessions: number) {
+    if (alertTone === 'critical_review') return 'Requiere revisión profesional prioritaria.';
+    if (alertTone === 'high' || alertTone === 'elevated') return 'Caso destacado por mayor nivel de alerta.';
+    if (sessions >= 4) return 'Caso destacado por acumulación de cuestionarios recientes.';
+    return 'Caso destacado por actividad reciente.';
+}
+
 function buildGuardianVisualCharts(
     dashboard: GuardianDashboardDTO | null,
     cases: QuestionnaireCaseDTO[]
@@ -327,6 +335,7 @@ function buildGuardianVisualCharts(
                 domainLabel: normalizeDominantDomain(caseItem.latest_domain),
                 sessions,
                 lastActivity,
+                reason: resolvePriorityReason(alertMeta.tone, sessions),
                 score: alertPriorityScore(caseItem.latest_alert_level) * 100 + sessions
             };
         })
@@ -574,6 +583,7 @@ export default function SeguimientoGuardian() {
 
     const selectCaseForDetail = (caseIdToOpen: string) => {
         setSelectedCaseId(caseIdToOpen);
+        setExpandedDashboardByCaseId((previous) => ({ ...previous, [caseIdToOpen]: true }));
         if (!loadedCaseDetailById[caseIdToOpen] && !caseLoadingById[caseIdToOpen]) {
             loadCaseDetail(caseIdToOpen).catch(() => undefined);
         }
@@ -894,6 +904,7 @@ export default function SeguimientoGuardian() {
                                             <small>
                                                 {item.sessions} cuestionarios · Última actividad: {formatActivityDate(item.lastActivity)}
                                             </small>
+                                            <small>{item.reason}</small>
                                         </div>
                                         <div className="seguimiento-priority-side">
                                             <span className={`seguimiento-alert-pill is-${item.alertTone}`}>{item.alertLabel}</span>
@@ -986,9 +997,9 @@ export default function SeguimientoGuardian() {
                                     .map((item) => ({ label: item.domainLabel, value: item.deltaPct ?? 0 }));
                                 const sessionsCount = dashboardViewModel.sessionsCount;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
-                                const isDashboardExpanded = expandedDashboardByCaseId[caseItem.case_id] ?? false;
                                 const hasLoadedCaseDetail = loadedCaseDetailById[caseItem.case_id] === true;
                                 const isCaseSelected = selectedCaseId === caseItem.case_id;
+                                const isDashboardExpanded = expandedDashboardByCaseId[caseItem.case_id] ?? isCaseSelected;
                                 const caseAlertTone = getAlertLevelMeta(caseItem.latest_alert_level).tone;
                                 const caseLastActivity = formatActivityDate(
                                     dashboardViewModel.latestSessionAt,
@@ -1085,6 +1096,10 @@ export default function SeguimientoGuardian() {
                                             <div>
                                                 <strong>Alerta principal</strong>
                                                 <span>{dashboardViewModel.highestAlertLabel}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Relación con historial</strong>
+                                                <span>Caso asociado directamente</span>
                                             </div>
                                         </div>
 
