@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const historySource = () => readFileSync('src/pages/Plataforma/Historial/HistorialBase.tsx', 'utf8');
 const historyCssSource = () => readFileSync('src/pages/Plataforma/Historial/HistorialBase.css', 'utf8');
 const detailModalSource = () => readFileSync('src/components/questionnaires/QuestionnaireReportDetailModal.tsx', 'utf8');
+const detailModalCssSource = () => readFileSync('src/components/questionnaires/QuestionnaireReportDetailModal.css', 'utf8');
 const guardianCasesSource = () => readFileSync('src/pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian.tsx', 'utf8');
 const guardianCssSource = () => readFileSync('src/pages/Plataforma/SeguimientoGuardian/SeguimientoGuardian.css', 'utf8');
 const chartsSource = () => readFileSync('src/components/DashboardCharts/index.tsx', 'utf8');
@@ -51,9 +52,22 @@ describe('frontend final dashboard copy and flows', () => {
         expect(visibleSection).not.toContain('Max usos');
     });
 
+    it('el detalle compartido trae estilos propios para casos, historial y psicologo', () => {
+        const source = detailModalSource();
+        const css = detailModalCssSource();
+        expect(source).toContain("import './QuestionnaireReportDetailModal.css'");
+        expect(source).not.toContain('HistorialBase.css');
+        expect(css).toContain('.historial-v2-close-btn');
+        expect(css).toContain('.historial-v2-actions-card');
+        expect(css).toContain('.historial-v2-tag-form');
+        expect(css).toContain('.historial-v2-psychologist-item');
+    });
+
     it('envia a psicologo con payload directo y carga revisiones profesionales visibles', () => {
         const source = detailModalSource();
         expect(source).toContain('getQuestionnaireProfessionalReviewsV2');
+        expect(source).toContain('searchPsychologistsV2({');
+        expect(source).toContain('recommended: true');
         expect(source).toContain('grantee_user_id: selectedPsychologistId');
         expect(source).toContain('grant_can_download_pdf: true');
         expect(source).toContain('grant_can_tag: false');
@@ -163,6 +177,10 @@ describe('frontend final dashboard copy and flows', () => {
         const detail = detailModalSource();
         const evaluations = evaluacionesSource();
         expect(detail).toContain('normalizeAlertLevel(domain.alert_level)');
+        expect(evaluations).toContain('QuestionnaireReportDetailModal');
+        expect(evaluations).toContain('normalizedDetailSessionId');
+        expect(evaluations).toContain('Ver detalle normalizado');
+        expect(evaluations).toContain('Ver respuestas del cuestionario');
         expect(evaluations).not.toContain('buildQuestionnaireAlertPdf');
         expect(evaluations).toContain('generateQuestionnaireHistoryPdfV2(item.session_id)');
         expect(evaluations).toContain('downloadQuestionnaireHistoryPdfV2(item.session_id)');
@@ -174,12 +192,15 @@ describe('frontend final dashboard copy and flows', () => {
     it('renderiza etiquetas con label real y color estable', () => {
         const tags = tagsSource();
         const api = apiSource();
+        const detail = detailModalSource();
         expect(tags).toContain('resolveQuestionnaireTagLabel');
         expect(tags).toContain('resolveQuestionnaireTagColor');
         expect(tags).toContain('hashText');
         expect(api).toContain('resolveQuestionnaireTagColor');
         expect(historySource()).toContain('resolveQuestionnaireTagLabel');
-        expect(detailModalSource()).toContain('resolveQuestionnaireTagLabel');
+        expect(detail).toContain('resolveQuestionnaireTagLabel');
+        expect(detail).toContain('Añadir etiqueta');
+        expect(detail).toContain('setTagFormOpen(true)');
     });
 
     it('busqueda de psicologo permite username, ubicacion y fallback a todas las ciudades', () => {
@@ -219,6 +240,9 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain('by_domain');
         expect(source).toContain('over_time');
         expect(source).toContain('pending_age');
+        expect(source).toContain("chartPointsToItems(dashboardCharts?.by_domain, 'domain')");
+        expect(source).toContain("chartPointsToItems(dashboardCharts?.by_alert_level, 'alert')");
+        expect(source).toContain("chartPointsToItems(dashboardCharts?.by_status, 'status')");
         expect(source).toContain('solicitudes-revision__header-insight');
         expect(source).not.toContain('className="solicitudes-revision__insight"');
     });

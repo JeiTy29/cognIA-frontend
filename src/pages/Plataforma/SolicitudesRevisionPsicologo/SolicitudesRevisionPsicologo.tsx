@@ -90,10 +90,18 @@ type ShareRequestCharts = {
     pending_age?: QuestionnaireDashboardChartPointDTO[];
 } | null;
 
-function chartPointsToItems(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
+function chartPointLabel(point: QuestionnaireDashboardChartPointDTO, labelType?: 'status' | 'alert' | 'domain' | 'time' | 'age') {
+    const raw = point.label ?? point.name ?? point.domain ?? point.alert_level ?? point.month ?? point.date ?? point.key;
+    if (labelType === 'status') return normalizeRequestStatus(raw);
+    if (labelType === 'alert') return normalizeAlertLevel(point.alert_level ?? raw);
+    if (labelType === 'domain') return normalizeDomainLabel(point.domain ?? raw);
+    return normalizeBackendText(raw, 'Sin clasificar');
+}
+
+function chartPointsToItems(points: QuestionnaireDashboardChartPointDTO[] | null | undefined, labelType?: 'status' | 'alert' | 'domain' | 'time' | 'age') {
     return (points ?? [])
         .map((point) => ({
-            label: normalizeBackendText(point.label ?? point.name ?? point.domain ?? point.alert_level ?? point.month ?? point.date ?? point.key, 'Sin clasificar'),
+            label: chartPointLabel(point, labelType),
             value: Number(point.value ?? point.count ?? point.total ?? point.sessions ?? 0)
         }))
         .filter((item) => Number.isFinite(item.value) && item.value > 0);
@@ -323,12 +331,12 @@ export default function SolicitudesRevisionPsicologo() {
         [dashboardRequests]
     );
     const requestStateChartItems = useMemo(() => {
-        const backend = chartPointsToItems(dashboardCharts?.by_status);
+        const backend = chartPointsToItems(dashboardCharts?.by_status, 'status');
         return backend.length > 0 ? backend : buildRequestStateItems(dashboardSummary);
     }, [dashboardCharts?.by_status, dashboardSummary]);
     const requestsByAlertChartItems = useMemo(
         () => {
-            const backend = chartPointsToItems(dashboardCharts?.by_alert_level);
+            const backend = chartPointsToItems(dashboardCharts?.by_alert_level, 'alert');
             return backend.length > 0 ? backend : mapCountsToItems(
                 dashboardInsights.reduce((accumulator, request) => {
                     accumulator.set(request.alertLabel, (accumulator.get(request.alertLabel) ?? 0) + 1);
@@ -340,7 +348,7 @@ export default function SolicitudesRevisionPsicologo() {
     );
     const requestsByDomainChartItems = useMemo(
         () => {
-            const backend = chartPointsToItems(dashboardCharts?.by_domain);
+            const backend = chartPointsToItems(dashboardCharts?.by_domain, 'domain');
             return backend.length > 0 ? backend : mapCountsToItems(
                 dashboardInsights.reduce((accumulator, request) => {
                     accumulator.set(request.dominantDomainLabel, (accumulator.get(request.dominantDomainLabel) ?? 0) + 1);
@@ -352,14 +360,14 @@ export default function SolicitudesRevisionPsicologo() {
     );
     const requestTimelineItems = useMemo(
         () => {
-            const backend = chartPointsToItems(dashboardCharts?.over_time);
+            const backend = chartPointsToItems(dashboardCharts?.over_time, 'time');
             return backend.length > 0 ? backend : buildMonthlyCountItems(dashboardInsights.map((request) => request.requestedAt));
         },
         [dashboardCharts?.over_time, dashboardInsights]
     );
     const pendingRequestAging = useMemo(
         () => {
-            const backend = chartPointsToItems(dashboardCharts?.pending_age);
+            const backend = chartPointsToItems(dashboardCharts?.pending_age, 'age');
             return backend.length > 0 ? backend : buildAgingBuckets(
                 dashboardInsights
                     .filter((request) => String(request.request.request_status ?? '').toLowerCase() === 'pending')
