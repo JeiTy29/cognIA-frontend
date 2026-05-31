@@ -877,6 +877,41 @@ export function QuestionnaireReportDetailModal({
                         </div>
 
                         <div className="historial-v2-section">
+                            <h3>Resultados por dominio</h3>
+                            {resultsPayload?.domains?.length ? (
+                                <div className="historial-dashboard-domain-bars">
+                                    {resultsPayload.domains.slice(0, 6).map((domain, index) => {
+                                        const label = normalizeDomainText(domain.domain_label ?? domain.domain ?? domain.domain_code);
+                                        const percent = formatPercentValue(domain.probability ?? domain.confidence_pct);
+                                        const width = Math.max(4, Math.min(100, Number(domain.probability) > 1 ? Number(domain.probability) : Number(domain.probability) * 100));
+                                        return (
+                                            <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
+                                                <div>
+                                                    <strong>{label}</strong>
+                                                    <span>{percent} - {normalizeAlertLevel(domain.alert_level)}</span>
+                                                </div>
+                                                <div className="historial-dashboard-domain-track" aria-hidden="true">
+                                                    <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="historial-v2-helper-text">Aún no hay resultados por dominio para este cuestionario.</p>
+                            )}
+                        </div>
+
+                        <div className="historial-v2-section">
+                            <h3>Respuestas registradas</h3>
+                            <QuestionnaireResponseGroups
+                                responses={responsesPayload}
+                                fallbackRows={previewAnswerRows}
+                                maxItemsPerGroup={12}
+                            />
+                        </div>
+
+                        <div className="historial-v2-section">
                             <h3>Síntesis general</h3>
                             {reportViewModel.summaryBlocks.bullets.length > 0 ? (
                                 <>
@@ -922,41 +957,6 @@ export function QuestionnaireReportDetailModal({
                             items={reportViewModel.indicators}
                             emptyText="No se recibieron indicadores estructurados para este cuestionario."
                         />
-
-                        <div className="historial-v2-section">
-                            <h3>Resultados por dominio</h3>
-                            {resultsPayload?.domains?.length ? (
-                                <div className="historial-dashboard-domain-bars">
-                                    {resultsPayload.domains.slice(0, 6).map((domain, index) => {
-                                        const label = normalizeDomainText(domain.domain_label ?? domain.domain ?? domain.domain_code);
-                                        const percent = formatPercentValue(domain.probability ?? domain.confidence_pct);
-                                        const width = Math.max(4, Math.min(100, Number(domain.probability) > 1 ? Number(domain.probability) : Number(domain.probability) * 100));
-                                        return (
-                                            <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
-                                                <div>
-                                                    <strong>{label}</strong>
-                                                    <span>{percent} - {normalizeAlertLevel(domain.alert_level)}</span>
-                                                </div>
-                                                <div className="historial-dashboard-domain-track" aria-hidden="true">
-                                                    <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="historial-v2-helper-text">Aún no hay resultados por dominio para este cuestionario.</p>
-                            )}
-                        </div>
-
-                        <div className="historial-v2-section">
-                            <h3>Respuestas registradas</h3>
-                            <QuestionnaireResponseGroups
-                                responses={responsesPayload}
-                                fallbackRows={previewAnswerRows}
-                                maxItemsPerGroup={12}
-                            />
-                        </div>
 
                         <div className="historial-v2-section">
                             <h3>Impacto funcional</h3>
