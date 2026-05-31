@@ -407,6 +407,7 @@ export default function SeguimientoGuardian() {
     const [dashboard, setDashboard] = useState<GuardianDashboardDTO | null>(null);
     const [cases, setCases] = useState<QuestionnaireCaseDTO[]>([]);
     const [loading, setLoading] = useState(true);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [pageNotice, setPageNotice] = useState<string | null>(null);
 
@@ -459,41 +460,38 @@ export default function SeguimientoGuardian() {
 
     const loadDashboard = useCallback(async (options?: { preserveNotice?: boolean }) => {
         setLoading(true);
+        setDashboardLoading(true);
         setError(null);
         if (!options?.preserveNotice) {
             setPageNotice(null);
         }
+        const casesRequest = getQuestionnaireCasesV2({
+            ...(caseStatusFilter === 'all' ? {} : { status: caseStatusFilter }),
+            page: 1,
+            page_size: 50
+        });
+        const dashboardRequest = getGuardianQuestionnaireDashboardV2({
+            months: Number(months),
+            ...(caseId ? { case_id: caseId } : {})
+        });
+
         try {
-            const [casesResponse, dashboardResponse] = await Promise.allSettled([
-                getQuestionnaireCasesV2({
-                    ...(caseStatusFilter === 'all' ? {} : { status: caseStatusFilter }),
-                    page: 1,
-                    page_size: 50
-                }),
-                getGuardianQuestionnaireDashboardV2({
-                    months: Number(months),
-                    ...(caseId ? { case_id: caseId } : {})
-                })
-            ]);
-
-            if (casesResponse.status === 'fulfilled') {
-                setCases(casesResponse.value.items);
-            } else {
-                setCases([]);
-                setError('No fue posible cargar los casos. Intenta nuevamente.');
-            }
-
-            if (dashboardResponse.status === 'fulfilled') {
-                setDashboard(dashboardResponse.value);
-            } else {
-                setDashboard(null);
-            }
+            const casesResponse = await casesRequest;
+            setCases(casesResponse.items);
         } catch {
             setError('No fue posible cargar los casos. Intenta nuevamente.');
             setCases([]);
-            setDashboard(null);
         } finally {
             setLoading(false);
+        }
+
+        try {
+            const dashboardResponse = await dashboardRequest;
+            setDashboard(dashboardResponse);
+        } catch {
+            setDashboard(null);
+        } finally {
+            setDashboardLoading(false);
         }
     }, [caseId, caseStatusFilter, months]);
 
@@ -785,6 +783,11 @@ export default function SeguimientoGuardian() {
                 ) : null}
                 {error ? <div className="seguimiento-alert error">{error}</div> : null}
                 {caseStatusActionError ? <div className="seguimiento-alert error">{caseStatusActionError}</div> : null}
+                {!loading && dashboardLoading && hasCases ? (
+                    <div className="seguimiento-progressive-note" aria-live="polite">
+                        Casos cargados. Estamos actualizando las gráficas sin bloquear la vista.
+                    </div>
+                ) : null}
 
                 {loading ? <div className="seguimiento-empty">Cargando casos...</div> : null}
 

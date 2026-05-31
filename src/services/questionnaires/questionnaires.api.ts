@@ -79,6 +79,7 @@ import {
     getDemoShareRequests,
     isDevDashboardDemoEnabled
 } from '../../utils/questionnaires/demoDashboardData';
+import { resolveQuestionnaireTagColor } from '../../utils/questionnaires/tags';
 
 const requestOptions = {
     auth: true,
@@ -344,7 +345,7 @@ function normalizeTag(value: unknown): QuestionnaireTagDTO | null {
         tag_id: id ?? undefined,
         label,
         tag: label,
-        color: color ?? null,
+        color: resolveQuestionnaireTagColor({ ...record, id: id ?? undefined, tag_id: id ?? undefined, label, tag: label, color: color ?? null } as QuestionnaireTagDTO),
         visibility,
         visibility_label: toVisibilityLabel(visibility),
         created_at: firstNonEmptyString([record.created_at, record.createdAt]),

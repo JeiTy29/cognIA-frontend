@@ -80,10 +80,13 @@ const DOMAIN_LABELS: Record<string, string> = {
 };
 
 const ALERT_LEVEL_LABELS: Record<string, string> = {
+    none: 'Ninguna',
     low: 'Baja',
+    medium: 'Moderada',
     moderate: 'Moderada',
     elevated: 'Elevada',
     high: 'Alta',
+    critical: 'Revisi\u00f3n prioritaria',
     critical_review: 'Revisi\u00f3n prioritaria'
 };
 
