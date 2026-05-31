@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { ColombiaLocationSelect } from '../../../components/Location/ColombiaLocationSelect';
@@ -250,23 +250,6 @@ function makeDescription(role: HistorialRole) {
         ? 'Consulta cuestionarios aplicados, resultados orientativos y evolución por caso.'
         : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
 }
-async function loadDetail(sessionId: string) {
-    const detail = await getQuestionnaireHistoryDetailV2(sessionId);
-    const reviews = await getQuestionnaireProfessionalReviewsV2(sessionId).catch(() => []);
-    const responses = await getQuestionnaireHistoryResponsesV2(sessionId).catch(() => ({ items: [], warnings: [] }));
-    if (!canLoadClinicalArtifacts(detail.status)) return { detail, results: null, summary: null, reviews, responses };
-    const [results, summary] = await Promise.allSettled([
-        getQuestionnaireHistoryResultsV2(sessionId),
-        getQuestionnaireClinicalSummaryV2(sessionId)
-    ]);
-    return {
-        detail,
-        results: results.status === 'fulfilled' ? results.value : null,
-        summary: summary.status === 'fulfilled' ? summary.value : null,
-        reviews,
-        responses
-    };
-}
 function KeyValueRows({ data, hidden = [], emptyText }: Readonly<{ data: Record<string, unknown> | null; hidden?: string[]; emptyText: string }>) {
     const rows = buildSafeDisplayRows(data, { includeTechnical: false, includeEmpty: false, hiddenFields: hidden });
     if (rows.length === 0) return <p className="historial-dashboard-helper">{emptyText}</p>;
@@ -351,6 +334,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [professionalReviews, setProfessionalReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [pdfPayload, setPdfPayload] = useState<QuestionnairePdfInfoV2DTO | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [detailArtifactsLoading, setDetailArtifactsLoading] = useState(false);
+    const detailRequestRef = useRef(0);
     const [detailError, setDetailError] = useState<string | null>(null);
     const [detailNotice, setDetailNotice] = useState<string | null>(null);
     const [pdfWorking, setPdfWorking] = useState(false);
@@ -483,8 +468,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     };
 
     const openDetail = async (sessionId: string) => {
+        const requestId = detailRequestRef.current + 1;
+        detailRequestRef.current = requestId;
         setDetailSessionId(sessionId);
         setDetailLoading(true);
+        setDetailArtifactsLoading(false);
         setDetailError(null);
         setDetailNotice(null);
         setPdfPayload(null);
@@ -494,24 +482,60 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setClinicalSummaryPayload(null);
         setProfessionalReviews([]);
         try {
-            const detail = await loadDetail(sessionId);
-            setDetailPayload(detail.detail);
-            setResultsPayload(detail.results);
-            setResponsesPayload(detail.responses);
-            setClinicalSummaryPayload(detail.summary);
-            setProfessionalReviews(detail.reviews);
+            const detail = await getQuestionnaireHistoryDetailV2(sessionId);
+            if (detailRequestRef.current !== requestId) return;
+            setDetailPayload(detail);
+            setDetailLoading(false);
+            setDetailArtifactsLoading(true);
             if (role === 'padre') {
                 searchPsychologists(true).catch(() => undefined);
             }
+
+            const secondaryTasks: Promise<unknown>[] = [
+                getQuestionnaireProfessionalReviewsV2(sessionId)
+                    .then((reviews) => {
+                        if (detailRequestRef.current === requestId) setProfessionalReviews(reviews);
+                    })
+                    .catch(() => undefined),
+                getQuestionnaireHistoryResponsesV2(sessionId)
+                    .then((responses) => {
+                        if (detailRequestRef.current === requestId) setResponsesPayload(responses);
+                    })
+                    .catch(() => {
+                        if (detailRequestRef.current === requestId) setResponsesPayload({ items: [], warnings: [] });
+                    })
+            ];
+
+            if (canLoadClinicalArtifacts(detail.status)) {
+                secondaryTasks.push(
+                    getQuestionnaireHistoryResultsV2(sessionId)
+                        .then((results) => {
+                            if (detailRequestRef.current === requestId) setResultsPayload(results);
+                        })
+                        .catch(() => undefined),
+                    getQuestionnaireClinicalSummaryV2(sessionId)
+                        .then((summary) => {
+                            if (detailRequestRef.current === requestId) setClinicalSummaryPayload(summary);
+                        })
+                        .catch(() => undefined)
+                );
+            }
+
+            Promise.allSettled(secondaryTasks).finally(() => {
+                if (detailRequestRef.current === requestId) setDetailArtifactsLoading(false);
+            });
         } catch (error) {
+            if (detailRequestRef.current !== requestId) return;
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible cargar el detalle.'));
-        } finally {
             setDetailLoading(false);
+            setDetailArtifactsLoading(false);
         }
     };
-
     const closeDetail = () => {
+        detailRequestRef.current += 1;
         setDetailSessionId(null);
+        setDetailLoading(false);
+        setDetailArtifactsLoading(false);
         setDetailPayload(null);
         setResultsPayload(null);
         setResponsesPayload(null);
@@ -980,7 +1004,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Resultados por dominio</h3>
-                                {resultsPayload?.domains?.length ? (
+                                {detailArtifactsLoading && !resultsPayload ? (
+                                    <p className="historial-dashboard-helper">Cargando resultados normalizados...</p>
+                                ) : resultsPayload?.domains?.length ? (
                                     <div className="historial-dashboard-domain-bars">
                                         {resultsPayload.domains.slice(0, 6).map((domain, index) => {
                                             const label = normalizeDomainLabel(domain.domain_label ?? domain.domain ?? domain.domain_code);
@@ -1005,11 +1031,15 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Respuestas registradas</h3>
-                                <QuestionnaireResponseGroups
-                                    responses={responsesPayload}
-                                    maxItemsPerGroup={12}
-                                    emptyText="No hay respuestas visibles para este cuestionario con los permisos actuales."
-                                />
+                                {detailArtifactsLoading && !responsesPayload ? (
+                                    <p className="historial-dashboard-helper">Cargando respuestas registradas...</p>
+                                ) : (
+                                    <QuestionnaireResponseGroups
+                                        responses={responsesPayload}
+                                        maxItemsPerGroup={12}
+                                        emptyText="No hay respuestas visibles para este cuestionario con los permisos actuales."
+                                    />
+                                )}
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Resultados estructurados</h3>
@@ -1140,7 +1170,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
                             <div className="historial-dashboard-modal-section">
                                 <h3>Revisión profesional</h3>
-                                {professionalReviews.length === 0 ? (
+                                {detailArtifactsLoading && professionalReviews.length === 0 ? (
+                                    <p className="historial-dashboard-helper">Cargando revisiones profesionales...</p>
+                                ) : professionalReviews.length === 0 ? (
                                     <div className="historial-dashboard-actions-grid historial-dashboard-actions-grid--single">
                                         <article>
                                             <p className="historial-dashboard-helper">Aún no hay una revisión profesional visible para este cuestionario.</p>
