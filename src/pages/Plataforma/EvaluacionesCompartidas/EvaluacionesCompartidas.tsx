@@ -11,6 +11,7 @@ import {
     HistogramChart,
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
+import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { QuestionnaireResponseGroups } from '../../../components/questionnaires/QuestionnaireResponseGroups';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
@@ -205,6 +206,7 @@ export default function EvaluacionesCompartidas() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeSession, setActiveSession] = useState<PsychologistDashboardItemDTO | null>(null);
+    const [normalizedDetailSessionId, setNormalizedDetailSessionId] = useState<string | null>(null);
     const [preview, setPreview] = useState<QuestionnaireReportPreviewDTO | null>(null);
     const [reviews, setReviews] = useState<QuestionnaireProfessionalReviewDTO[]>([]);
     const [detailSession, setDetailSession] = useState<QuestionnaireHistoryDetailV2DTO | null>(null);
@@ -902,8 +904,11 @@ export default function EvaluacionesCompartidas() {
                                 </div>
 
                                 <div className="evaluaciones-card-actions">
-                                    <button type="button" onClick={() => loadDetail(item).catch(() => undefined)}>
-                                        Ver detalle
+                                    <button type="button" onClick={() => setNormalizedDetailSessionId(item.session_id)}>
+                                        Ver detalle normalizado
+                                    </button>
+                                    <button type="button" onClick={() => setNormalizedDetailSessionId(item.session_id)}>
+                                        Ver respuestas del cuestionario
                                     </button>
                                     {item.can_review ? (
                                         <button type="button" onClick={() => loadDetail(item).catch(() => undefined)}>
@@ -1048,6 +1053,14 @@ export default function EvaluacionesCompartidas() {
                     ) : null}
                 </div>
             </Modal>
+
+            <QuestionnaireReportDetailModal
+                isOpen={normalizedDetailSessionId !== null}
+                sessionId={normalizedDetailSessionId}
+                role="psicologo"
+                onClose={() => setNormalizedDetailSessionId(null)}
+                onDataChanged={() => loadDashboard().catch(() => undefined)}
+            />
 
             <Modal isOpen={reportModalOpen} onClose={closeReportModal}>
                 <div className="evaluaciones-detail-modal">

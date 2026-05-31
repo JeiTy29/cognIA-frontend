@@ -47,7 +47,7 @@ import {
 } from '../../utils/questionnaires/tags';
 import { resolveAnsweredQuestionRows } from '../../utils/questionnaires/answeredQuestions';
 import { emitNotificationsRefresh } from '../../utils/notifications/events';
-import '../../pages/Plataforma/Historial/HistorialBase.css';
+import './QuestionnaireReportDetailModal.css';
 import '../Location/ColombiaLocationSelect.css';
 
 export type QuestionnaireReportModalRole = 'padre' | 'psicologo';
@@ -420,6 +420,7 @@ export function QuestionnaireReportDetailModal({
 
     const [newTag, setNewTag] = useState('');
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
+    const [tagFormOpen, setTagFormOpen] = useState(false);
 
     const [tagWorking, setTagWorking] = useState(false);
     const [shareWorking, setShareWorking] = useState(false);
@@ -489,6 +490,8 @@ export function QuestionnaireReportDetailModal({
             setResponsesPayload(null);
             setVisibleProfessionalReviews([]);
             setClinicalSummaryPayload(null);
+            setShareResults([]);
+            setSelectedPsychologistId('');
             resetActionMessages();
 
             const detailLoad = await loadHistoryDetail(sessionId);
@@ -514,13 +517,31 @@ export function QuestionnaireReportDetailModal({
             setVisibleProfessionalReviews(detailLoad.visibleReviews);
             setDetailNotice(detailLoad.notice);
             setDetailLoading(false);
+
+            if (role === 'padre') {
+                searchPsychologistsV2({
+                    same_location: true,
+                    recommended: true,
+                    page: 1,
+                    page_size: 10
+                })
+                    .then((response) => {
+                        if (cancelled) return;
+                        setShareResults(response.items);
+                        setShareWarnings(response.warnings ?? []);
+                    })
+                    .catch(() => {
+                        if (cancelled) return;
+                        setShareResults([]);
+                    });
+            }
         };
 
         openDetail().catch(() => undefined);
         return () => {
             cancelled = true;
         };
-    }, [isOpen, sessionId]);
+    }, [isOpen, role, sessionId]);
 
     useEffect(() => {
         if (isOpen) return;
@@ -537,6 +558,7 @@ export function QuestionnaireReportDetailModal({
         setDetailNotice(null);
         setNewTag('');
         setNewTagColor(defaultTagColor);
+        setTagFormOpen(false);
         setTagWorking(false);
         setShareWorking(false);
         setPdfWorking(false);
@@ -595,6 +617,7 @@ export function QuestionnaireReportDetailModal({
             await refreshDetailAfterTagChange();
             setNewTag('');
             setNewTagColor(defaultTagColor);
+            setTagFormOpen(false);
             setTagNotice('Etiqueta agregada correctamente.');
         } catch (actionError) {
             setTagError(buildActionErrorMessage(actionError, 'No fue posible agregar la etiqueta.'));
@@ -782,12 +805,23 @@ export function QuestionnaireReportDetailModal({
                         <h2>{modalCaseLabel}</h2>
                         <p>{modalSubtitle || 'Lectura orientativa, trazabilidad, etiquetas, revisión profesional y PDF en un solo panel.'}</p>
                     </div>
-                    {detailPayload ? (
-                        <div className="historial-v2-risk-chip">
-                            <strong>{reportViewModel.overallRiskLabel}</strong>
-                            <span>{reportViewModel.statusLabel}</span>
-                        </div>
-                    ) : null}
+                    <div className="historial-v2-modal-hero-actions">
+                        {detailPayload ? (
+                            <div className="historial-v2-risk-chip">
+                                <strong>{reportViewModel.overallRiskLabel}</strong>
+                                <span>{reportViewModel.statusLabel}</span>
+                            </div>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="historial-v2-close-btn"
+                            aria-label="Cerrar detalle del cuestionario"
+                            onClick={onClose}
+                        >
+                            Cerrar
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
                 </div>
                 {detailLoading ? <div className="historial-v2-empty">Cargando detalle...</div> : null}
                 {detailError ? <div className="historial-v2-alert error">{detailError}</div> : null}
@@ -1029,37 +1063,59 @@ export function QuestionnaireReportDetailModal({
                                 </div>
                             )}
 
-                            <div className="historial-v2-tag-form">
-                                <input
-                                    type="text"
-                                    placeholder="Etiqueta"
-                                    value={newTag}
-                                    onChange={(event) => setNewTag(event.target.value)}
-                                />
-                                <div className="historial-v2-color-palette" role="radiogroup" aria-label="Color de etiqueta">
-                                    {tagColorOptions.map((option) => (
-                                        <button
-                                            key={option.value}
-                                            type="button"
-                                            className={`historial-v2-color-swatch ${newTagColor === option.value ? 'is-selected' : ''}`}
-                                            role="radio"
-                                            aria-checked={newTagColor === option.value}
-                                            aria-label={option.label}
-                                            title={option.label}
-                                            style={{ backgroundColor: option.value }}
-                                            onClick={() => setNewTagColor(option.value)}
-                                        />
-                                    ))}
-                                </div>
+                            {!tagFormOpen ? (
                                 <button
                                     type="button"
-                                    className="historial-v2-btn"
-                                    onClick={() => { runHistoryTask(handleAddTag); }}
-                                    disabled={tagWorking || newTag.trim().length === 0}
+                                    className="historial-v2-btn secondary"
+                                    onClick={() => setTagFormOpen(true)}
                                 >
-                                    {tagWorking ? 'Guardando...' : 'Agregar'}
+                                    Añadir etiqueta
                                 </button>
-                            </div>
+                            ) : (
+                                <div className="historial-v2-tag-form">
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre de la etiqueta"
+                                        value={newTag}
+                                        onChange={(event) => setNewTag(event.target.value)}
+                                    />
+                                    <div className="historial-v2-color-palette" role="radiogroup" aria-label="Color de etiqueta">
+                                        {tagColorOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`historial-v2-color-swatch ${newTagColor === option.value ? 'is-selected' : ''}`}
+                                                role="radio"
+                                                aria-checked={newTagColor === option.value}
+                                                aria-label={option.label}
+                                                title={option.label}
+                                                style={{ backgroundColor: option.value }}
+                                                onClick={() => setNewTagColor(option.value)}
+                                            />
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="historial-v2-btn"
+                                        onClick={() => { runHistoryTask(handleAddTag); }}
+                                        disabled={tagWorking || newTag.trim().length === 0}
+                                    >
+                                        {tagWorking ? 'Guardando...' : 'Agregar'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="historial-v2-btn ghost"
+                                        onClick={() => {
+                                            setTagFormOpen(false);
+                                            setNewTag('');
+                                            setNewTagColor(defaultTagColor);
+                                        }}
+                                        disabled={tagWorking}
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {role === 'padre' ? (
@@ -1177,6 +1233,7 @@ export function QuestionnaireReportDetailModal({
                                             ))}
                                         </div>
                                     ) : null}
+                                    {shareSearchLoading ? <p className="historial-v2-helper-text">Buscando psicólogos verificados...</p> : null}
                                     <div className="historial-v2-section-actions">
                                         <button
                                             type="button"
@@ -1247,11 +1304,6 @@ export function QuestionnaireReportDetailModal({
                     </>
                 ) : null}
 
-                <div className="historial-v2-modal-actions">
-                    <button type="button" className="historial-v2-btn" onClick={onClose}>
-                        Cerrar
-                    </button>
-                </div>
             </div>
         </Modal>
     );
