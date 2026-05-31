@@ -218,10 +218,15 @@ export function NotificationsBell() {
             <Modal isOpen={isOpen} onClose={() => setIsOpen(false)}>
                 <div className="notifications-modal">
                     <div className="notifications-modal__header">
-                        <h2>Notificaciones</h2>
-                        <button type="button" onClick={() => loadNotifications().catch(() => undefined)}>
-                            Actualizar
-                        </button>
+                        <div>
+                            <h2>Notificaciones</h2>
+                            <p>Revisa solicitudes, revisiones y novedades recientes.</p>
+                        </div>
+                        <div className="notifications-modal__header-actions">
+                            <button type="button" onClick={() => loadNotifications().catch(() => undefined)}>
+                                Actualizar
+                            </button>
+                        </div>
                     </div>
                     {error ? <div className="notifications-modal__error">{error}</div> : null}
                     {loading ? <div className="notifications-modal__empty">Cargando notificaciones...</div> : null}

@@ -25,7 +25,6 @@ import type {
     QuestionnaireQuestionV2DTO,
     QuestionnaireReportPreviewDTO,
     QuestionnaireSecureResultsV2DTO,
-    QuestionnaireTagDTO,
     PsychologistSearchItemDTO
 } from '../../services/questionnaires/questionnaires.types';
 import { buildReportViewModel } from '../../utils/presentation/clinicalReport';
@@ -36,9 +35,16 @@ import {
 } from '../../utils/presentation/naturalLanguage';
 import { downloadPdfBlob } from '../../utils/presentation/reportPdf';
 import {
+    normalizeAlertLevel,
     normalizeBackendText,
     normalizeReviewStatus
 } from '../../utils/questionnaires/presentation';
+import { QuestionnaireResponseGroups } from './QuestionnaireResponseGroups';
+import {
+    resolveQuestionnaireTagColor,
+    resolveQuestionnaireTagId,
+    resolveQuestionnaireTagLabel
+} from '../../utils/questionnaires/tags';
 import { resolveAnsweredQuestionRows } from '../../utils/questionnaires/answeredQuestions';
 import { emitNotificationsRefresh } from '../../utils/notifications/events';
 import '../../pages/Plataforma/Historial/HistorialBase.css';
@@ -184,47 +190,10 @@ function formatPercentValue(value: unknown) {
     return `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: percent < 1 ? 1 : 0 }).format(percent)}%`;
 }
 
-function responseQuestionText(item: Record<string, unknown>) {
-    return normalizeClinicalTextPresentation(
-        item.prompt ?? item.question_text ?? item.question ?? item.text,
-        'Pregunta registrada'
-    );
-}
-
-function responseAnswerText(item: Record<string, unknown>) {
-    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
-    return normalizeClinicalTextPresentation(
-        item.answer_label ?? item.answer ?? item.answer_value ?? item.value,
-        'Sin respuesta registrada'
-    );
-}
-
 function normalizeDomainText(value: unknown, fallback = 'Sin dominio predominante') {
     const raw = normalizeBackendText(value, '').trim();
     const key = raw.toLowerCase();
     return DOMAIN_LABELS[key] ?? normalizeClinicalTextPresentation(raw, fallback);
-}
-
-function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
-    const groups = new Map<string, Record<string, unknown>[]>();
-    (responses?.items ?? []).forEach((item) => {
-        const record = toRecord(item);
-        if (!record) return;
-        const label = normalizeDomainText(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section, 'Señales globales');
-        groups.set(label, [...(groups.get(label) ?? []), record]);
-    });
-    return [...groups.entries()].map(([label, items]) => ({ label, items }));
-}
-
-function resolveTagId(tag: QuestionnaireTagDTO) {
-    if (typeof tag.id === 'string' && tag.id.trim().length > 0) return tag.id;
-    if (typeof tag.tag_id === 'string' && tag.tag_id.trim().length > 0) return tag.tag_id;
-    return '';
-}
-
-function normalizeTagColor(color: string | null | undefined) {
-    const value = (color ?? '').trim();
-    return value || defaultTagColor;
 }
 
 function shouldPreserveRawText(value: string) {
@@ -620,7 +589,7 @@ export function QuestionnaireReportDetailModal({
         try {
             await addQuestionnaireHistoryTagV2(sessionId, {
                 tag: newTag.trim(),
-                color: normalizeTagColor(newTagColor),
+                color: resolveQuestionnaireTagColor(newTagColor),
                 visibility: 'private'
             });
             await refreshDetailAfterTagChange();
@@ -675,6 +644,37 @@ export function QuestionnaireReportDetailModal({
                 normalizeBackendText(
                     buildActionErrorMessage(actionError, 'No se pudo buscar psicólogos registrados.'),
                     'No se pudo buscar psicólogos registrados.'
+                )
+            );
+        } finally {
+            setShareSearchLoading(false);
+        }
+    };
+
+    const handleSearchAllLocations = async () => {
+        setShareSameLocation(false);
+        setShareDepartment('');
+        setShareCity('');
+        setShareSearchLoading(true);
+        setShareError(null);
+        setShareNotice(null);
+        setShareWarnings([]);
+        try {
+            const response = await searchPsychologistsV2({
+                q: shareQuery.trim() || undefined,
+                page: 1,
+                page_size: 10
+            });
+            setShareResults(response.items);
+            setShareWarnings(response.warnings ?? []);
+            setSelectedPsychologistId('');
+        } catch (actionError) {
+            setShareResults([]);
+            setShareWarnings([]);
+            setShareError(
+                normalizeBackendText(
+                    buildActionErrorMessage(actionError, 'No se pudo ampliar la búsqueda de psicólogos.'),
+                    'No se pudo ampliar la búsqueda de psicólogos.'
                 )
             );
         } finally {
@@ -756,14 +756,31 @@ export function QuestionnaireReportDetailModal({
         }
     };
 
+    const modalCaseLabel = normalizeBackendText(
+        detailPayload?.case_display_label ?? detailPayload?.case_private_label ?? detailPayload?.private_label ?? detailPayload?.case_label,
+        'Detalle del cuestionario'
+    );
+    const modalCasePublicId = normalizeBackendText(detailPayload?.case_public_id, '');
+    const modalDate = formatDateTimeEsCO(
+        detailPayload?.applied_at ??
+        detailPayload?.processed_at ??
+        detailPayload?.submitted_at ??
+        detailPayload?.updated_at
+    );
+    const modalSubtitle = [
+        modalCasePublicId,
+        modalDate,
+        reportViewModel.statusLabel
+    ].filter(Boolean).join(' - ');
+
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="historial-v2-modal">
                 <div className="historial-v2-modal-hero">
                     <div>
                         <span>Cuestionario</span>
-                        <h2>Detalle del cuestionario</h2>
-                        <p>Lectura orientativa, trazabilidad, etiquetas, revisión profesional y PDF en un solo panel.</p>
+                        <h2>{modalCaseLabel}</h2>
+                        <p>{modalSubtitle || 'Lectura orientativa, trazabilidad, etiquetas, revisión profesional y PDF en un solo panel.'}</p>
                     </div>
                     {detailPayload ? (
                         <div className="historial-v2-risk-chip">
@@ -884,7 +901,7 @@ export function QuestionnaireReportDetailModal({
                                             <div className="historial-dashboard-domain-row" key={`${domain.domain ?? label}-${index}`}>
                                                 <div>
                                                     <strong>{label}</strong>
-                                                    <span>{percent} · {normalizeClinicalTextPresentation(domain.alert_level, '--')}</span>
+                                                    <span>{percent} - {normalizeAlertLevel(domain.alert_level)}</span>
                                                 </div>
                                                 <div className="historial-dashboard-domain-track" aria-hidden="true">
                                                     <span style={{ width: `${Number.isFinite(width) ? width : 4}%` }} />
@@ -900,23 +917,7 @@ export function QuestionnaireReportDetailModal({
 
                         <div className="historial-v2-section">
                             <h3>Respuestas registradas</h3>
-                            {responsesPayload?.items?.length ? (
-                                <div className="historial-dashboard-response-groups">
-                                    {groupedResponses(responsesPayload).map((group) => (
-                                        <article className="historial-dashboard-response-group" key={group.label}>
-                                            <h4>{group.label}</h4>
-                                            {group.items.slice(0, 12).map((item, index) => (
-                                                <div className="historial-dashboard-response-row" key={`${group.label}-${index}`}>
-                                                    <strong>{responseQuestionText(item)}</strong>
-                                                    <span>{responseAnswerText(item)}</span>
-                                                </div>
-                                            ))}
-                                        </article>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="historial-v2-helper-text">No hay respuestas visibles para este cuestionario con los permisos actuales.</p>
-                            )}
+                            <QuestionnaireResponseGroups responses={responsesPayload} maxItemsPerGroup={12} />
                         </div>
 
                         <div className="historial-v2-section">
@@ -995,13 +996,15 @@ export function QuestionnaireReportDetailModal({
                             {tagNotice ? <div className="historial-v2-inline-feedback success">{tagNotice}</div> : null}
 
                             {tags.length === 0 ? (
-                                <p>Sin etiquetas.</p>
+                                <p className="historial-v2-helper-text">
+                                    Caso asociado directamente. Sin etiquetas adicionales.
+                                </p>
                             ) : (
                                 <div className="historial-v2-tags">
                                     {tags.map((tag) => {
-                                        const tagName = normalizeClinicalTextPresentation(tag.label ?? tag.tag, '--');
-                                        const tagId = resolveTagId(tag);
-                                        const tagColor = normalizeTagColor(tag.color);
+                                        const tagName = resolveQuestionnaireTagLabel(tag);
+                                        const tagId = resolveQuestionnaireTagId(tag);
+                                        const tagColor = resolveQuestionnaireTagColor(tag);
                                         const tagKey = tagId || `${tagName}-${tagColor}`;
 
                                         return (
@@ -1076,10 +1079,10 @@ export function QuestionnaireReportDetailModal({
                                     >
                                         <div className="historial-v2-share-search-grid">
                                             <label className="historial-v2-share-field">
-                                                <span>Nombre o correo</span>
+                                                <span>Nombre o usuario</span>
                                                 <input
                                                     type="text"
-                                                    placeholder="Nombre o correo"
+                                                    placeholder="Nombre, usuario o correo"
                                                     value={shareQuery}
                                                     onChange={(event) => setShareQuery(event.target.value)}
                                                 />
@@ -1137,7 +1140,18 @@ export function QuestionnaireReportDetailModal({
                                         </p>
                                     ) : null}
                                     {shareResults.length === 0 && (shareQuery.trim().length > 0 || shareDepartment.trim().length > 0 || shareCity.trim().length > 0 || shareSameLocation) && !shareSearchLoading ? (
-                                        <p className="historial-v2-helper-text">No se encontraron psicólogos con esos criterios.</p>
+                                        <div className="historial-v2-empty-panel">
+                                            <p className="historial-v2-helper-text">No se encontraron psicólogos con esos criterios.</p>
+                                            {shareSameLocation ? (
+                                                <button
+                                                    type="button"
+                                                    className="historial-v2-btn secondary"
+                                                    onClick={() => { runHistoryTask(handleSearchAllLocations); }}
+                                                >
+                                                    Buscar en todas las ciudades
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     ) : null}
                                     {shareResults.length > 0 ? (
                                         <div className="historial-v2-psychologist-list">

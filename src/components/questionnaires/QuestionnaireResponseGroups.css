@@ -1,0 +1,58 @@
+.questionnaire-response-groups {
+    display: grid;
+    gap: 12px;
+}
+
+.questionnaire-response-group {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid rgba(31, 77, 117, 0.12);
+    border-radius: 16px;
+    background: #fbfdff;
+}
+
+.questionnaire-response-group h4 {
+    margin: 0;
+    color: #183b57;
+}
+
+.questionnaire-response-card {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid rgba(31, 77, 117, 0.1);
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.questionnaire-response-card > div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.questionnaire-response-card span {
+    color: #0f5f9f;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.questionnaire-response-card strong,
+.questionnaire-response-card p,
+.questionnaire-response-card small {
+    margin: 0;
+    min-width: 0;
+    color: #203a55;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.questionnaire-response-card p,
+.questionnaire-response-card small {
+    color: #52677a;
+}

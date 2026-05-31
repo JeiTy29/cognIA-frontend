@@ -1,9 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
+import { ColombiaLocationSelect } from '../../../components/Location/ColombiaLocationSelect';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import { DashboardChartCard } from '../../../components/DashboardCharts';
 import { ActiveFilterChips } from '../../../components/ActiveFilterChips/ActiveFilterChips';
+import { QuestionnaireResponseGroups } from '../../../components/questionnaires/QuestionnaireResponseGroups';
 import { ApiError } from '../../../services/api/httpClient';
 import { useHistoryHasActiveFilters, useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
 import {
@@ -38,7 +40,6 @@ import type {
     PsychologistSearchItemDTO,
     QuestionnairePsychologistDashboardV2Response,
     QuestionnaireSecureResultsV2DTO,
-    QuestionnaireTagDTO,
     QuestionnaireTagVisibility
 } from '../../../services/questionnaires/questionnaires.types';
 import {
@@ -69,7 +70,13 @@ import {
     normalizeRequestStatus,
     normalizeReviewStatus
 } from '../../../utils/questionnaires/presentation';
+import {
+    resolveQuestionnaireTagColor,
+    resolveQuestionnaireTagId,
+    resolveQuestionnaireTagLabel
+} from '../../../utils/questionnaires/tags';
 import './HistorialBase.css';
+import '../../../components/Location/ColombiaLocationSelect.css';
 
 type HistorialRole = 'padre' | 'psicologo';
 
@@ -101,11 +108,6 @@ function toRecord(value: unknown): Record<string, unknown> | null {
 }
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
-}
-function resolveTagId(tag: QuestionnaireTagDTO) {
-    if (typeof tag.id === 'string' && tag.id.trim()) return tag.id;
-    if (typeof tag.tag_id === 'string' && tag.tag_id.trim()) return tag.tag_id;
-    return '';
 }
 function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
@@ -312,24 +314,6 @@ function formatPercentValue(value: unknown) {
     const percent = numeric > 1 ? numeric : numeric * 100;
     return `${new Intl.NumberFormat('es-CO', { maximumFractionDigits: percent < 1 ? 1 : 0 }).format(percent)}%`;
 }
-function responseQuestionText(item: Record<string, unknown>) {
-    return normalizeBackendText(item.prompt ?? item.question_text ?? item.question ?? item.text, 'Pregunta registrada');
-}
-function responseAnswerText(item: Record<string, unknown>) {
-    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
-    return normalizeBackendText(item.answer_label ?? item.answer ?? item.answer_value ?? item.value, 'Sin respuesta registrada');
-}
-function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
-    const groups = new Map<string, Record<string, unknown>[]>();
-    (responses?.items ?? []).forEach((item) => {
-        const record = toRecord(item);
-        if (!record) return;
-        const groupLabel = normalizeDomainLabel(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section);
-        const safeLabel = groupLabel === 'General' ? 'Señales globales' : groupLabel;
-        groups.set(safeLabel, [...(groups.get(safeLabel) ?? []), record]);
-    });
-    return [...groups.entries()].map(([label, items]) => ({ label, items }));
-}
 function firstDetailText(records: Array<Record<string, unknown> | null | undefined>, keys: string[], fallback = '--') {
     for (const record of records) {
         if (!record) continue;
@@ -375,6 +359,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const [newTagColor, setNewTagColor] = useState(defaultTagColor);
     const [newTagVisibility, setNewTagVisibility] = useState<QuestionnaireTagVisibility>('private');
     const [psychologistQuery, setPsychologistQuery] = useState('');
+    const [psychologistDepartment, setPsychologistDepartment] = useState('');
+    const [psychologistCity, setPsychologistCity] = useState('');
+    const [psychologistSameLocation, setPsychologistSameLocation] = useState(true);
     const [psychologistResults, setPsychologistResults] = useState<PsychologistSearchItemDTO[]>([]);
     const [selectedPsychologistId, setSelectedPsychologistId] = useState('');
     const [psychologistSearchLoading, setPsychologistSearchLoading] = useState(false);
@@ -535,6 +522,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailNotice(null);
         setNewTag('');
         setPsychologistQuery('');
+        setPsychologistDepartment('');
+        setPsychologistCity('');
+        setPsychologistSameLocation(true);
         setPsychologistResults([]);
         setSelectedPsychologistId('');
         setShareStatus(null);
@@ -563,12 +553,14 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             setDetailError(mapApiErrorToUserMessage(error, 'No fue posible eliminar etiqueta.'));
         }
     };
-    const searchPsychologists = async (sameLocation = false) => {
+    const searchPsychologists = async (sameLocation = false, allLocations = false) => {
         setPsychologistSearchLoading(true);
         setDetailError(null);
         try {
             const response = await searchPsychologistsV2({
-                q: sameLocation ? undefined : toOptionalFilterText(psychologistQuery),
+                q: toOptionalFilterText(psychologistQuery),
+                department: sameLocation || allLocations ? undefined : toOptionalFilterText(psychologistDepartment),
+                city: sameLocation || allLocations ? undefined : toOptionalFilterText(psychologistCity),
                 same_location: sameLocation || undefined,
                 recommended: sameLocation || undefined,
                 page: 1,
@@ -1013,23 +1005,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Respuestas registradas</h3>
-                                {responsesPayload?.items?.length ? (
-                                    <div className="historial-dashboard-response-groups">
-                                        {groupedResponses(responsesPayload).map((group) => (
-                                            <article className="historial-dashboard-response-group" key={group.label}>
-                                                <h4>{group.label}</h4>
-                                                {group.items.slice(0, 12).map((item, index) => (
-                                                    <div className="historial-dashboard-response-row" key={`${group.label}-${index}`}>
-                                                        <strong>{responseQuestionText(item)}</strong>
-                                                        <span>{responseAnswerText(item)}</span>
-                                                    </div>
-                                                ))}
-                                            </article>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="historial-dashboard-helper">No hay respuestas visibles para este cuestionario con los permisos actuales.</p>
-                                )}
+                                <QuestionnaireResponseGroups
+                                    responses={responsesPayload}
+                                    maxItemsPerGroup={12}
+                                    emptyText="No hay respuestas visibles para este cuestionario con los permisos actuales."
+                                />
                             </div>
                             <div className="historial-dashboard-modal-section">
                                 <h3>Resultados estructurados</h3>
@@ -1044,9 +1024,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                     </p>
                                 ) : (
                                     <div className="historial-dashboard-tags">{tags.map((tag, index) => {
-                                        if (typeof tag === 'string') return <div className="historial-dashboard-tag" key={`${tag}-${index}`}><span>{tag}</span></div>;
-                                        const tagId = resolveTagId(tag);
-                                        return <div className="historial-dashboard-tag" key={tagId || `${tag.label}-${index}`} style={{ borderLeftColor: tag.color ?? defaultTagColor }}><span>{tag.label}</span>{tagId ? <button type="button" onClick={() => deleteTag(tagId).catch(() => undefined)}>Eliminar</button> : null}</div>;
+                                        const tagId = resolveQuestionnaireTagId(tag);
+                                        const tagLabel = resolveQuestionnaireTagLabel(tag);
+                                        const tagColor = resolveQuestionnaireTagColor(tag);
+                                        return <div className="historial-dashboard-tag" key={tagId || `${tagLabel}-${index}`} style={{ borderLeftColor: tagColor }}><span>{tagLabel}</span>{tagId ? <button type="button" onClick={() => deleteTag(tagId).catch(() => undefined)}>Eliminar</button> : null}</div>;
                                     })}</div>
                                 )}
                                 <div className="historial-dashboard-tag-form">
@@ -1073,7 +1054,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                     className="historial-dashboard-share-search"
                                                     onSubmit={(event) => {
                                                         event.preventDefault();
-                                                        searchPsychologists(false).catch(() => undefined);
+                                                        searchPsychologists(psychologistSameLocation).catch(() => undefined);
                                                     }}
                                                 >
                                                     <input
@@ -1082,8 +1063,47 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                         onChange={(event) => setPsychologistQuery(event.target.value)}
                                                         placeholder="Buscar por nombre o username"
                                                     />
+                                                    <ColombiaLocationSelect
+                                                        value={{ department: psychologistDepartment, city: psychologistCity }}
+                                                        onChange={(nextValue) => {
+                                                            setPsychologistDepartment(nextValue.department);
+                                                            setPsychologistCity(nextValue.city);
+                                                        }}
+                                                        disabled={psychologistSameLocation}
+                                                        departmentLabel="Departamento"
+                                                        cityLabel="Ciudad"
+                                                        className="historial-dashboard-share-location"
+                                                    />
+                                                    <label className="historial-dashboard-inline-toggle">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={psychologistSameLocation}
+                                                            onChange={(event) => {
+                                                                const checked = event.target.checked;
+                                                                setPsychologistSameLocation(checked);
+                                                                if (checked) {
+                                                                    setPsychologistDepartment('');
+                                                                    setPsychologistCity('');
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span>Solo mi ciudad</span>
+                                                    </label>
                                                     <button type="submit" className="historial-dashboard-btn" disabled={psychologistSearchLoading}>
                                                         {psychologistSearchLoading ? 'Buscando...' : 'Buscar'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="historial-dashboard-btn secondary"
+                                                        disabled={psychologistSearchLoading}
+                                                        onClick={() => {
+                                                            setPsychologistSameLocation(false);
+                                                            setPsychologistDepartment('');
+                                                            setPsychologistCity('');
+                                                            searchPsychologists(false, true).catch(() => undefined);
+                                                        }}
+                                                    >
+                                                        Buscar en todas las ciudades
                                                     </button>
                                                 </form>
                                             </div>

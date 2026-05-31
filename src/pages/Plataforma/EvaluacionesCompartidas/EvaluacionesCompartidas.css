@@ -341,6 +341,49 @@
     color: #215f8f;
 }
 
+.evaluaciones-detail-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+    padding-right: 56px;
+    border: 1px solid rgba(33, 95, 143, 0.14);
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #eef7fc 100%);
+    box-shadow: 0 16px 34px rgba(21, 71, 112, 0.08);
+}
+
+.evaluaciones-detail-hero span {
+    color: #0f5f9f;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.evaluaciones-detail-hero h2 {
+    margin: 4px 0;
+    color: #183b57;
+    font-size: clamp(23px, 3vw, 34px);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+}
+
+.evaluaciones-detail-hero p {
+    margin: 0;
+    color: #52677a;
+    line-height: 1.45;
+}
+
+.evaluaciones-detail-hero > strong {
+    padding: 10px 12px;
+    border-radius: 999px;
+    background: rgba(15, 95, 159, 0.1);
+    color: #1f4d75;
+    white-space: nowrap;
+}
+
 .evaluaciones-detail-grid,
 .evaluaciones-detail-section,
 .evaluaciones-review-list,
@@ -410,6 +453,11 @@
 
     .evaluaciones-insight {
         grid-template-columns: 1fr;
+    }
+
+    .evaluaciones-detail-hero {
+        grid-template-columns: 1fr;
+        padding-right: 48px;
     }
 
     .evaluaciones-filters,

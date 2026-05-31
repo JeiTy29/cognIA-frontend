@@ -140,6 +140,16 @@
     color: #0f5132;
 }
 
+.seguimiento-progressive-note {
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 95, 159, 0.16);
+    border-radius: 14px;
+    background: #eef7fc;
+    color: #1f4d75;
+    font-size: 13px;
+    font-weight: 700;
+}
+
 .seguimiento-next-step-card {
     display: flex;
     align-items: center;

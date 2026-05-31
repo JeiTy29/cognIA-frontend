@@ -64,10 +64,29 @@
     gap: 10px;
 }
 
+.notifications-modal__header {
+    padding-right: 58px;
+    align-items: flex-start;
+}
+
+.notifications-modal__header-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
 .notifications-modal__header h2,
+.notifications-modal__header p,
 .notifications-modal__item p,
 .notifications-modal__item strong {
     margin: 0;
+}
+
+.notifications-modal__header p {
+    margin-top: 4px;
+    color: #52677a;
+    font-size: 13px;
+    line-height: 1.35;
 }
 
 .notifications-modal__header button,
@@ -80,6 +99,18 @@
     padding: 0 12px;
     font-weight: 700;
     cursor: pointer;
+}
+
+@media (max-width: 560px) {
+    .notifications-modal__header {
+        display: grid;
+        grid-template-columns: 1fr;
+        padding-right: 48px;
+    }
+
+    .notifications-modal__header-actions {
+        justify-content: flex-start;
+    }
 }
 
 .notifications-modal__error,

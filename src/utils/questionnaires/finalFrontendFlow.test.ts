@@ -11,6 +11,10 @@ const apiSource = () => readFileSync('src/services/questionnaires/questionnaires
 const solicitudesSource = () => readFileSync('src/pages/Plataforma/SolicitudesRevisionPsicologo/SolicitudesRevisionPsicologo.tsx', 'utf8');
 const evaluacionesSource = () => readFileSync('src/pages/Plataforma/EvaluacionesCompartidas/EvaluacionesCompartidas.tsx', 'utf8');
 const sidebarLayoutSource = () => readFileSync('src/components/SidebarLayout/SidebarLayout.tsx', 'utf8');
+const responseGroupsSource = () => readFileSync('src/components/questionnaires/QuestionnaireResponseGroups.tsx', 'utf8');
+const tagsSource = () => readFileSync('src/utils/questionnaires/tags.ts', 'utf8');
+const notificationsSource = () => readFileSync('src/components/Notifications/NotificationsBell.tsx', 'utf8');
+const notificationsCssSource = () => readFileSync('src/components/Notifications/NotificationsBell.css', 'utf8');
 
 describe('frontend final dashboard copy and flows', () => {
     it('usa envio directo a psicologo y no enlace como flujo principal en historial', () => {
@@ -124,6 +128,8 @@ describe('frontend final dashboard copy and flows', () => {
         const source = guardianCasesSource();
         expect(source).toContain("useState('6')");
         expect(source).toContain("useState<CaseStatusFilter>('all')");
+        expect(source).toContain('dashboardLoading');
+        expect(source).toContain('Casos cargados. Estamos actualizando las gráficas sin bloquear la vista.');
         expect(source).toContain('Mostrando \u00faltimos 6 meses');
         expect(source).not.toContain('Los casos se cargaron correctamente, pero el resumen visual tard\u00f3 demasiado');
     });
@@ -142,9 +148,57 @@ describe('frontend final dashboard copy and flows', () => {
         expect(historySource()).toContain('getQuestionnaireHistoryResponsesV2');
         expect(detailModalSource()).toContain('getQuestionnaireHistoryResponsesV2');
         expect(evaluacionesSource()).toContain('getQuestionnaireHistoryResponsesV2');
+        expect(responseGroupsSource()).toContain('Pregunta');
+        expect(responseGroupsSource()).toContain('Respuesta');
+        expect(historySource()).toContain('QuestionnaireResponseGroups');
+        expect(detailModalSource()).toContain('QuestionnaireResponseGroups');
+        expect(evaluacionesSource()).toContain('QuestionnaireResponseGroups');
         expect(historySource()).toContain('Respuestas registradas');
         expect(detailModalSource()).toContain('Respuestas registradas');
         expect(evaluacionesSource()).toContain('Respuestas registradas');
+    });
+
+    it('mantiene detalle normalizado en casos, historial y psicologo', () => {
+        const history = historySource();
+        const detail = detailModalSource();
+        const evaluations = evaluacionesSource();
+        expect(detail).toContain('normalizeAlertLevel(domain.alert_level)');
+        expect(evaluations).not.toContain('buildQuestionnaireAlertPdf');
+        expect(evaluations).toContain('generateQuestionnaireHistoryPdfV2(item.session_id)');
+        expect(evaluations).toContain('downloadQuestionnaireHistoryPdfV2(item.session_id)');
+        expect(history).toContain('QuestionnaireResponseGroups');
+        expect(detail).not.toMatch(/responseQuestionText\(item\)|responseAnswerText\(item\)/);
+        expect(evaluations).not.toMatch(/responseQuestionText|responseAnswerText|groupedResponses/);
+    });
+
+    it('renderiza etiquetas con label real y color estable', () => {
+        const tags = tagsSource();
+        const api = apiSource();
+        expect(tags).toContain('resolveQuestionnaireTagLabel');
+        expect(tags).toContain('resolveQuestionnaireTagColor');
+        expect(tags).toContain('hashText');
+        expect(api).toContain('resolveQuestionnaireTagColor');
+        expect(historySource()).toContain('resolveQuestionnaireTagLabel');
+        expect(detailModalSource()).toContain('resolveQuestionnaireTagLabel');
+    });
+
+    it('busqueda de psicologo permite username, ubicacion y fallback a todas las ciudades', () => {
+        const history = historySource();
+        const detail = detailModalSource();
+        expect(apiSource()).toContain('department: params?.department');
+        expect(apiSource()).toContain('city: params?.city');
+        expect(apiSource()).toContain('same_location: params?.same_location');
+        expect(history).toContain('ColombiaLocationSelect');
+        expect(history).toContain('Solo mi ciudad');
+        expect(history).toContain('Buscar en todas las ciudades');
+        expect(detail).toContain('Nombre o usuario');
+        expect(detail).toContain('Buscar en todas las ciudades');
+    });
+
+    it('notificaciones separa actualizar del cierre del modal', () => {
+        expect(notificationsSource()).toContain('notifications-modal__header-actions');
+        expect(notificationsCssSource()).toContain('padding-right: 58px');
+        expect(notificationsCssSource()).toContain('notifications-modal__header-actions');
     });
 
     it('usa resultados normalizados y evita strings crudos indice/riesgo', () => {

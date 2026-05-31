@@ -11,6 +11,7 @@ import {
     HistogramChart,
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
+import { QuestionnaireResponseGroups } from '../../../components/questionnaires/QuestionnaireResponseGroups';
 import { useAuth } from '../../../hooks/auth/useAuth';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import {
@@ -18,13 +19,10 @@ import {
     downloadQuestionnaireHistoryPdfV2,
     generateQuestionnaireHistoryPdfV2,
     getAllQuestionnaireSessionQuestionsV2,
-    getQuestionnaireClinicalSummaryV2,
     getQuestionnaireHistoryDetailV2,
     getQuestionnaireHistoryResponsesV2,
-    getQuestionnaireHistoryResultsV2,
     getQuestionnaireProfessionalReviewsV2,
     getQuestionnaireReportPreviewV2,
-    getQuestionnaireSessionV2,
     getPsychologistQuestionnaireDashboardV2,
     updateQuestionnaireProfessionalReviewV2
 } from '../../../services/questionnaires/questionnaires.api';
@@ -56,7 +54,6 @@ import {
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
 import { resolveAnsweredQuestionRows } from '../../../utils/questionnaires/answeredQuestions';
-import { buildQuestionnaireAlertPdf, buildQuestionnaireAlertPdfFileName } from '../../../utils/reports/questionnaireAlertPdf';
 import { downloadPsychologistFollowUpReportPdf } from '../../../utils/reports/psychologistFollowUpPdf';
 import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
 
@@ -86,27 +83,6 @@ const filterDomainOptions = [
     { value: 'anxiety', label: 'Ansiedad' },
     { value: 'depression', label: 'Depresión' }
 ];
-
-function responseQuestionText(item: Record<string, unknown>) {
-    return normalizeBackendText(item.prompt ?? item.question_text ?? item.question ?? item.text, 'Pregunta registrada');
-}
-
-function responseAnswerText(item: Record<string, unknown>) {
-    if (item.missing === true || item.is_missing === true) return 'Sin respuesta registrada';
-    return normalizeBackendText(item.answer_label ?? item.answer ?? item.answer_value ?? item.value, 'Sin respuesta registrada');
-}
-
-function groupedResponses(responses: QuestionnaireHistoryResponsesV2Response | null) {
-    const groups = new Map<string, Record<string, unknown>[]>();
-    (responses?.items ?? []).forEach((item) => {
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return;
-        const record = item as Record<string, unknown>;
-        const label = normalizeDomainLabel(record.domain_label ?? record.domain ?? record.domain_code ?? record.section_title ?? record.section);
-        const safeLabel = label === 'General' ? 'Señales globales' : label;
-        groups.set(safeLabel, [...(groups.get(safeLabel) ?? []), record]);
-    });
-    return [...groups.entries()].map(([label, items]) => ({ label, items }));
-}
 
 const reportPeriodOptions = [
     { value: '3', label: '3 meses' },
@@ -431,45 +407,11 @@ export default function EvaluacionesCompartidas() {
         if (!item.session_id || !item.can_download_pdf) return;
         setPdfSessionId(item.session_id);
         try {
-            const [previewResponse, reviewsResponse, detailResponse, resultsResponse, summaryResponse, snapshotResponse, questionsResponse] = await Promise.allSettled([
-                getQuestionnaireReportPreviewV2(item.session_id),
-                getQuestionnaireProfessionalReviewsV2(item.session_id),
-                getQuestionnaireHistoryDetailV2(item.session_id),
-                getQuestionnaireHistoryResultsV2(item.session_id),
-                getQuestionnaireClinicalSummaryV2(item.session_id),
-                getQuestionnaireSessionV2(item.session_id),
-                getAllQuestionnaireSessionQuestionsV2(item.session_id)
-            ]);
-
-            const previewPayload = previewResponse.status === 'fulfilled' ? previewResponse.value : null;
-            const professionalReviews = reviewsResponse.status === 'fulfilled' ? reviewsResponse.value : [];
-            const detailPayload = detailResponse.status === 'fulfilled' ? detailResponse.value : null;
-            const resultsPayload = resultsResponse.status === 'fulfilled' ? resultsResponse.value : null;
-            const summaryPayload = summaryResponse.status === 'fulfilled' ? summaryResponse.value : null;
-            const sessionSnapshot = snapshotResponse.status === 'fulfilled' ? snapshotResponse.value : null;
-            const sessionQuestions = questionsResponse.status === 'fulfilled' ? questionsResponse.value : [];
-
-            const blob = await buildQuestionnaireAlertPdf({
-                sessionId: item.session_id,
-                results: resultsPayload,
-                clinicalSummary: summaryPayload,
-                sessionDetail: detailPayload,
-                sessionSnapshot,
-                sessionQuestions,
-                reportPreview: previewPayload,
-                professionalReviews,
-                audience: 'psychologist'
-            });
-
-            downloadPdfBlob(blob, buildQuestionnaireAlertPdfFileName(sessionSnapshot ?? detailPayload ?? { role: 'psychologist' }));
+            await generateQuestionnaireHistoryPdfV2(item.session_id);
+            const { blob, filename } = await downloadQuestionnaireHistoryPdfV2(item.session_id);
+            downloadPdfBlob(blob, filename || `Reporte CognIA - ${item.case_public_id ?? item.session_id}.pdf`);
         } catch {
-            try {
-                await generateQuestionnaireHistoryPdfV2(item.session_id);
-                const { blob, filename } = await downloadQuestionnaireHistoryPdfV2(item.session_id);
-                downloadPdfBlob(blob, filename);
-            } catch {
-                setError('No fue posible descargar el PDF de apoyo profesional.');
-            }
+            setError('No fue posible descargar el PDF de apoyo profesional.');
         } finally {
             setPdfSessionId(null);
         }
@@ -935,7 +877,7 @@ export default function EvaluacionesCompartidas() {
                                     ) : null}
                                     {item.can_download_pdf ? (
                                         <button type="button" onClick={() => { handleDownloadPdf(item).catch(() => undefined); }}>
-                                            {pdfSessionId === item.session_id ? 'Generando PDF...' : 'Descargar PDF'}
+                                            {pdfSessionId === item.session_id ? 'Preparando PDF...' : 'Descargar PDF'}
                                         </button>
                                     ) : null}
                                 </div>
@@ -947,7 +889,20 @@ export default function EvaluacionesCompartidas() {
 
             <Modal isOpen={activeSession !== null} onClose={closeDetail}>
                 <div className="evaluaciones-detail-modal">
-                    <h2>Detalle de evaluación</h2>
+                    <div className="evaluaciones-detail-hero">
+                        <div>
+                            <span>Evaluación compartida</span>
+                            <h2>Detalle del cuestionario</h2>
+                            <p>
+                                {[
+                                    resolveEvaluationCaseLabel(activeSession),
+                                    formatDateTime(activeSession?.processed_at ?? preview?.session?.updated_at),
+                                    normalizeSessionStatus(preview?.session?.status ?? activeSession?.status)
+                                ].filter(Boolean).join(' - ')}
+                            </p>
+                        </div>
+                        <strong>{normalizeReviewStatus(activeSession?.review_status)}</strong>
+                    </div>
                     <p className="evaluaciones-detail-copy">
                         Este reporte resume la información registrada por el acudiente y los resultados orientativos del sistema para apoyar la revisión profesional. La información debe interpretarse junto con entrevista clínica, contexto familiar o escolar y criterio profesional.
                     </p>
@@ -983,33 +938,11 @@ export default function EvaluacionesCompartidas() {
 
                             <div className="evaluaciones-detail-section">
                                 <h3>Respuestas registradas</h3>
-                                {detailResponses?.items?.length ? (
-                                    <div className="evaluaciones-answer-list">
-                                        {groupedResponses(detailResponses).map((group) => (
-                                            <article key={group.label} className="evaluaciones-answer-group">
-                                                <h4>{group.label}</h4>
-                                                {group.items.slice(0, 14).map((answer, index) => (
-                                                    <div key={`${group.label}-${index}`} className="evaluaciones-answer-row">
-                                                        <strong>{responseQuestionText(answer)}</strong>
-                                                        <span>{responseAnswerText(answer)}</span>
-                                                    </div>
-                                                ))}
-                                            </article>
-                                        ))}
-                                    </div>
-                                ) : answeredQuestionRows.length > 0 ? (
-                                    <div className="evaluaciones-answer-list">
-                                        {answeredQuestionRows.map((answer) => (
-                                            <div key={answer.key} className="evaluaciones-answer-row">
-                                                <strong>{answer.questionText}</strong>
-                                                <span>{answer.answerLabel}</span>
-                                                <small>{answer.domainLabel} · {answer.sectionLabel}</small>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p>Sin respuestas estructuradas disponibles para esta evaluación.</p>
-                                )}
+                                <QuestionnaireResponseGroups
+                                    responses={detailResponses}
+                                    fallbackRows={answeredQuestionRows}
+                                    emptyText="Sin respuestas estructuradas disponibles para esta evaluación."
+                                />
                             </div>
 
                             <div className="evaluaciones-detail-section">
@@ -1021,11 +954,9 @@ export default function EvaluacionesCompartidas() {
                                                 <strong>{normalizeReviewStatus(review.review_status)}</strong>
                                                 <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
                                                 <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                <small>{review.visible_to_guardian ? 'Compartida con padre/tutor' : 'Solo visible para revisión profesional'} - {normalizeReviewStatus(review.review_status)}</small>
                                                 <small>
-                                                    Visible para padre/tutor: {normalizeBooleanLabel(review.visible_to_guardian)} · Estado de revisión: {normalizeReviewStatus(review.review_status)}
-                                                </small>
-                                                <small>
-                                                    Actualizada: {formatDateTime(review.updated_at)} · {review.is_diagnostic === false ? 'No diagnóstico' : 'Documento profesional'}
+                                                    Actualizada: {formatDateTime(review.updated_at)} - {review.is_diagnostic === false ? 'Orientación profesional, no diagnóstico definitivo' : 'Documento profesional'}
                                                 </small>
                                             </article>
                                         ))}
