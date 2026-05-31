@@ -161,6 +161,7 @@ describe('frontend final dashboard copy and flows', () => {
         expect(responseGroupsSource()).toContain('Pregunta');
         expect(responseGroupsSource()).toContain('Respuesta');
         expect(responseGroupsSource()).toContain('responses?.sections');
+        expect(readFileSync('src/components/questionnaires/QuestionnaireResponseGroups.css', 'utf8')).toContain('text-transform: none');
         expect(historySource()).toContain('QuestionnaireReportDetailModal');
         expect(detailModalSource()).toContain('QuestionnaireResponseGroups');
         expect(detailModalSource()).toContain('fallbackRows={previewAnswerRows}');
