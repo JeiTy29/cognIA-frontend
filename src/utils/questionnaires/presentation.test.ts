@@ -20,6 +20,7 @@ describe('questionnaire presentation labels', () => {
         expect(normalizeDomainLabel('general')).toBe('Sin dominio predominante');
         expect(normalizeDomainLabel(null)).toBe('Sin dominio predominante');
         expect(normalizeAlertLevel('critical_review')).toBe('Revisi\u00f3n prioritaria');
+        expect(normalizeAlertLevel('Cr\u00edtico Para Revision')).toBe('Revisi\u00f3n prioritaria');
         expect(normalizeAlertLevel('low')).toBe('Baja');
         expect(normalizeSessionStatus('in_progress')).toBe('En progreso');
         expect(normalizeReviewStatus('in_review')).toBe('En revisi\u00f3n');
