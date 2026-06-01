@@ -240,6 +240,7 @@ describe('frontend final dashboard copy and flows', () => {
 
     it('solicitudes de psicologo consumen charts del backend y no doble hero', () => {
         const source = solicitudesSource();
+        const chartContract = readFileSync('src/utils/questionnaires/chartContract.ts', 'utf8');
         expect(source).toContain('dashboardCharts');
         expect(source).toContain('by_status');
         expect(source).toContain('by_alert_level');
@@ -249,6 +250,8 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain("chartPointsToItems(dashboardCharts?.by_domain, 'domain')");
         expect(source).toContain("chartPointsToItems(dashboardCharts?.by_alert_level, 'alert')");
         expect(source).toContain("chartPointsToItems(dashboardCharts?.by_status, 'status')");
+        expect(source).toContain('getChartItems(points)');
+        expect(chartContract).toContain('export function getChartItems');
         expect(source).toContain('solicitudes-revision__header-insight');
         expect(source).not.toContain('className="solicitudes-revision__insight"');
         expect(source).not.toContain('dashboardRequests');
@@ -261,11 +264,14 @@ describe('frontend final dashboard copy and flows', () => {
         const history = historySource();
         const evaluations = evaluacionesSource();
         const transform = readFileSync('src/utils/questionnaires/dashboardTransform.ts', 'utf8');
+        const api = apiSource();
         expect(history).not.toContain('buildFallbackHistoryCharts');
         expect(history).not.toContain('buildHistoryKpis(history.items');
         expect(history).toContain('buildHistoryKpis(history.summary, history.total)');
         expect(transform).not.toContain('items.filter');
         expect(transform).not.toContain('record.max_probability ?? record.latest_probability ?? record.probability');
+        expect(api).toContain('normalizeChartRecord(root.charts)');
+        expect(api).not.toContain('response.items.length === 0');
         expect(evaluations).toContain('chartItemsFromUnknown(dashboard?.aggregates?.by_alert_level');
         expect(evaluations).not.toContain('evaluationInsights');
         expect(evaluations).not.toContain('Resumen calculado sobre las evaluaciones cargadas');

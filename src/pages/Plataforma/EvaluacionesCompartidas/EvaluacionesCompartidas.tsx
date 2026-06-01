@@ -29,6 +29,7 @@ import {
 import type {
     PsychologistDashboardDTO,
     PsychologistDashboardItemDTO,
+    QuestionnaireDashboardChartSourceDTO,
     QuestionnaireHistoryDetailV2DTO,
     QuestionnaireHistoryResponsesV2Response,
     QuestionnaireProfessionalReviewDTO,
@@ -47,6 +48,7 @@ import {
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
 import { resolveAnsweredQuestionRows } from '../../../utils/questionnaires/answeredQuestions';
+import { getChartItems } from '../../../utils/questionnaires/chartContract';
 import { downloadPsychologistFollowUpReportPdf } from '../../../utils/reports/psychologistFollowUpPdf';
 import { downloadPdfBlob } from '../../../utils/presentation/reportPdf';
 
@@ -129,9 +131,8 @@ function chartLabel(record: Record<string, unknown>, type: 'domain' | 'alert' | 
     return normalizeBackendText(raw, 'Sin clasificar');
 }
 
-function chartItemsFromUnknown(points: unknown, type: 'domain' | 'alert' | 'review' | 'time' | 'case' | 'age') {
-    if (!Array.isArray(points)) return [];
-    return points
+function chartItemsFromUnknown(points: QuestionnaireDashboardChartSourceDTO | unknown, type: 'domain' | 'alert' | 'review' | 'time' | 'case' | 'age') {
+    return getChartItems(points as QuestionnaireDashboardChartSourceDTO | null | undefined)
         .map((point) => (point && typeof point === 'object' ? point as Record<string, unknown> : null))
         .filter((point): point is Record<string, unknown> => Boolean(point))
         .map((point) => ({ label: chartLabel(point, type), value: chartValue(point) }))

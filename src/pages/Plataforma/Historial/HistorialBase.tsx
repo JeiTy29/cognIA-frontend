@@ -14,7 +14,7 @@ import {
 import type {
     QuestionnaireCaseDetailV2Response,
     QuestionnaireCaseV2DTO,
-    QuestionnaireDashboardChartPointDTO,
+    QuestionnaireDashboardChartSourceDTO,
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO,
@@ -28,6 +28,7 @@ import {
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
 import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
+import { getChartSource } from '../../../utils/questionnaires/chartContract';
 import {
     getDashboardDomainLabel,
     resolveCaseCompositeLabel,
@@ -59,7 +60,7 @@ const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
 }
-function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
+function toChartData(points: QuestionnaireDashboardChartSourceDTO | null | undefined) {
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
 }
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
@@ -246,10 +247,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailSessionId(null);
     };
     const historyCharts = useMemo(() => {
-        const byDate = toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month);
-        const byCase = toChartData(history.charts?.history_by_case ?? history.charts?.sessions_by_case);
-        const byDomain = toChartData(history.charts?.alerts_by_domain);
-        const byLevel = toChartData(history.charts?.alerts_by_level);
+        const byDate = toChartData(getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']));
+        const byCase = toChartData(getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']));
+        const byDomain = toChartData(getChartSource(history.charts, ['alerts_by_domain', 'by_domain']));
+        const byLevel = toChartData(getChartSource(history.charts, ['alerts_by_level', 'by_alert_level']));
         return {
             byDate,
             byCase,
@@ -258,17 +259,17 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         };
     }, [history.charts]);
     const guardianCharts = {
-        byMonth: toChartData(guardianDashboard?.charts?.alerts_by_month),
-        byDomain: toChartData(guardianDashboard?.charts?.alerts_by_domain),
-        byCase: toChartData(guardianDashboard?.charts?.sessions_by_case),
-        byAlert: toChartData(guardianDashboard?.charts?.cases_by_alert_level)
+        byMonth: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time'])),
+        byDomain: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_domain', 'domain_load_summary'])),
+        byCase: toChartData(getChartSource(guardianDashboard?.charts, ['activity_by_case', 'sessions_by_case', 'alerts_by_case'])),
+        byAlert: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_level', 'cases_by_alert_level']))
     };
     const hasGuardianCharts = Object.values(guardianCharts).some((items) => items.length > 0);
     const psychologistCharts = {
-        byDomain: toChartData(psychologistDashboard?.charts?.alerts_by_domain ?? psychologistDashboard?.aggregates?.by_domain),
-        byLevel: toChartData(psychologistDashboard?.charts?.alerts_by_level ?? psychologistDashboard?.aggregates?.by_alert_level),
-        byStatus: toChartData(psychologistDashboard?.charts?.reviews_by_status ?? psychologistDashboard?.aggregates?.by_review_status),
-        byDate: toChartData(psychologistDashboard?.charts?.alerts_by_date ?? psychologistDashboard?.aggregates?.by_date)
+        byDomain: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain'])),
+        byLevel: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level'])),
+        byStatus: toChartData(getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status'])),
+        byDate: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_date']))
     };
     const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
     const leadingAlert = historyCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
