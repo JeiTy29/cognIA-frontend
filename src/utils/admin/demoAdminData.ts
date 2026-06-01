@@ -28,6 +28,8 @@ function pagination(total: number, page: number, pageSize: number) {
 
 export function isAdminDevDemoEnabled() {
     if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+    if (import.meta.env.VITE_ENABLE_DEMO_DATA !== 'true') return false;
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) return false;
     const params = new URLSearchParams(window.location.search);
     const role = params.get('devRole') ?? window.sessionStorage.getItem('cognia_dev_role');
     const auth = params.get('devAuth') ?? (window.sessionStorage.getItem(DEV_AUTH_ACTIVE_KEY) === 'true' ? 'on' : null);

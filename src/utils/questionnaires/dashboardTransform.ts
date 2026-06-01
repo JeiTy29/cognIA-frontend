@@ -1,7 +1,6 @@
 import type {
     QuestionnaireDashboardChartPointDTO,
-    QuestionnaireHistoryFiltersV2,
-    QuestionnaireHistoryItemV2DTO
+    QuestionnaireHistoryFiltersV2
 } from '../../services/questionnaires/questionnaires.types';
 import { getAlertLevelMeta, normalizeAlertLevel } from '../dashboard/alerts';
 import { getDashboardDomainLabel } from './dashboardLabels';
@@ -32,6 +31,12 @@ function toNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function toChartNumber(value: unknown) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 function looksLikeTechnicalId(value: string) {
     const compact = value.replace(/[-_]/g, '');
     return compact.length >= 16 && /^[a-f0-9]+$/i.test(compact);
@@ -55,49 +60,27 @@ export function normalizeChartSeries(points: QuestionnaireDashboardChartPointDTO
     if (!Array.isArray(points) || points.length === 0) return [];
     return points.map((point, index) => {
         const record = point as QuestionnaireDashboardChartPointDTO & Record<string, unknown>;
-        let value = toNumber(point.value ?? point.count ?? point.total ?? point.sessions ?? record.sessions_with_alert);
-        if (value === 0) {
-            const probability = toNumber(record.max_probability ?? record.latest_probability ?? record.probability);
-            if (probability > 0) value = probability <= 1 ? Math.round(probability * 100) : probability;
-        }
-        if (value === 0 && Array.isArray(record.domains)) {
-            const domainValues = record.domains
-                .map((domain) => {
-                    const domainRecord = domain as Record<string, unknown>;
-                    const probability = toNumber(domainRecord.probability ?? domainRecord.max_probability ?? domainRecord.latest_probability);
-                    return probability <= 1 ? Math.round(probability * 100) : probability;
-                })
-                .filter((entry) => Number.isFinite(entry) && entry > 0);
-            value = domainValues.length > 0 ? Math.max(...domainValues) : 0;
-        }
+        const value = toChartNumber(point.value ?? point.count ?? point.total ?? point.sessions ?? record.sessions_with_alert);
         const alertCandidate = typeof point.alert_level === 'string' ? point.alert_level : null;
+        if (value === null) return null;
         return {
             id: String(point.key ?? point.label ?? index),
             label: resolveLabel(point, index),
             value,
             tone: normalizeAlertLevel(alertCandidate)
         };
-    });
+    }).filter((item): item is DashboardChartDatum => Boolean(item));
 }
 
 export function buildHistoryKpis(
-    items: QuestionnaireHistoryItemV2DTO[],
     summary: Record<string, unknown> | null,
     totalFromPagination: number
 ): HistoryKpis {
     const total = toNumber(summary?.total ?? summary?.total_records) || totalFromPagination;
-    const processed =
-        toNumber(summary?.processed ?? summary?.processed_sessions) ||
-        items.filter((item) => String(item.status ?? '').toLowerCase() === 'processed').length;
-    const withAlert =
-        toNumber(summary?.with_alert ?? summary?.sessions_with_alert) ||
-        items.filter((item) => normalizeAlertLevel(item.latest_alert_level ?? null) !== 'unknown').length;
-    const needsReview =
-        toNumber(summary?.needs_professional_review ?? summary?.sessions_needs_review) ||
-        items.filter((item) => item.needs_professional_review === true).length;
-    const withoutCase =
-        toNumber(summary?.without_case ?? summary?.sessions_without_case) ||
-        items.filter((item) => !item.case_id).length;
+    const processed = toNumber(summary?.processed ?? summary?.processed_sessions);
+    const withAlert = toNumber(summary?.with_alert ?? summary?.sessions_with_alert);
+    const needsReview = toNumber(summary?.needs_professional_review ?? summary?.sessions_needs_review);
+    const withoutCase = toNumber(summary?.without_case ?? summary?.sessions_without_case);
 
     return {
         total,

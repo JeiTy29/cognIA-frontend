@@ -34,10 +34,6 @@ import {
     toHistoryStatusFilter,
     toOptionalFilterText
 } from '../../../utils/questionnaires/dashboardLabels';
-import {
-    normalizeAlertLevel,
-    normalizeDomainLabel
-} from '../../../utils/questionnaires/presentation';
 import './HistorialBase.css';
 
 type HistorialRole = 'padre' | 'psicologo';
@@ -65,57 +61,6 @@ function getString(value: unknown, fallback = '--') {
 }
 function toChartData(points: QuestionnaireDashboardChartPointDTO[] | null | undefined) {
     return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
-}
-function incrementChartBucket(map: Map<string, { label: string; value: number; tone?: string }>, key: string, label: string, tone?: string) {
-    const current = map.get(key);
-    map.set(key, { label, value: (current?.value ?? 0) + 1, tone: tone ?? current?.tone });
-}
-function readHistoryDate(item: QuestionnaireHistoryItemV2DTO) {
-    return item.applied_at ?? item.submitted_at ?? item.processed_at ?? item.updated_at ?? item.created_at ?? null;
-}
-function formatHistoryMonth(value: string | null | undefined) {
-    if (!value) return 'Sin fecha registrada';
-    const date = new Date(value);
-    if (!Number.isFinite(date.getTime())) return 'Sin fecha registrada';
-    return new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' }).format(date);
-}
-function chartRowsFromMap(map: Map<string, { label: string; value: number; tone?: string }>, limit = 6) {
-    return [...map.entries()]
-        .map(([id, item]) => ({ id, label: item.label, value: item.value, tone: item.tone }))
-        .sort((left, right) => right.value - left.value)
-        .slice(0, limit);
-}
-function buildFallbackHistoryCharts(items: QuestionnaireHistoryItemV2DTO[]) {
-    const byDate = new Map<string, { label: string; value: number }>();
-    const byCase = new Map<string, { label: string; value: number }>();
-    const byDomain = new Map<string, { label: string; value: number }>();
-    const byLevel = new Map<string, { label: string; value: number; tone?: string }>();
-
-    items.forEach((item) => {
-        const dateLabel = formatHistoryMonth(readHistoryDate(item));
-        incrementChartBucket(byDate, dateLabel, dateLabel);
-        const caseLabel = resolveHistoryItemCaseLabel(item);
-        incrementChartBucket(byCase, item.case_id ?? item.case_public_id ?? caseLabel, caseLabel);
-
-        const domainLabel = normalizeDomainLabel(item.dominant_domain);
-        if (domainLabel !== 'Sin dominio predominante') {
-            incrementChartBucket(byDomain, domainLabel, domainLabel);
-        }
-
-        if (item.latest_alert_level) {
-            const alertLabel = normalizeAlertLevel(item.latest_alert_level);
-            if (alertLabel && alertLabel !== '--') {
-                incrementChartBucket(byLevel, alertLabel, alertLabel, item.latest_alert_level);
-            }
-        }
-    });
-
-    return {
-        byDate: [...byDate.entries()].map(([id, item]) => ({ id, label: item.label, value: item.value })),
-        byCase: chartRowsFromMap(byCase),
-        byDomain: chartRowsFromMap(byDomain),
-        byLevel: chartRowsFromMap(byLevel)
-    };
 }
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
     return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
@@ -190,7 +135,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const hasActiveFilters = useHistoryHasActiveFilters(history.filters);
     const filterChips = useMemo(() => buildActiveFilterChips(history.filters), [history.filters]);
-    const kpis = useMemo(() => buildHistoryKpis(history.items, history.summary, history.total), [history.items, history.summary, history.total]);
+    const kpis = useMemo(() => buildHistoryKpis(history.summary, history.total), [history.summary, history.total]);
 
     useEffect(() => {
         setDraftFilters((previous) => ({ ...previous, ...history.filters }));
@@ -301,18 +246,17 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         setDetailSessionId(null);
     };
     const historyCharts = useMemo(() => {
-        const fallback = buildFallbackHistoryCharts(history.items);
         const byDate = toChartData(history.charts?.alerts_by_date ?? history.charts?.sessions_by_month);
         const byCase = toChartData(history.charts?.history_by_case ?? history.charts?.sessions_by_case);
         const byDomain = toChartData(history.charts?.alerts_by_domain);
         const byLevel = toChartData(history.charts?.alerts_by_level);
         return {
-            byDate: byDate.length > 0 ? byDate : fallback.byDate,
-            byCase: byCase.length > 0 ? byCase : fallback.byCase,
-            byDomain: byDomain.length > 0 ? byDomain : fallback.byDomain,
-            byLevel: byLevel.length > 0 ? byLevel : fallback.byLevel
+            byDate,
+            byCase,
+            byDomain,
+            byLevel
         };
-    }, [history.charts, history.items]);
+    }, [history.charts]);
     const guardianCharts = {
         byMonth: toChartData(guardianDashboard?.charts?.alerts_by_month),
         byDomain: toChartData(guardianDashboard?.charts?.alerts_by_domain),
