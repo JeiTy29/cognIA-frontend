@@ -6,7 +6,6 @@ import {
     AreaChart,
     DashboardSection,
     DonutChart,
-    HeatmapChart,
     HorizontalBarChart,
     HistogramChart,
 } from '../../../components/DashboardCharts';
@@ -37,13 +36,6 @@ import type {
     QuestionnaireReportPreviewDTO,
     QuestionnaireReviewStatus
 } from '../../../services/questionnaires/questionnaires.types';
-import {
-    buildAgingBuckets,
-    buildHeatmapCells,
-    buildMonthlyCountItems,
-    mapCountsToItems,
-    normalizeDashboardDomain
-} from '../../../utils/dashboard/dashboardData';
 import {
     formatDateTime,
     formatPercent,
@@ -113,70 +105,6 @@ function buildPsychologistReportPeriodLabel(period: ReportPeriodValue, dateFrom:
     return `Últimos ${period} meses`;
 }
 
-type DashboardDomainCandidate = {
-    domain?: unknown;
-    probability?: unknown;
-    alert_level?: unknown;
-};
-
-type EvaluationDashboardInsight = {
-    item: PsychologistDashboardItemDTO;
-    dominantDomainLabel: string | null;
-    dominantAlertLabel: string;
-    reviewStatusLabel: string;
-    caseLabel: string;
-    agingDate: string | null;
-};
-
-function sortDomainsByProbability(domains: DashboardDomainCandidate[] | null | undefined) {
-    if (!Array.isArray(domains)) return [];
-    return [...domains].sort((left, right) => Number(right.probability ?? -1) - Number(left.probability ?? -1));
-}
-
-function inferAlertLevelFromProbability(probability: unknown) {
-    const numeric = Number(probability);
-    if (!Number.isFinite(numeric)) return 'Sin alerta disponible';
-    const ratio = numeric > 1 ? numeric / 100 : numeric;
-    if (ratio >= 0.75) return 'Alto';
-    if (ratio >= 0.55) return 'Elevado';
-    if (ratio >= 0.35) return 'Moderado';
-    if (ratio >= 0) return 'Bajo';
-    return 'Sin alerta disponible';
-}
-
-function resolveDominantDomainInfo(domains: DashboardDomainCandidate[] | null | undefined) {
-    const topDomain = sortDomainsByProbability(domains)[0];
-    if (!topDomain) return null;
-
-    const normalizedAlert = normalizeAlertLevel(topDomain.alert_level);
-    return {
-        domainLabel: normalizeDashboardDomain(topDomain.domain),
-        probability: Number(topDomain.probability),
-        alertLabel: normalizedAlert !== '--' ? normalizedAlert : inferAlertLevelFromProbability(topDomain.probability)
-    };
-}
-
-function resolveEvaluationAlertLabel(item: PsychologistDashboardItemDTO) {
-    const record = item as Record<string, unknown>;
-    const directAlert = normalizeAlertLevel(
-        record.highest_alert_level ??
-        record.latest_alert_level ??
-        record.alert_level
-    );
-
-    if (directAlert !== '--') return directAlert;
-    return resolveDominantDomainInfo(item.domains)?.alertLabel ?? 'Sin alerta disponible';
-}
-
-function resolveEvaluationAgingDate(item: PsychologistDashboardItemDTO) {
-    const record = item as Record<string, unknown>;
-    const acceptedAt = typeof record.accepted_at === 'string' ? record.accepted_at : null;
-    const requestedAt = typeof record.requested_at === 'string' ? record.requested_at : null;
-    const updatedAt = typeof record.updated_at === 'string' ? record.updated_at : null;
-
-    return acceptedAt ?? item.processed_at ?? requestedAt ?? updatedAt ?? null;
-}
-
 function resolveEvaluationCaseLabel(item: PsychologistDashboardItemDTO | null | undefined) {
     if (!item) return 'Caso sin código público';
     const record = item as Record<string, unknown>;
@@ -188,6 +116,27 @@ function resolveEvaluationCaseLabel(item: PsychologistDashboardItemDTO | null | 
     return 'Caso sin código público';
 }
 
+function chartValue(record: Record<string, unknown>) {
+    const parsed = Number(record.value ?? record.count ?? record.total ?? record.sessions);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function chartLabel(record: Record<string, unknown>, type: 'domain' | 'alert' | 'review' | 'time' | 'case' | 'age') {
+    const raw = record.label ?? record.name ?? record.domain ?? record.alert_level ?? record.review_status ?? record.case_public_id ?? record.month ?? record.date ?? record.key;
+    if (type === 'domain') return normalizeDomainLabel(raw);
+    if (type === 'alert') return normalizeAlertLevel(raw);
+    if (type === 'review') return normalizeReviewStatus(raw);
+    return normalizeBackendText(raw, 'Sin clasificar');
+}
+
+function chartItemsFromUnknown(points: unknown, type: 'domain' | 'alert' | 'review' | 'time' | 'case' | 'age') {
+    if (!Array.isArray(points)) return [];
+    return points
+        .map((point) => (point && typeof point === 'object' ? point as Record<string, unknown> : null))
+        .filter((point): point is Record<string, unknown> => Boolean(point))
+        .map((point) => ({ label: chartLabel(point, type), value: chartValue(point) }))
+        .filter((item) => Number.isFinite(item.value) && item.value > 0);
+}
 export default function EvaluacionesCompartidas() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -500,11 +449,12 @@ export default function EvaluacionesCompartidas() {
             alert_level: reportAlertLevel || undefined,
             review_status: reportReviewStatus || undefined
         };
+        const reportPageSize = 50;
 
         const firstPage = await getPsychologistQuestionnaireDashboardV2({
             ...baseParams,
             page: 1,
-            page_size: 100
+            page_size: reportPageSize
         });
 
         const totalPages = Math.max(1, Number(firstPage.pagination?.pages ?? 1));
@@ -517,7 +467,7 @@ export default function EvaluacionesCompartidas() {
                 getPsychologistQuestionnaireDashboardV2({
                     ...baseParams,
                     page: index + 2,
-                    page_size: 100
+                    page_size: reportPageSize
                 })
             )
         );
@@ -528,7 +478,7 @@ export default function EvaluacionesCompartidas() {
             pagination: {
                 ...firstPage.pagination,
                 page: 1,
-                page_size: 100,
+                page_size: reportPageSize,
                 pages: totalPages
             }
         };
@@ -597,106 +547,35 @@ export default function EvaluacionesCompartidas() {
         setAlertLevel('');
         setReviewStatus('');
     };
-    const partialChartsNote = useMemo(() => {
-        const total = Number(dashboard?.pagination?.total ?? items.length);
-        return total > items.length ? 'Resumen calculado sobre las evaluaciones cargadas.' : undefined;
-    }, [dashboard?.pagination?.total, items.length]);
-    const evaluationInsights = useMemo<EvaluationDashboardInsight[]>(
-        () =>
-            items.map((item) => {
-                const dominantDomain = resolveDominantDomainInfo(item.domains);
-                return {
-                    item,
-                    dominantDomainLabel: dominantDomain?.domainLabel ?? null,
-                    dominantAlertLabel: resolveEvaluationAlertLabel(item),
-                    reviewStatusLabel: normalizeReviewStatus(item.review_status),
-                    caseLabel: resolveEvaluationCaseLabel(item),
-                    agingDate: resolveEvaluationAgingDate(item)
-                };
-            }),
-        [items]
-    );
+    const backendCharts = (dashboard as { charts?: Record<string, unknown> | null } | null)?.charts ?? null;
     const alertChartItems = useMemo(
-        () =>
-            mapCountsToItems(
-                evaluationInsights.reduce((accumulator, insight) => {
-                    accumulator.set(insight.dominantAlertLabel, (accumulator.get(insight.dominantAlertLabel) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [evaluationInsights]
+        () => chartItemsFromUnknown(dashboard?.aggregates?.by_alert_level ?? backendCharts?.by_alert_level ?? backendCharts?.alerts_by_level, 'alert'),
+        [backendCharts, dashboard?.aggregates?.by_alert_level]
     );
     const domainChartItems = useMemo(
-        () =>
-            mapCountsToItems(
-                evaluationInsights.reduce((accumulator, insight) => {
-                    if (!insight.dominantDomainLabel) return accumulator;
-                    accumulator.set(insight.dominantDomainLabel, (accumulator.get(insight.dominantDomainLabel) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [evaluationInsights]
+        () => chartItemsFromUnknown(dashboard?.aggregates?.by_domain ?? backendCharts?.by_domain ?? backendCharts?.alerts_by_domain, 'domain'),
+        [backendCharts, dashboard?.aggregates?.by_domain]
     );
     const reviewChartItems = useMemo(
-        () =>
-            mapCountsToItems(
-                evaluationInsights.reduce((accumulator, insight) => {
-                    accumulator.set(insight.reviewStatusLabel, (accumulator.get(insight.reviewStatusLabel) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [evaluationInsights]
-    );
-    const heatmapRows = useMemo(
-        () => Array.from(new Set(evaluationInsights.map((item) => item.dominantDomainLabel).filter(Boolean))) as string[],
-        [evaluationInsights]
-    );
-    const heatmapColumns = useMemo(() => {
-        const columns = ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisión prioritaria'];
-        return evaluationInsights.some((item) => item.dominantAlertLabel === 'Sin alerta disponible')
-            ? [...columns, 'Sin alerta disponible']
-            : columns;
-    }, [evaluationInsights]);
-    const heatmapCells = useMemo(
-        () =>
-            buildHeatmapCells(
-                evaluationInsights.filter((item) => item.dominantDomainLabel),
-                heatmapRows,
-                heatmapColumns,
-                (item) => item.dominantDomainLabel ?? 'Sin dominio predominante',
-                (item) => item.dominantAlertLabel
-            ),
-        [evaluationInsights, heatmapColumns, heatmapRows]
+        () => chartItemsFromUnknown(dashboard?.aggregates?.by_review_status ?? backendCharts?.by_review_status ?? backendCharts?.reviews_by_status, 'review'),
+        [backendCharts, dashboard?.aggregates?.by_review_status]
     );
     const pendingAgingItems = useMemo(
-        () =>
-            buildAgingBuckets(
-                evaluationInsights
-                    .filter((item) => ['Pendiente', 'En revisión'].includes(item.reviewStatusLabel))
-                    .map((item) => item.agingDate)
-            ),
-        [evaluationInsights]
+        () => chartItemsFromUnknown(backendCharts?.pending_age, 'age'),
+        [backendCharts]
     );
     const caseTreemapItems = useMemo(
-        () =>
-            mapCountsToItems(
-                evaluationInsights.reduce((accumulator, item) => {
-                    const label = item.caseLabel;
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [evaluationInsights]
+        () => chartItemsFromUnknown(backendCharts?.by_case ?? backendCharts?.cases_by_alert, 'case'),
+        [backendCharts]
     );
     const evaluationTimelineItems = useMemo(
-        () => buildMonthlyCountItems(evaluationInsights.map((item) => item.agingDate)),
-        [evaluationInsights]
+        () => chartItemsFromUnknown(backendCharts?.over_time ?? backendCharts?.by_date ?? backendCharts?.alerts_by_date, 'time'),
+        [backendCharts]
     );
-    const topCaseLabel = caseTreemapItems[0]?.label ?? 'Sin caso prioritario';
+    const topCaseLabel = caseTreemapItems[0]?.label ?? 'Sin agregado por caso';
     const topDomainLabel = domainChartItems[0]?.label ?? 'Sin dominio dominante';
-    const highPriorityCount = evaluationInsights.filter((item) => ['Alto', 'Revisi\u00f3n prioritaria'].includes(item.dominantAlertLabel)).length;
-    const executiveCopy = `Hay ${summary?.total_shared_sessions ?? items.length} evaluaciones aceptadas, ${summary?.pending_reviews ?? 0} pendientes de revisión y ${highPriorityCount} con alerta alta o prioritaria. El dominio más frecuente es ${topDomainLabel}.`;
-
+    const highestAlertLabel = normalizeAlertLevel(summary?.highest_alert_level);
+    const executiveCopy = `Hay ${summary?.total_shared_sessions ?? 0} evaluaciones aceptadas y ${summary?.pending_reviews ?? 0} pendientes de revisión. El dominio más frecuente es ${topDomainLabel} y la mayor alerta agregada es ${highestAlertLabel}.`;
     return (
         <div className="plataforma-view">
             <section className="evaluaciones-compartidas" aria-label="Evaluaciones compartidas conmigo">
@@ -800,7 +679,6 @@ export default function EvaluacionesCompartidas() {
                             className="evaluaciones-dashboard-wide evaluaciones-dashboard-large"
                             title="Evaluaciones por rango de fechas"
                             description="Muestra la actividad aceptada por mes dentro del periodo consultado."
-                            note={partialChartsNote}
                         >
                             <AreaChart
                                 data={evaluationTimelineItems}
@@ -818,25 +696,11 @@ export default function EvaluacionesCompartidas() {
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>
-                        <DashboardSection
-                            className="evaluaciones-dashboard-wide evaluaciones-dashboard-large"
-                            title="Matriz dominio vs nivel de alerta"
-                            description="Cruza el dominio predominante de cada evaluación con su mayor nivel de alerta para identificar combinaciones que requieren mayor atención."
-                            note={partialChartsNote}
-                        >
-                            <HeatmapChart
-                                rows={heatmapRows}
-                                columns={heatmapColumns}
-                                cells={heatmapCells}
-                                ariaLabel="Cruce entre dominios y niveles de alerta"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
-                        </DashboardSection>
+
                         <DashboardSection
                             className="evaluaciones-dashboard-large"
                             title="Antigüedad de evaluaciones pendientes de revisión"
                             description="Identifica evaluaciones aceptadas que llevan más tiempo sin cierre de revisión."
-                            note={partialChartsNote}
                         >
                             <HistogramChart
                                 data={pendingAgingItems}
@@ -848,7 +712,6 @@ export default function EvaluacionesCompartidas() {
                             className="evaluaciones-dashboard-large"
                             title="Mapa de carga por caso"
                             description="Muestra qué casos concentran mayor cantidad de evaluaciones aceptadas."
-                            note={partialChartsNote}
                         >
                             <HorizontalBarChart
                                 data={caseTreemapItems}

@@ -6,7 +6,6 @@ import {
     AreaChart,
     DashboardSection,
     DonutChart,
-    HeatmapChart,
     HistogramChart
 } from '../../../components/DashboardCharts';
 import { Modal } from '../../../components/Modal/Modal';
@@ -17,13 +16,6 @@ import {
     rejectPsychologistShareRequestV2
 } from '../../../services/questionnaires/questionnaires.api';
 import type { PsychologistShareRequestDTO, QuestionnaireDashboardChartPointDTO } from '../../../services/questionnaires/questionnaires.types';
-import {
-    buildAgingBuckets,
-    buildHeatmapCells,
-    buildMonthlyCountItems,
-    buildRequestStateItems,
-    mapCountsToItems
-} from '../../../utils/dashboard/dashboardData';
 import {
     formatDateTime,
     formatPercent,
@@ -73,13 +65,6 @@ type RequestDomainCandidate = {
     domain?: unknown;
     probability?: unknown;
     alert_level?: unknown;
-};
-
-type RequestDashboardInsight = {
-    request: PsychologistShareRequestDTO;
-    alertLabel: string;
-    dominantDomainLabel: string;
-    requestedAt: string | null;
 };
 
 type ShareRequestCharts = {
@@ -175,10 +160,8 @@ export default function SolicitudesRevisionPsicologo() {
     const [notice, setNotice] = useState<string | null>(null);
     const [requests, setRequests] = useState<PsychologistShareRequestDTO[]>([]);
     const [summary, setSummary] = useState<{ pending_count?: number | null; accepted_count?: number | null; rejected_count?: number | null } | null>(null);
-    const [dashboardRequests, setDashboardRequests] = useState<PsychologistShareRequestDTO[]>([]);
     const [dashboardSummary, setDashboardSummary] = useState<{ pending_count?: number | null; accepted_count?: number | null; rejected_count?: number | null } | null>(null);
     const [dashboardCharts, setDashboardCharts] = useState<ShareRequestCharts>(null);
-    const [dashboardSampleTotal, setDashboardSampleTotal] = useState<number | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<PsychologistShareRequestDTO | null>(null);
     const [actionIntent, setActionIntent] = useState<ActionIntent>(null);
     const [actionMessage, setActionMessage] = useState('');
@@ -227,20 +210,16 @@ export default function SolicitudesRevisionPsicologo() {
                 const response = await getPsychologistShareRequestsV2({
                     status: 'all',
                     q: debouncedQuery.trim() || undefined,
-                    date_from: dateFrom || undefined,
-                    date_to: dateTo || undefined,
-                    page: 1,
-                    page_size: 100
-                });
-                setDashboardRequests(response.items);
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
+                page: 1,
+                page_size: 1
+            });
                 setDashboardSummary(response.summary ?? null);
                 setDashboardCharts(response.charts ?? null);
-                setDashboardSampleTotal(response.pagination?.total ?? response.items.length);
             } catch {
-                setDashboardRequests([]);
                 setDashboardSummary(null);
                 setDashboardCharts(null);
-                setDashboardSampleTotal(null);
             }
         };
 
@@ -310,89 +289,24 @@ export default function SolicitudesRevisionPsicologo() {
         if (status === 'all') return 'No hay solicitudes para mostrar.';
         return 'No tienes solicitudes pendientes por revisar.';
     }, [status]);
-    const requestsPartialNote = useMemo(
-        () =>
-            typeof dashboardSampleTotal === 'number' && dashboardSampleTotal > dashboardRequests.length
-                ? 'Resumen calculado sobre las solicitudes cargadas.'
-                : undefined,
-        [dashboardRequests.length, dashboardSampleTotal]
-    );
-    const dashboardInsights = useMemo<RequestDashboardInsight[]>(
-        () =>
-            dashboardRequests.map((request) => {
-                const dominantDomain = resolveRequestDominantDomainInfo(request);
-                return {
-                    request,
-                    alertLabel: resolveRequestAlertLabel(request),
-                    dominantDomainLabel: dominantDomain.domainLabel,
-                    requestedAt: request.requested_at ?? null
-                };
-            }),
-        [dashboardRequests]
-    );
     const requestStateChartItems = useMemo(() => {
-        const backend = chartPointsToItems(dashboardCharts?.by_status, 'status');
-        return backend.length > 0 ? backend : buildRequestStateItems(dashboardSummary);
-    }, [dashboardCharts?.by_status, dashboardSummary]);
+        return chartPointsToItems(dashboardCharts?.by_status, 'status');
+    }, [dashboardCharts?.by_status]);
     const requestsByAlertChartItems = useMemo(
-        () => {
-            const backend = chartPointsToItems(dashboardCharts?.by_alert_level, 'alert');
-            return backend.length > 0 ? backend : mapCountsToItems(
-                dashboardInsights.reduce((accumulator, request) => {
-                    accumulator.set(request.alertLabel, (accumulator.get(request.alertLabel) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            );
-        },
-        [dashboardCharts?.by_alert_level, dashboardInsights]
+        () => chartPointsToItems(dashboardCharts?.by_alert_level, 'alert'),
+        [dashboardCharts?.by_alert_level]
     );
     const requestsByDomainChartItems = useMemo(
-        () => {
-            const backend = chartPointsToItems(dashboardCharts?.by_domain, 'domain');
-            return backend.length > 0 ? backend : mapCountsToItems(
-                dashboardInsights.reduce((accumulator, request) => {
-                    accumulator.set(request.dominantDomainLabel, (accumulator.get(request.dominantDomainLabel) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            );
-        },
-        [dashboardCharts?.by_domain, dashboardInsights]
+        () => chartPointsToItems(dashboardCharts?.by_domain, 'domain'),
+        [dashboardCharts?.by_domain]
     );
     const requestTimelineItems = useMemo(
-        () => {
-            const backend = chartPointsToItems(dashboardCharts?.over_time, 'time');
-            return backend.length > 0 ? backend : buildMonthlyCountItems(dashboardInsights.map((request) => request.requestedAt));
-        },
-        [dashboardCharts?.over_time, dashboardInsights]
+        () => chartPointsToItems(dashboardCharts?.over_time, 'time'),
+        [dashboardCharts?.over_time]
     );
     const pendingRequestAging = useMemo(
-        () => {
-            const backend = chartPointsToItems(dashboardCharts?.pending_age, 'age');
-            return backend.length > 0 ? backend : buildAgingBuckets(
-                dashboardInsights
-                    .filter((request) => String(request.request.request_status ?? '').toLowerCase() === 'pending')
-                    .map((request) => request.requestedAt)
-            );
-        },
-        [dashboardCharts?.pending_age, dashboardInsights]
-    );
-    const heatmapRows = useMemo(() => ['Pendiente', 'Aceptada', 'Rechazada'], []);
-    const heatmapColumns = useMemo(() => {
-        const columns = ['Bajo', 'Moderado', 'Elevado', 'Alto', 'Revisión prioritaria'];
-        return dashboardInsights.some((request) => request.alertLabel === 'Sin alerta disponible')
-            ? [...columns, 'Sin alerta disponible']
-            : columns;
-    }, [dashboardInsights]);
-    const requestHeatmapCells = useMemo(
-        () =>
-            buildHeatmapCells(
-                dashboardInsights,
-                heatmapRows,
-                heatmapColumns,
-                (request) => normalizeRequestStatus(request.request.request_status),
-                (request) => request.alertLabel
-        ),
-        [dashboardInsights, heatmapColumns, heatmapRows]
+        () => chartPointsToItems(dashboardCharts?.pending_age, 'age'),
+        [dashboardCharts?.pending_age]
     );
     const activeFilterCount = [query.trim(), dateFrom, dateTo].filter(Boolean).length;
     const filterSummary = activeFilterCount > 0 ? `${activeFilterCount} filtros activos` : 'Tabs por estado, sin busqueda adicional';
@@ -477,7 +391,6 @@ export default function SolicitudesRevisionPsicologo() {
                         <DashboardSection
                             title="Estado de solicitudes"
                             description="Resume el estado general de las solicitudes recibidas."
-                            note={requestsPartialNote}
                         >
                             <DonutChart
                                 data={requestStateChartItems}
@@ -488,7 +401,6 @@ export default function SolicitudesRevisionPsicologo() {
                         <DashboardSection
                             title="Solicitudes por nivel de alerta"
                             description="Permite identificar solicitudes que pueden requerir atención prioritaria."
-                            note={requestsPartialNote}
                         >
                             <DonutChart
                                 data={requestsByAlertChartItems}
@@ -499,7 +411,6 @@ export default function SolicitudesRevisionPsicologo() {
                         <DashboardSection
                             title="Solicitudes por dominio principal"
                             description="Muestra los dominios predominantes en las solicitudes recibidas."
-                            note={requestsPartialNote}
                         >
                             <DonutChart
                                 data={requestsByDomainChartItems}
@@ -511,7 +422,6 @@ export default function SolicitudesRevisionPsicologo() {
                             className="solicitudes-revision__dashboard-wide solicitudes-revision__dashboard-large"
                             title="Solicitudes recibidas en el tiempo"
                             description="Permite observar la carga de solicitudes recibidas en el tiempo."
-                            note={requestsPartialNote}
                         >
                             <AreaChart
                                 data={requestTimelineItems}
@@ -523,25 +433,10 @@ export default function SolicitudesRevisionPsicologo() {
                             className="solicitudes-revision__dashboard-large"
                             title="Antigüedad de solicitudes pendientes"
                             description="Identifica solicitudes pendientes que llevan más tiempo sin respuesta."
-                            note={requestsPartialNote}
                         >
                             <HistogramChart
                                 data={pendingRequestAging}
                                 ariaLabel="Antigüedad de solicitudes pendientes"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                            />
-                        </DashboardSection>
-                        <DashboardSection
-                            className="solicitudes-revision__dashboard-wide solicitudes-revision__dashboard-large"
-                            title="Matriz de prioridad de solicitudes"
-                            description="Cruza estado y alerta para ubicar solicitudes pendientes de mayor prioridad."
-                            note={requestsPartialNote}
-                        >
-                            <HeatmapChart
-                                rows={heatmapRows}
-                                columns={heatmapColumns}
-                                cells={requestHeatmapCells}
-                                ariaLabel="Cruce entre estado de solicitud y nivel de alerta"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
                         </DashboardSection>

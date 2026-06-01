@@ -251,6 +251,24 @@ describe('frontend final dashboard copy and flows', () => {
         expect(source).toContain("chartPointsToItems(dashboardCharts?.by_status, 'status')");
         expect(source).toContain('solicitudes-revision__header-insight');
         expect(source).not.toContain('className="solicitudes-revision__insight"');
+        expect(source).not.toContain('dashboardRequests');
+        expect(source).not.toContain('dashboardInsights');
+        expect(source).not.toContain('Resumen calculado sobre las solicitudes cargadas');
+        expect(source).not.toContain('buildMonthlyCountItems(dashboardInsights');
+    });
+
+    it('historial y evaluaciones no fabrican dashboards desde items paginados', () => {
+        const history = historySource();
+        const evaluations = evaluacionesSource();
+        const transform = readFileSync('src/utils/questionnaires/dashboardTransform.ts', 'utf8');
+        expect(history).not.toContain('buildFallbackHistoryCharts');
+        expect(history).not.toContain('buildHistoryKpis(history.items');
+        expect(history).toContain('buildHistoryKpis(history.summary, history.total)');
+        expect(transform).not.toContain('items.filter');
+        expect(transform).not.toContain('record.max_probability ?? record.latest_probability ?? record.probability');
+        expect(evaluations).toContain('chartItemsFromUnknown(dashboard?.aggregates?.by_alert_level');
+        expect(evaluations).not.toContain('evaluationInsights');
+        expect(evaluations).not.toContain('Resumen calculado sobre las evaluaciones cargadas');
     });
 
     it('muestra rol actual en espanol sin enums internos visibles', () => {

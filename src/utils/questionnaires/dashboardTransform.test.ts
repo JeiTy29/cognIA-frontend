@@ -8,25 +8,48 @@ describe('dashboardTransform', () => {
             { name: 'Febrero', count: 0 },
             { key: '3', total: undefined }
         ]);
-        expect(data).toHaveLength(3);
+        expect(data).toHaveLength(2);
         expect(data[0].value).toBe(2);
         expect(data[1].value).toBe(0);
-        expect(data[2].label).toBe('3');
     });
 
-    it('calcula KPIs con fallback a items cuando summary no existe', () => {
-        const kpis = buildHistoryKpis(
-            [
-                { id: 'a', status: 'processed', latest_alert_level: 'low', needs_professional_review: false },
-                { id: 'b', status: 'draft', latest_alert_level: null, needs_professional_review: true, case_id: null }
-            ],
-            null,
-            2
-        );
+    it('no convierte probabilidades o dominios anidados en conteos de dashboard', () => {
+        const data = normalizeChartSeries([
+            { label: 'TDAH', probability: 0.9 },
+            { label: 'Caso A', domains: [{ domain: 'adhd', probability: 0.8 }] },
+            { label: 'Conducta', count: 3 }
+        ]);
+        expect(data).toHaveLength(1);
+        expect(data[0]).toMatchObject({ label: 'Conducta', value: 3 });
+    });
+
+    it('calcula KPIs solo desde summary/paginacion, no desde items paginados', () => {
+        const kpis = buildHistoryKpis(null, 2);
         expect(kpis.total).toBe(2);
-        expect(kpis.processed).toBe(1);
-        expect(kpis.needsReview).toBe(1);
-        expect(kpis.withoutCase).toBe(2);
+        expect(kpis.processed).toBe(0);
+        expect(kpis.needsReview).toBe(0);
+        expect(kpis.withAlert).toBe(0);
+        expect(kpis.withoutCase).toBe(0);
+    });
+
+    it('respeta los KPIs agregados enviados por backend', () => {
+        const kpis = buildHistoryKpis(
+            {
+                total_records: 12,
+                processed_sessions: 8,
+                sessions_with_alert: 5,
+                sessions_needs_review: 3,
+                sessions_without_case: 2
+            },
+            4
+        );
+        expect(kpis).toEqual({
+            total: 12,
+            processed: 8,
+            withAlert: 5,
+            needsReview: 3,
+            withoutCase: 2
+        });
     });
 
     it('genera chips de filtros activos', () => {

@@ -37,6 +37,8 @@ function pagination(total: number, page = 1, pageSize = 10) {
 
 export function isDevDashboardDemoEnabled() {
     if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+    if (import.meta.env.VITE_ENABLE_DEMO_DATA !== 'true') return false;
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) return false;
     const queryValue = new URLSearchParams(window.location.search).get('devAuth');
     return queryValue === 'on' || window.sessionStorage.getItem(DEV_AUTH_ACTIVE_KEY) === 'true';
 }

@@ -181,7 +181,7 @@ type GuardianVisualCharts = {
         caseItem: QuestionnaireCaseDTO;
         label: string;
         alertLabel: string;
-        alertTone: string;
+        alertTone: ReturnType<typeof getAlertLevelMeta>['tone'];
         domainLabel: string;
         sessions: number;
         lastActivity: string | null;
@@ -284,75 +284,50 @@ function resolvePriorityReason(alertTone: string, sessions: number) {
 
 function buildGuardianVisualCharts(
     dashboard: GuardianDashboardDTO | null,
-    cases: QuestionnaireCaseDTO[]
+    labelCases: QuestionnaireCaseDTO[]
 ): GuardianVisualCharts {
     const charts = readDashboardCharts(dashboard);
     const monthlyAlerts = normalizeChartPoints(charts.alerts_by_month, { labelType: 'month' });
     const alertsByDomain = normalizeChartPoints(charts.alerts_by_domain, { labelType: 'domain' });
     const alertsByLevel = normalizeChartPoints(charts.alerts_by_level ?? charts.cases_by_alert_level, { labelType: 'alert' });
-    const sessionsByCase = normalizeChartPoints(charts.sessions_by_case, { labelType: 'case', cases });
+    const sessionsByCase = normalizeChartPoints(charts.sessions_by_case, { labelType: 'case', cases: labelCases });
 
-    const fallbackByDomain = cases.reduce((accumulator, caseItem) => {
-        const domainLabel = normalizeDominantDomain(caseItem.latest_domain);
-        if (domainLabel === 'Sin dominio predominante') return accumulator;
-        accumulator.set(domainLabel, (accumulator.get(domainLabel) ?? 0) + 1);
-        return accumulator;
-    }, new Map<string, number>());
+    const prioritySource = Array.isArray((dashboard as { priority_cases?: GuardianDashboardCaseDTO[] } | null)?.priority_cases)
+        ? ((dashboard as { priority_cases?: GuardianDashboardCaseDTO[] }).priority_cases ?? [])
+        : dashboard?.cases ?? [];
 
-    const fallbackByLevel = cases.reduce((accumulator, caseItem) => {
-        const meta = getAlertLevelMeta(caseItem.latest_alert_level);
-        if (meta.tone === 'unknown') return accumulator;
-        const current = accumulator.get(meta.label) ?? { label: meta.label, value: 0, tone: meta.tone };
-        accumulator.set(meta.label, { ...current, value: current.value + 1 });
-        return accumulator;
-    }, new Map<string, { label: string; value: number; tone: string }>());
-
-    const fallbackByCase = cases
-        .map((caseItem) => ({
-            label: resolveCaseCompositeLabel(caseItem),
-            value: Number(caseItem.sessions_count ?? (caseItem as { processed_sessions_count?: number | null }).processed_sessions_count ?? 0) || 0
-        }))
-        .filter((item) => item.value > 0)
-        .sort((left, right) => right.value - left.value);
-
-    const fallbackByMonth = cases.reduce((accumulator, caseItem) => {
-        if (!caseItem.latest_processed_at) return accumulator;
-        const label = normalizeMonthLabel(caseItem.latest_processed_at);
-        accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
-        return accumulator;
-    }, new Map<string, number>());
-
-    const priorityCases = cases
-        .map((caseItem) => {
-            const alertMeta = getAlertLevelMeta(caseItem.latest_alert_level);
-            const sessions = Number(caseItem.sessions_count ?? (caseItem as { processed_sessions_count?: number | null }).processed_sessions_count ?? 0) || 0;
-            const lastActivity = caseItem.latest_processed_at ?? caseItem.updated_at ?? caseItem.created_at ?? null;
-            return {
+    const priorityCases = prioritySource
+        .flatMap((entry) => {
+            const caseItem = entry.case;
+            if (!caseItem) return [];
+            const topDomain = [...(entry.domain_breakdown ?? [])].sort(
+                (left, right) => (Number(right.max_probability ?? right.latest_probability ?? -1) || -1) - (Number(left.max_probability ?? left.latest_probability ?? -1) || -1)
+            )[0];
+            const latestSessionRecord = (entry.latest_session ?? null) as Record<string, unknown> | null;
+            const alertLevel = caseItem.latest_alert_level ?? topDomain?.latest_alert_level ?? (typeof latestSessionRecord?.highest_alert_level === 'string' ? latestSessionRecord.highest_alert_level : null);
+            const alertMeta = getAlertLevelMeta(alertLevel);
+            const sessions = Number(entry.sessions_count ?? caseItem.sessions_count ?? (caseItem as { processed_sessions_count?: number | null }).processed_sessions_count ?? 0) || 0;
+            const lastActivity = caseItem.latest_processed_at ?? entry.latest_session?.processed_at ?? caseItem.updated_at ?? caseItem.created_at ?? null;
+            return [{
                 caseItem,
                 label: resolveCaseCompositeLabel(caseItem),
                 alertLabel: alertMeta.label,
                 alertTone: alertMeta.tone,
-                domainLabel: normalizeDominantDomain(caseItem.latest_domain),
+                domainLabel: normalizeDominantDomain(caseItem.latest_domain ?? topDomain?.domain),
                 sessions,
                 lastActivity,
                 reason: resolvePriorityReason(alertMeta.tone, sessions),
-                score: alertPriorityScore(caseItem.latest_alert_level) * 100 + sessions
-            };
+                score: alertPriorityScore(alertLevel) * 100 + sessions
+            }];
         })
         .sort((left, right) => right.score - left.score || parseSortableDate(right.lastActivity) - parseSortableDate(left.lastActivity))
         .slice(0, 3);
 
     return {
-        monthlyAlerts: monthlyAlerts.length > 0
-            ? monthlyAlerts
-            : [...fallbackByMonth.entries()].map(([label, value]) => ({ label, value })),
-        alertsByDomain: alertsByDomain.length > 0
-            ? alertsByDomain
-            : [...fallbackByDomain.entries()].map(([label, value]) => ({ label, value })).sort((left, right) => right.value - left.value),
-        alertsByLevel: alertsByLevel.length > 0
-            ? alertsByLevel
-            : [...fallbackByLevel.values()].sort((left, right) => right.value - left.value),
-        sessionsByCase: limitCaseChartItems(sessionsByCase.length > 0 ? sessionsByCase : fallbackByCase, 5),
+        monthlyAlerts,
+        alertsByDomain,
+        alertsByLevel,
+        sessionsByCase: limitCaseChartItems(sessionsByCase, 5),
         priorityCases
     };
 }
@@ -397,6 +372,15 @@ function buildInitialReportDates(months: number) {
         dateFrom: start.toISOString().slice(0, 10),
         dateTo: end.toISOString().slice(0, 10)
     };
+}
+
+function readSummaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
+    if (!summary) return 0;
+    for (const key of keys) {
+        const value = Number(summary[key]);
+        if (Number.isFinite(value)) return value;
+    }
+    return 0;
 }
 
 export default function SeguimientoGuardian() {
@@ -551,10 +535,10 @@ export default function SeguimientoGuardian() {
     const summary = dashboard?.summary ?? null;
     const hasCases = cases.length > 0;
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
-    const guardianVisuals = useMemo(() => buildGuardianVisualCharts(dashboard, visibleCases), [dashboard, visibleCases]);
+    const guardianVisuals = useMemo(() => buildGuardianVisualCharts(dashboard, cases), [dashboard, cases]);
     const topPriorityCase = guardianVisuals.priorityCases[0] ?? null;
     const topDomain = guardianVisuals.alertsByDomain[0]?.label ?? 'Sin dominio predominante';
-    const casesWithAlert = visibleCases.filter((item) => getAlertLevelMeta(item.latest_alert_level).tone !== 'unknown').length;
+    const casesWithAlert = readSummaryNumber(summary, ['cases_with_alert', 'alert_cases', 'cases_alerted', 'cases_with_alerts']);
     const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
     const insightCopy = topPriorityCase
         ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio más frecuente es ${topDomain}.`
