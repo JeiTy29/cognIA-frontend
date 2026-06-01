@@ -15,7 +15,12 @@ import {
     getPsychologistShareRequestsV2,
     rejectPsychologistShareRequestV2
 } from '../../../services/questionnaires/questionnaires.api';
-import type { PsychologistShareRequestDTO, QuestionnaireDashboardChartPointDTO } from '../../../services/questionnaires/questionnaires.types';
+import type {
+    PsychologistShareRequestDTO,
+    QuestionnaireDashboardChartPointDTO,
+    QuestionnaireDashboardChartSourceDTO
+} from '../../../services/questionnaires/questionnaires.types';
+import { getChartItems } from '../../../utils/questionnaires/chartContract';
 import {
     formatDateTime,
     formatPercent,
@@ -68,11 +73,11 @@ type RequestDomainCandidate = {
 };
 
 type ShareRequestCharts = {
-    by_status?: QuestionnaireDashboardChartPointDTO[];
-    by_alert_level?: QuestionnaireDashboardChartPointDTO[];
-    by_domain?: QuestionnaireDashboardChartPointDTO[];
-    over_time?: QuestionnaireDashboardChartPointDTO[];
-    pending_age?: QuestionnaireDashboardChartPointDTO[];
+    by_status?: QuestionnaireDashboardChartSourceDTO;
+    by_alert_level?: QuestionnaireDashboardChartSourceDTO;
+    by_domain?: QuestionnaireDashboardChartSourceDTO;
+    over_time?: QuestionnaireDashboardChartSourceDTO;
+    pending_age?: QuestionnaireDashboardChartSourceDTO;
 } | null;
 
 function chartPointLabel(point: QuestionnaireDashboardChartPointDTO, labelType?: 'status' | 'alert' | 'domain' | 'time' | 'age') {
@@ -83,8 +88,8 @@ function chartPointLabel(point: QuestionnaireDashboardChartPointDTO, labelType?:
     return normalizeBackendText(raw, 'Sin clasificar');
 }
 
-function chartPointsToItems(points: QuestionnaireDashboardChartPointDTO[] | null | undefined, labelType?: 'status' | 'alert' | 'domain' | 'time' | 'age') {
-    return (points ?? [])
+function chartPointsToItems(points: QuestionnaireDashboardChartSourceDTO | null | undefined, labelType?: 'status' | 'alert' | 'domain' | 'time' | 'age') {
+    return getChartItems(points)
         .map((point) => ({
             label: chartPointLabel(point, labelType),
             value: Number(point.value ?? point.count ?? point.total ?? point.sessions ?? 0)

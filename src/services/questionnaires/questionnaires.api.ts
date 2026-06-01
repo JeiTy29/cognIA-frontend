@@ -23,7 +23,10 @@ import type {
     QuestionnaireCaseV2DTO,
     QuestionnaireCasesFiltersV2,
     QuestionnaireCasesListV2Response,
+    QuestionnaireDashboardChartDTO,
     QuestionnaireDashboardChartPointDTO,
+    QuestionnaireDashboardChartRecordDTO,
+    QuestionnaireDashboardChartSourceDTO,
     QuestionnaireGuardianDashboardFiltersV2,
     QuestionnaireGuardianDashboardV2Response,
     QuestionnaireHistoryDetailV2DTO,
@@ -68,7 +71,6 @@ import type {
 } from './questionnaires.types';
 import {
     getDemoGuardianDashboardV2,
-    getDemoPsychologistDashboard,
     getDemoPsychologistDashboardV2,
     getDemoQuestionnaireCaseDetail,
     getDemoQuestionnaireCasesResponse,
@@ -691,6 +693,34 @@ function normalizeChartPoints(value: unknown) {
         .filter((item): item is QuestionnaireDashboardChartPointDTO => Boolean(item));
 }
 
+function normalizeChartSource(value: unknown): QuestionnaireDashboardChartSourceDTO | null {
+    if (Array.isArray(value)) {
+        return normalizeChartPoints(value);
+    }
+
+    const record = asRecord(value);
+    if (!record || !Array.isArray(record.items)) return null;
+
+    return {
+        ...(record as QuestionnaireDashboardChartDTO),
+        items: normalizeChartPoints(record.items)
+    };
+}
+
+function normalizeChartRecord(value: unknown): QuestionnaireDashboardChartRecordDTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+
+    const entries = Object.entries(record)
+        .map(([key, item]) => {
+            const normalized = normalizeChartSource(item);
+            return normalized ? ([key, normalized] as const) : null;
+        })
+        .filter((item): item is readonly [string, QuestionnaireDashboardChartSourceDTO] => Boolean(item));
+
+    return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
 function normalizeCase(value: unknown): QuestionnaireCaseV2DTO | null {
     const record = asRecord(value);
     if (!record) return null;
@@ -760,13 +790,17 @@ function normalizeCaseDetailResponse(payload: unknown): QuestionnaireCaseDetailV
     const sessions = asArray(root.sessions)
         .map(normalizeHistoryItem)
         .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
+    const charts = normalizeChartRecord(root.charts);
+    const domainSummarySource = charts?.domain_summary ?? root.domain_summary;
+    const trendSource = charts?.trend ?? charts?.alerts_over_time ?? root.trend;
 
     return {
         ...root,
         case: normalizeCase(root.case),
         sessions,
-        domain_summary: normalizeChartPoints(root.domain_summary),
-        trend: normalizeChartPoints(root.trend),
+        domain_summary: normalizeChartPoints(Array.isArray(domainSummarySource) ? domainSummarySource : asRecord(domainSummarySource)?.items),
+        trend: normalizeChartPoints(Array.isArray(trendSource) ? trendSource : asRecord(trendSource)?.items),
+        charts,
         warnings: asArray(root.warnings).map(String)
     };
 }
@@ -784,21 +818,13 @@ function normalizeGuardianDashboardResponse(payload: unknown): QuestionnaireGuar
         };
     }
 
-    const charts = asRecord(root.charts);
+    const charts = normalizeChartRecord(root.charts);
     return {
         ...root,
         period: asRecord(root.period),
         filters: asRecord(root.filters),
         summary: asRecord(root.summary),
-        charts: charts
-            ? {
-                alerts_by_month: normalizeChartPoints(charts.alerts_by_month),
-                alerts_by_domain: normalizeChartPoints(charts.alerts_by_domain),
-                alerts_by_level: normalizeChartPoints(charts.alerts_by_level),
-                sessions_by_case: normalizeChartPoints(charts.sessions_by_case),
-                cases_by_alert_level: normalizeChartPoints(charts.cases_by_alert_level)
-            }
-            : null,
+        charts,
         cases: asArray(root.cases).map(normalizeCase).filter((item): item is QuestionnaireCaseV2DTO => Boolean(item)),
         warnings: asArray(root.warnings).map(String)
     };
@@ -818,8 +844,8 @@ function normalizePsychologistDashboardResponse(payload: unknown): Questionnaire
         };
     }
 
-    const aggregates = asRecord(root.aggregates);
-    const charts = asRecord(root.charts);
+    const aggregates = normalizeChartRecord(root.aggregates);
+    const charts = normalizeChartRecord(root.charts);
     const page = Number(root.page ?? asRecord(root.pagination)?.page ?? 1);
     const pageSize = Number(root.page_size ?? asRecord(root.pagination)?.page_size ?? defaultPageSize);
     const items = asArray(root.items)
@@ -830,24 +856,8 @@ function normalizePsychologistDashboardResponse(payload: unknown): Questionnaire
         ...root,
         filters: asRecord(root.filters),
         summary: asRecord(root.summary),
-        aggregates: aggregates
-            ? {
-                by_domain: normalizeChartPoints(aggregates.by_domain),
-                by_alert_level: normalizeChartPoints(aggregates.by_alert_level),
-                by_review_status: normalizeChartPoints(aggregates.by_review_status),
-                by_date: normalizeChartPoints(aggregates.by_date),
-                by_case: normalizeChartPoints(aggregates.by_case)
-            }
-            : null,
-        charts: charts
-            ? {
-                alerts_by_domain: normalizeChartPoints(charts.alerts_by_domain),
-                alerts_by_level: normalizeChartPoints(charts.alerts_by_level),
-                reviews_by_status: normalizeChartPoints(charts.reviews_by_status),
-                alerts_by_date: normalizeChartPoints(charts.alerts_by_date),
-                cases_by_alert: normalizeChartPoints(charts.cases_by_alert)
-            }
-            : null,
+        aggregates,
+        charts,
         items,
         pagination: normalizePagination(root.pagination, page, pageSize),
         warnings: asArray(root.warnings).map(String)
@@ -890,21 +900,13 @@ function normalizeShareRequestsResponse(payload: unknown, page: number, pageSize
     const items = asArray(itemsSource)
         .map(normalizeShareRequest)
         .filter((item): item is QuestionnairePsychologistShareRequestV2DTO => Boolean(item));
-    const chartsRoot = asRecord(root.charts);
+    const chartsRoot = normalizeChartRecord(root.charts);
     return {
         ...root,
         items,
         pagination: normalizePagination(root.pagination, page, pageSize),
         summary: asRecord(root.summary),
-        charts: chartsRoot
-            ? {
-                by_status: normalizeChartPoints(chartsRoot.by_status),
-                by_alert_level: normalizeChartPoints(chartsRoot.by_alert_level),
-                by_domain: normalizeChartPoints(chartsRoot.by_domain),
-                over_time: normalizeChartPoints(chartsRoot.over_time),
-                pending_age: normalizeChartPoints(chartsRoot.pending_age)
-            }
-            : null,
+        charts: chartsRoot,
         warnings: asArray(root.warnings).map(String)
     } as QuestionnairePsychologistShareRequestsV2Response;
 }
@@ -1009,7 +1011,7 @@ function normalizeHistoryResponse(payload: unknown, page: number, pageSize: numb
     const items = asArray(root.items)
         .map(normalizeHistoryItem)
         .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
-    const chartsRoot = asRecord(root.charts);
+    const chartsRoot = normalizeChartRecord(root.charts);
     return {
         ...root,
         items: items as QuestionnaireHistoryListV2Response['items'],
@@ -1017,11 +1019,6 @@ function normalizeHistoryResponse(payload: unknown, page: number, pageSize: numb
         filters: asRecord(root.filters),
         summary: asRecord(root.summary),
         charts: chartsRoot
-            ? Object.entries(chartsRoot).reduce<Record<string, QuestionnaireDashboardChartPointDTO[]>>((acc, [key, value]) => {
-                acc[key] = normalizeChartPoints(value);
-                return acc;
-            }, {})
-            : null
     };
 }
 
@@ -1618,13 +1615,7 @@ export function getQuestionnaireHistoryV2(params?: QuestionnaireHistoryFiltersV2
         : apiGet<unknown>(`/api/v2/questionnaires/history?${query}`, dashboardRequestOptions);
 
     return request
-        .then((payload) => {
-            const response = normalizeHistoryResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
-                return getDemoQuestionnaireHistoryResponse(page, pageSize);
-            }
-            return response;
-        })
+        .then((payload) => normalizeHistoryResponse(payload, page, pageSize))
         .catch((error) => {
             if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireHistoryResponse(page, pageSize);
             throw error;
@@ -1647,13 +1638,7 @@ export function getQuestionnaireCasesV2(params?: QuestionnaireCasesFiltersV2) {
         page_size: pageSize
     });
     return apiGet<unknown>(`/api/v2/questionnaires/cases?${query}`, requestOptions)
-        .then((payload) => {
-            const response = normalizeCasesResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && response.items.length === 0) {
-                return getDemoQuestionnaireCasesResponse(page, pageSize);
-            }
-            return response;
-        })
+        .then((payload) => normalizeCasesResponse(payload, page, pageSize))
         .catch((error) => {
             if (isDevDashboardDemoEnabled()) return getDemoQuestionnaireCasesResponse(page, pageSize);
             throw error;
@@ -1697,13 +1682,7 @@ export function getGuardianDashboardV2(params?: QuestionnaireGuardianDashboardFi
         ? `/api/v2/questionnaires/guardian/dashboard?${query}`
         : '/api/v2/questionnaires/guardian/dashboard';
     return apiGet<unknown>(path, dashboardRequestOptions)
-        .then((payload) => {
-            const response = normalizeGuardianDashboardResponse(payload);
-            if (isDevDashboardDemoEnabled() && !response.cases?.length) {
-                return getDemoGuardianDashboardV2();
-            }
-            return response;
-        })
+        .then(normalizeGuardianDashboardResponse)
         .catch((error) => {
             if (isDevDashboardDemoEnabled()) return getDemoGuardianDashboardV2();
             throw error;
@@ -1734,13 +1713,7 @@ export function getPsychologistDashboardV2(params?: QuestionnairePsychologistDas
         page_size: pageSize
     });
     return apiGet<unknown>(`/api/v2/questionnaires/psychologist/dashboard?${query}`, dashboardRequestOptions)
-        .then((payload) => {
-            const response = normalizePsychologistDashboardResponse(payload);
-            if (isDevDashboardDemoEnabled() && !response.items?.length) {
-                return getDemoPsychologistDashboardV2(page, pageSize);
-            }
-            return response;
-        })
+        .then(normalizePsychologistDashboardResponse)
         .catch((error) => {
             if (isDevDashboardDemoEnabled()) return getDemoPsychologistDashboardV2(page, pageSize);
             throw error;
@@ -1752,10 +1725,6 @@ export function getPsychologistQuestionnaireDashboardV2(
 ): Promise<PsychologistDashboardDTO> {
     return getPsychologistDashboardV2(params).then((response) => {
         const items = asArray(response?.items);
-        const firstItem = items[0] as Record<string, unknown> | undefined;
-        if (isDevDashboardDemoEnabled() && (!items.length || !Array.isArray(firstItem?.domains))) {
-            return getDemoPsychologistDashboard(params?.page ?? 1, params?.page_size ?? defaultPageSize);
-        }
         return {
             ...(response as Record<string, unknown>),
             items: items as PsychologistDashboardDTO['items'],
@@ -1783,13 +1752,7 @@ export function getPsychologistShareRequestsV2(params?: {
         date_to: params?.date_to
     });
     return apiGet<unknown>(`/api/v2/questionnaires/psychologist/share-requests?${query}`, requestOptions)
-        .then((payload) => {
-            const response = normalizeShareRequestsResponse(payload, page, pageSize);
-            if (isDevDashboardDemoEnabled() && !response.items?.length) {
-                return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
-            }
-            return response;
-        })
+        .then((payload) => normalizeShareRequestsResponse(payload, page, pageSize))
         .catch((error) => {
             if (isDevDashboardDemoEnabled()) return getDemoShareRequests(page, pageSize) as unknown as QuestionnairePsychologistShareRequestsV2Response;
             throw error;

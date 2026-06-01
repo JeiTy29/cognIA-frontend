@@ -158,9 +158,15 @@ describe('questionnaires.api secure endpoints', () => {
 
         const module = await import('./questionnaires.api');
         const response = await module.getPsychologistDashboardV2({ page: 1, page_size: 10 });
+        const domainItems = Array.isArray(response.charts?.alerts_by_domain)
+            ? response.charts?.alerts_by_domain
+            : response.charts?.alerts_by_domain?.items ?? [];
+        const alertLevelItems = Array.isArray(response.aggregates?.by_alert_level)
+            ? response.aggregates?.by_alert_level
+            : response.aggregates?.by_alert_level?.items ?? [];
 
-        expect(response.charts?.alerts_by_domain?.[0].count).toBe(4);
-        expect(response.aggregates?.by_alert_level?.[0].value).toBe(3);
+        expect(domainItems[0]?.count).toBe(4);
+        expect(alertLevelItems[0]?.value).toBe(3);
         expect(response.items?.[0].id).toBe('s1');
     });
 
@@ -328,12 +334,17 @@ describe('questionnaires.api secure endpoints', () => {
 
         const module = await import('./questionnaires.api');
         const response = await module.getPsychologistShareRequestsV2({ status: 'all', page: 1, page_size: 20 });
+        const byStatusItems = Array.isArray(response.charts?.by_status) ? response.charts?.by_status : response.charts?.by_status?.items ?? [];
+        const byAlertItems = Array.isArray(response.charts?.by_alert_level) ? response.charts?.by_alert_level : response.charts?.by_alert_level?.items ?? [];
+        const byDomainItems = Array.isArray(response.charts?.by_domain) ? response.charts?.by_domain : response.charts?.by_domain?.items ?? [];
+        const overTimeItems = Array.isArray(response.charts?.over_time) ? response.charts?.over_time : response.charts?.over_time?.items ?? [];
+        const pendingAgeItems = Array.isArray(response.charts?.pending_age) ? response.charts?.pending_age : response.charts?.pending_age?.items ?? [];
 
-        expect(response.charts?.by_status?.[0].count).toBe(1);
-        expect(response.charts?.by_alert_level?.[0].value).toBe(2);
-        expect(response.charts?.by_domain?.[0].value).toBe(3);
-        expect(response.charts?.over_time?.[0].value).toBe(4);
-        expect(response.charts?.pending_age?.[0].value).toBe(1);
+        expect(byStatusItems[0]?.count).toBe(1);
+        expect(byAlertItems[0]?.value).toBe(2);
+        expect(byDomainItems[0]?.value).toBe(3);
+        expect(overTimeItems[0]?.value).toBe(4);
+        expect(pendingAgeItems[0]?.value).toBe(1);
     });
 
     it('normaliza solicitudes de psicologo cuando backend usa requests en lugar de items', async () => {

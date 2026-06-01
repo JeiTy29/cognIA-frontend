@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getQuestionnaireHistoryV2 } from '../../services/questionnaires/questionnaires.api';
 import type {
-    QuestionnaireDashboardChartPointDTO,
+    QuestionnaireDashboardChartRecordDTO,
     QuestionnaireHistoryFiltersV2,
     QuestionnaireHistoryItemV2DTO
 } from '../../services/questionnaires/questionnaires.types';
@@ -11,6 +11,17 @@ interface UseQuestionnaireHistoryV2Options {
     enabled?: boolean;
     initialFilters?: QuestionnaireHistoryFiltersV2;
 }
+
+type HistoryCacheEntry = {
+    items: QuestionnaireHistoryItemV2DTO[];
+    total: number;
+    pages: number;
+    serverFilters: Record<string, unknown> | null;
+    summary: Record<string, unknown> | null;
+    charts: QuestionnaireDashboardChartRecordDTO | null;
+};
+
+const historyCache = new Map<string, HistoryCacheEntry>();
 
 function mapError(error: unknown) {
     if (!(error instanceof ApiError)) return 'No fue posible cargar el historial.';
@@ -39,17 +50,27 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
     const [pages, setPages] = useState(1);
     const [serverFilters, setServerFilters] = useState<Record<string, unknown> | null>(null);
     const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
-    const [charts, setCharts] = useState<Record<string, QuestionnaireDashboardChartPointDTO[]> | null>(null);
+    const [charts, setCharts] = useState<QuestionnaireDashboardChartRecordDTO | null>(null);
     const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState<string | null>(null);
 
     const page = filters.page ?? 1;
     const pageSize = filters.page_size ?? 10;
+    const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
 
     const loadHistory = useCallback(async () => {
         if (!enabled) {
             setLoading(false);
             return;
+        }
+        const cached = historyCache.get(filtersKey);
+        if (cached) {
+            setItems(cached.items);
+            setTotal(cached.total);
+            setPages(cached.pages);
+            setServerFilters(cached.serverFilters);
+            setSummary(cached.summary);
+            setCharts(cached.charts);
         }
         setLoading(true);
         setError(null);
@@ -61,12 +82,20 @@ export function useQuestionnaireHistoryV2(options?: UseQuestionnaireHistoryV2Opt
             setServerFilters(response.filters ?? null);
             setSummary(response.summary ?? null);
             setCharts(response.charts ?? null);
+            historyCache.set(filtersKey, {
+                items: response.items ?? [],
+                total: response.pagination.total ?? 0,
+                pages: response.pagination.pages ?? 1,
+                serverFilters: response.filters ?? null,
+                summary: response.summary ?? null,
+                charts: response.charts ?? null
+            });
         } catch (loadError) {
             setError(mapError(loadError));
         } finally {
             setLoading(false);
         }
-    }, [enabled, filters]);
+    }, [enabled, filters, filtersKey]);
 
     useEffect(() => {
         if (!enabled) {

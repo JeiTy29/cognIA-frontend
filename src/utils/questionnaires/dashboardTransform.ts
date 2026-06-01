@@ -1,8 +1,10 @@
 import type {
+    QuestionnaireDashboardChartSourceDTO,
     QuestionnaireDashboardChartPointDTO,
     QuestionnaireHistoryFiltersV2
 } from '../../services/questionnaires/questionnaires.types';
 import { getAlertLevelMeta, normalizeAlertLevel } from '../dashboard/alerts';
+import { getChartItems } from './chartContract';
 import { getDashboardDomainLabel } from './dashboardLabels';
 
 export interface DashboardChartDatum {
@@ -56,9 +58,10 @@ function resolveLabel(point: QuestionnaireDashboardChartPointDTO, index: number)
     return normalized;
 }
 
-export function normalizeChartSeries(points: QuestionnaireDashboardChartPointDTO[] | null | undefined): DashboardChartDatum[] {
-    if (!Array.isArray(points) || points.length === 0) return [];
-    return points.map((point, index) => {
+export function normalizeChartSeries(points: QuestionnaireDashboardChartSourceDTO | null | undefined): DashboardChartDatum[] {
+    const items = getChartItems(points);
+    if (items.length === 0) return [];
+    return items.map((point, index) => {
         const record = point as QuestionnaireDashboardChartPointDTO & Record<string, unknown>;
         const value = toChartNumber(point.value ?? point.count ?? point.total ?? point.sessions ?? record.sessions_with_alert);
         const alertCandidate = typeof point.alert_level === 'string' ? point.alert_level : null;

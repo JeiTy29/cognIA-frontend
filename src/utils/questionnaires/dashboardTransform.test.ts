@@ -23,6 +23,19 @@ describe('dashboardTransform', () => {
         expect(data[0]).toMatchObject({ label: 'Conducta', value: 3 });
     });
 
+    it('lee wrappers de charts sin perder items ni labels humanos', () => {
+        const data = normalizeChartSeries({
+            unit: 'alert_count',
+            items: [
+                { domain: 'adhd', count: 4 },
+                { alert_level: 'critical_review', value: 2 }
+            ]
+        });
+        expect(data).toHaveLength(2);
+        expect(data[0]).toMatchObject({ label: 'TDAH', value: 4 });
+        expect(data[1]?.label.toLowerCase()).toContain('prior');
+    });
+
     it('calcula KPIs solo desde summary/paginacion, no desde items paginados', () => {
         const kpis = buildHistoryKpis(null, 2);
         expect(kpis.total).toBe(2);
