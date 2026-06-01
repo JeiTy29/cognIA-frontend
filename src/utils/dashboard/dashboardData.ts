@@ -422,6 +422,13 @@ function formatProbabilityLabel(value: number | null) {
 function formatDashboardDateTime(value: string | null | undefined) {
     const parsed = value ? new Date(value) : null;
     if (!parsed || Number.isNaN(parsed.getTime())) return 'Sin actividad registrada';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) {
+        return new Intl.DateTimeFormat('es-CO', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }).format(parsed);
+    }
     return new Intl.DateTimeFormat('es-CO', {
         day: '2-digit',
         month: 'short',
@@ -543,7 +550,7 @@ export function buildGuardianCaseDomainTrend(options: {
         return sessionPoints;
     }
 
-    const trendSource = (options.caseEntry?.trend?.length ? options.caseEntry.trend : options.caseDetail?.trend) ?? [];
+    const trendSource = options.caseDetail?.trend ?? [];
     return trendSource
         .map((point) => {
             const timestamp = resolveTrendTimestamp(point, sessionById);
@@ -575,9 +582,7 @@ export function buildGuardianCaseDashboardViewModel(options: {
         .filter((session) => resolveSessionDomains(session).length > 0)
         .sort((left, right) => compareDateAsc(resolveSessionTimelineDate(left), resolveSessionTimelineDate(right)));
     const allSessionsDesc = [...allSessionsAsc].reverse();
-    const domainBreakdown = Array.isArray(options.caseEntry?.domain_breakdown) && options.caseEntry.domain_breakdown.length > 0
-        ? options.caseEntry.domain_breakdown
-        : options.caseDetail?.domain_summary ?? [];
+    const domainBreakdown = options.caseDetail?.domain_summary ?? [];
     const trendPoints = buildGuardianCaseDomainTrend({
         caseEntry: options.caseEntry,
         caseDetail: options.caseDetail,
@@ -779,6 +784,11 @@ export function formatGuardianTrendAxisLabel(value: string) {
     if (!raw) return 'Sin actividad';
     const parsed = new Date(raw);
     if (Number.isNaN(parsed.getTime())) return raw;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const day = new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(parsed);
+        const month = new Intl.DateTimeFormat('es-CO', { month: 'short' }).format(parsed).replace('.', '');
+        return `${day} ${month}`;
+    }
     const day = new Intl.DateTimeFormat('es-CO', { day: '2-digit' }).format(parsed);
     const month = new Intl.DateTimeFormat('es-CO', { month: 'short' }).format(parsed).replace('.', '');
     const hour = new Intl.DateTimeFormat('es-CO', {
@@ -790,6 +800,9 @@ export function formatGuardianTrendAxisLabel(value: string) {
 }
 
 export function formatGuardianTrendTooltipLabel(value: string) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return formatDashboardDateTime(value);
+    }
     return formatDateTime(value);
 }
 

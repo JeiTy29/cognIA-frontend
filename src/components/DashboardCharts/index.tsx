@@ -12,6 +12,7 @@ import {
     LineChart as ReLineChart,
     Pie,
     PieChart as RePieChart,
+    ReferenceLine,
     ResponsiveContainer,
     Tooltip,
     Treemap,
@@ -589,6 +590,7 @@ function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data:
                     <XAxis type="number" tick={{ fill: '#5a6e82', fontSize: 11 }} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="label" tick={{ fill: '#1f4d75', fontSize: 12 }} tickLine={false} axisLine={false} width={154} interval={0} />
                     <Tooltip content={<DashboardTooltip formatter={formatter} />} />
+                    <ReferenceLine x={0} stroke="#52677a" strokeWidth={1.5} strokeDasharray="4 4" ifOverflow="extendDomain" />
                     <Bar dataKey="value" name="Cambio" radius={[0, 10, 10, 0]} barSize={22} isAnimationActive={false}>
                         <LabelList dataKey="value" position="right" formatter={(value: unknown) => formatter ? formatter(toNumber(value)) : defaultFormatter(toNumber(value))} className="dashboard-chart-value-label" />
                         {chartData.map((entry, index) => <Cell key={`${entry.label}-${index}`} fill={entry.color} />)}
