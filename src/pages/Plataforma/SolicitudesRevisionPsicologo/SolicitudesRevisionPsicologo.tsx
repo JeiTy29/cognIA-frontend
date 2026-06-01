@@ -378,11 +378,11 @@ export default function SolicitudesRevisionPsicologo() {
                 {notice ? <div className="solicitudes-revision__notice success">{notice}</div> : null}
                 {error ? <div className="solicitudes-revision__notice error">{error}</div> : null}
 
-                {summary ? (
+                {dashboardSummary ?? summary ? (
                     <div className="solicitudes-revision__summary">
-                        <article><strong>Pendientes</strong><span>{summary.pending_count ?? 0}</span></article>
-                        <article><strong>Aceptadas</strong><span>{summary.accepted_count ?? 0}</span></article>
-                        <article><strong>Rechazadas</strong><span>{summary.rejected_count ?? 0}</span></article>
+                        <article><strong>Pendientes</strong><span>{(dashboardSummary ?? summary)?.pending_count ?? 0}</span></article>
+                        <article><strong>Aceptadas</strong><span>{(dashboardSummary ?? summary)?.accepted_count ?? 0}</span></article>
+                        <article><strong>Rechazadas</strong><span>{(dashboardSummary ?? summary)?.rejected_count ?? 0}</span></article>
                     </div>
                 ) : null}
 

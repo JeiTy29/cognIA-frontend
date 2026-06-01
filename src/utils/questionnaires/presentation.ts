@@ -87,7 +87,11 @@ const ALERT_LEVEL_LABELS: Record<string, string> = {
     elevated: 'Elevada',
     high: 'Alta',
     critical: 'Revisi\u00f3n prioritaria',
-    critical_review: 'Revisi\u00f3n prioritaria'
+    critical_review: 'Revisi\u00f3n prioritaria',
+    'critico para revision': 'Revisi\u00f3n prioritaria',
+    'cr\u00edtico para revision': 'Revisi\u00f3n prioritaria',
+    'critico para revisi\u00f3n': 'Revisi\u00f3n prioritaria',
+    'cr\u00edtico para revisi\u00f3n': 'Revisi\u00f3n prioritaria'
 };
 
 const SESSION_STATUS_LABELS: Record<string, string> = {
