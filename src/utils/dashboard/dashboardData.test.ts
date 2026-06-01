@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { QuestionnaireCaseDTO, QuestionnaireSessionV2DTO } from '../../services/questionnaires/questionnaires.types';
-import { buildGuardianCaseDashboardViewModel } from './dashboardData';
+import {
+    buildGuardianCaseDashboardViewModel,
+    formatGuardianTrendAxisLabel,
+    formatGuardianTrendTooltipLabel
+} from './dashboardData';
 
 describe('buildGuardianCaseDashboardViewModel', () => {
     it('ordena por fecha y hora ascendente y calcula delta con las dos últimas sesiones reales', () => {
@@ -49,5 +53,43 @@ describe('buildGuardianCaseDashboardViewModel', () => {
         expect(viewModel.domains[0]?.previousPct).toBe(99.1);
         expect(viewModel.domains[0]?.currentPct).toBe(0);
         expect(viewModel.domains[0]?.deltaPct).toBe(-99.1);
+    });
+
+    it('renderiza fechas YYYY-MM-DD sin inventar hora 00:00', () => {
+        expect(formatGuardianTrendAxisLabel('2026-05-30')).not.toContain('00:00');
+        expect(formatGuardianTrendTooltipLabel('2026-05-30')).not.toContain('00:00');
+    });
+
+    it('usa la tendencia del detalle del caso y no la tendencia global del dashboard', () => {
+        const caseItem: QuestionnaireCaseDTO = {
+            case_id: 'case-1',
+            display_label: 'Caso A',
+            status: 'active'
+        };
+
+        const viewModel = buildGuardianCaseDashboardViewModel({
+            caseItem,
+            caseEntry: {
+                case: caseItem,
+                trend: [{
+                    date: '2026-01-01',
+                    domains: [{ domain: 'adhd', probability: 0.99 }]
+                }]
+            },
+            caseDetail: {
+                case: caseItem,
+                sessions: [],
+                domain_summary: [],
+                trend: [{
+                    date: '2026-02-01',
+                    domains: [{ domain: 'adhd', probability: 0.12 }]
+                }]
+            },
+            domainLabels: ['TDAH']
+        });
+
+        expect(viewModel.trendPoints).toHaveLength(1);
+        expect(viewModel.trendPoints[0]?.label).toBe('2026-02-01');
+        expect(viewModel.trendPoints[0]?.values.TDAH).toBe(12);
     });
 });

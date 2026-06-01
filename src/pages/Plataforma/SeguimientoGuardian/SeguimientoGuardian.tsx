@@ -48,6 +48,7 @@ import {
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
 import { resolveCaseCompositeLabel } from '../../../utils/questionnaires/dashboardLabels';
+import { selectGuardianCaseDashboardCharts } from '../../../utils/questionnaires/guardianCaseCharts';
 import { downloadGuardianFollowUpReportPdf } from '../../../utils/reports/guardianFollowUpPdf';
 
 const periodOptions = [
@@ -156,27 +157,11 @@ function sortCaseSessions(sessions: QuestionnaireSessionV2DTO[]) {
     );
 }
 
-type GuardianChartPoint = {
-    label?: string | null;
-    name?: string | null;
-    key?: string | null;
-    case_id?: string | null;
-    case_public_id?: string | null;
-    domain?: string | null;
-    alert_level?: string | null;
-    date?: string | null;
-    month?: string | null;
-    value?: number | null;
-    count?: number | null;
-    total?: number | null;
-    sessions?: number | null;
-};
-
 type GuardianVisualCharts = {
-    monthlyAlerts: Array<{ label: string; value: number }>;
-    alertsByDomain: Array<{ label: string; value: number }>;
-    alertsByLevel: Array<{ label: string; value: number; tone?: string }>;
-    sessionsByCase: Array<{ label: string; value: number }>;
+    monthlyAlerts: ReturnType<typeof selectGuardianCaseDashboardCharts>['monthlyAlerts'];
+    domain: ReturnType<typeof selectGuardianCaseDashboardCharts>['domain'];
+    level: ReturnType<typeof selectGuardianCaseDashboardCharts>['level'];
+    caseActivity: ReturnType<typeof selectGuardianCaseDashboardCharts>['caseActivity'];
     priorityCases: Array<{
         caseItem: QuestionnaireCaseDTO;
         label: string;
@@ -191,78 +176,8 @@ type GuardianVisualCharts = {
 };
 
 function readDashboardCharts(dashboard: GuardianDashboardDTO | null) {
-    const charts = (dashboard as { charts?: Record<string, GuardianChartPoint[] | undefined> } | null)?.charts;
+    const charts = (dashboard as { charts?: Record<string, unknown> } | null)?.charts;
     return charts ?? {};
-}
-
-function chartPointValue(point: GuardianChartPoint) {
-    return Number(point.value ?? point.count ?? point.total ?? point.sessions ?? 0) || 0;
-}
-
-function isTechnicalId(value: string) {
-    return /^[a-f0-9]{16,}$/i.test(value.replace(/[-_]/g, ''));
-}
-
-function normalizeMonthLabel(value: string) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-        return new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' }).format(parsed).replace('.', '');
-    }
-    return value;
-}
-
-function resolveCaseFromPoint(point: GuardianChartPoint, cases: QuestionnaireCaseDTO[]) {
-    const candidates = [
-        point.case_id,
-        point.case_public_id,
-        point.key,
-        point.label,
-        point.name
-    ].map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean);
-
-    return cases.find((caseItem) =>
-        candidates.some((candidate) =>
-            candidate === caseItem.case_id ||
-            candidate === caseItem.case_public_id ||
-            candidate === resolveCaseCompositeLabel(caseItem)
-        )
-    ) ?? null;
-}
-
-function resolveCaseChartLabel(point: GuardianChartPoint, cases: QuestionnaireCaseDTO[]) {
-    const matchingCase = resolveCaseFromPoint(point, cases);
-    if (matchingCase) return resolveCaseCompositeLabel(matchingCase);
-
-    const label = String(point.label ?? point.name ?? point.case_public_id ?? point.key ?? '').trim();
-    if (label && !isTechnicalId(label)) return label;
-    return 'Caso sin etiqueta';
-}
-
-function normalizeChartPoints(
-    points: GuardianChartPoint[] | undefined,
-    options?: {
-        labelType?: 'domain' | 'alert' | 'month' | 'case';
-        cases?: QuestionnaireCaseDTO[];
-    }
-) {
-    return (points ?? [])
-        .map((point, index) => {
-            const rawLabel = String(point.label ?? point.name ?? point.domain ?? point.alert_level ?? point.date ?? point.month ?? point.key ?? '').trim();
-            const label =
-                options?.labelType === 'domain'
-                    ? normalizeDomainLabel(point.domain ?? rawLabel)
-                    : options?.labelType === 'alert'
-                        ? normalizeAlertLevel(point.alert_level ?? rawLabel)
-                        : options?.labelType === 'month'
-                            ? normalizeMonthLabel(String(point.month ?? point.date ?? (rawLabel || `Periodo ${index + 1}`)))
-                            : options?.labelType === 'case'
-                                ? resolveCaseChartLabel(point, options.cases ?? [])
-                                : rawLabel || `Dato ${index + 1}`;
-            const value = chartPointValue(point);
-            const tone = options?.labelType === 'alert' ? getAlertLevelMeta(point.alert_level ?? rawLabel).tone : undefined;
-            return { label, value, tone };
-        })
-        .filter((item) => item.value > 0);
 }
 
 function alertPriorityScore(value: string | null | undefined) {
@@ -286,11 +201,7 @@ function buildGuardianVisualCharts(
     dashboard: GuardianDashboardDTO | null,
     labelCases: QuestionnaireCaseDTO[]
 ): GuardianVisualCharts {
-    const charts = readDashboardCharts(dashboard);
-    const monthlyAlerts = normalizeChartPoints(charts.alerts_by_month, { labelType: 'month' });
-    const alertsByDomain = normalizeChartPoints(charts.alerts_by_domain, { labelType: 'domain' });
-    const alertsByLevel = normalizeChartPoints(charts.alerts_by_level ?? charts.cases_by_alert_level, { labelType: 'alert' });
-    const sessionsByCase = normalizeChartPoints(charts.sessions_by_case, { labelType: 'case', cases: labelCases });
+    const chartConfigs = selectGuardianCaseDashboardCharts(readDashboardCharts(dashboard), labelCases);
 
     const prioritySource = Array.isArray((dashboard as { priority_cases?: GuardianDashboardCaseDTO[] } | null)?.priority_cases)
         ? ((dashboard as { priority_cases?: GuardianDashboardCaseDTO[] }).priority_cases ?? [])
@@ -324,10 +235,16 @@ function buildGuardianVisualCharts(
         .slice(0, 3);
 
     return {
-        monthlyAlerts,
-        alertsByDomain,
-        alertsByLevel,
-        sessionsByCase: limitCaseChartItems(sessionsByCase, 5),
+        monthlyAlerts: {
+            ...chartConfigs.monthlyAlerts,
+            data: chartConfigs.monthlyAlerts.data.slice(-12)
+        },
+        domain: chartConfigs.domain,
+        level: chartConfigs.level,
+        caseActivity: {
+            ...chartConfigs.caseActivity,
+            data: limitCaseChartItems(chartConfigs.caseActivity.data, 5)
+        },
         priorityCases
     };
 }
@@ -537,9 +454,9 @@ export default function SeguimientoGuardian() {
     const createCaseLabelError = validateCaseLabel(createCaseLabel);
     const guardianVisuals = useMemo(() => buildGuardianVisualCharts(dashboard, cases), [dashboard, cases]);
     const topPriorityCase = guardianVisuals.priorityCases[0] ?? null;
-    const topDomain = guardianVisuals.alertsByDomain[0]?.label ?? 'Sin dominio predominante';
+    const topDomain = guardianVisuals.domain.data[0]?.label ?? 'Sin dominio predominante';
     const casesWithAlert = readSummaryNumber(summary, ['cases_with_alert', 'alert_cases', 'cases_alerted', 'cases_with_alerts']);
-    const alertsTotal = guardianVisuals.alertsByLevel.reduce((accumulator, item) => accumulator + item.value, 0);
+    const alertsTotal = readSummaryNumber(summary, ['total_alerts', 'alerts_count', 'visible_alerts', 'alerts_visible', 'alert_count']);
     const insightCopy = topPriorityCase
         ? `Durante el periodo seleccionado se registraron ${alertsTotal || casesWithAlert} alertas visibles en ${casesWithAlert} casos. El caso con mayor prioridad es "${topPriorityCase.label}" y el dominio más frecuente es ${topDomain}.`
         : 'Aún no hay suficientes alertas procesadas para priorizar casos. Cuando existan cuestionarios procesados, este panel mostrará evolución, dominios y casos que requieren atención.';
@@ -833,44 +750,46 @@ export default function SeguimientoGuardian() {
                         <div className="seguimiento-dashboard-grid" aria-label="Gráficas principales del seguimiento familiar">
                             <DashboardSection
                                 className="seguimiento-dashboard-main"
-                                title="Evolución de alertas"
-                                description="Tendencia del periodo seleccionado."
+                                title={guardianVisuals.monthlyAlerts.title}
+                                description={guardianVisuals.monthlyAlerts.description}
                             >
                                 <AreaChart
-                                    data={guardianVisuals.monthlyAlerts}
-                                    ariaLabel="Evolucion temporal de alertas"
-                                    emptyMessage="Aún no hay suficientes cuestionarios procesados para calcular tendencia temporal."
+                                    data={guardianVisuals.monthlyAlerts.data}
+                                    ariaLabel={guardianVisuals.monthlyAlerts.ariaLabel}
+                                    emptyMessage={guardianVisuals.monthlyAlerts.emptyMessage}
                                 />
                             </DashboardSection>
                             <DashboardSection
-                                title="Alertas por dominio"
-                                description="Conteo de señales orientativas acumuladas por dominio, considerando todos los niveles de alerta."
+                                title={guardianVisuals.domain.title}
+                                description={guardianVisuals.domain.description}
                             >
                                 <HorizontalBarChart
-                                    data={guardianVisuals.alertsByDomain}
-                                    ariaLabel="Alertas por dominio"
-                                    emptyMessage="Aún no hay dominios con alertas visibles para el periodo seleccionado."
+                                    data={guardianVisuals.domain.data}
+                                    ariaLabel={guardianVisuals.domain.ariaLabel}
+                                    emptyMessage={guardianVisuals.domain.emptyMessage}
+                                    formatter={guardianVisuals.domain.formatter === 'percent' ? formatChartPercent : undefined}
+                                    maxValue={guardianVisuals.domain.formatter === 'percent' ? 100 : undefined}
                                 />
                             </DashboardSection>
                             <DashboardSection
-                                title="Distribución por alerta"
-                                description="Severidad visible en el periodo."
+                                title={guardianVisuals.level.title}
+                                description={guardianVisuals.level.description}
                             >
                                 <DonutChart
-                                    data={guardianVisuals.alertsByLevel}
-                                    ariaLabel="Distribución por alerta"
-                                    emptyMessage="Aún no hay alertas clasificadas para construir la distribución."
+                                    data={guardianVisuals.level.data}
+                                    ariaLabel={guardianVisuals.level.ariaLabel}
+                                    emptyMessage={guardianVisuals.level.emptyMessage}
                                 />
                             </DashboardSection>
                             <DashboardSection
                                 className="seguimiento-dashboard-wide"
-                                title="Alertas por hijo o caso"
-                                description="Casos con más actividad o alertas visibles."
+                                title={guardianVisuals.caseActivity.title || 'Cuestionarios por caso'}
+                                description={guardianVisuals.caseActivity.description || 'Actividad disponible por caso según el agregado entregado por el backend.'}
                             >
                                 <HorizontalBarChart
-                                    data={guardianVisuals.sessionsByCase}
-                                    ariaLabel="Cuestionarios por caso"
-                                    emptyMessage="Aún no hay actividad suficiente por caso para comparar."
+                                    data={guardianVisuals.caseActivity.data}
+                                    ariaLabel={guardianVisuals.caseActivity.ariaLabel}
+                                    emptyMessage={guardianVisuals.caseActivity.emptyMessage}
                                 />
                             </DashboardSection>
                         </div>
