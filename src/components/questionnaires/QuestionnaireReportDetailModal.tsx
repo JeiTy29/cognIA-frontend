@@ -1259,18 +1259,26 @@ export function QuestionnaireReportDetailModal({
                                     <div className="historial-v2-review-list">
                                         {visibleProfessionalReviews.map((review) => (
                                             <article key={review.review_id} className="historial-v2-review-card">
-                                                <strong>{normalizeReviewStatus(review.review_status)}</strong>
-                                                <p>
-                                                    <span>Psicólogo:</span>{' '}
-                                                    {normalizeBackendText(
-                                                        review.psychologist_display_name ?? review.psychologist_name ?? review.psychologist_username,
-                                                        'Psicólogo asignado'
-                                                    )}
-                                                </p>
-                                                <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
-                                                <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
-                                                <p><span>Fecha:</span> {formatDateTimeEsCO(review.updated_at ?? review.created_at)}</p>
-                                                <small>Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</small>
+                                                {
+                                                    // some payload fields come nested or under different keys — use any to be safe
+                                                }
+                                                <strong>{(review as any).review_status_label ?? normalizeReviewStatus(review.review_status)}</strong>
+                                                        <p>
+                                                            <span>Psicólogo:</span>{' '}
+                                                            {normalizeBackendText(
+                                                                ((): string | null => {
+                                                                    const p = (review as any).psychologist;
+                                                                    if (p && (p.display_name || p.full_name)) return p.display_name ?? p.full_name;
+                                                                    return p?.username ?? p?.user_id ?? null;
+                                                                })(),
+                                                                'Psicólogo asignado'
+                                                            )}
+                                                        </p>
+                                                        <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
+                                                        <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                        {((review as any).disclaimer) ? <p><span>Disclaimer:</span> {normalizeBackendText((review as any).disclaimer, '')}</p> : null}
+                                                        <p><span>Fecha:</span> {formatDateTimeEsCO(review.updated_at ?? review.created_at)}</p>
+                                                        <small>Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</small>
                                             </article>
                                         ))}
                                     </div>
