@@ -1142,6 +1142,11 @@ export default function SeguimientoGuardian() {
                                                     title="Cambio frente al cuestionario anterior"
                                                     description="Muestra el aumento o disminución de cada dominio respecto al cuestionario anterior."
                                                 >
+                                                    {dashboardViewModel.deltaSummary ? (
+                                                        <div className="dashboard-section-summary">
+                                                            {dashboardViewModel.deltaSummary}
+                                                        </div>
+                                                    ) : null}
                                                     <DivergingDeltaChart
                                                         data={deltaBars}
                                                         ariaLabel={`Cambio por dominio frente al cuestionario anterior de ${dashboardViewModel.caseLabel}`}

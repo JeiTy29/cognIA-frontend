@@ -2,6 +2,7 @@ import type { QuestionnaireCaseDTO, QuestionnaireDashboardChartPointDTO } from '
 import { domainProbabilityToPercent } from '../dashboard/chartScales';
 import { resolveCaseCompositeLabel } from './dashboardLabels';
 import { normalizeAlertLevel, normalizeBackendText, normalizeDomainLabel } from './presentation';
+import { formatMonthLabel } from '../dashboard/chartFormatters';
 
 type ChartSource = {
     key: string;
@@ -129,7 +130,9 @@ function toChartItems(
                         ? normalizeAlertLevel(point.alert_level ?? rawLabel)
                         : options.labelType === 'case'
                             ? resolvePointCaseLabel(point, options.cases ?? [])
-                            : normalizeBackendText(point.month ?? point.date ?? rawLabel, `Periodo ${index + 1}`);
+                            : options.labelType === 'month'
+                                ? formatMonthLabel(point.month ?? point.date ?? rawLabel)
+                                : normalizeBackendText(point.month ?? point.date ?? rawLabel, `Periodo ${index + 1}`);
             const value = options.valueType === 'percent' ? readPercent(point) : readCount(point);
             if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
             return { label, value };

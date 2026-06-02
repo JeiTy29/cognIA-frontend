@@ -349,7 +349,7 @@ function resolveTrendTimestamp(
         const matchingTimestamp = resolveSessionTimelineDate(matchingSession);
         if (matchingTimestamp) return matchingTimestamp;
     }
-    return safeDisplayText(point?.date, '');
+    return safeDisplayText(point?.date ?? point?.month, '');
 }
 
 function mapDomainsToSeriesValues(
@@ -401,6 +401,7 @@ export type GuardianCaseDashboardViewModel = {
     latestSessionAt: string | null;
     sessionsCount: number;
     highestAlertLabel: string;
+    deltaSummary?: string | null;
 };
 
 function compareDateAsc(left: string | null | undefined, right: string | null | undefined) {
@@ -683,6 +684,39 @@ export function buildGuardianCaseDashboardViewModel(options: {
             domainBreakdown[0]?.latest_alert_level
         );
 
+    function resolveDeltaFromPreviousSummary(detail: QuestionnaireCaseDetailDTO | null | undefined) {
+        if (!detail) return null;
+        const payload = (detail as Record<string, unknown>)?.delta_from_previous;
+        if (!payload) return null;
+
+        if (typeof payload === 'string') {
+            const trimmed = payload.trim();
+            return trimmed || null;
+        }
+
+        if (Array.isArray(payload)) {
+            const items = payload
+                .map((item) => {
+                    if (typeof item === 'string') return item.trim();
+                    if (item && typeof item === 'object') {
+                        const record = item as Record<string, unknown>;
+                        return safeDisplayText(record.summary ?? record.label ?? record.text ?? record.message, '');
+                    }
+                    return '';
+                })
+                .filter(Boolean);
+            return items.length > 0 ? items.join(' · ') : null;
+        }
+
+        if (typeof payload === 'object') {
+            const record = payload as Record<string, unknown>;
+            const summaryMessage = safeDisplayText(record.summary ?? record.label ?? record.text ?? record.message, '');
+            if (summaryMessage) return summaryMessage;
+        }
+
+        return null;
+    }
+
     return {
         caseId: options.caseItem.case_id,
         caseLabel: normalizeBackendText(
@@ -704,7 +738,8 @@ export function buildGuardianCaseDashboardViewModel(options: {
             safeDisplayText(options.caseItem.latest_processed_at, '') ??
             safeDisplayText(options.caseEntry?.latest_session?.processed_at, ''),
         sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? allSessionsAsc.length,
-        highestAlertLabel
+        highestAlertLabel,
+        deltaSummary: resolveDeltaFromPreviousSummary(options.caseDetail)
     };
 }
 

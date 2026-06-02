@@ -47,15 +47,27 @@ export function formatShortDateTime(value: unknown) {
     }).format(parsed);
 }
 
+function parseMonthValue(raw: string) {
+    if (/^\d{4}-\d{2}$/.test(raw)) {
+        const [year, month] = raw.split('-').map(Number);
+        if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+            return new Date(year, month - 1, 1);
+        }
+        return null;
+    }
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function formatMonthLabel(value: unknown) {
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return 'Sin fecha';
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return normalizeBackendText(raw, 'Sin fecha');
+    const parsed = parseMonthValue(raw);
+    if (!parsed) return normalizeBackendText(raw, 'Sin fecha');
     return new Intl.DateTimeFormat('es-CO', {
         month: 'short',
-        year: '2-digit'
-    }).format(parsed);
+        year: 'numeric'
+    }).format(parsed).replace(/\./g, '');
 }
 
 export function truncateChartLabel(value: string, limit = 28) {
