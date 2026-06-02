@@ -856,7 +856,7 @@ export default function EvaluacionesCompartidas() {
                             </div>
 
                             <div className="evaluaciones-detail-section">
-                                <h3>Revisiones profesionales</h3>
+                                <h3>Revisión registrada</h3>
                                 {detailArtifactsLoading && reviews.length === 0 ? (
                                     <p>Cargando revisiones profesionales...</p>
                                 ) : reviews.length > 0 ? (

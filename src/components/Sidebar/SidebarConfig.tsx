@@ -119,6 +119,15 @@ export const sidebarItems: SidebarItem[] = [
         }
     },
     {
+        id: 'orientacion-profesional',
+        label: 'Orientación profesional',
+        icon: IconMetrics,
+        roles: ['padre'],
+        paths: {
+            padre: '/padre/orientacion-profesional'
+        }
+    },
+    {
         id: 'ayuda',
         label: 'Ayuda',
         icon: IconSupport,

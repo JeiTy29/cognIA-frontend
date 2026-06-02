@@ -22,6 +22,7 @@ const MfaPage = lazy(() => import('./pages/Autenticacion/MFA/MFA'));
 const RestablecerContrasena = lazy(() => import('./pages/Autenticacion/RestablecerContraseña/RestablecerContraseña'));
 const Cuestionario = lazy(() => import('./pages/Plataforma/Cuestionario/Cuestionario'));
 const HistorialPadre = lazy(() => import('./pages/Plataforma/HistorialPadre/HistorialPadre'));
+const OrientacionProfesional = lazy(() => import('./pages/Plataforma/OrientacionProfesional/OrientacionProfesional'));
 const MiCuenta = lazy(() => import('./pages/Plataforma/MiCuenta/MiCuenta'));
 const AyudaBase = lazy(() => import('./pages/Plataforma/Ayuda/AyudaBase'));
 const HistorialPsicologo = lazy(() => import('./pages/Plataforma/HistorialPsicologo/HistorialPsicologo'));
@@ -131,6 +132,7 @@ export default function App() {
                                 <Route path="casos" element={<SeguimientoGuardian />} />
                                 <Route path="seguimiento" element={<Navigate to="/padre/casos" replace />} />
                                 <Route path="historial" element={<HistorialPadre />} />
+                                <Route path="orientacion-profesional" element={<OrientacionProfesional />} />
                                 <Route path="cuenta" element={<MiCuenta />} />
                                 <Route path="ayuda" element={<AyudaBase role="padre" />} />
                             </Route>

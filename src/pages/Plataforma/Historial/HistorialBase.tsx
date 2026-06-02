@@ -27,6 +27,7 @@ import {
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
+import { normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
 import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
 import { getChartSource } from '../../../utils/questionnaires/chartContract';
 import {
@@ -105,6 +106,18 @@ function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
         case_id: item.case_id
     });
     return label === 'Caso sin etiqueta' ? getString(item.title, 'Cuestionario sin caso') : label;
+}
+function resolveHistoryItemReviewStatus(item: QuestionnaireHistoryItemV2DTO) {
+    const record = item as Record<string, unknown>;
+    const review = record.latest_review ?? record.review ?? record.professional_review;
+    if (typeof review === 'object' && review !== null) {
+        if ((review as Record<string, unknown>).visible_to_guardian === false) return null;
+        return normalizeReviewStatus((review as Record<string, unknown>).review_status ?? (review as Record<string, unknown>).status);
+    }
+    if (record.review_status) {
+        return normalizeReviewStatus(record.review_status);
+    }
+    return null;
 }
 function summaryNumber(summary: Record<string, unknown> | null | undefined, keys: string[]) {
     if (!summary) return 0;
@@ -407,6 +420,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                                     <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
                                                     <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
                                                     <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
+                                                    {(() => {
+                                                        const reviewStatus = resolveHistoryItemReviewStatus(item);
+                                                        return reviewStatus ? <div><strong>Revisión registrada:</strong> {reviewStatus}</div> : null;
+                                                    })()}
                                                     <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
                                                 </article>
                                             ))}

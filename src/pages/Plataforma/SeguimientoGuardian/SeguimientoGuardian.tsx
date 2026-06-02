@@ -41,10 +41,12 @@ import { getAlertLevelMeta } from '../../../utils/dashboard/alerts';
 import {
     formatDateTime,
     normalizeAlertLevel,
+    normalizeBackendText,
     normalizeBooleanLabel,
     normalizeCaseStatus,
     normalizeDomainLabel,
     normalizeQuestionnaireMode,
+    normalizeReviewStatus,
     normalizeSessionStatus
 } from '../../../utils/questionnaires/presentation';
 import { resolveCaseCompositeLabel } from '../../../utils/questionnaires/dashboardLabels';
@@ -267,6 +269,27 @@ function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
         alertLabel: normalizeAlertLevel(topDomain.alert_level),
         probabilityLabel: formatChartPercent(domainProbabilityToPercent(topDomain.probability))
     };
+}
+
+function resolveSessionReview(session: QuestionnaireSessionV2DTO) {
+    const record = session as Record<string, unknown>;
+    const reviewCandidate = record.latest_review ?? record.professional_review ?? record.review;
+    const arrayCandidate = record.professional_reviews ?? record.reviews ?? null;
+
+    const review = typeof reviewCandidate === 'object' && reviewCandidate !== null
+        ? reviewCandidate as Record<string, unknown>
+        : Array.isArray(arrayCandidate) && arrayCandidate.length > 0 && typeof arrayCandidate[0] === 'object'
+            ? arrayCandidate[0] as Record<string, unknown>
+            : null;
+
+    if (!review) {
+        if (record.review_status || record.initial_concept || record.recommendation) {
+            return record;
+        }
+        return null;
+    }
+    if (review.visible_to_guardian === false) return null;
+    return review;
 }
 
 function isSessionProcessed(session: QuestionnaireSessionV2DTO) {
@@ -1281,6 +1304,18 @@ export default function SeguimientoGuardian() {
                                                                                 ))}
                                                                             </div>
                                                                         ) : null}
+
+                                                                        {(() => {
+                                                                            const review = resolveSessionReview(session);
+                                                                            return review ? (
+                                                                                <div className="seguimiento-session-review">
+                                                                                    <strong>Revisión registrada</strong>
+                                                                                    <div><span>Estado:</span>{normalizeReviewStatus(review.review_status)}</div>
+                                                                                    <div><span>Concepto inicial:</span>{normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</div>
+                                                                                    <div><span>Recomendación profesional:</span>{normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</div>
+                                                                                </div>
+                                                                            ) : null;
+                                                                        })()}
 
                                                                         <div
                                                                             className="seguimiento-session-actions"
