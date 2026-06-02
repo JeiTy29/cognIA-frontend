@@ -1836,9 +1836,28 @@ export function getQuestionnaireProfessionalReviewsV2(sessionId: string): Promis
         `/api/v2/questionnaires/history/${sessionId}/professional-reviews`,
         requestOptions
     ).then((payload) =>
-        asArray(pickRecord(payload, ['items', 'reviews', 'data']) ?? payload)
-            .map(normalizeProfessionalReview)
-            .filter((item): item is QuestionnaireProfessionalReviewDTO => Boolean(item))
+        // Normalization rules:
+        // 1) If payload is an array -> use it.
+        // 2) If payload is an object and payload.items is an array -> use payload.items.
+        // 3) Otherwise return an empty array.
+        ((): QuestionnaireProfessionalReviewDTO[] => {
+            try {
+                if (Array.isArray(payload)) {
+                    return payload
+                        .map(normalizeProfessionalReview)
+                        .filter((item): item is QuestionnaireProfessionalReviewDTO => Boolean(item));
+                }
+                const root = asRecord(payload);
+                if (root && Array.isArray(root.items)) {
+                    return asArray(root.items)
+                        .map(normalizeProfessionalReview)
+                        .filter((item): item is QuestionnaireProfessionalReviewDTO => Boolean(item));
+                }
+                return [];
+            } catch {
+                return [];
+            }
+        })()
     );
 }
 

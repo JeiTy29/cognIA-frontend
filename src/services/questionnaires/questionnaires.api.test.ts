@@ -268,6 +268,41 @@ describe('questionnaires.api secure endpoints', () => {
         });
     });
 
+    it('normaliza professional reviews cuando el endpoint retorna un arreglo', async () => {
+        apiGet.mockResolvedValueOnce([
+            { review_id: 'r1', session_id: 's1', initial_concept: 'c1' },
+            { review_id: 'r2', session_id: 's1', initial_concept: 'c2' }
+        ]);
+
+        const module = await import('./questionnaires.api');
+        const reviews = await module.getQuestionnaireProfessionalReviewsV2('s1');
+
+        expect(Array.isArray(reviews)).toBe(true);
+        expect(reviews.length).toBe(2);
+        expect(reviews[0].review_id).toBe('r1');
+    });
+
+    it('normaliza professional reviews cuando el endpoint retorna objeto con items', async () => {
+        apiGet.mockResolvedValueOnce({ items: [{ review_id: 'r3', session_id: 's2' }] });
+
+        const module = await import('./questionnaires.api');
+        const reviews = await module.getQuestionnaireProfessionalReviewsV2('s2');
+
+        expect(Array.isArray(reviews)).toBe(true);
+        expect(reviews.length).toBe(1);
+        expect(reviews[0].review_id).toBe('r3');
+    });
+
+    it('retorna arreglo vacío cuando payload no es array ni tiene items array', async () => {
+        apiGet.mockResolvedValueOnce({ items: { not: 'an array' }, permissions: { can_view_professional_reviews: true } });
+
+        const module = await import('./questionnaires.api');
+        const reviews = await module.getQuestionnaireProfessionalReviewsV2('s3');
+
+        expect(Array.isArray(reviews)).toBe(true);
+        expect(reviews.length).toBe(0);
+    });
+
     it('normaliza responses cuando backend entrega sections como objeto agrupado', async () => {
         apiGet.mockResolvedValueOnce({
             session_id: 'sess-1',
