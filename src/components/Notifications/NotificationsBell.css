@@ -75,6 +75,28 @@
     flex-shrink: 0;
 }
 
+.notifications-modal__tabs {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.notifications-modal__tab {
+    border: 1px solid rgba(33, 95, 143, 0.18);
+    background: #ffffff;
+    color: #215f8f;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.notifications-modal__tab.is-active {
+    background: #eef7ff;
+    border-color: #51c2f4;
+    color: #0f5f9f;
+}
+
 .notifications-modal__header h2,
 .notifications-modal__header p,
 .notifications-modal__item p,
@@ -157,4 +179,16 @@
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+.notifications-modal__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.notifications-modal__pagination span {
+    color: #52677a;
 }

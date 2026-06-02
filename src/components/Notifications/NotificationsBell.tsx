@@ -13,14 +13,46 @@ import {
 import { emitNotificationsRefresh, onNotificationsRefresh } from '../../utils/notifications/events';
 import './NotificationsBell.css';
 
+function getNotificationReviewId(notification: NotificationDTO): string | null {
+    const maybeReviewId = (notification as { reviewId?: unknown }).reviewId ?? (notification as { review_id?: unknown }).review_id;
+    if (typeof maybeReviewId === 'string' && maybeReviewId.trim().length > 0) {
+        return maybeReviewId.trim();
+    }
+
+    const payload = (notification as { payload?: unknown }).payload;
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+        const reviewId = (payload as Record<string, unknown>).reviewId ?? (payload as Record<string, unknown>).review_id;
+        if (typeof reviewId === 'string' && reviewId.trim().length > 0) {
+            return reviewId.trim();
+        }
+    }
+
+    return null;
+}
+
+function getNotificationSessionId(notification: NotificationDTO): string | null {
+    const maybeSessionId = (notification as { sessionId?: unknown }).sessionId ?? (notification as { session_id?: unknown }).session_id;
+    if (typeof maybeSessionId === 'string' && maybeSessionId.trim().length > 0) {
+        return maybeSessionId.trim();
+    }
+    return null;
+}
+
 function getNotificationTarget(notification: NotificationDTO, primaryRole: string | null) {
     if (notification.type === 'questionnaire_share_requested' && primaryRole === 'psicologo') {
         return '/psicologo/solicitudes';
     }
-    if (notification.session_id && primaryRole === 'padre') {
+    if (notification.type === 'professional_review_created' && primaryRole === 'padre') {
+        return '/padre/orientacion-profesional';
+    }
+    if (notification.type === 'professional_review_updated' && primaryRole === 'padre') {
+        return '/padre/orientacion-profesional';
+    }
+    const sessionId = getNotificationSessionId(notification);
+    if (sessionId && primaryRole === 'padre') {
         return '/padre/historial';
     }
-    if (notification.session_id && primaryRole === 'psicologo') {
+    if (sessionId && primaryRole === 'psicologo') {
         return '/psicologo/evaluaciones';
     }
     if (notification.case_public_id && primaryRole === 'padre') {
@@ -67,21 +99,26 @@ export function NotificationsBell() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [workingId, setWorkingId] = useState<string | null>(null);
     const [modalContent, setModalContent] = useState<NotificationModalContent | null>(null);
+    const [activeTab, setActiveTab] = useState<'unread' | 'read'>('unread');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState({ page: 1, page_size: 20, total: 0, pages: 1 });
+    const pageSize = 20;
 
     const loadNotifications = useCallback(async () => {
         if (!isAuthenticated) return;
         setLoading(true);
         setError(null);
         try {
-            const response = await getNotifications({ unread_only: true, page: 1, page_size: 20 });
-            setItems(response.items.filter((item) => !item.read_at));
+            const response = await getNotifications({ unread_only: false, page: currentPage, page_size: pageSize });
+            setItems(response.items);
             setUnreadCount(Number(response.summary?.unread_count ?? 0));
+            setPagination(response.pagination);
         } catch {
             setError('No fue posible cargar las notificaciones.');
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated]);
+    }, [currentPage, isAuthenticated]);
 
     useEffect(() => {
         loadNotifications().catch(() => undefined);
@@ -101,18 +138,33 @@ export function NotificationsBell() {
         [loadNotifications]
     );
 
-    const sortedItems = useMemo(
-        () => [...items].sort((left, right) => Date.parse(right.created_at ?? '') - Date.parse(left.created_at ?? '')),
+    const unreadItems = useMemo(
+        () => items.filter((item) => !item.read_at),
         [items]
     );
+    const readItems = useMemo(
+        () => items.filter((item) => Boolean(item.read_at)),
+        [items]
+    );
+    const activeItems = activeTab === 'unread' ? unreadItems : readItems;
+    const sortedItems = useMemo(
+        () => [...activeItems].sort((left, right) => Date.parse(right.created_at ?? '') - Date.parse(left.created_at ?? '')),
+        [activeItems]
+    );
 
-    const handleMarkAsRead = async (notification: NotificationDTO, navigateAfter = false) => {
-        const target = getNotificationTarget(notification, primaryRole);
+    const handleMarkAsRead = async (notification: NotificationDTO, navigateAfter = false, targetOverride?: string) => {
+        const target = targetOverride ?? getNotificationTarget(notification, primaryRole);
         const notificationId = notification.notification_id;
         setWorkingId(notificationId);
         try {
-            await markNotificationAsRead(notificationId);
-            setItems((prev) => prev.filter((item) => item.notification_id !== notificationId));
+            const updatedNotification = await markNotificationAsRead(notificationId);
+            setItems((prev) =>
+                prev.map((item) =>
+                    item.notification_id === notificationId
+                        ? { ...item, read_at: updatedNotification?.read_at ?? new Date().toISOString() }
+                        : item
+                )
+            );
             setUnreadCount((prev) => Math.max(0, prev - 1));
             emitNotificationsRefresh();
             if (navigateAfter && target) {
@@ -154,6 +206,9 @@ export function NotificationsBell() {
             return;
         }
 
+        const reviewId = getNotificationReviewId(notification);
+
+        const notificationSessionId = getNotificationSessionId(notification);
         if (
             (
                 notification.type === 'questionnaire_share_accepted' ||
@@ -161,11 +216,26 @@ export function NotificationsBell() {
                 notification.type === 'professional_review_updated'
             ) &&
             primaryRole === 'padre' &&
-            notification.session_id
+            notificationSessionId
         ) {
+            if (notification.type === 'professional_review_created' || notification.type === 'professional_review_updated') {
+                const target = `/padre/orientacion-profesional?sessionId=${encodeURIComponent(notificationSessionId)}${
+                    reviewId ? `&reviewId=${encodeURIComponent(reviewId)}` : ''
+                }`;
+                if (notification.read_at) {
+                    setIsOpen(false);
+                    navigate(target);
+                    return;
+                }
+                await handleMarkAsRead(notification, false);
+                setIsOpen(false);
+                navigate(target);
+                return;
+            }
+
             await handleMarkAsRead(notification);
             navigate('/padre/historial', {
-                state: { openHistorySessionId: notification.session_id }
+                state: { openHistorySessionId: notificationSessionId }
             });
             setIsOpen(false);
             return;
@@ -183,7 +253,12 @@ export function NotificationsBell() {
         }
 
         if (target) {
-            await handleMarkAsRead(notification, true);
+            if (notification.read_at) {
+                setIsOpen(false);
+                navigate(target);
+                return;
+            }
+            await handleMarkAsRead(notification, true, target);
             return;
         }
 
@@ -228,15 +303,38 @@ export function NotificationsBell() {
                             </button>
                         </div>
                     </div>
+                    <div className="notifications-modal__tabs">
+                        <button
+                            type="button"
+                            className={`notifications-modal__tab ${activeTab === 'unread' ? 'is-active' : ''}`}
+                            onClick={() => setActiveTab('unread')}
+                        >
+                            No leídas ({unreadCount})
+                        </button>
+                        <button
+                            type="button"
+                            className={`notifications-modal__tab ${activeTab === 'read' ? 'is-active' : ''}`}
+                            onClick={() => setActiveTab('read')}
+                        >
+                            Leídas ({readItems.length})
+                        </button>
+                    </div>
                     {error ? <div className="notifications-modal__error">{error}</div> : null}
                     {loading ? <div className="notifications-modal__empty">Cargando notificaciones...</div> : null}
                     {!loading && sortedItems.length === 0 ? (
-                        <div className="notifications-modal__empty">No tienes notificaciones pendientes por ahora.</div>
+                        <div className="notifications-modal__empty">
+                            {activeTab === 'unread'
+                                ? 'No tienes notificaciones pendientes por ahora.'
+                                : 'Aún no hay notificaciones leídas.'}
+                        </div>
                     ) : null}
                     {!loading && sortedItems.length > 0 ? (
                         <div className="notifications-modal__list">
                             {sortedItems.map((notification) => (
-                                <article key={notification.notification_id} className="notifications-modal__item is-unread">
+                                <article
+                                    key={notification.notification_id}
+                                    className={`notifications-modal__item ${notification.read_at ? '' : 'is-unread'}`}
+                                >
                                     <strong>{buildNotificationTitle(notification)}</strong>
                                     <p>{buildNotificationMessage(notification)}</p>
                                     {notification.case_public_id ? (
@@ -244,15 +342,17 @@ export function NotificationsBell() {
                                     ) : null}
                                     <small>{formatDateTime(notification.created_at)}</small>
                                     <div className="notifications-modal__actions">
-                                        <button
-                                            type="button"
-                                            disabled={workingId === notification.notification_id}
-                                            onClick={() => {
-                                                handleMarkAsRead(notification).catch(() => undefined);
-                                            }}
-                                        >
-                                            {workingId === notification.notification_id ? 'Guardando...' : 'Marcar como leída'}
-                                        </button>
+                                        {!notification.read_at ? (
+                                            <button
+                                                type="button"
+                                                disabled={workingId === notification.notification_id}
+                                                onClick={() => {
+                                                    handleMarkAsRead(notification).catch(() => undefined);
+                                                }}
+                                            >
+                                                {workingId === notification.notification_id ? 'Guardando...' : 'Marcar como leída'}
+                                            </button>
+                                        ) : null}
                                         <button
                                             type="button"
                                             disabled={workingId === notification.notification_id}
@@ -265,6 +365,27 @@ export function NotificationsBell() {
                                     </div>
                                 </article>
                             ))}
+                        </div>
+                    ) : null}
+                    {pagination.pages > 1 && !loading ? (
+                        <div className="notifications-modal__pagination">
+                            <span>
+                                Página {pagination.page} de {pagination.pages}
+                            </span>
+                            <button
+                                type="button"
+                                disabled={loading || pagination.page <= 1}
+                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading || pagination.page >= pagination.pages}
+                                onClick={() => setCurrentPage((prev) => Math.min(pagination.pages, prev + 1))}
+                            >
+                                Siguiente
+                            </button>
                         </div>
                     ) : null}
                 </div>

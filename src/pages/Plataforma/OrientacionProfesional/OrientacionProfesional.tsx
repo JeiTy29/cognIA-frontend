@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import '../Plataforma.css';
 import './OrientacionProfesional.css';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
@@ -29,12 +30,38 @@ export default function OrientacionProfesional() {
     const [query, setQuery] = useState('');
     const [searchError, setSearchError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('');
-    const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
+    const [manualDetailSessionId, setManualDetailSessionId] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const querySessionId = searchParams.get('sessionId') ?? searchParams.get('session_id');
+    const queryReviewId = searchParams.get('reviewId') ?? searchParams.get('review_id');
+    const detailSessionId = manualDetailSessionId ?? querySessionId;
+    const highlightReviewId = queryReviewId;
 
     const reviewItems = useMemo<NormalizedProfessionalReview[]>(
         () => history.items.flatMap((item) => collectProfessionalReviewRecords(item)),
         [history.items]
     );
+    useEffect(() => {
+        const sessionId = searchParams.get('sessionId') ?? searchParams.get('session_id');
+        const reviewId = searchParams.get('reviewId') ?? searchParams.get('review_id');
+
+        if ((searchParams.has('session_id') && !searchParams.has('sessionId')) ||
+            (searchParams.has('review_id') && !searchParams.has('reviewId'))
+        ) {
+            const canonicalParams = new URLSearchParams(searchParams);
+            if (sessionId) {
+                canonicalParams.delete('session_id');
+                canonicalParams.set('sessionId', sessionId);
+            }
+            if (reviewId) {
+                canonicalParams.delete('review_id');
+                canonicalParams.set('reviewId', reviewId);
+            }
+            setSearchParams(canonicalParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
+
     const filteredReviews = useMemo(() => {
         const lowerQuery = query.trim().toLowerCase();
         return reviewItems.filter((review) => {
@@ -148,7 +175,12 @@ export default function OrientacionProfesional() {
                 {!history.loading && filteredReviews.length > 0 ? (
                     <div className="orientacion-profesional-review-list">
                         {filteredReviews.map((review) => (
-                            <article className="orientacion-profesional-review-card" key={review.reviewId}>
+                            <article
+                                className={`orientacion-profesional-review-card ${
+                                    highlightReviewId === review.reviewId ? 'is-highlighted' : ''
+                                }`}
+                                key={review.reviewId}
+                            >
                                 <div className="orientacion-profesional-review-head">
                                     <div>
                                         <strong>{review.caseLabel}</strong>
@@ -178,7 +210,7 @@ export default function OrientacionProfesional() {
                                     <button
                                         type="button"
                                         className="historial-dashboard-btn secondary"
-                                        onClick={() => setDetailSessionId(review.sessionId)}
+                                        onClick={() => setManualDetailSessionId(review.sessionId)}
                                         disabled={!review.sessionId}
                                     >
                                         {review.sessionId ? 'Ver evaluación' : 'Evaluación no disponible'}
@@ -194,7 +226,18 @@ export default function OrientacionProfesional() {
                 isOpen={detailSessionId !== null}
                 sessionId={detailSessionId}
                 role="padre"
-                onClose={() => setDetailSessionId(null)}
+                onClose={() => {
+                    setManualDetailSessionId(null);
+                    if (searchParams.has('sessionId') || searchParams.has('session_id') ||
+                        searchParams.has('reviewId') || searchParams.has('review_id')) {
+                        const nextParams = new URLSearchParams(searchParams);
+                        nextParams.delete('sessionId');
+                        nextParams.delete('session_id');
+                        nextParams.delete('reviewId');
+                        nextParams.delete('review_id');
+                        setSearchParams(nextParams, { replace: true });
+                    }
+                }}
             />
         </div>
     );

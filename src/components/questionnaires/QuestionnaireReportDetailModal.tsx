@@ -91,7 +91,9 @@ const hiddenResultFields = [
     'metadata',
     'download_url',
     'file_id',
-    'mime_type'
+    'mime_type',
+    'score_label',
+    'score_explanation'
 ];
 
 function buildAlertReportFallbackFileName() {
@@ -876,14 +878,55 @@ export function QuestionnaireReportDetailModal({
                             ) : null}
                         </div>
 
-                        <div className="historial-v2-section">
-                            <h3>Respuestas registradas</h3>
-                            <QuestionnaireResponseGroups
-                                responses={responsesPayload}
-                                fallbackRows={previewAnswerRows}
-                                maxItemsPerGroup={12}
-                            />
-                        </div>
+                        {role === 'padre' ? (
+                            <div className="historial-v2-section">
+                                <h3>Revisión profesional</h3>
+                                {visibleProfessionalReviews.length > 0 ? (
+                                    <div className="historial-v2-review-list">
+                                        {visibleProfessionalReviews.map((review) => {
+                                            const reviewRecord = review as Record<string, unknown>;
+                                            const psychologist = reviewRecord.psychologist as Record<string, unknown> | undefined;
+                                            const psychologistName = normalizeBackendText(
+                                                (() => {
+                                                    if (psychologist && (psychologist.display_name || psychologist.full_name)) {
+                                                        return psychologist.display_name ?? psychologist.full_name;
+                                                    }
+                                                    return psychologist?.username ?? psychologist?.user_id ?? null;
+                                                })(),
+                                                'Psicólogo asignado'
+                                            );
+                                            const psychologistVerified = psychologist?.colpsic_verified === true;
+                                            const reviewStatusLabel = reviewRecord.review_status_label as string | undefined;
+                                            const reviewDisclaimer = reviewRecord.disclaimer as string | undefined;
+
+                                            return (
+                                                <article key={review.review_id} className="historial-v2-review-card">
+                                                    <div className="historial-v2-review-card-header">
+                                                        <strong>{reviewStatusLabel ?? normalizeReviewStatus(review.review_status)}</strong>
+                                                        <small>
+                                                            {psychologistName}
+                                                            {psychologistVerified ? ' · COLPSIC verificado' : ''}
+                                                        </small>
+                                                    </div>
+                                                    <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
+                                                    <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
+                                                    {reviewDisclaimer ? (
+                                                        <p><span>Descargo de responsabilidad:</span> {normalizeBackendText(reviewDisclaimer, '')}</p>
+                                                    ) : null}
+                                                    <p><span>Fecha:</span> {formatDateTimeEsCO(review.updated_at ?? review.created_at)}</p>
+                                                    <small>Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</small>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="historial-v2-empty-panel">
+                                        <strong>Aún no hay revisión profesional visible.</strong>
+                                        <p>Envía este cuestionario a un psicólogo para solicitar comentarios orientativos.</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
 
                         <div className="historial-v2-section">
                             <h3>Resultados por dominio</h3>
@@ -964,7 +1007,7 @@ export function QuestionnaireReportDetailModal({
                         </div>
 
                         <div className="historial-v2-section">
-                            <h3>Recomendación profesional</h3>
+                            <h3>Recomendación orientativa automatizada</h3>
                             <p className="historial-v2-text-block">{reportViewModel.professionalRecommendation}</p>
                         </div>
 
@@ -975,16 +1018,27 @@ export function QuestionnaireReportDetailModal({
                         </div>
 
                         <div className="historial-v2-section">
-                            <h3>Resultados estructurados complementarios</h3>
-                            <p className="historial-v2-helper-text">
-                                Campos normalizados del backend mostrados con etiquetas humanas; los identificadores internos se ocultan.
-                            </p>
-                            <KeyValueRows
-                                data={toRecord(resultsPayload?.result ?? resultsPayload)}
-                                exclude={hiddenResultFields}
-                                emptyText="Sin resultados estructurados adicionales."
+                            <h3>Respuestas registradas</h3>
+                            <QuestionnaireResponseGroups
+                                responses={responsesPayload}
+                                fallbackRows={previewAnswerRows}
+                                maxItemsPerGroup={12}
                             />
                         </div>
+
+                        {role !== 'padre' ? (
+                            <div className="historial-v2-section">
+                                <h3>Resultados estructurados complementarios</h3>
+                                <p className="historial-v2-helper-text">
+                                    Campos normalizados del backend mostrados con etiquetas humanas; los identificadores internos se ocultan.
+                                </p>
+                                <KeyValueRows
+                                    data={toRecord(resultsPayload?.result ?? resultsPayload)}
+                                    exclude={hiddenResultFields}
+                                    emptyText="Sin resultados estructurados adicionales."
+                                />
+                            </div>
+                        ) : null}
 
                         {reportPreviewPayload ? (
                             <div className="historial-v2-section">
@@ -1249,45 +1303,6 @@ export function QuestionnaireReportDetailModal({
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        ) : null}
-
-                        {role === 'padre' ? (
-                            <div className="historial-v2-section">
-                                <h3>Revisión profesional</h3>
-                                {visibleProfessionalReviews.length > 0 ? (
-                                    <div className="historial-v2-review-list">
-                                        {visibleProfessionalReviews.map((review) => (
-                                            <article key={review.review_id} className="historial-v2-review-card">
-                                                {
-                                                    // some payload fields come nested or under different keys — use any to be safe
-                                                }
-                                                <strong>{(review as any).review_status_label ?? normalizeReviewStatus(review.review_status)}</strong>
-                                                        <p>
-                                                            <span>Psicólogo:</span>{' '}
-                                                            {normalizeBackendText(
-                                                                ((): string | null => {
-                                                                    const p = (review as any).psychologist;
-                                                                    if (p && (p.display_name || p.full_name)) return p.display_name ?? p.full_name;
-                                                                    return p?.username ?? p?.user_id ?? null;
-                                                                })(),
-                                                                'Psicólogo asignado'
-                                                            )}
-                                                        </p>
-                                                        <p><span>Concepto inicial:</span> {normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</p>
-                                                        <p><span>Recomendación profesional:</span> {normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</p>
-                                                        {((review as any).disclaimer) ? <p><span>Disclaimer:</span> {normalizeBackendText((review as any).disclaimer, '')}</p> : null}
-                                                        <p><span>Fecha:</span> {formatDateTimeEsCO(review.updated_at ?? review.created_at)}</p>
-                                                        <small>Esta revisión es una orientación profesional y no constituye diagnóstico definitivo.</small>
-                                            </article>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="historial-v2-empty-panel">
-                                        <strong>Aún no hay revisión profesional visible.</strong>
-                                        <p>Envía este cuestionario a un psicólogo para solicitar comentarios orientativos.</p>
-                                    </div>
-                                )}
                             </div>
                         ) : null}
 
