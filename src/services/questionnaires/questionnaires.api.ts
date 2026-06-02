@@ -671,6 +671,7 @@ function normalizeSessionPageResponse(payload: unknown, page: number, pageSize: 
 function normalizeChartPoint(value: unknown): QuestionnaireDashboardChartPointDTO | null {
     const record = asRecord(value);
     if (!record) return null;
+    const percentageValue = toNumberOrNull(record.percentage ?? record.value ?? record.count ?? record.total ?? record.sessions);
     return {
         ...record,
         key: firstNonEmptyString([record.key, record.id, record.case_id, record.case_public_id]),
@@ -680,7 +681,8 @@ function normalizeChartPoint(value: unknown): QuestionnaireDashboardChartPointDT
         month: firstNonEmptyString([record.month]),
         domain: firstNonEmptyString([record.domain]),
         alert_level: firstNonEmptyString([record.alert_level]),
-        value: toNumberOrNull(record.value ?? record.count ?? record.total ?? record.sessions),
+        value: toNumberOrNull(record.value ?? record.percentage ?? record.count ?? record.total ?? record.sessions),
+        percentage: percentageValue,
         count: toNumberOrNull(record.count ?? record.value ?? record.total),
         sessions: toNumberOrNull(record.sessions),
         total: toNumberOrNull(record.total ?? record.count ?? record.value)
@@ -775,6 +777,31 @@ function normalizeCasesResponse(payload: unknown, page: number, pageSize: number
     } as QuestionnaireCasesListV2Response;
 }
 
+function normalizeCaseTrendPoint(value: unknown): QuestionnaireDashboardChartPointDTO | null {
+    const record = asRecord(value);
+    if (!record) return null;
+
+    const normalizedPoint = normalizeChartPoint(record);
+    if (!normalizedPoint) return null;
+
+    if (Array.isArray(record.domains)) {
+        return {
+            ...normalizedPoint,
+            domains: record.domains
+                .map((domainItem) => asRecord(domainItem))
+                .filter((domainItem): domainItem is Record<string, unknown> => Boolean(domainItem))
+                .map((domainItem) => ({
+                    ...domainItem,
+                    domain: firstNonEmptyString([domainItem.domain]),
+                    probability: toNumberOrNull(domainItem.probability),
+                    alert_level: firstNonEmptyString([domainItem.alert_level])
+                }))
+        } as QuestionnaireDashboardChartPointDTO & { domains: Array<Record<string, unknown>> };
+    }
+
+    return normalizedPoint;
+}
+
 function normalizeCaseDetailResponse(payload: unknown): QuestionnaireCaseDetailV2Response {
     const root = pickRecord(payload, ['data', 'result']) ?? asRecord(payload);
     if (!root) {
@@ -792,14 +819,19 @@ function normalizeCaseDetailResponse(payload: unknown): QuestionnaireCaseDetailV
         .filter((item): item is QuestionnaireHistoryDetailV2DTO => Boolean(item));
     const charts = normalizeChartRecord(root.charts);
     const domainSummarySource = charts?.domain_summary ?? root.domain_summary;
-    const trendSource = charts?.trend ?? charts?.alerts_over_time ?? root.trend;
+    const trendSource = root.trend ?? charts?.trend ?? charts?.alerts_over_time;
+    const normalizedTrendSource = Array.isArray(trendSource) ? trendSource : asRecord(trendSource)?.items;
 
     return {
         ...root,
         case: normalizeCase(root.case),
         sessions,
         domain_summary: normalizeChartPoints(Array.isArray(domainSummarySource) ? domainSummarySource : asRecord(domainSummarySource)?.items),
-        trend: normalizeChartPoints(Array.isArray(trendSource) ? trendSource : asRecord(trendSource)?.items),
+        trend: Array.isArray(normalizedTrendSource)
+            ? normalizedTrendSource
+                .map(normalizeCaseTrendPoint)
+                .filter((item): item is QuestionnaireDashboardChartPointDTO => Boolean(item))
+            : [],
         charts,
         warnings: asArray(root.warnings).map(String)
     };

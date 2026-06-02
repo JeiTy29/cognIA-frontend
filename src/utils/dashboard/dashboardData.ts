@@ -27,6 +27,7 @@ import type {
     QuestionnaireCaseDetailDTO,
     QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireCaseTrendPointDTO,
+    QuestionnaireDashboardChartPointDTO,
     QuestionnaireEvaluationDomainDTO,
     QuestionnaireHistoryItemV2DTO,
     QuestionnaireReportPreviewDTO,
@@ -383,6 +384,12 @@ export type GuardianCaseDashboardDomainRow = {
     sessionsWithAlert: number;
 };
 
+export type GuardianCaseDeltaComparisonRow = {
+    label: string;
+    value: number;
+    session_id: string;
+};
+
 export type GuardianCaseDashboardViewModel = {
     caseId: string;
     caseLabel: string;
@@ -402,6 +409,7 @@ export type GuardianCaseDashboardViewModel = {
     sessionsCount: number;
     highestAlertLabel: string;
     deltaSummary?: string | null;
+    deltaComparison: GuardianCaseDeltaComparisonRow[];
 };
 
 function compareDateAsc(left: string | null | undefined, right: string | null | undefined) {
@@ -410,6 +418,48 @@ function compareDateAsc(left: string | null | undefined, right: string | null | 
     const safeLeft = Number.isFinite(leftValue) ? leftValue : 0;
     const safeRight = Number.isFinite(rightValue) ? rightValue : 0;
     return safeLeft - safeRight;
+}
+
+function resolveTrendComparisonValue(item: QuestionnaireDashboardChartPointDTO | null | undefined) {
+    if (!item) return null;
+    if (typeof item.value === 'number') return item.value;
+    if (typeof (item as Record<string, unknown>).percentage === 'number') return (item as Record<string, unknown>).percentage as number;
+    return null;
+}
+
+function buildGuardianCaseDeltaComparison(detail?: QuestionnaireCaseDetailDTO | null) {
+    const payload = (detail as Record<string, unknown>)?.delta_from_previous;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return [] as GuardianCaseDeltaComparisonRow[];
+    }
+
+    const payloadRecord = payload as Record<string, unknown>;
+    if (payloadRecord.available !== true) {
+        return [] as GuardianCaseDeltaComparisonRow[];
+    }
+
+    const trendSource = detail?.charts?.trend;
+    const points: Array<QuestionnaireDashboardChartPointDTO & { percentage?: number | null }> = Array.isArray(trendSource)
+        ? trendSource
+        : trendSource && Array.isArray(trendSource.items)
+            ? trendSource.items
+            : [];
+
+    const previous = points.find((item) => safeDisplayText(item.session_id, '') === safeDisplayText(payloadRecord.previous_session_id, ''));
+    const current = points.find((item) => safeDisplayText(item.session_id, '') === safeDisplayText(payloadRecord.current_session_id, ''));
+
+    return [
+        previous && resolveTrendComparisonValue(previous) !== null ? {
+            label: 'Cuestionario anterior',
+            value: resolveTrendComparisonValue(previous) as number,
+            session_id: safeDisplayText(previous.session_id, '')
+        } : null,
+        current && resolveTrendComparisonValue(current) !== null ? {
+            label: 'Cuestionario actual',
+            value: resolveTrendComparisonValue(current) as number,
+            session_id: safeDisplayText(current.session_id, '')
+        } : null
+    ].filter((item): item is GuardianCaseDeltaComparisonRow => Boolean(item));
 }
 
 function formatProbabilityLabel(value: number | null) {
@@ -687,34 +737,14 @@ export function buildGuardianCaseDashboardViewModel(options: {
     function resolveDeltaFromPreviousSummary(detail: QuestionnaireCaseDetailDTO | null | undefined) {
         if (!detail) return null;
         const payload = (detail as Record<string, unknown>)?.delta_from_previous;
-        if (!payload) return null;
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
 
-        if (typeof payload === 'string') {
-            const trimmed = payload.trim();
-            return trimmed || null;
-        }
+        const payloadRecord = payload as Record<string, unknown>;
+        if (payloadRecord.available !== true) return null;
 
-        if (Array.isArray(payload)) {
-            const items = payload
-                .map((item) => {
-                    if (typeof item === 'string') return item.trim();
-                    if (item && typeof item === 'object') {
-                        const record = item as Record<string, unknown>;
-                        return safeDisplayText(record.summary ?? record.label ?? record.text ?? record.message, '');
-                    }
-                    return '';
-                })
-                .filter(Boolean);
-            return items.length > 0 ? items.join(' · ') : null;
-        }
-
-        if (typeof payload === 'object') {
-            const record = payload as Record<string, unknown>;
-            const summaryMessage = safeDisplayText(record.summary ?? record.label ?? record.text ?? record.message, '');
-            if (summaryMessage) return summaryMessage;
-        }
-
-        return null;
+        const record = payload as Record<string, unknown>;
+        const summaryMessage = safeDisplayText(record.summary ?? record.label ?? record.text ?? record.message, '');
+        return summaryMessage || null;
     }
 
     return {
@@ -739,7 +769,8 @@ export function buildGuardianCaseDashboardViewModel(options: {
             safeDisplayText(options.caseEntry?.latest_session?.processed_at, ''),
         sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? allSessionsAsc.length,
         highestAlertLabel,
-        deltaSummary: resolveDeltaFromPreviousSummary(options.caseDetail)
+        deltaSummary: resolveDeltaFromPreviousSummary(options.caseDetail),
+        deltaComparison: buildGuardianCaseDeltaComparison(options.caseDetail)
     };
 }
 

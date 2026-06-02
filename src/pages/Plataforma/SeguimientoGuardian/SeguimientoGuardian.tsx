@@ -916,9 +916,7 @@ export default function SeguimientoGuardian() {
                                 const peakBars = dashboardViewModel.domains
                                     .filter((item) => typeof item.maxPct === 'number')
                                     .map((item) => ({ label: item.domainLabel, value: item.maxPct ?? 0 }));
-                                const deltaBars = dashboardViewModel.domains
-                                    .filter((item) => typeof item.deltaPct === 'number')
-                                    .map((item) => ({ label: item.domainLabel, value: item.deltaPct ?? 0 }));
+                                const deltaBars = dashboardViewModel.deltaComparison.map((item) => ({ label: item.label, value: item.value }));
                                 const sessionsCount = dashboardViewModel.sessionsCount;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
                                 const hasLoadedCaseDetail = loadedCaseDetailById[caseItem.case_id] === true;

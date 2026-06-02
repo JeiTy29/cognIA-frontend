@@ -774,6 +774,7 @@ export interface QuestionnaireCaseDetailDTO {
     sessions: QuestionnaireSessionV2DTO[];
     domain_summary: QuestionnaireCaseDomainSummaryDTO[];
     trend: QuestionnaireCaseTrendPointDTO[];
+    charts?: QuestionnaireDashboardChartRecordDTO | null;
     [key: string]: unknown;
 }
 
