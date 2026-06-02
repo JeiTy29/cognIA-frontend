@@ -35,7 +35,7 @@ const statusOptions = [
     { value: 'rejected', label: 'Rechazado' }
 ];
 
-const defaultFilters: QuestionnaireHistoryFiltersV2 = { page: 1, page_size: 50, q: '' };
+const defaultFilters: QuestionnaireHistoryFiltersV2 = { page: 1, page_size: 50 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -120,6 +120,7 @@ function getReviewListText(review: ReviewItem) {
 export default function OrientacionProfesional() {
     const history = useQuestionnaireHistoryV2({ initialFilters: defaultFilters });
     const [query, setQuery] = useState('');
+    const [searchError, setSearchError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('');
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
 
@@ -132,6 +133,24 @@ export default function OrientacionProfesional() {
             return getReviewListText(review).includes(lowerQuery);
         });
     }, [query, reviewItems, statusFilter]);
+
+    function handleSearchChange(text: string) {
+        setQuery(text);
+        setSearchError(null);
+        const trimmed = text.trim();
+        if (trimmed.length === 0) {
+            // Remove q from filters by setting undefined (serializers drop undefined)
+            history.patchFilters({ q: undefined, page: 1 });
+            return;
+        }
+
+        if (trimmed.length > 160) {
+            setSearchError('La búsqueda debe tener máximo 160 caracteres.');
+            return;
+        }
+
+        history.patchFilters({ q: trimmed, page: 1 });
+    }
 
     const visibleCount = reviewItems.length;
     const reviewedCount = reviewItems.filter((review) => review.reviewStatus.toLowerCase() !== 'pending').length;
@@ -181,9 +200,10 @@ export default function OrientacionProfesional() {
                     <input
                         type="text"
                         value={query}
-                        onChange={(event) => setQuery(event.target.value)}
+                        onChange={(event) => handleSearchChange(event.target.value)}
                         placeholder="Buscar caso, psicólogo, concepto o recomendación"
                     />
+                    {searchError ? <div className="orientacion-profesional-search-error">{searchError}</div> : null}
                 </label>
                 <label>
                     Estado
