@@ -227,6 +227,173 @@ export function normalizeBackendText(value: unknown, fallback = '--') {
     return safeDisplayText(value, fallback);
 }
 
+type ProfessionalReviewSource = Record<string, unknown>;
+
+export interface NormalizedProfessionalReview {
+    reviewId: string;
+    sessionId: string | null;
+    caseId: string | null;
+    caseLabel: string;
+    casePublicId: string | null;
+    rawReviewStatus: string;
+    reviewStatus: string;
+    psychologistName: string;
+    initialConcept: string;
+    recommendation: string;
+    observation: string;
+    updatedAt: string | null;
+    createdAt: string | null;
+    visibleToGuardian: boolean;
+}
+
+function resolveReviewRecord(value: unknown): ProfessionalReviewSource | null {
+    return isRecordLike(value) ? value : null;
+}
+
+function readNonEmptyString(value: unknown): string {
+    return readText(value);
+}
+
+function getReviewText(review: ProfessionalReviewSource, candidates: string[], fallback: string) {
+    for (const candidate of candidates) {
+        const value = review[candidate];
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return normalizeBackendText(value, fallback);
+        }
+    }
+    return normalizeBackendText(review[candidates[0]], fallback);
+}
+
+function collectReviewCandidates(record: ProfessionalReviewSource) {
+    const candidates: ProfessionalReviewSource[] = [];
+
+    const addCandidate = (value: unknown) => {
+        const review = resolveReviewRecord(value);
+        if (review) candidates.push(review);
+    };
+
+    addCandidate(record.latest_review);
+    addCandidate(record.professional_review);
+    addCandidate(record.review);
+
+    const arrayKeys = ['professional_reviews', 'reviews', 'session_reviews', 'latest_reviews', 'review_history', 'professional_review_history'];
+    for (const key of arrayKeys) {
+        const candidate = record[key];
+        if (Array.isArray(candidate)) {
+            for (const item of candidate) {
+                addCandidate(item);
+            }
+        }
+    }
+
+    const hasEmbeddedReview =
+        record.review_status !== undefined ||
+        record.initial_concept !== undefined ||
+        record.recommendation !== undefined ||
+        record.visible_to_guardian !== undefined;
+    if (candidates.length === 0 && hasEmbeddedReview) {
+        candidates.push(record);
+    }
+
+    return candidates;
+}
+
+export function collectRawProfessionalReviews(source: unknown) {
+    const record = resolveReviewRecord(source);
+    if (!record) return [];
+
+    const rawReviews = collectReviewCandidates(record);
+    const seen = new Map<string, ProfessionalReviewSource>();
+
+    for (const raw of rawReviews) {
+        const reviewId = readNonEmptyString(raw.review_id ?? raw.id ?? raw.uuid);
+        if (!reviewId) continue;
+        if (seen.has(reviewId)) continue;
+        seen.set(reviewId, raw);
+    }
+
+    return Array.from(seen.values());
+}
+
+export function collectProfessionalReviewRecords(source: unknown): NormalizedProfessionalReview[] {
+    const record = resolveReviewRecord(source);
+    if (!record) return [];
+
+    const rawReviews = collectRawProfessionalReviews(record);
+    const normalizedReviews: NormalizedProfessionalReview[] = [];
+    const seen = new Set<string>();
+
+    for (const review of rawReviews) {
+        const reviewId = readNonEmptyString(review.review_id ?? review.id ?? review.uuid);
+        if (!reviewId || seen.has(reviewId)) continue;
+        seen.add(reviewId);
+
+        const visibleToGuardian = review.visible_to_guardian !== false;
+        if (!visibleToGuardian) continue;
+
+        const sessionId = readNonEmptyString(
+            review.session_id ?? review.questionnaire_session_id ?? record.session_id ?? record.id ?? record.questionnaire_session_id
+        );
+        const caseId = readNonEmptyString(review.case_id ?? record.case_id);
+        const caseLabel =
+            readNonEmptyString(
+                review.case_display_label ??
+                review.case_label ??
+                review.title ??
+                record.case_display_label ??
+                record.case_label ??
+                record.title
+            ) || 'Caso sin etiqueta';
+        const casePublicId = readNonEmptyString(review.case_public_id ?? record.case_public_id);
+        const rawReviewStatus = readNonEmptyString(review.review_status ?? review.status ?? record.review_status ?? '');
+        const reviewStatus = normalizeReviewStatus(rawReviewStatus);
+        const psychologistName =
+            readNonEmptyString(
+                review.psychologist_display_name ??
+                review.psychologist_name ??
+                review.psychologist_username ??
+                review.psychologist_user
+            ) || 'Psicólogo asignado';
+        const initialConcept = getReviewText(review, ['initial_concept', 'concept', 'initial_concept_text', 'concepto_inicial', 'analysis', 'summary'], 'Sin concepto registrado');
+        const recommendation = getReviewText(review, ['recommendation', 'recommendation_text', 'advice', 'professional_recommendation', 'operational_recommendation', 'guidance', 'guidance_text'], 'Sin recomendación registrada');
+        const observation = getReviewText(review, ['observation', 'notes', 'comment', 'description', 'remark', 'remarks'], 'Sin observación registrada');
+        const updatedAt = readNonEmptyString(review.updated_at ?? review.updatedAt ?? '');
+        const createdAt = readNonEmptyString(review.created_at ?? review.createdAt ?? '');
+
+        normalizedReviews.push({
+            reviewId,
+            sessionId: sessionId || null,
+            caseId: caseId || null,
+            caseLabel,
+            casePublicId: casePublicId || null,
+            rawReviewStatus,
+            reviewStatus,
+            psychologistName,
+            initialConcept,
+            recommendation,
+            observation,
+            updatedAt: updatedAt || null,
+            createdAt: createdAt || null,
+            visibleToGuardian
+        });
+    }
+
+    return normalizedReviews;
+}
+
+export function findFirstVisibleProfessionalReview(source: unknown): NormalizedProfessionalReview | null {
+    return collectProfessionalReviewRecords(source)[0] ?? null;
+}
+
+export function findFirstVisibleRawProfessionalReview(source: unknown) {
+    const rawReviews = collectRawProfessionalReviews(source);
+    return rawReviews.length > 0 ? rawReviews[0] : null;
+}
+
+export function findAllVisibleRawProfessionalReviews(source: unknown) {
+    return collectRawProfessionalReviews(source);
+}
+
 export function normalizeDomainLabel(value: unknown) {
     const raw = readText(value).toLowerCase().replace(/[_-]+/g, '_');
     if (!raw || raw === 'general' || raw === 'none' || raw === 'sin_dominio') return 'Sin dominio predominante';

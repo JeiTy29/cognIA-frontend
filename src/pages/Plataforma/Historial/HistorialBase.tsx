@@ -27,7 +27,7 @@ import {
     getStatusLabel,
     mapApiErrorToUserMessage
 } from '../../../utils/presentation/naturalLanguage';
-import { normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
+import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
 import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
 import { getChartSource } from '../../../utils/questionnaires/chartContract';
 import {
@@ -108,12 +108,10 @@ function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
     return label === 'Caso sin etiqueta' ? getString(item.title, 'Cuestionario sin caso') : label;
 }
 function resolveHistoryItemReviewStatus(item: QuestionnaireHistoryItemV2DTO) {
+    const review = findFirstVisibleProfessionalReview(item);
+    if (review) return normalizeReviewStatus(review.rawReviewStatus);
+
     const record = item as Record<string, unknown>;
-    const review = record.latest_review ?? record.review ?? record.professional_review;
-    if (typeof review === 'object' && review !== null) {
-        if ((review as Record<string, unknown>).visible_to_guardian === false) return null;
-        return normalizeReviewStatus((review as Record<string, unknown>).review_status ?? (review as Record<string, unknown>).status);
-    }
     if (record.review_status) {
         return normalizeReviewStatus(record.review_status);
     }

@@ -40,6 +40,7 @@ import { domainProbabilityToPercent } from '../../../utils/dashboard/chartScales
 import { getAlertLevelMeta } from '../../../utils/dashboard/alerts';
 import {
     formatDateTime,
+    findFirstVisibleProfessionalReview,
     normalizeAlertLevel,
     normalizeBackendText,
     normalizeBooleanLabel,
@@ -271,25 +272,19 @@ function resolveSessionAlert(session: QuestionnaireSessionV2DTO) {
     };
 }
 
+function isNormalizedProfessionalReview(value: unknown): value is { reviewStatus: string; initialConcept: string; recommendation: string } {
+    return typeof value === 'object' && value !== null && 'reviewStatus' in value;
+}
+
 function resolveSessionReview(session: QuestionnaireSessionV2DTO) {
+    const review = findFirstVisibleProfessionalReview(session);
+    if (review) return review;
+
     const record = session as Record<string, unknown>;
-    const reviewCandidate = record.latest_review ?? record.professional_review ?? record.review;
-    const arrayCandidate = record.professional_reviews ?? record.reviews ?? null;
-
-    const review = typeof reviewCandidate === 'object' && reviewCandidate !== null
-        ? reviewCandidate as Record<string, unknown>
-        : Array.isArray(arrayCandidate) && arrayCandidate.length > 0 && typeof arrayCandidate[0] === 'object'
-            ? arrayCandidate[0] as Record<string, unknown>
-            : null;
-
-    if (!review) {
-        if (record.review_status || record.initial_concept || record.recommendation) {
-            return record;
-        }
-        return null;
+    if (record.review_status || record.initial_concept || record.recommendation) {
+        return record as Record<string, unknown>;
     }
-    if (review.visible_to_guardian === false) return null;
-    return review;
+    return null;
 }
 
 function isSessionProcessed(session: QuestionnaireSessionV2DTO) {
@@ -1307,14 +1302,25 @@ export default function SeguimientoGuardian() {
 
                                                                         {(() => {
                                                                             const review = resolveSessionReview(session);
-                                                                            return review ? (
+                                                                            if (!review) return null;
+                                                                            if (isNormalizedProfessionalReview(review)) {
+                                                                                return (
+                                                                                    <div className="seguimiento-session-review">
+                                                                                        <strong>Revisión registrada</strong>
+                                                                                        <div><span>Estado:</span>{review.reviewStatus}</div>
+                                                                                        <div><span>Concepto inicial:</span>{review.initialConcept}</div>
+                                                                                        <div><span>Recomendación profesional:</span>{review.recommendation}</div>
+                                                                                    </div>
+                                                                                );
+                                                                            }
+                                                                            return (
                                                                                 <div className="seguimiento-session-review">
                                                                                     <strong>Revisión registrada</strong>
                                                                                     <div><span>Estado:</span>{normalizeReviewStatus(review.review_status)}</div>
                                                                                     <div><span>Concepto inicial:</span>{normalizeBackendText(review.initial_concept, 'Sin concepto registrado')}</div>
                                                                                     <div><span>Recomendación profesional:</span>{normalizeBackendText(review.recommendation, 'Sin recomendación registrada')}</div>
                                                                                 </div>
-                                                                            ) : null;
+                                                                            );
                                                                         })()}
 
                                                                         <div

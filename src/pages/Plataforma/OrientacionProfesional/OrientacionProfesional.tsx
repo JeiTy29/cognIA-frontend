@@ -5,26 +5,9 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { DashboardEmptyState } from '../../../components/DashboardCharts';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
-import type { QuestionnaireHistoryFiltersV2, QuestionnaireHistoryItemV2DTO } from '../../../services/questionnaires/questionnaires.types';
+import type { QuestionnaireHistoryFiltersV2 } from '../../../services/questionnaires/questionnaires.types';
 import { formatDateTimeEsCO } from '../../../utils/presentation/naturalLanguage';
-import { normalizeBackendText, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
-
-type ReviewItem = {
-    id: string;
-    sessionId: string | null;
-    caseId: string | null;
-    caseLabel: string;
-    casePublicId: string | null;
-    rawReviewStatus: string;
-    reviewStatus: string;
-    psychologistName: string;
-    initialConcept: string;
-    recommendation: string;
-    observation: string;
-    updatedAt: string | null;
-    createdAt: string | null;
-    visibleToGuardian: boolean;
-};
+import { collectProfessionalReviewRecords, type NormalizedProfessionalReview } from '../../../utils/questionnaires/presentation';
 
 const statusOptions = [
     { value: '', label: 'Todos' },
@@ -37,83 +20,7 @@ const statusOptions = [
 
 const defaultFilters: QuestionnaireHistoryFiltersV2 = { page: 1, page_size: 50 };
 
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown): string {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
-}
-
-function buildReviewFromRecord(review: Record<string, unknown>, item: QuestionnaireHistoryItemV2DTO): ReviewItem | null {
-    if (review.visible_to_guardian === false) return null;
-
-    const sessionId = readString(review.session_id ?? review.questionnaire_session_id ?? item.session_id ?? item.id ?? item.questionnaire_session_id);
-    const id = readString(review.review_id ?? review.id ?? `${item.id ?? 'review'}-${sessionId ?? 'unknown'}`);
-    const rawReviewStatus = readString(review.review_status ?? review.status ?? item.review_status ?? '');
-    const reviewStatus = normalizeReviewStatus(rawReviewStatus);
-    const psychologistName = readString(
-        review.psychologist_display_name ?? review.psychologist_name ?? review.psychologist_username ?? review.psychologist_user
-    );
-
-    return {
-        id: id || `review-${item.id}`,
-        sessionId: sessionId || null,
-        caseId: readString(item.case_id ?? item.case_id),
-        caseLabel: readString(item.case_display_label ?? item.case_label ?? item.title ?? 'Caso sin etiqueta'),
-        casePublicId: readString(item.case_public_id ?? null),
-        rawReviewStatus,
-        reviewStatus,
-        psychologistName: psychologistName || 'Psicólogo asignado',
-        initialConcept: normalizeBackendText(review.initial_concept ?? review.concept ?? review.initial_concept_text, 'Sin concepto registrado'),
-        recommendation: normalizeBackendText(review.recommendation ?? review.recommendation_text ?? review.advice, 'Sin recomendación registrada'),
-        observation: normalizeBackendText(review.observation ?? review.notes ?? review.comment ?? review.description, 'Sin observación registrada'),
-        updatedAt: readString(review.updated_at ?? review.updatedAt ?? ''),
-        createdAt: readString(review.created_at ?? review.createdAt ?? ''),
-        visibleToGuardian: review.visible_to_guardian !== false
-    };
-}
-
-function collectReviewRecords(item: QuestionnaireHistoryItemV2DTO): ReviewItem[] {
-    const reviews: ReviewItem[] = [];
-    const record = item as Record<string, unknown>;
-
-    const candidates = [record.latest_review, record.professional_review, record.review] as Array<unknown>;
-    for (const candidate of candidates) {
-        if (isObject(candidate)) {
-            const review = buildReviewFromRecord(candidate, item);
-            if (review) reviews.push(review);
-        }
-    }
-
-    const arrays = [record.professional_reviews, record.reviews, record.session_reviews] as Array<unknown>;
-    for (const candidate of arrays) {
-        if (Array.isArray(candidate)) {
-            for (const element of candidate) {
-                if (isObject(element)) {
-                    const review = buildReviewFromRecord(element, item);
-                    if (review) reviews.push(review);
-                }
-            }
-        }
-    }
-
-    const hasEmbeddedReview = Boolean(
-        record.review_status ||
-        record.initial_concept ||
-        record.recommendation ||
-        record.visible_to_guardian !== undefined
-    );
-
-    if (reviews.length === 0 && hasEmbeddedReview) {
-        const review = buildReviewFromRecord(record, item);
-        if (review) reviews.push(review);
-    }
-
-    return reviews;
-}
-
-function getReviewListText(review: ReviewItem) {
+function getReviewListText(review: NormalizedProfessionalReview) {
     return `${review.caseLabel} ${review.reviewStatus} ${review.psychologistName} ${review.initialConcept} ${review.recommendation}`.toLowerCase();
 }
 
@@ -124,7 +31,10 @@ export default function OrientacionProfesional() {
     const [statusFilter, setStatusFilter] = useState('');
     const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
 
-    const reviewItems = useMemo(() => history.items.flatMap(collectReviewRecords), [history.items]);
+    const reviewItems = useMemo<NormalizedProfessionalReview[]>(
+        () => history.items.flatMap((item) => collectProfessionalReviewRecords(item)),
+        [history.items]
+    );
     const filteredReviews = useMemo(() => {
         const lowerQuery = query.trim().toLowerCase();
         return reviewItems.filter((review) => {
@@ -238,7 +148,7 @@ export default function OrientacionProfesional() {
                 {!history.loading && filteredReviews.length > 0 ? (
                     <div className="orientacion-profesional-review-list">
                         {filteredReviews.map((review) => (
-                            <article className="orientacion-profesional-review-card" key={review.id}>
+                            <article className="orientacion-profesional-review-card" key={review.reviewId}>
                                 <div className="orientacion-profesional-review-head">
                                     <div>
                                         <strong>{review.caseLabel}</strong>
