@@ -87,6 +87,11 @@
     gap: 1rem;
 }
 
+.orientacion-profesional-review-card.is-highlighted {
+    border-color: rgba(81, 194, 244, 0.6);
+    box-shadow: 0 0 0 3px rgba(81, 194, 244, 0.16);
+}
+
 .orientacion-profesional-review-head {
     display: flex;
     justify-content: space-between;
