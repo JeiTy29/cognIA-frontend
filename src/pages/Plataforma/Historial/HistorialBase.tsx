@@ -78,11 +78,13 @@ const DOMAIN_LABELS: Record<string, string> = {
     elimination: 'Eliminación'
 };
 
-function buildDominantDomainByEvaluation(items: QuestionnaireHistoryItemV2DTO[]) {
+function buildDominantDomainByEvaluation(items: unknown[]) {
     const counts = new Map<string, number>();
 
     for (const item of items) {
-        const domain = typeof item.dominant_domain === 'string' ? item.dominant_domain : null;
+        if (!item || typeof item !== 'object') continue;
+        const record = item as Record<string, unknown>;
+        const domain = typeof record.dominant_domain === 'string' ? record.dominant_domain : null;
         if (!domain) continue;
         counts.set(domain, (counts.get(domain) ?? 0) + 1);
     }
@@ -333,6 +335,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return [];
     }
 
+    function extractPsychologistDashboardItems(dashboard: QuestionnairePsychologistDashboardV2Response | null): unknown[] {
+        const rec = dashboard as unknown as Record<string, unknown> | null;
+        const items = rec?.items;
+        return Array.isArray(items) ? items : [];
+    }
+
     // --- Selected case mappers (generic, backend-first, preserve zeros) ---
     function buildSelectedCaseDomainSummary(detail: unknown) {
         const rec = detail as Record<string, unknown> | undefined;
@@ -423,11 +431,22 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const psychologistAlertsByDomainSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain']), [psychologistDashboard]);
     const psychologistByLevelSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level']), [psychologistDashboard]);
     const psychologistByStatusSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status']), [psychologistDashboard]);
-    const psychologistByDateSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_date']), [psychologistDashboard]);
+    const psychologistByDateSource = useMemo(() => {
+        const fromCharts = getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']);
+        if (fromCharts) return fromCharts;
+        const dashboardRec = psychologistDashboard as unknown as Record<string, unknown> | null;
+        const timeSeries = dashboardRec?.time_series as Record<string, unknown> | undefined;
+        if (timeSeries) {
+            const fromTimeSeries = getChartSource(timeSeries, ['alerts_by_period', 'processed_by_period', 'questionnaires_by_period']);
+            if (fromTimeSeries) return fromTimeSeries;
+        }
+        return getChartSource(psychologistDashboard?.aggregates, ['by_date']) ?? null;
+    }, [psychologistDashboard]);
 
+    const psychologistDashboardItems = useMemo(() => extractPsychologistDashboardItems(psychologistDashboard), [psychologistDashboard]);
     const psychologistDominantDomainData = useMemo(() => {
-        return role === 'psicologo' ? buildDominantDomainByEvaluation(history.items) : [];
-    }, [history.items, role]);
+        return role === 'psicologo' ? buildDominantDomainByEvaluation(psychologistDashboardItems) : [];
+    }, [psychologistDashboardItems, role]);
 
     const psychologistByDateChart = useMemo(() => {
         if (!psychologistByDateSource) return [];
