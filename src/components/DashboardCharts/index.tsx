@@ -246,6 +246,26 @@ function toChartItems(input?: Array<Record<string, unknown>>): NormalizedChartIt
         .filter((item) => Number.isFinite(item.value) && item.value !== 0);
 }
 
+function toChartItemsIncludeZeros(input?: Array<Record<string, unknown>>): NormalizedChartItem[] {
+    return (input ?? [])
+        .map((item, index) => {
+            const label = humanizeLabel(
+                firstPresent(item.label, item.name, item.key, item.domain, item.alert_level, item.date, item.month),
+                'Sin etiqueta'
+            );
+            return {
+                id: String(firstPresent(item.id, item.key, item.name, item.label, `chart-${index}`)),
+                label,
+                value: toNumber(firstPresent(item.value, item.total, item.count, item.sessions, item.size)),
+                tone: typeof item.tone === 'string' ? item.tone : typeof item.alert_level === 'string' ? item.alert_level : undefined,
+                color: typeof item.color === 'string' ? item.color : undefined,
+                meta: typeof item.meta === 'string' ? item.meta : undefined,
+                raw: item
+            };
+        })
+        .filter((item) => Number.isFinite(item.value));
+}
+
 function isSeriesPoint(value: Record<string, unknown>) {
     return value.values && typeof value.values === 'object' && !Array.isArray(value.values);
 }
@@ -576,7 +596,7 @@ function Timeline({ items, loading, emptyText }: Readonly<{ items?: Array<Record
 }
 
 function DivergingBars({ data, loading, emptyText, formatter }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string }>) {
-    const chartData = data.filter((item) => item.value !== 0).slice(0, 10).map((item) => ({
+    const chartData = data.slice(0, 10).map((item) => ({
         label: item.label,
         value: item.value,
         color: item.value >= 0 ? '#bf6d1e' : '#2f8f6b'
@@ -716,7 +736,8 @@ export function MatrixAvailabilityChart(props: Readonly<CompatChartProps>) {
 }
 
 export function DivergingDeltaChart(props: Readonly<CompatChartProps>) {
-    return <CompatChart {...props} type="delta" />;
+    const normalizedData = useMemo(() => toChartItemsIncludeZeros(props.data ?? props.items), [props.data, props.items]);
+    return <DivergingBars data={normalizedData} emptyText={props.emptyMessage ?? 'No hay suficientes cuestionarios para comparar cambios.'} formatter={props.formatter} />;
 }
 
 export function DashboardChartCard({

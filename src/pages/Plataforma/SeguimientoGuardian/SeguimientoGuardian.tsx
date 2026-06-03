@@ -916,7 +916,12 @@ export default function SeguimientoGuardian() {
                                 const peakBars = dashboardViewModel.domains
                                     .filter((item) => typeof item.maxPct === 'number')
                                     .map((item) => ({ label: item.domainLabel, value: item.maxPct ?? 0 }));
-                                const deltaBars = dashboardViewModel.deltaComparison.map((item) => ({ label: item.label, value: item.value }));
+                                const deltaBars = (dashboardViewModel.deltaByDomain ?? []).map((item) => ({
+                                    label: item.domainLabel,
+                                    value: item.delta,
+                                    meta: `Anterior: ${formatChartPercent(item.previous)} · Actual: ${formatChartPercent(item.current)}`,
+                                    raw: item
+                                }));
                                 const sessionsCount = dashboardViewModel.sessionsCount;
                                 const isArchived = (caseItem.status ?? '').trim().toLowerCase() === 'archived';
                                 const hasLoadedCaseDetail = loadedCaseDetailById[caseItem.case_id] === true;
@@ -1158,16 +1163,21 @@ export default function SeguimientoGuardian() {
                                                     title="Cambio frente al cuestionario anterior"
                                                     description="Muestra el aumento o disminución de cada dominio respecto al cuestionario anterior."
                                                 >
-                                                    {dashboardViewModel.deltaSummary ? (
+                                                    {dashboardViewModel.deltaSummaryEnhanced ? (
                                                         <div className="dashboard-section-summary">
-                                                            {dashboardViewModel.deltaSummary}
+                                                            {dashboardViewModel.deltaSummaryEnhanced}
+                                                        </div>
+                                                    ) : null}
+                                                    {dashboardViewModel.deltaSummary ? (
+                                                        <div className="dashboard-section-summary" style={{ marginTop: 8 }}>
+                                                            <small>{dashboardViewModel.deltaSummary}</small>
                                                         </div>
                                                     ) : null}
                                                     <DivergingDeltaChart
                                                         data={deltaBars}
                                                         ariaLabel={`Cambio por dominio frente al cuestionario anterior de ${dashboardViewModel.caseLabel}`}
                                                         emptyMessage="No hay suficientes cuestionarios para comparar cambios."
-                                                        formatter={formatChartPercent}
+                                                        formatter={(v) => typeof v === 'number' ? `${v.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pp` : '--'}
                                                         helper="Valores positivos indican aumento frente al cuestionario anterior; valores negativos indican disminución."
                                                     />
                                                 </DashboardSection>

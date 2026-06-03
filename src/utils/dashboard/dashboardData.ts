@@ -27,6 +27,7 @@ import type {
     QuestionnaireCaseDetailDTO,
     QuestionnaireCaseDomainSummaryDTO,
     QuestionnaireCaseTrendPointDTO,
+    QuestionnaireCaseTrendDomainDTO,
     QuestionnaireDashboardChartPointDTO,
     QuestionnaireEvaluationDomainDTO,
     QuestionnaireHistoryItemV2DTO,
@@ -390,6 +391,15 @@ export type GuardianCaseDeltaComparisonRow = {
     session_id: string;
 };
 
+export type GuardianCaseDeltaByDomainRow = {
+    domainCode: string;
+    domainLabel: string;
+    previous: number;
+    current: number;
+    delta: number;
+    direction: 'increase' | 'decrease' | 'stable';
+};
+
 export type GuardianCaseDashboardViewModel = {
     caseId: string;
     caseLabel: string;
@@ -410,6 +420,8 @@ export type GuardianCaseDashboardViewModel = {
     highestAlertLabel: string;
     deltaSummary?: string | null;
     deltaComparison: GuardianCaseDeltaComparisonRow[];
+    deltaByDomain: GuardianCaseDeltaByDomainRow[];
+    deltaSummaryEnhanced?: string | null;
 };
 
 function compareDateAsc(left: string | null | undefined, right: string | null | undefined) {
@@ -460,6 +472,93 @@ function buildGuardianCaseDeltaComparison(detail?: QuestionnaireCaseDetailDTO | 
             session_id: safeDisplayText(current.session_id, '')
         } : null
     ].filter((item): item is GuardianCaseDeltaComparisonRow => Boolean(item));
+}
+
+const DOMAIN_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    anxiety: 'Ansiedad',
+    conduct: 'Conducta',
+    depression: 'Depresión',
+    elimination: 'Eliminación'
+};
+
+function toPercentageValue(value: unknown) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return 0;
+    const numeric = Number(value);
+    const scaled = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric;
+    return Number(scaled.toFixed(1));
+}
+
+function toDirection(delta: number) {
+    if (delta > 0) return 'increase' as const;
+    if (delta < 0) return 'decrease' as const;
+    return 'stable' as const;
+}
+
+function buildGuardianCaseDeltaByDomain(detail?: QuestionnaireCaseDetailDTO | null) {
+    const deltaMeta = (detail as Record<string, unknown>)?.delta_from_previous as Record<string, unknown> | undefined;
+    if (!deltaMeta || deltaMeta.available !== true) return [] as GuardianCaseDeltaByDomainRow[];
+
+    const trend = Array.isArray(detail?.trend) ? detail!.trend : [];
+    const previousSession = trend.find((p) => safeDisplayText(p.session_id, '') === safeDisplayText(deltaMeta.previous_session_id, '')) as QuestionnaireCaseTrendPointDTO | undefined;
+    const currentSession = trend.find((p) => safeDisplayText(p.session_id, '') === safeDisplayText(deltaMeta.current_session_id, '')) as QuestionnaireCaseTrendPointDTO | undefined;
+    if (!previousSession || !currentSession) return [] as GuardianCaseDeltaByDomainRow[];
+
+    const previousMap = new Map<string, number>();
+    for (const d of (previousSession.domains ?? [])) {
+        const domainItem = d as QuestionnaireCaseTrendDomainDTO;
+        const code = String(domainItem.domain ?? '');
+        previousMap.set(code, toPercentageValue(domainItem.probability));
+    }
+
+    const currentMap = new Map<string, number>();
+    for (const d of (currentSession.domains ?? [])) {
+        const domainItem = d as QuestionnaireCaseTrendDomainDTO;
+        const code = String(domainItem.domain ?? '');
+        currentMap.set(code, toPercentageValue(domainItem.probability));
+    }
+
+    const domainCodes = ['adhd', 'anxiety', 'conduct', 'depression', 'elimination'];
+    return domainCodes.map((code) => {
+        const previous = previousMap.has(code) ? previousMap.get(code)! : 0;
+        const current = currentMap.has(code) ? currentMap.get(code)! : 0;
+        const delta = Number((current - previous).toFixed(1));
+        return {
+            domainCode: code,
+            domainLabel: DOMAIN_LABELS[code] ?? code,
+            previous,
+            current,
+            delta,
+            direction: toDirection(delta)
+        } as GuardianCaseDeltaByDomainRow;
+    });
+}
+
+function buildGuardianCaseDeltaSummaryEnhanced(rows?: GuardianCaseDeltaByDomainRow[]) {
+    const items = rows ?? [];
+    if (items.length === 0) return null;
+
+    const absSorted = [...items].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    const biggest = absSorted[0];
+    const currentSorted = [...items].sort((a, b) => b.current - a.current);
+    const topCurrent = currentSorted[0];
+    const prevSorted = [...items].sort((a, b) => b.previous - a.previous);
+    const topPrevious = prevSorted[0];
+
+    const parts: string[] = [];
+    if (biggest) {
+        const verb = biggest.delta < 0 ? 'disminuyó' : biggest.delta > 0 ? 'aumentó' : 'se mantuvo estable en';
+        const deltaAbs = Math.abs(biggest.delta).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        parts.push(`El mayor cambio se observó en ${biggest.domainLabel}, que ${verb} ${deltaAbs} puntos porcentuales, pasando de ${biggest.previous.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% a ${biggest.current.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%.`);
+    }
+    if (topCurrent) {
+        parts.push(`El dominio con mayor valor actual es ${topCurrent.domainLabel} con ${topCurrent.current.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%.`);
+    }
+    if (topPrevious && topCurrent && topPrevious.domainCode !== topCurrent.domainCode) {
+        parts.push(`El dominio predominante cambió de ${topPrevious.domainLabel} en el cuestionario anterior a ${topCurrent.domainLabel} en el actual.`);
+    }
+
+    return parts.join(' ');
 }
 
 function formatProbabilityLabel(value: number | null) {
@@ -747,6 +846,9 @@ export function buildGuardianCaseDashboardViewModel(options: {
         return summaryMessage || null;
     }
 
+    const deltaByDomain = buildGuardianCaseDeltaByDomain(options.caseDetail);
+    const deltaSummaryEnhanced = buildGuardianCaseDeltaSummaryEnhanced(deltaByDomain);
+
     return {
         caseId: options.caseItem.case_id,
         caseLabel: normalizeBackendText(
@@ -770,7 +872,9 @@ export function buildGuardianCaseDashboardViewModel(options: {
         sessionsCount: options.caseItem.sessions_count ?? options.caseEntry?.sessions_count ?? allSessionsAsc.length,
         highestAlertLabel,
         deltaSummary: resolveDeltaFromPreviousSummary(options.caseDetail),
-        deltaComparison: buildGuardianCaseDeltaComparison(options.caseDetail)
+        deltaComparison: buildGuardianCaseDeltaComparison(options.caseDetail),
+        deltaByDomain,
+        deltaSummaryEnhanced
     };
 }
 
