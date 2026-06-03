@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import { DashboardChartCard } from '../../../components/DashboardCharts';
+import type { DashboardChartItem } from '../../../components/DashboardCharts';
 import { ActiveFilterChips } from '../../../components/ActiveFilterChips/ActiveFilterChips';
 import { QuestionnaireReportDetailModal } from '../../../components/questionnaires/QuestionnaireReportDetailModal';
 import { useHistoryHasActiveFilters, useQuestionnaireHistoryV2 } from '../../../hooks/questionnaires/useQuestionnaireHistoryV2';
@@ -11,6 +12,7 @@ import {
     getQuestionnaireCaseDetailV2,
     getQuestionnaireCasesV2
 } from '../../../services/questionnaires/questionnaires.api';
+
 import type {
     QuestionnaireCaseDetailV2Response,
     QuestionnaireCaseV2DTO,
@@ -37,6 +39,14 @@ import {
     toOptionalFilterText
 } from '../../../utils/questionnaires/dashboardLabels';
 import './HistorialBase.css';
+
+const DOMAIN_EVOLUTION_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    anxiety: 'Ansiedad',
+    conduct: 'Conducta',
+    depression: 'Depresión',
+    elimination: 'Eliminación'
+};
 
 type HistorialRole = 'padre' | 'psicologo';
 
@@ -281,6 +291,100 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return [];
     }
 
+    // --- Selected case mappers (generic, backend-first, preserve zeros) ---
+    function buildSelectedCaseDomainSummary(detail: unknown) {
+        const rec = detail as Record<string, unknown> | undefined;
+        const charts = rec?.charts && typeof rec.charts === 'object' ? (rec.charts as Record<string, unknown>) : undefined;
+        const candidate = charts ? charts['domain_summary'] : undefined;
+        let sourceArray: unknown[] | null = null;
+        if (Array.isArray(candidate)) sourceArray = candidate;
+        else if (candidate && typeof candidate === 'object' && Array.isArray((candidate as Record<string, unknown>).items)) sourceArray = (candidate as Record<string, unknown>).items as unknown[];
+        const fallback = Array.isArray(rec?.domain_summary) ? rec?.domain_summary as unknown[] : null;
+        const itemsSource = Array.isArray(sourceArray) ? sourceArray : Array.isArray(fallback) ? fallback : [];
+        if (!Array.isArray(itemsSource)) return null;
+        const items = itemsSource.map((it: unknown, idx: number) => {
+            const row = it as Record<string, unknown>;
+            const latestPercentage = row['latest_percentage'] !== null && row['latest_percentage'] !== undefined
+                ? Number(row['latest_percentage'])
+                : Number(((Number(row['latest_probability'] ?? 0) * 100) || 0).toFixed(1));
+            const maxPercentage = row['max_percentage'] !== null && row['max_percentage'] !== undefined
+                ? Number(row['max_percentage'])
+                : Number(((Number(row['max_probability'] ?? 0) * 100) || 0).toFixed(1));
+            return {
+                id: String(row['domain_code'] ?? row['domain'] ?? row['code'] ?? `domain-${idx}`),
+                key: row['domain_code'] ?? row['domain'] ?? row['code'] ?? `domain-${idx}`,
+                label: row['domain_label'] ?? row['label'] ?? row['domain'] ?? row['code'] ?? `Dominio ${idx + 1}`,
+                value: Number(latestPercentage),
+                max_value: Number(maxPercentage),
+                latest_percentage: Number(latestPercentage),
+                max_percentage: Number(maxPercentage),
+                alert_level: row['latest_alert_level'] ?? row['alert_level'],
+                alert_label: row['latest_alert_label'] ?? row['alert_label'],
+                sessions_with_alert: Number(row['sessions_with_alert'] ?? 0),
+                raw: row
+            } as Record<string, unknown>;
+        });
+        return { items } as unknown as QuestionnaireDashboardChartSourceDTO;
+    }
+
+    function buildSelectedCaseAggregateTrend(detail: unknown) {
+        const rec = detail as Record<string, unknown> | undefined;
+        const charts = rec?.charts && typeof rec.charts === 'object' ? (rec.charts as Record<string, unknown>) : undefined;
+        const candidate = charts ? charts['trend'] : undefined;
+        let trendArray: unknown[] | null = null;
+        if (Array.isArray(candidate)) trendArray = candidate;
+        else if (candidate && typeof candidate === 'object' && Array.isArray((candidate as Record<string, unknown>).items)) trendArray = (candidate as Record<string, unknown>).items as unknown[];
+        const itemsSource = Array.isArray(trendArray) ? trendArray : [];
+        if (!Array.isArray(itemsSource)) return null;
+        const items = (itemsSource as Record<string, unknown>[])
+            .filter((p) => p.percentage !== null && p.percentage !== undefined)
+            .map((p, idx) => ({
+                id: String(p.session_id ?? p.id ?? `point-${idx}`),
+                label: p.label ?? p.date ?? p.session_id ?? `P${idx + 1}`,
+                value: Number(p.percentage),
+                date: p.date,
+                session_id: p.session_id,
+                alert_level: p.alert_level,
+                alert_label: p.alert_label,
+                processed_at: p.processed_at,
+                raw: p
+            }));
+        return { items } as unknown as QuestionnaireDashboardChartSourceDTO;
+    }
+
+    function buildSelectedCaseDomainEvolution(detail: unknown) {
+        const rec = detail as Record<string, unknown> | undefined;
+        if (!rec || !Array.isArray(rec.trend)) return null;
+        const source = rec.trend as unknown[];
+        const items = source
+            .filter((pt) => pt && typeof pt === 'object' && Array.isArray((pt as Record<string, unknown>).domains) && ((pt as Record<string, unknown>).domains as unknown[]).length > 0)
+            .map((pt, idx) => {
+                const point = pt as Record<string, unknown>;
+                const values: Record<string, unknown> = {};
+                const domains = Array.isArray(point.domains) ? point.domains as unknown[] : [];
+                for (const domainItem of domains) {
+                    if (!domainItem || typeof domainItem !== 'object') continue;
+                    const domainRec = domainItem as Record<string, unknown>;
+                    const code = String(domainRec.domain ?? domainRec.domain_code ?? domainRec.code ?? '').trim();
+                    if (!code) continue;
+                    const rawProbability = Number(domainRec.probability ?? 0);
+                    const pct = Number((rawProbability * 100).toFixed(1));
+                    values[code] = pct;
+                    if (domainRec.alert_level !== undefined && domainRec.alert_level !== null) {
+                        values[`${code}_alert_level`] = String(domainRec.alert_level);
+                    }
+                }
+                return {
+                    id: String(point.session_id ?? point.id ?? `evo-${idx}`),
+                    label: String(point.label ?? point.date ?? point.session_id ?? `Sesión ${idx + 1}`),
+                    fullLabel: String(point.label ?? point.date ?? point.session_id ?? `Sesión ${idx + 1}`),
+                    processed_at: point.processed_at,
+                    values
+                };
+            });
+        return items.length > 0 ? items : null;
+    }
+
     const historyByDateSource = useMemo(() => getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']), [history.charts]);
     const historyByCaseSource = useMemo(() => getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']), [history.charts]);
     const historyByDomainSource = useMemo(() => getChartSource(history.charts, ['alerts_by_domain', 'by_domain']), [history.charts]);
@@ -354,6 +458,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return getChartSource(selectedCaseDetail?.charts, ['trend']) ??
             (selectedCaseDetail?.trend ? { items: selectedCaseDetail.trend } as unknown as QuestionnaireDashboardChartSourceDTO : null);
     }, [selectedCaseDetail]);
+
+    const selectedCaseDomainSummaryMapped = useMemo(() => buildSelectedCaseDomainSummary(selectedCaseDetail), [selectedCaseDetail]);
+    const selectedCaseTrendMapped = useMemo(() => buildSelectedCaseAggregateTrend(selectedCaseDetail), [selectedCaseDetail]);
+    const selectedCaseDomainEvolutionMapped = useMemo(() => buildSelectedCaseDomainEvolution(selectedCaseDetail), [selectedCaseDetail]);
+    const selectedCaseDomainEvolutionSeries = useMemo(() => {
+        if (!Array.isArray(selectedCaseDomainEvolutionMapped) || selectedCaseDomainEvolutionMapped.length === 0) return [];
+        return Object.entries(DOMAIN_EVOLUTION_LABELS)
+            .filter(([key]) => selectedCaseDomainEvolutionMapped.some((item) => item && typeof item === 'object' && (item as Record<string, unknown>)[key] !== undefined && (item as Record<string, unknown>)[key] !== null))
+            .map(([key, label]) => ({ key, label }));
+    }, [selectedCaseDomainEvolutionMapped]);
 
     const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
     const leadingAlert = (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label) ?? 'Sin alerta dominante';
@@ -484,10 +598,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 ) : null}
                             </div>
                         ) : null}
-                        <div className="historial-dashboard-cases-grid">
+                        <div className="historial-dashboard-cases-grid historial-cases-list">
                             {guardianCases.map((caseItem) => (
                                 <div key={caseItem.case_id}>
-                                    <article className="historial-dashboard-case-card">
+                                    <article className="historial-dashboard-case-card historial-case-card">
                                         <h3>{resolveCaseLabel(caseItem)}</h3>
                                         <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
                                         <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
@@ -497,7 +611,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                         <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>{selectedCaseId === caseItem.case_id ? 'Cerrar detalle' : 'Ver detalle'}</button>
                                     </article>
                                     {selectedCaseId === caseItem.case_id ? (
-                                        <div className="historial-dashboard-case-detail">
+                                        <div className="historial-dashboard-case-detail historial-case-detail-panel">
                                             <div className="historial-dashboard-case-detail-header">
                                                 <h3>Detalle del caso</h3>
                                                 <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
@@ -505,9 +619,19 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
                                             {!caseDetailLoading && selectedCaseDetail ? (
                                                 <>
-                                                    <div className="historial-dashboard-charts">
-                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDomainSummarySource)} />
-                                                        <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseTrendSource)} variant="line" />
+                                                    <div className="historial-dashboard-charts detail-chart-grid">
+                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDomainSummaryMapped ?? selectedCaseDomainSummarySource)} />
+                                                        <DashboardChartCard title="Tendencia general del caso" description="Evolución de la carga sintomática agregada entre cuestionarios procesados." data={toChartData(selectedCaseTrendMapped ?? selectedCaseTrendSource)} variant="line" />
+                                                        {selectedCaseDomainEvolutionMapped && Array.isArray(selectedCaseDomainEvolutionMapped) && selectedCaseDomainEvolutionMapped.length > 0 ? (
+                                                            <DashboardChartCard
+                                                                title="Evolución por dominio"
+                                                                description="Comparación de la carga sintomática de cada dominio entre cuestionarios."
+                                                                data={selectedCaseDomainEvolutionMapped as DashboardChartItem[]}
+                                                                variant="line"
+                                                                series={selectedCaseDomainEvolutionSeries}
+                                                                formatter={(value) => `${value.toFixed(1)} %`}
+                                                            />
+                                                        ) : null}
                                                     </div>
                                                     <div className="historial-dashboard-session-list">
                                                         {selectedCaseDetail.sessions.map((item) => (
