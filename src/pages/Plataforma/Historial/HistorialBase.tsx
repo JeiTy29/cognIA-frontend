@@ -257,33 +257,96 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const closeDetail = () => {
         setDetailSessionId(null);
     };
-    const historyCharts = useMemo(() => {
-        const byDate = toChartData(getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']));
-        const byCase = toChartData(getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']));
-        const byDomain = toChartData(getChartSource(history.charts, ['alerts_by_domain', 'by_domain']));
-        const byLevel = toChartData(getChartSource(history.charts, ['alerts_by_level', 'by_alert_level']));
-        return {
-            byDate,
-            byCase,
-            byDomain,
-            byLevel
-        };
-    }, [history.charts]);
+    const MONTHS_ES = [
+        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+        'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+    ];
+    function formatMonthPeriod(value?: string | null) {
+        if (!value) return '';
+        const match = /^(\d{4})-(\d{2})$/.exec(value);
+        if (!match) return value;
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return value;
+        return `${MONTHS_ES[monthIndex]} ${year}`;
+    }
+
+    function chartItems(source: unknown): unknown[] {
+        if (!source) return [];
+        if (Array.isArray(source)) return source as unknown[];
+        if (typeof source === 'object' && source !== null) {
+            const rec = source as Record<string, unknown>;
+            if (Array.isArray(rec.items)) return rec.items as unknown[];
+        }
+        return [];
+    }
+
+    const historyByDateSource = useMemo(() => getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']), [history.charts]);
+    const historyByCaseSource = useMemo(() => getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']), [history.charts]);
+    const historyByDomainSource = useMemo(() => getChartSource(history.charts, ['alerts_by_domain', 'by_domain']), [history.charts]);
+    const historyByLevelSource = useMemo(() => getChartSource(history.charts, ['alerts_by_level', 'by_alert_level']), [history.charts]);
+
+    const guardianByMonthSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time']), [guardianDashboard]);
+    const guardianByDomainSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_domain', 'domain_load_summary']), [guardianDashboard]);
+    const guardianByCaseSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['sessions_by_case', 'activity_by_case', 'alerts_by_case']), [guardianDashboard]);
+    const guardianByAlertSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_level', 'cases_by_alert_level']), [guardianDashboard]);
+    const guardianQuestionnairesByStatusSource = useMemo(() => {
+        const maybe = guardianDashboard as unknown as Record<string, unknown> | undefined;
+        const fromBreakdowns = maybe && typeof maybe.breakdowns === 'object' && maybe.breakdowns !== null ? (maybe.breakdowns as Record<string, unknown>)['questionnaires_by_status'] : undefined;
+        if (Array.isArray(fromBreakdowns)) return { items: fromBreakdowns } as unknown as QuestionnaireDashboardChartSourceDTO;
+        const fromCharts = getChartSource(guardianDashboard?.charts, ['questionnaires_by_status']);
+        return fromCharts ?? null;
+    }, [guardianDashboard]);
+
+    const psychologistByDomainSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain']), [psychologistDashboard]);
+    const psychologistByLevelSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level']), [psychologistDashboard]);
+    const psychologistByStatusSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status']), [psychologistDashboard]);
+    const psychologistByDateSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_date']), [psychologistDashboard]);
+
     const guardianCharts = {
-        byMonth: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time'])),
-        byDomain: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_domain', 'domain_load_summary'])),
-        byCase: toChartData(getChartSource(guardianDashboard?.charts, ['activity_by_case', 'sessions_by_case', 'alerts_by_case'])),
-        byAlert: toChartData(getChartSource(guardianDashboard?.charts, ['alerts_by_level', 'cases_by_alert_level']))
+        byMonth: guardianByMonthSource ? toChartData(guardianByMonthSource) : [],
+        byDomain: guardianByDomainSource ? toChartData(guardianByDomainSource) : [],
+        byCase: guardianByCaseSource ? toChartData(guardianByCaseSource) : [],
+        byAlert: guardianByAlertSource ? toChartData(guardianByAlertSource) : []
     };
-    const hasGuardianCharts = Object.values(guardianCharts).some((items) => items.length > 0);
+    const guardianByMonthChart = guardianByMonthSource ? toChartData({ ...(guardianByMonthSource as unknown as QuestionnaireDashboardChartSourceDTO), items: chartItems(guardianByMonthSource).map((it: unknown, idx: number) => {
+        const rec = it as Record<string, unknown>;
+        return {
+            id: rec.id ?? `${String(rec.period ?? rec.label ?? '')}-${idx}`,
+            label: formatMonthPeriod(String(rec.period ?? rec.month ?? rec.label ?? '')),
+            value: Number(rec.count ?? rec.value ?? 0),
+            tone: rec.tone as string | undefined
+        };
+    }) } as unknown as QuestionnaireDashboardChartSourceDTO) : [];
+    const hasGuardianCharts = [guardianByMonthSource, guardianByDomainSource, guardianByCaseSource, guardianByAlertSource].some((s) => chartItems(s).length > 0);
+
+    function buildQuestionnairesByStatus(source: unknown) {
+        const arr = chartItems(source);
+        if (!Array.isArray(arr)) return [];
+        const labels: Record<string, string> = {
+            processed: 'Procesado',
+            in_progress: 'En progreso',
+            draft: 'Borrador'
+        };
+        return arr.map((it: unknown, idx: number) => {
+            const rec = it as Record<string, unknown>;
+            const status = rec.status ?? rec.label ?? String(idx);
+            return {
+                id: String(status),
+                label: labels[String(rec.status)] ?? String(rec.label ?? rec.status ?? ''),
+                value: Number(rec.count ?? rec.value ?? 0)
+            };
+        });
+    }
+
     const psychologistCharts = {
-        byDomain: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain'])),
-        byLevel: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level'])),
-        byStatus: toChartData(getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status'])),
-        byDate: toChartData(getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_date']))
+        byDomain: psychologistByDomainSource ? toChartData(psychologistByDomainSource) : [],
+        byLevel: psychologistByLevelSource ? toChartData(psychologistByLevelSource) : [],
+        byStatus: psychologistByStatusSource ? toChartData(psychologistByStatusSource) : [],
+        byDate: psychologistByDateSource ? toChartData(psychologistByDateSource) : []
     };
     const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
-    const leadingAlert = historyCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
+    const leadingAlert = (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label) ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
         ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio más frecuente es ${leadingDomain}.`
         : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revisión y la alerta predominante es ${leadingAlert}.`;
@@ -368,10 +431,26 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 </section>
 
                 <section className="historial-dashboard-charts">
-                    <DashboardChartCard title="Actividad por mes" data={historyCharts.byDate} loading={history.loading} variant="area" />
-                    <DashboardChartCard title="Actividad por caso o hijo" data={historyCharts.byCase} loading={history.loading} />
-                    <DashboardChartCard title="Alertas por dominio" data={historyCharts.byDomain} loading={history.loading} />
-                    <DashboardChartCard title="Alertas por nivel" data={historyCharts.byLevel} loading={history.loading} variant="donut" />
+                    {/* Global charts: only render when backend provides the aggregate source. For padre prefer guardian charts to avoid duplicates. */}
+                    {role !== 'padre' && chartItems(historyByDateSource).length > 0 ? (
+                        <DashboardChartCard title="Actividad por mes" data={toChartData(historyByDateSource)} loading={history.loading} variant="area" />
+                    ) : null}
+
+                    {/* Single unified Cuestionarios por caso: prefer guardian source when padre */}
+                    {(() => {
+                        const source = role === 'padre' ? guardianByCaseSource ?? historyByCaseSource : historyByCaseSource;
+                        return source && chartItems(source).length > 0 ? (
+                            <DashboardChartCard title="Cuestionarios por caso" data={toChartData(source)} loading={history.loading} />
+                        ) : null;
+                    })()}
+
+                    {role !== 'padre' && chartItems(historyByDomainSource).length > 0 ? (
+                        <DashboardChartCard title="Alertas por dominio" data={toChartData(historyByDomainSource)} loading={history.loading} />
+                    ) : null}
+
+                    {role !== 'padre' && chartItems(historyByLevelSource).length > 0 ? (
+                        <DashboardChartCard title="Alertas por nivel" data={toChartData(historyByLevelSource)} loading={history.loading} variant="donut" />
+                    ) : null}
                 </section>
 
                 {role === 'padre' ? (
@@ -379,57 +458,72 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         {guardianError ? <div className="historial-dashboard-alert error">{guardianError}</div> : null}
                         {hasGuardianCharts ? (
                             <div className="historial-dashboard-charts">
-                                <DashboardChartCard title="Alertas por mes" data={guardianCharts.byMonth} variant="area" />
-                                <DashboardChartCard title="Alertas por dominio" data={guardianCharts.byDomain} />
-                                <DashboardChartCard title="Cuestionarios por caso" data={guardianCharts.byCase} />
-                                <DashboardChartCard title="Casos por alerta" data={guardianCharts.byAlert} variant="donut" />
+                                {guardianByMonthSource && chartItems(guardianByMonthSource).length > 0 ? (
+                                    <DashboardChartCard
+                                        title="Alertas por mes"
+                                        data={guardianByMonthChart}
+                                        variant="area"
+                                    />
+                                ) : null}
+                                {guardianByDomainSource && chartItems(guardianByDomainSource).length > 0 ? (
+                                    <DashboardChartCard title="Alertas por dominio" data={toChartData(guardianByDomainSource)} />
+                                ) : null}
+                                {guardianByCaseSource && chartItems(guardianByCaseSource).length > 0 ? (
+                                    <DashboardChartCard title="Cuestionarios por caso" data={toChartData(guardianByCaseSource)} />
+                                ) : null}
+                                {/* 'Casos por alerta' intentionally removed from Historial per product decision */}
+                                {guardianQuestionnairesByStatusSource && chartItems(guardianQuestionnairesByStatusSource).length > 0 ? (
+                                    <DashboardChartCard title="Estado de cuestionarios" data={buildQuestionnairesByStatus(guardianQuestionnairesByStatusSource)} variant="donut" />
+                                ) : null}
                             </div>
                         ) : null}
                         <div className="historial-dashboard-cases-grid">
                             {guardianCases.map((caseItem) => (
-                                <article className="historial-dashboard-case-card" key={caseItem.case_id}>
-                                    <h3>{resolveCaseLabel(caseItem)}</h3>
-                                    <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
-                                    <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
-                                    <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
-                                    <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
-                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
-                                    <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>Ver detalle</button>
-                                </article>
+                                <div key={caseItem.case_id}>
+                                    <article className="historial-dashboard-case-card">
+                                        <h3>{resolveCaseLabel(caseItem)}</h3>
+                                        <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
+                                        <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
+                                        <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
+                                        <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
+                                        <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
+                                        <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>{selectedCaseId === caseItem.case_id ? 'Cerrar detalle' : 'Ver detalle'}</button>
+                                    </article>
+                                    {selectedCaseId === caseItem.case_id ? (
+                                        <div className="historial-dashboard-case-detail">
+                                            <div className="historial-dashboard-case-detail-header">
+                                                <h3>Detalle del caso</h3>
+                                                <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
+                                            </div>
+                                            {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
+                                            {!caseDetailLoading && selectedCaseDetail ? (
+                                                <>
+                                                    <div className="historial-dashboard-charts">
+                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDetail.charts?.domain_summary ?? selectedCaseDetail.domain_summary)} />
+                                                        <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseDetail.charts?.trend ?? selectedCaseDetail.trend)} variant="line" />
+                                                    </div>
+                                                    <div className="historial-dashboard-session-list">
+                                                        {selectedCaseDetail.sessions.map((item) => (
+                                                            <article className="historial-dashboard-session-card" key={item.id}>
+                                                                <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                                                <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
+                                                                <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
+                                                                <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
+                                                                {(() => {
+                                                                    const reviewStatus = resolveHistoryItemReviewStatus(item);
+                                                                    return reviewStatus ? <div><strong>Revisión registrada:</strong> {reviewStatus}</div> : null;
+                                                                })()}
+                                                                <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+                                </div>
                             ))}
                         </div>
-                        {selectedCaseId ? (
-                            <div className="historial-dashboard-case-detail">
-                                <div className="historial-dashboard-case-detail-header">
-                                    <h3>Detalle del caso</h3>
-                                    <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
-                                </div>
-                                {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
-                                {!caseDetailLoading && selectedCaseDetail ? (
-                                    <>
-                                        <div className="historial-dashboard-charts">
-                                            <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDetail.domain_summary)} />
-                                            <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseDetail.trend)} variant="line" />
-                                        </div>
-                                        <div className="historial-dashboard-session-list">
-                                            {selectedCaseDetail.sessions.map((item) => (
-                                                <article className="historial-dashboard-session-card" key={item.id}>
-                                                    <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
-                                                    <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
-                                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
-                                                    <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
-                                                    {(() => {
-                                                        const reviewStatus = resolveHistoryItemReviewStatus(item);
-                                                        return reviewStatus ? <div><strong>Revisión registrada:</strong> {reviewStatus}</div> : null;
-                                                    })()}
-                                                    <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
-                                                </article>
-                                            ))}
-                                        </div>
-                                    </>
-                                ) : null}
-                            </div>
-                        ) : null}
                     </section>
                 ) : (
                     <section className="historial-dashboard-role-block">
