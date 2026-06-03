@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     AreaChart,
     DashboardEmptyState,
@@ -6,7 +6,7 @@ import {
     DonutChart,
     HeatmapChart
 } from '../../../components/DashboardCharts';
-import { ResponsiveContainer, Treemap } from 'recharts';
+import { ResponsiveContainer, Treemap, Tooltip } from 'recharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
@@ -151,17 +151,20 @@ const DEPARTMENT_TREEMAP_COLORS = [
     '#2f8f6b'
 ];
 
-type DepartmentTreemapNode = {
-    name: string;
-    size: number;
-    fill: string;
-};
 
-type DepartmentTooltipState = {
-    label: string;
-    value: number;
-    x: number;
-    y: number;
+
+type DepartmentTreemapTooltipProps = {
+    active?: boolean;
+    payload?: Array<{
+        payload?: {
+            name?: string;
+            size?: number;
+            value?: number;
+            fill?: string;
+        };
+        name?: string;
+        value?: number;
+    }>;
 };
 
 type DepartmentTreemapContentProps = {
@@ -172,46 +175,56 @@ type DepartmentTreemapContentProps = {
     name?: string;
     value?: number;
     fill?: string;
-    onMouseEnter: (label: string, value: number, event: MouseEvent<SVGGElement>) => void;
-    onMouseMove: (label: string, value: number, event: MouseEvent<SVGGElement>) => void;
-    onMouseLeave: () => void;
 };
 
 function formatPsychologistDepartmentTooltip(label: string, value: number) {
     const psychologistLabel = value === 1 ? 'psicólogo' : 'psicólogos';
-    return `${label}: ${value} ${psychologistLabel}`;
+    return `${label} — ${value} ${psychologistLabel}`;
 }
 
-function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, value, fill, onMouseEnter, onMouseMove, onMouseLeave }: DepartmentTreemapContentProps) {
+function DepartmentTreemapTooltip({ active, payload }: DepartmentTreemapTooltipProps) {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const item = payload[0]?.payload ?? {};
+    const label = String(item.name ?? payload[0]?.name ?? 'Departamento');
+    const value = Number(item.size ?? item.value ?? payload[0]?.value ?? 0);
+    const unit = value === 1 ? 'psicólogo' : 'psicólogos';
+
+    return (
+        <div className="department-treemap-tooltip">
+            <strong>{label}</strong>
+            <span>{value} {unit}</span>
+        </div>
+    );
+}
+
+function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, value, fill }: DepartmentTreemapContentProps) {
     const labelText = String(name ?? '');
     const numericValue = Number(value ?? 0);
-    const tooltipText = formatPsychologistDepartmentTooltip(labelText, numericValue);
-    const showFullLabel = width >= 100 && height >= 30;
-    const showCompactLabel = width >= 64 && height >= 24;
-    const showValueOnly = width >= 40 && height >= 18;
+    const accessibilityLabel = formatPsychologistDepartmentTooltip(labelText, numericValue);
+    const showFullLabel = width >= 90 && height >= 34;
+    const showCompactLabel = width >= 58 && height >= 26;
+    const showValueOnly = width >= 28 && height >= 18;
 
-    const content = showFullLabel ? (
-        <span className="department-treemap-label">{labelText}</span>
-    ) : showCompactLabel ? (
-        <span className="department-treemap-label">{labelText}</span>
-    ) : showValueOnly ? (
-        <span className="department-treemap-label department-treemap-value">{numericValue}</span>
-    ) : null;
+    const displayLabel = showFullLabel || showCompactLabel
+        ? labelText
+        : showValueOnly
+            ? String(numericValue)
+            : null;
 
     return (
         <g
             transform={`translate(${x},${y})`}
             role="img"
-            aria-label={tooltipText}
-            onMouseEnter={(event) => onMouseEnter(labelText, numericValue, event)}
-            onMouseMove={(event) => onMouseMove(labelText, numericValue, event)}
-            onMouseLeave={onMouseLeave}
+            aria-label={accessibilityLabel}
         >
-            <title>{tooltipText}</title>
+            <title>{accessibilityLabel}</title>
             <rect width={width} height={height} fill={fill ?? '#0f5f9f'} stroke="#ffffff" strokeWidth={0.8} />
-            {content ? (
+            {displayLabel ? (
                 <foreignObject x={4} y={4} width={Math.max(0, width - 8)} height={Math.max(0, height - 8)}>
-                    <div className="department-treemap-cell">{content}</div>
+                    <div className="department-treemap-cell" style={{ pointerEvents: 'none' }}>
+                        <span className="department-treemap-label">{displayLabel}</span>
+                    </div>
                 </foreignObject>
             ) : null}
         </g>
@@ -219,55 +232,32 @@ function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, v
 }
 
 function DepartmentTreemapChart({ data, emptyMessage }: { data: Array<{ label: string; value: number }>; emptyMessage: string }) {
-    const [tooltip, setTooltip] = useState<DepartmentTooltipState | null>(null);
-
-    const chartData: DepartmentTreemapNode[] = data
+    const chartData = data
         .filter((item) => item.value > 0)
         .slice(0, 12)
         .map((item, index) => ({
             name: item.label,
             size: item.value,
+            value: item.value,
             fill: DEPARTMENT_TREEMAP_COLORS[index % DEPARTMENT_TREEMAP_COLORS.length]
         }));
-
-    const handleMouseEnter = (label: string, value: number, event: MouseEvent<SVGGElement>) => {
-        const { clientX, clientY } = event;
-        setTooltip({ label, value, x: clientX + 12, y: clientY + 12 });
-    };
-
-    const handleMouseMove = (label: string, value: number, event: MouseEvent<SVGGElement>) => {
-        const { clientX, clientY } = event;
-        setTooltip({ label, value, x: clientX + 12, y: clientY + 12 });
-    };
-
-    const handleMouseLeave = () => {
-        setTooltip(null);
-    };
 
     if (chartData.length === 0) {
         return <DashboardEmptyState message={emptyMessage} />;
     }
 
     return (
-        <div className="dashboard-chart-canvas dashboard-chart-canvas--large" style={{ position: 'relative' }}>
-            {tooltip ? (
-                <div className="department-treemap-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
-                    <strong>{tooltip.label}</strong>
-                    <span>{tooltip.value} {tooltip.value === 1 ? 'psicólogo' : 'psicólogos'}</span>
-                </div>
-            ) : null}
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
             <ResponsiveContainer width="100%" height="100%">
                 <Treemap
                     data={chartData}
                     dataKey="size"
                     stroke="#ffffff"
-                    content={<DepartmentTreemapContent
-                        onMouseEnter={handleMouseEnter}
-                        onMouseMove={handleMouseMove}
-                        onMouseLeave={handleMouseLeave}
-                    />}
+                    content={<DepartmentTreemapContent />}
                     isAnimationActive={false}
-                />
+                >
+                    <Tooltip content={<DepartmentTreemapTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }} />
+                </Treemap>
             </ResponsiveContainer>
         </div>
     );
