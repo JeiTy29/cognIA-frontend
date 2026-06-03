@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import { DashboardChartCard } from '../../../components/DashboardCharts';
@@ -341,6 +341,20 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return Array.isArray(items) ? items : [];
     }
 
+    const buildPsychologistByCaseChart = useCallback((source: unknown): DashboardChartItem[] => {
+        const items = chartItems(source);
+        return items.map((rawItem, idx) => {
+            const item = rawItem as Record<string, unknown>;
+            const label = item.label ?? item.case_public_id ?? item.case_id ?? `Caso ${idx + 1}`;
+            return {
+                id: String(item.case_id ?? item.case_public_id ?? item.id ?? `case-${idx}`),
+                label: String(label),
+                value: Number(item.count ?? item.value ?? item.total ?? item.sessions ?? 0),
+                raw: item
+            };
+        });
+    }, []);
+
     // --- Selected case mappers (generic, backend-first, preserve zeros) ---
     function buildSelectedCaseDomainSummary(detail: unknown) {
         const rec = detail as Record<string, unknown> | undefined;
@@ -431,6 +445,20 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const psychologistAlertsByDomainSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain']), [psychologistDashboard]);
     const psychologistByLevelSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level']), [psychologistDashboard]);
     const psychologistByStatusSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status']), [psychologistDashboard]);
+    const psychologistByCaseSource = useMemo(() => {
+        const fromCharts = getChartSource(psychologistDashboard?.charts, ['cases_by_alert', 'activity_by_case', 'history_by_case', 'cases_by_case']);
+        if (fromCharts) return fromCharts;
+        const dashboardRec = psychologistDashboard as unknown as Record<string, unknown> | null;
+        const rankings = dashboardRec?.rankings as Record<string, unknown> | undefined;
+        if (rankings) {
+            const fromRankings = getChartSource(rankings, ['activity_by_case', 'cases_by_alert', 'by_case', 'cases_by_case']);
+            if (fromRankings) return fromRankings;
+        }
+        return getChartSource(psychologistDashboard?.aggregates, ['by_case']) ?? null;
+    }, [psychologistDashboard]);
+    const psychologistByCaseChart = useMemo(() => {
+        return psychologistByCaseSource ? buildPsychologistByCaseChart(psychologistByCaseSource) : [];
+    }, [psychologistByCaseSource, buildPsychologistByCaseChart]);
     const psychologistByDateSource = useMemo(() => {
         const fromCharts = getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']);
         if (fromCharts) return fromCharts;
@@ -527,8 +555,12 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             .map(([key, label]) => ({ key, label }));
     }, [selectedCaseDomainEvolutionMapped]);
 
-    const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
-    const leadingAlert = (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label) ?? 'Sin alerta dominante';
+    const leadingDomain = role === 'padre'
+        ? guardianCharts.byDomain[0]?.label ?? 'Sin dominio dominante'
+        : psychologistDominantDomainData[0]?.label ?? 'Sin dominio dominante';
+    const leadingAlert = role === 'padre'
+        ? (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label)
+        : psychologistCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
         ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio más frecuente es ${leadingDomain}.`
         : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revisión y la alerta predominante es ${leadingAlert}.`;
@@ -615,29 +647,19 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 </section>
 
                 <section className="historial-dashboard-charts">
-                    {/* Global charts: only render when backend provides the aggregate source. For padre prefer guardian charts to avoid duplicates. */}
-                    {role !== 'padre' && chartItems(historyByDateSource).length > 0 ? (
+                    {/* Global charts: only render parent history charts here. */}
+                    {role === 'padre' && chartItems(historyByDateSource).length > 0 ? (
                         <DashboardChartCard title="Actividad por mes" data={toChartData(historyByDateSource)} loading={history.loading} variant="area" />
                     ) : null}
 
-                    {/* Single unified Cuestionarios por caso: prefer guardian source when padre */}
-                    {(() => {
-                        const source = role === 'padre' ? guardianByCaseSource ?? historyByCaseSource : historyByCaseSource;
+                    {role === 'padre' ? (() => {
+                        const source = guardianByCaseSource ?? historyByCaseSource;
                         return source && chartItems(source).length > 0 ? (
-                            <DashboardChartCard title={role === 'psicologo' ? 'Evaluaciones por caso' : 'Cuestionarios por caso'} data={toChartData(source)} loading={history.loading} />
+                            <DashboardChartCard title="Cuestionarios por caso" data={toChartData(source)} loading={history.loading} />
                         ) : null;
-                    })()}
+                    })() : null}
 
-                    {role !== 'padre' ? (
-                        <DashboardChartCard
-                            title="Dominio predominante por evaluación"
-                            data={psychologistDominantDomainData}
-                            loading={history.loading}
-                            emptyText="No hay dominios predominantes disponibles." 
-                        />
-                    ) : null}
-
-                    {role !== 'padre' && chartItems(historyByLevelSource).length > 0 ? (
+                    {role === 'padre' && chartItems(historyByLevelSource).length > 0 ? (
                         <DashboardChartCard title="Distribución de alertas por nivel" data={toChartData(historyByLevelSource)} loading={history.loading} variant="donut" />
                     ) : null}
                 </section>
@@ -731,6 +753,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                             <DashboardChartCard title="Distribución de alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} variant="donut" />
                             <DashboardChartCard title="Estado de revisión profesional" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
                             <DashboardChartCard title="Evolución por rango de fechas" data={psychologistByDateChart} loading={psychologistLoading} variant="area" />
+                            {psychologistByCaseChart.length > 0 ? (
+                                <DashboardChartCard title="Evaluaciones por caso" data={psychologistByCaseChart} loading={psychologistLoading} />
+                            ) : null}
                         </div>
                     </section>
                 )}
