@@ -651,7 +651,10 @@ function CompatChart({
     type,
     includeZeroValues
 }: Readonly<CompatChartProps>) {
-    const normalizedData = useMemo(() => toChartItems(data ?? items), [data, items]);
+    const normalizedData = useMemo(
+        () => includeZeroValues ? toChartItemsIncludeZeros(data ?? items) : toChartItems(data ?? items),
+        [data, items, includeZeroValues]
+    );
     const title = ariaLabel ?? 'Gráfica';
     const emptyText = emptyMessage ?? 'Aún no hay datos procesados suficientes para esta visualización.';
 
