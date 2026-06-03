@@ -426,9 +426,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return items.length > 0 ? items : null;
     }
 
-    const historyByDateSource = useMemo(() => getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']), [history.charts]);
-    const historyByCaseSource = useMemo(() => getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']), [history.charts]);
-    const historyByLevelSource = useMemo(() => getChartSource(history.charts, ['alerts_by_level', 'by_alert_level']), [history.charts]);
+    // Note: history* chart sources removed from global scope to avoid rendering psychologist charts here.
 
     const guardianByMonthSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time']), [guardianDashboard]);
     const guardianByDomainSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_domain', 'domain_load_summary']), [guardianDashboard]);
@@ -559,7 +557,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         ? guardianCharts.byDomain[0]?.label ?? 'Sin dominio dominante'
         : psychologistDominantDomainData[0]?.label ?? 'Sin dominio dominante';
     const leadingAlert = role === 'padre'
-        ? (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label)
+        ? guardianCharts.byAlert[0]?.label ?? 'Sin alerta dominante'
         : psychologistCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
         ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio más frecuente es ${leadingDomain}.`
@@ -647,20 +645,17 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                 </section>
 
                 <section className="historial-dashboard-charts">
-                    {/* Global charts: only render parent history charts here. */}
-                    {role === 'padre' && chartItems(historyByDateSource).length > 0 ? (
-                        <DashboardChartCard title="Actividad por mes" data={toChartData(historyByDateSource)} loading={history.loading} variant="area" />
+                    {/* Global charts: only render guardian/parent charts here. Do NOT render psychologist charts from history sources. */}
+                    {role === 'padre' && guardianByMonthSource && chartItems(guardianByMonthSource).length > 0 ? (
+                        <DashboardChartCard title="Actividad por mes" data={guardianByMonthChart} loading={history.loading} variant="area" />
                     ) : null}
 
-                    {role === 'padre' ? (() => {
-                        const source = guardianByCaseSource ?? historyByCaseSource;
-                        return source && chartItems(source).length > 0 ? (
-                            <DashboardChartCard title="Cuestionarios por caso" data={toChartData(source)} loading={history.loading} />
-                        ) : null;
-                    })() : null}
+                    {role === 'padre' && guardianByCaseSource && chartItems(guardianByCaseSource).length > 0 ? (
+                        <DashboardChartCard title="Cuestionarios por caso" data={toChartData(guardianByCaseSource)} loading={history.loading} />
+                    ) : null}
 
-                    {role === 'padre' && chartItems(historyByLevelSource).length > 0 ? (
-                        <DashboardChartCard title="Distribución de alertas por nivel" data={toChartData(historyByLevelSource)} loading={history.loading} variant="donut" />
+                    {role === 'padre' && guardianByAlertSource && chartItems(guardianByAlertSource).length > 0 ? (
+                        <DashboardChartCard title="Distribución de alertas por nivel" data={toChartData(guardianByAlertSource)} loading={history.loading} variant="donut" />
                     ) : null}
                 </section>
 
