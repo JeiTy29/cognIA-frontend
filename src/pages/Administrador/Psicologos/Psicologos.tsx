@@ -4,9 +4,9 @@ import {
     DashboardEmptyState,
     DashboardSection,
     DonutChart,
-    HeatmapChart,
-    TreemapChart
+    HeatmapChart
 } from '../../../components/DashboardCharts';
+import { ResponsiveContainer, Treemap } from 'recharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { usePsychologists } from '../../../hooks/usePsychologists';
@@ -136,6 +136,66 @@ function getDisplayName(item: Pick<PsychologistAdminItem, 'full_name'> & { usern
 function formatProfessionalCard(value: string | null | undefined) {
     const normalized = typeof value === 'string' ? value.trim() : '';
     return normalized.length > 0 ? normalized : 'Sin registrar';
+}
+
+type DepartmentTreemapNode = {
+    name: string;
+    size: number;
+    fill: string;
+};
+
+function formatPsychologistDepartmentTooltip(label: string, value: number) {
+    const psychologistLabel = value === 1 ? 'psicólogo' : 'psicólogos';
+    return `${label}: ${value} ${psychologistLabel}`;
+}
+
+function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, value }: { x?: number; y?: number; width?: number; height?: number; name?: string; value?: number }) {
+    const tooltip = formatPsychologistDepartmentTooltip(String(name ?? ''), Number(value ?? 0));
+    const showLabel = width >= 60 && height >= 20;
+
+    return (
+        <g transform={`translate(${x},${y})`} role="img" aria-label={tooltip}>
+            <title>{tooltip}</title>
+            <rect width={width} height={height} fill="#0f5f9f" stroke="#ffffff" strokeWidth={0.8} />
+            {showLabel ? (
+                <foreignObject x={4} y={4} width={Math.max(0, width - 8)} height={Math.max(0, height - 8)}>
+                    <div className="department-treemap-cell">
+                        <span className="department-treemap-label">{name}</span>
+                    </div>
+                </foreignObject>
+            ) : null}
+        </g>
+    );
+}
+
+function DepartmentTreemapChart({ data, emptyMessage }: { data: Array<{ label: string; value: number }>; emptyMessage: string }) {
+    const chartData: DepartmentTreemapNode[] = data
+        .filter((item) => item.value > 0)
+        .slice(0, 12)
+        .map((item) => ({
+            name: item.label,
+            size: item.value,
+            fill: '#0f5f9f'
+        }));
+
+    if (chartData.length === 0) {
+        return <DashboardEmptyState message={emptyMessage} />;
+    }
+
+    return (
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+            <ResponsiveContainer width="100%" height="100%">
+                <Treemap
+                    data={chartData}
+                    dataKey="size"
+                    stroke="#ffffff"
+                    fill="#0f5f9f"
+                    content={<DepartmentTreemapContent />}
+                    isAnimationActive={false}
+                />
+            </ResponsiveContainer>
+        </div>
+    );
 }
 
 export default function Psicologos() {
@@ -394,9 +454,8 @@ export default function Psicologos() {
                     description="Permite observar cobertura territorial de profesionales registrados."
                     note={dashboardNote}
                 >
-                    <TreemapChart
+                    <DepartmentTreemapChart
                         data={psychologistsByDepartment}
-                        ariaLabel="Distribución territorial de psicólogos"
                         emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                     />
                 </DashboardSection>
