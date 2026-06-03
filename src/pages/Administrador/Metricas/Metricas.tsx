@@ -8,7 +8,7 @@ import {
 } from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
-import { useMetrics, type StatusCounts } from '../../../hooks/metrics/useMetrics';
+import { useMetrics } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
 import { downloadMetricsReportPdf } from '../../../utils/reports/admin/metricsReport';
 import '../AdminShared.css';
@@ -287,16 +287,6 @@ function renderEmailReason(emailState: EmailHealthBlockState) {
     return emailState.reason ?? 'Sin detalle adicional';
 }
 
-function renderPrimaryStatusCodeSummary(counts: StatusCounts) {
-    const entries = Object.entries(counts)
-        .filter(([, value]) => value > 0)
-        .sort((left, right) => right[1] - left[1])
-        .slice(0, 4);
-
-    if (entries.length === 0) return 'Sin solicitudes registradas';
-    return entries.map(([code, value]) => `${code}: ${formatCompactNumber(value)}`).join(', ');
-}
-
 export function Metricas() {
     const location = useLocation();
     const metricsViewEnabled = location.pathname === '/admin/metricas';
@@ -391,29 +381,128 @@ export function Metricas() {
             const endpointData = snapshot as unknown as Record<string, unknown> | null;
             if (!endpointData) return [];
             
-            const endpoints: Array<{ label: string; latency: number; ranking: number }> = [];
+            type EndpointMetric = {
+                endpoint: string;
+                avg: number | null;
+                p95: number | null;
+                max: number | null;
+                ranking: number;
+            };
             
-            const endpointLatencies = endpointData.endpoint_latency_ms_avg || 
-                                     endpointData.endpoints_latency_ms_avg ||
-                                     endpointData.endpoints_by_latency ||
-                                     null;
+            const endpoints: EndpointMetric[] = [];
             
-            if (endpointLatencies && typeof endpointLatencies === 'object' && !Array.isArray(endpointLatencies)) {
-                for (const [endpoint, value] of Object.entries(endpointLatencies)) {
-                    const latency = typeof value === 'number' ? value : 
-                                   (value && typeof value === 'object' && (value as Record<string, unknown>).latency_ms_avg);
-                    if (typeof latency === 'number' && latency > 0) {
-                        endpoints.push({
-                            label: endpoint,
-                            latency,
-                            ranking: 0
-                        });
+            // Try to extract endpoint metrics from multiple possible data structures
+            const possibleSources = [
+                // Structure A: Separate objects by metric type
+                () => {
+                    const avgData = endpointData.endpoint_latency_ms_avg || endpointData.endpoints_latency_ms_avg;
+                    const p95Data = endpointData.endpoint_latency_ms_p95_approx || endpointData.endpoints_latency_ms_p95_approx;
+                    const maxData = endpointData.endpoint_latency_ms_max || endpointData.endpoints_latency_ms_max;
+                    
+                    if (typeof avgData === 'object' && avgData !== null && !Array.isArray(avgData)) {
+                        for (const [endpoint, avgVal] of Object.entries(avgData)) {
+                            const avg = typeof avgVal === 'number' ? avgVal : null;
+                            const p95 = p95Data && typeof p95Data === 'object' && (p95Data as Record<string, unknown>)[endpoint];
+                            const max = maxData && typeof maxData === 'object' && (maxData as Record<string, unknown>)[endpoint];
+                            
+                            if (avg && avg > 0) {
+                                endpoints.push({
+                                    endpoint,
+                                    avg,
+                                    p95: typeof p95 === 'number' && p95 > 0 ? p95 : null,
+                                    max: typeof max === 'number' && max > 0 ? max : null,
+                                    ranking: 0
+                                });
+                            }
+                        }
                     }
+                },
+                // Structure B: Array of endpoint objects
+                () => {
+                    const endpointsList = endpointData.endpoints || 
+                                        endpointData.endpoint_metrics ||
+                                        endpointData.endpoints_list;
+                    
+                    if (Array.isArray(endpointsList)) {
+                        for (const item of endpointsList) {
+                            if (item && typeof item === 'object') {
+                                const ep = item as Record<string, unknown>;
+                                const endpoint = ep.endpoint || ep.name || ep.path;
+                                const avg = ep.latency_ms_avg || ep.avg || ep.latency_avg;
+                                const p95 = ep.latency_ms_p95_approx || ep.p95 || ep.latency_p95;
+                                const max = ep.latency_ms_max || ep.max || ep.latency_max;
+                                
+                                if (endpoint && typeof endpoint === 'string' && (avg || p95 || max)) {
+                                    const avgNum = typeof avg === 'number' && avg > 0 ? avg : null;
+                                    const p95Num = typeof p95 === 'number' && p95 > 0 ? p95 : null;
+                                    const maxNum = typeof max === 'number' && max > 0 ? max : null;
+                                    
+                                    if (avgNum || p95Num || maxNum) {
+                                        endpoints.push({
+                                            endpoint,
+                                            avg: avgNum,
+                                            p95: p95Num,
+                                            max: maxNum,
+                                            ranking: 0
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                // Structure C: Nested object with endpoints key
+                () => {
+                    const nestedEndpoints = endpointData.latency_by_endpoint ||
+                                          endpointData.by_endpoint ||
+                                          endpointData.endpoint_latency_data;
+                    
+                    if (typeof nestedEndpoints === 'object' && nestedEndpoints !== null && !Array.isArray(nestedEndpoints)) {
+                        for (const [endpoint, data] of Object.entries(nestedEndpoints)) {
+                            if (data && typeof data === 'object') {
+                                const d = data as Record<string, unknown>;
+                                const avg = d.avg || d.latency_ms_avg || d.average;
+                                const p95 = d.p95 || d.latency_ms_p95_approx || d.percentile_95;
+                                const max = d.max || d.latency_ms_max || d.maximum;
+                                
+                                const avgNum = typeof avg === 'number' && avg > 0 ? avg : null;
+                                const p95Num = typeof p95 === 'number' && p95 > 0 ? p95 : null;
+                                const maxNum = typeof max === 'number' && max > 0 ? max : null;
+                                
+                                if (avgNum || p95Num || maxNum) {
+                                    endpoints.push({
+                                        endpoint,
+                                        avg: avgNum,
+                                        p95: p95Num,
+                                        max: maxNum,
+                                        ranking: 0
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            ];
+            
+            for (const extractor of possibleSources) {
+                if (endpoints.length === 0) {
+                    try {
+                        extractor();
+                    } catch {
+                        // Silently skip extractors that fail
+                    }
+                } else {
+                    break; // Stop if we found data
                 }
             }
             
+            // Sort by p95 (if available), then avg, then max
             return endpoints
-                .sort((a, b) => b.latency - a.latency)
+                .sort((a, b) => {
+                    const aSort = a.p95 ?? a.avg ?? a.max ?? 0;
+                    const bSort = b.p95 ?? b.avg ?? b.max ?? 0;
+                    return bSort - aSort;
+                })
                 .slice(0, 10)
                 .map((item, idx) => ({ ...item, ranking: idx + 1 }));
         },
@@ -662,9 +751,6 @@ export function Metricas() {
                                 <StatusDonut counts={statusCounts} />
                             </div>
                             {renderStatusBreakdown(groupedStatus, totalStatus)}
-                            <div className="metricas-note">
-                                Principales codigos: {renderPrimaryStatusCodeSummary(statusCounts)}
-                            </div>
                         </aside>
                     </section>
 
@@ -720,13 +806,17 @@ export function Metricas() {
                                     <div className="metricas-endpoint-header">
                                         <span className="metricas-endpoint-rank">#</span>
                                         <span className="metricas-endpoint-name">Endpoint</span>
-                                        <span className="metricas-endpoint-latency">Latencia (ms)</span>
+                                        <span className="metricas-endpoint-metric">Promedio</span>
+                                        <span className="metricas-endpoint-metric">p95 aprox.</span>
+                                        <span className="metricas-endpoint-metric">Máxima</span>
                                     </div>
                                     {endpointLatencyItems.map((item) => (
-                                        <div key={item.label} className="metricas-endpoint-row">
+                                        <div key={item.endpoint} className="metricas-endpoint-row">
                                             <span className="metricas-endpoint-rank">{item.ranking}</span>
-                                            <span className="metricas-endpoint-name metricas-endpoint-name-cell">{item.label}</span>
-                                            <span className="metricas-endpoint-latency">{formatLatencyMs(item.latency)}</span>
+                                            <span className="metricas-endpoint-name metricas-endpoint-name-cell">{item.endpoint}</span>
+                                            <span className="metricas-endpoint-metric">{formatLatencyMs(item.avg)}</span>
+                                            <span className="metricas-endpoint-metric">{formatLatencyMs(item.p95)}</span>
+                                            <span className="metricas-endpoint-metric">{formatLatencyMs(item.max)}</span>
                                         </div>
                                     ))}
                                 </div>
