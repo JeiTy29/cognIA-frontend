@@ -74,6 +74,14 @@ const DOMAIN_LABELS: Record<string, string> = {
     elimination: 'Eliminación'
 };
 
+const DOMAIN_ORDER = [
+    'adhd',
+    'anxiety',
+    'conduct',
+    'depression',
+    'elimination'
+] as const;
+
 const MONTHS_ES = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
     'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
@@ -257,6 +265,62 @@ function resolveSummaryCodeLabel(
         count: undefined as number | undefined
     };
 }
+
+function buildFiveDomainChartFromCounts(counts: Map<string, number>): DashboardChartItem[] {
+    return DOMAIN_ORDER.map((code) => {
+        const count = counts.get(code) ?? 0;
+        return {
+            id: code,
+            key: code,
+            label: DOMAIN_LABELS[code] ?? code,
+            value: count,
+            count,
+            raw: { domain: code, count }
+        };
+    });
+}
+
+function buildDominantDomainChartFromItems(items: unknown[]): DashboardChartItem[] {
+    const counts = new Map<string, number>();
+    for (const rawItem of items) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const item = rawItem as Record<string, unknown>;
+        const rawDomain = item.dominant_domain;
+        let code = '';
+
+        if (typeof rawDomain === 'string') {
+            code = rawDomain;
+        } else if (rawDomain && typeof rawDomain === 'object') {
+            const record = rawDomain as Record<string, unknown>;
+            code = String(record.code ?? record.domain ?? record.key ?? '');
+        }
+
+        if (!code) continue;
+        counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+    return buildFiveDomainChartFromCounts(counts);
+}
+
+function buildFiveDomainChartFromSource(source: unknown): DashboardChartItem[] {
+    const counts = new Map<string, number>();
+    for (const rawItem of chartItems(source)) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const item = rawItem as Record<string, unknown>;
+        const code = String(
+            item.domain ??
+            item.domain_code ??
+            item.code ??
+            item.key ??
+            item.id ??
+            ''
+        );
+        if (!code) continue;
+        const count = Number(item.count ?? item.value ?? item.total ?? 0);
+        counts.set(code, Number.isFinite(count) ? count : 0);
+    }
+    return buildFiveDomainChartFromCounts(counts);
+}
+
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const history = useQuestionnaireHistoryV2({ initialFilters: { page: 1, page_size: 10 } });
     const [draftFilters, setDraftFilters] = useState<QuestionnaireHistoryFiltersV2>(() => defaultFilters());
@@ -448,29 +512,20 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return psychologistByCaseSource ? buildPsychologistByCaseChart(psychologistByCaseSource) : [];
     }, [psychologistByCaseSource, buildPsychologistByCaseChart]);
     const psychologistByDateSource = useMemo(() => getChartSource(history.charts, ['alerts_by_date', 'over_time', 'by_date', 'activity_over_time', 'sessions_by_month']), [history.charts]);
+    const psychologistDominantDomainSource = useMemo(
+        () => getChartSource(history.charts, ['dominant_domain_by_evaluation', 'by_dominant_domain', 'dominant_domains', 'evaluations_by_dominant_domain']),
+        [history.charts]
+    );
 
     const psychologistDominantDomainData = useMemo(() => {
-        if (role !== 'psicologo' || !history.summary) return [];
+        if (role !== 'psicologo') return [];
 
-        const dominant = resolveSummaryCodeLabel(
-            (history.summary as Record<string, unknown>).dominant_domain,
-            'Sin dominio dominante',
-            DOMAIN_LABELS
-        );
+        if (psychologistDominantDomainSource && chartItems(psychologistDominantDomainSource).length > 0) {
+            return buildFiveDomainChartFromSource(psychologistDominantDomainSource);
+        }
 
-        if (!dominant.code) return [];
-
-        return [
-            {
-                id: dominant.code,
-                key: dominant.code,
-                label: dominant.label,
-                value: dominant.count ?? 1,
-                count: dominant.count ?? 1,
-                raw: dominant
-            }
-        ];
-    }, [history.summary, role]);
+        return buildDominantDomainChartFromItems(history.items);
+    }, [history.items, psychologistDominantDomainSource, role]);
 
     const psychologistByDateChart = useMemo(() => {
         if (!psychologistByDateSource) return [];
@@ -559,9 +614,18 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
             .map(([key, label]) => ({ key, label }));
     }, [selectedCaseDomainEvolutionMapped]);
 
+    const summaryDominantDomain = useMemo(() => {
+        if (!history.summary) return null;
+        return resolveSummaryCodeLabel(
+            (history.summary as Record<string, unknown>).dominant_domain,
+            'Sin dominio dominante',
+            DOMAIN_LABELS
+        );
+    }, [history.summary]);
+
     const leadingDomain = role === 'padre'
         ? String(guardianCharts.byDomain[0]?.label ?? 'Sin dominio dominante')
-        : String(psychologistDominantDomainData[0]?.label ?? 'Sin dominio dominante');
+        : String(summaryDominantDomain?.label ?? 'Sin dominio dominante');
     const leadingAlert = role === 'padre'
         ? String(guardianCharts.byAlert[0]?.label ?? 'Sin alerta dominante')
         : String(summaryHighestAlert?.label ?? psychologistCharts.byLevel[0]?.label ?? 'Sin alerta dominante');
