@@ -26,6 +26,10 @@ import type {
 import { mapApiErrorToUserMessage, formatDateTimeEsCO, getModeLabel, getRoleLabel, getStatusLabel } from '../../../utils/presentation/naturalLanguage';
 import { resolveCaseCompositeLabel, getDashboardDomainLabel } from '../../../utils/questionnaires/dashboardLabels';
 import { buildActiveFilterChips, buildHistoryKpis } from '../../../utils/questionnaires/dashboardTransform';
+import { getChartSource, getChartItems } from '../../../utils/questionnaires/chartContract';
+import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
+import './HistorialBase.css';
+
 // local fallback for default filters (kept simple)
 function defaultFilters(): QuestionnaireHistoryFiltersV2 {
     return { page: 1, page_size: 10 } as unknown as QuestionnaireHistoryFiltersV2;
@@ -34,8 +38,6 @@ function defaultFilters(): QuestionnaireHistoryFiltersV2 {
 function getString(value: unknown, fallback = '--') {
     return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
 }
-import { getChartSource, getChartItems } from '../../../utils/questionnaires/chartContract';
-import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
 
 // Local simple helpers and options (kept minimal to avoid large refactors)
 function toMaybeBoolean(value: string) {
