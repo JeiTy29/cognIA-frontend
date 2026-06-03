@@ -70,6 +70,48 @@ const DOMAIN_EVOLUTION_LABELS: Record<string, string> = {
     elimination: 'Eliminación'
 };
 
+const DOMAIN_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    anxiety: 'Ansiedad',
+    depression: 'Depresión',
+    conduct: 'Conducta',
+    elimination: 'Eliminación'
+};
+
+function buildDominantDomainByEvaluation(items: QuestionnaireHistoryItemV2DTO[]) {
+    const counts = new Map<string, number>();
+
+    for (const item of items) {
+        const domain = typeof item.dominant_domain === 'string' ? item.dominant_domain : null;
+        if (!domain) continue;
+        counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries()).map(([code, count]) => ({
+        id: code,
+        key: code,
+        label: DOMAIN_LABELS[code] ?? code,
+        value: count,
+        count,
+        raw: { domain: code, count }
+    }));
+}
+
+const MONTHS_ES = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+];
+
+function formatMonthPeriod(value?: string | null) {
+    if (!value) return '';
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return value;
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return value;
+    return `${MONTHS_ES[monthIndex]} ${year}`;
+}
+
 function toChartData(source: unknown): DashboardChartItem[] {
     const items = getChartItems(source as unknown as QuestionnaireDashboardChartSourceDTO) ?? [];
     return (items as Array<Record<string, unknown>>).map((rec, idx) => ({
@@ -280,19 +322,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const closeDetail = () => {
         setDetailSessionId(null);
     };
-    const MONTHS_ES = [
-        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-        'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-    ];
-    function formatMonthPeriod(value?: string | null) {
-        if (!value) return '';
-        const match = /^(\d{4})-(\d{2})$/.exec(value);
-        if (!match) return value;
-        const year = Number(match[1]);
-        const monthIndex = Number(match[2]) - 1;
-        if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return value;
-        return `${MONTHS_ES[monthIndex]} ${year}`;
-    }
 
     function chartItems(source: unknown): unknown[] {
         if (!source) return [];
@@ -377,7 +406,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const historyByDateSource = useMemo(() => getChartSource(history.charts, ['alerts_by_date', 'sessions_by_month', 'over_time']), [history.charts]);
     const historyByCaseSource = useMemo(() => getChartSource(history.charts, ['history_by_case', 'sessions_by_case', 'activity_by_case']), [history.charts]);
-    const historyByDomainSource = useMemo(() => getChartSource(history.charts, ['alerts_by_domain', 'by_domain']), [history.charts]);
     const historyByLevelSource = useMemo(() => getChartSource(history.charts, ['alerts_by_level', 'by_alert_level']), [history.charts]);
 
     const guardianByMonthSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time']), [guardianDashboard]);
@@ -392,10 +420,31 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return fromCharts ?? null;
     }, [guardianDashboard]);
 
-    const psychologistByDomainSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain']), [psychologistDashboard]);
+    const psychologistAlertsByDomainSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_domain', 'by_domain']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_domain']), [psychologistDashboard]);
     const psychologistByLevelSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_level', 'by_alert_level']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_alert_level']), [psychologistDashboard]);
     const psychologistByStatusSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['reviews_by_status', 'by_review_status']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_review_status']), [psychologistDashboard]);
     const psychologistByDateSource = useMemo(() => getChartSource(psychologistDashboard?.charts, ['alerts_by_date', 'over_time', 'by_date']) ?? getChartSource(psychologistDashboard?.aggregates, ['by_date']), [psychologistDashboard]);
+
+    const psychologistDominantDomainData = useMemo(() => {
+        return role === 'psicologo' ? buildDominantDomainByEvaluation(history.items) : [];
+    }, [history.items, role]);
+
+    const psychologistByDateChart = useMemo(() => {
+        if (!psychologistByDateSource) return [];
+        const items = chartItems(psychologistByDateSource).map((it: unknown, idx: number) => {
+            const rec = it as Record<string, unknown>;
+            const rawLabel = String(rec.period ?? rec.month ?? rec.label ?? '');
+            const formattedLabel = formatMonthPeriod(rawLabel) || rawLabel || `Item ${idx + 1}`;
+            return {
+                id: String(rec.id ?? rec.key ?? `item-${idx}`),
+                label: formattedLabel,
+                value: Number(rec.count ?? rec.value ?? rec.sessions ?? 0),
+                tone: typeof rec.tone === 'string' ? rec.tone : typeof rec.alert_level === 'string' ? rec.alert_level : undefined,
+                raw: rec
+            };
+        });
+        return toChartData({ ...(psychologistByDateSource as unknown as QuestionnaireDashboardChartSourceDTO), items } as unknown as QuestionnaireDashboardChartSourceDTO);
+    }, [psychologistByDateSource]);
 
     const guardianCharts = {
         byMonth: guardianByMonthSource ? toChartData(guardianByMonthSource) : [],
@@ -434,7 +483,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     }
 
     const psychologistCharts = {
-        byDomain: psychologistByDomainSource ? toChartData(psychologistByDomainSource) : [],
+        byDomain: psychologistAlertsByDomainSource ? toChartData(psychologistAlertsByDomainSource) : [],
         byLevel: psychologistByLevelSource ? toChartData(psychologistByLevelSource) : [],
         byStatus: psychologistByStatusSource ? toChartData(psychologistByStatusSource) : [],
         byDate: psychologistByDateSource ? toChartData(psychologistByDateSource) : []
@@ -556,16 +605,21 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     {(() => {
                         const source = role === 'padre' ? guardianByCaseSource ?? historyByCaseSource : historyByCaseSource;
                         return source && chartItems(source).length > 0 ? (
-                            <DashboardChartCard title="Cuestionarios por caso" data={toChartData(source)} loading={history.loading} />
+                            <DashboardChartCard title={role === 'psicologo' ? 'Evaluaciones por caso' : 'Cuestionarios por caso'} data={toChartData(source)} loading={history.loading} />
                         ) : null;
                     })()}
 
-                    {role !== 'padre' && chartItems(historyByDomainSource).length > 0 ? (
-                        <DashboardChartCard title="Alertas por dominio" data={toChartData(historyByDomainSource)} loading={history.loading} />
+                    {role !== 'padre' ? (
+                        <DashboardChartCard
+                            title="Dominio predominante por evaluación"
+                            data={psychologistDominantDomainData}
+                            loading={history.loading}
+                            emptyText="No hay dominios predominantes disponibles." 
+                        />
                     ) : null}
 
                     {role !== 'padre' && chartItems(historyByLevelSource).length > 0 ? (
-                        <DashboardChartCard title="Alertas por nivel" data={toChartData(historyByLevelSource)} loading={history.loading} variant="donut" />
+                        <DashboardChartCard title="Distribución de alertas por nivel" data={toChartData(historyByLevelSource)} loading={history.loading} variant="donut" />
                     ) : null}
                 </section>
 
@@ -654,10 +708,10 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                     <section className="historial-dashboard-role-block">
                         {psychologistError ? <div className="historial-dashboard-alert error">{psychologistError}</div> : null}
                         <div className="historial-dashboard-charts">
-                            <DashboardChartCard title="Alertas por dominio" data={psychologistCharts.byDomain} loading={psychologistLoading} />
-                            <DashboardChartCard title="Alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} variant="donut" />
-                            <DashboardChartCard title="Revisiones por estado" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
-                            <DashboardChartCard title="Alertas por fecha" data={psychologistCharts.byDate} loading={psychologistLoading} variant="area" />
+                            <DashboardChartCard title="Dominio predominante por evaluación" data={psychologistDominantDomainData} loading={psychologistLoading} />
+                            <DashboardChartCard title="Distribución de alertas por nivel" data={psychologistCharts.byLevel} loading={psychologistLoading} variant="donut" />
+                            <DashboardChartCard title="Estado de revisión profesional" data={psychologistCharts.byStatus} loading={psychologistLoading} variant="donut" />
+                            <DashboardChartCard title="Evolución por rango de fechas" data={psychologistByDateChart} loading={psychologistLoading} variant="area" />
                         </div>
                     </section>
                 )}
