@@ -288,7 +288,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const guardianByMonthSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_month', 'alerts_over_time']), [guardianDashboard]);
     const guardianByDomainSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_domain', 'domain_load_summary']), [guardianDashboard]);
-    const guardianByCaseSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['sessions_by_case', 'activity_by_case', 'alerts_by_case']), [guardianDashboard]);
+    const guardianByCaseSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['sessions_by_case', 'activity_by_case']), [guardianDashboard]);
     const guardianByAlertSource = useMemo(() => getChartSource(guardianDashboard?.charts, ['alerts_by_level', 'cases_by_alert_level']), [guardianDashboard]);
     const guardianQuestionnairesByStatusSource = useMemo(() => {
         const maybe = guardianDashboard as unknown as Record<string, unknown> | undefined;
@@ -314,11 +314,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return {
             id: rec.id ?? `${String(rec.period ?? rec.label ?? '')}-${idx}`,
             label: formatMonthPeriod(String(rec.period ?? rec.month ?? rec.label ?? '')),
-            value: Number(rec.count ?? rec.value ?? 0),
+            value: Number(rec.count ?? rec.value ?? rec.sessions ?? 0),
             tone: rec.tone as string | undefined
         };
     }) } as unknown as QuestionnaireDashboardChartSourceDTO) : [];
-    const hasGuardianCharts = [guardianByMonthSource, guardianByDomainSource, guardianByCaseSource, guardianByAlertSource].some((s) => chartItems(s).length > 0);
+    const hasGuardianCharts = [guardianByMonthSource, guardianByDomainSource, guardianByCaseSource, guardianByAlertSource, guardianQuestionnairesByStatusSource].some((s) => chartItems(s).length > 0);
 
     function buildQuestionnairesByStatus(source: unknown) {
         const arr = chartItems(source);
@@ -345,6 +345,16 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         byStatus: psychologistByStatusSource ? toChartData(psychologistByStatusSource) : [],
         byDate: psychologistByDateSource ? toChartData(psychologistByDateSource) : []
     };
+
+    const selectedCaseDomainSummarySource = useMemo(() => {
+        return getChartSource(selectedCaseDetail?.charts, ['domain_summary']) ??
+            (selectedCaseDetail?.domain_summary ? { items: selectedCaseDetail.domain_summary } as unknown as QuestionnaireDashboardChartSourceDTO : null);
+    }, [selectedCaseDetail]);
+    const selectedCaseTrendSource = useMemo(() => {
+        return getChartSource(selectedCaseDetail?.charts, ['trend']) ??
+            (selectedCaseDetail?.trend ? { items: selectedCaseDetail.trend } as unknown as QuestionnaireDashboardChartSourceDTO : null);
+    }, [selectedCaseDetail]);
+
     const leadingDomain = (role === 'padre' ? guardianCharts.byDomain : psychologistCharts.byDomain)[0]?.label ?? 'Sin dominio dominante';
     const leadingAlert = (chartItems(historyByLevelSource).length > 0 ? toChartData(historyByLevelSource)[0]?.label : psychologistCharts.byLevel[0]?.label) ?? 'Sin alerta dominante';
     const executiveCopy = role === 'padre'
@@ -468,9 +478,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 {guardianByDomainSource && chartItems(guardianByDomainSource).length > 0 ? (
                                     <DashboardChartCard title="Alertas por dominio" data={toChartData(guardianByDomainSource)} />
                                 ) : null}
-                                {guardianByCaseSource && chartItems(guardianByCaseSource).length > 0 ? (
-                                    <DashboardChartCard title="Cuestionarios por caso" data={toChartData(guardianByCaseSource)} />
-                                ) : null}
                                 {/* 'Casos por alerta' intentionally removed from Historial per product decision */}
                                 {guardianQuestionnairesByStatusSource && chartItems(guardianQuestionnairesByStatusSource).length > 0 ? (
                                     <DashboardChartCard title="Estado de cuestionarios" data={buildQuestionnairesByStatus(guardianQuestionnairesByStatusSource)} variant="donut" />
@@ -499,8 +506,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                             {!caseDetailLoading && selectedCaseDetail ? (
                                                 <>
                                                     <div className="historial-dashboard-charts">
-                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDetail.charts?.domain_summary ?? selectedCaseDetail.domain_summary)} />
-                                                        <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseDetail.charts?.trend ?? selectedCaseDetail.trend)} variant="line" />
+                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDomainSummarySource)} />
+                                                        <DashboardChartCard title="Tendencia del caso" data={toChartData(selectedCaseTrendSource)} variant="line" />
                                                     </div>
                                                     <div className="historial-dashboard-session-list">
                                                         {selectedCaseDetail.sessions.map((item) => (
