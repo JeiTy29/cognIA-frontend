@@ -138,6 +138,43 @@ function chartItemsFromUnknown(points: QuestionnaireDashboardChartSourceDTO | un
         .map((point) => ({ label: chartLabel(point, type), value: chartValue(point) }))
         .filter((item) => Number.isFinite(item.value) && item.value > 0);
 }
+const MONTHS_ES = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+];
+
+function formatMonthPeriod(value?: string | null) {
+    if (!value) return '';
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return value;
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return value;
+    return `${MONTHS_ES[monthIndex]} ${year}`;
+}
+
+function buildDominantDomainItems(rawItems: unknown[]) {
+    const counts = new Map<string, number>();
+    const DOMAIN_LABELS: Record<string, string> = {
+        adhd: 'TDAH',
+        anxiety: 'Ansiedad',
+        depression: 'Depresión',
+        conduct: 'Conducta',
+        elimination: 'Eliminación'
+    };
+
+    for (const rawItem of rawItems) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const item = rawItem as Record<string, unknown>;
+        const domain = typeof item.dominant_domain === 'string' ? item.dominant_domain : null;
+        if (!domain) continue;
+        counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+        .map(([code, count]) => ({ label: DOMAIN_LABELS[code] ?? code, value: count }))
+        .sort((a, b) => b.value - a.value);
+}
 export default function EvaluacionesCompartidas() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -553,10 +590,11 @@ export default function EvaluacionesCompartidas() {
         () => chartItemsFromUnknown(dashboard?.aggregates?.by_alert_level ?? backendCharts?.by_alert_level ?? backendCharts?.alerts_by_level, 'alert'),
         [backendCharts, dashboard?.aggregates?.by_alert_level]
     );
-    const domainChartItems = useMemo(
-        () => chartItemsFromUnknown(dashboard?.aggregates?.by_domain ?? backendCharts?.by_domain ?? backendCharts?.alerts_by_domain, 'domain'),
-        [backendCharts, dashboard?.aggregates?.by_domain]
-    );
+    const domainChartItems = useMemo(() => {
+        // Build dominant domain counts from dashboard.items[].dominant_domain
+        const dashboardItems = Array.isArray(dashboard?.items) ? dashboard?.items as unknown[] : [];
+        return buildDominantDomainItems(dashboardItems);
+    }, [dashboard?.items]);
     const reviewChartItems = useMemo(
         () => chartItemsFromUnknown(dashboard?.aggregates?.by_review_status ?? backendCharts?.by_review_status ?? backendCharts?.reviews_by_status, 'review'),
         [backendCharts, dashboard?.aggregates?.by_review_status]
@@ -569,10 +607,19 @@ export default function EvaluacionesCompartidas() {
         () => chartItemsFromUnknown(backendCharts?.by_case ?? backendCharts?.cases_by_alert, 'case'),
         [backendCharts]
     );
-    const evaluationTimelineItems = useMemo(
-        () => chartItemsFromUnknown(backendCharts?.over_time ?? backendCharts?.by_date ?? backendCharts?.alerts_by_date, 'time'),
-        [backendCharts]
-    );
+    const evaluationTimelineItems = useMemo(() => {
+        const rawPoints = getChartItems((backendCharts?.over_time ?? backendCharts?.by_date ?? backendCharts?.alerts_by_date) as QuestionnaireDashboardChartSourceDTO | null) ?? [];
+        return rawPoints
+            .map((pt) => (pt && typeof pt === 'object' ? pt as Record<string, unknown> : null))
+            .filter((pt): pt is Record<string, unknown> => Boolean(pt))
+            .map((rec, idx) => {
+                const rawLabel = String(rec.period ?? rec.month ?? rec.label ?? rec.date ?? '');
+                const label = formatMonthPeriod(rawLabel) || rawLabel || `Item ${idx + 1}`;
+                const value = chartValue(rec);
+                return { label, value };
+            })
+            .filter((item) => Number.isFinite(item.value) && item.value > 0);
+    }, [backendCharts]);
     const topCaseLabel = caseTreemapItems[0]?.label ?? 'Sin agregado por caso';
     const topDomainLabel = domainChartItems[0]?.label ?? 'Sin dominio dominante';
     const highestAlertLabel = normalizeAlertLevel(summary?.highest_alert_level);
@@ -657,7 +704,7 @@ export default function EvaluacionesCompartidas() {
                 {!loading ? (
                     <div className="evaluaciones-dashboard-grid">
                         <DashboardSection
-                            title="Distribución por nivel de alerta"
+                            title="Distribución de alertas por nivel"
                             description="Permite priorizar las evaluaciones aceptadas según su nivel de alerta."
                         >
                             <DonutChart
@@ -668,7 +715,7 @@ export default function EvaluacionesCompartidas() {
                         </DashboardSection>
                         <DashboardSection
                             title="Dominio predominante por evaluación"
-                            description="Identifica el dominio con mayor probabilidad en cada evaluación aceptada."
+                            description="Identifica el dominio predominante de cada evaluación (cada evaluación aporta máximo un dominio)."
                         >
                             <HorizontalBarChart
                                 data={domainChartItems}
@@ -678,7 +725,7 @@ export default function EvaluacionesCompartidas() {
                         </DashboardSection>
                         <DashboardSection
                             className="evaluaciones-dashboard-wide evaluaciones-dashboard-large"
-                            title="Evaluaciones por rango de fechas"
+                            title="Evolución por rango de fechas"
                             description="Muestra la actividad aceptada por mes dentro del periodo consultado."
                         >
                             <AreaChart
@@ -711,7 +758,7 @@ export default function EvaluacionesCompartidas() {
                         </DashboardSection>
                         <DashboardSection
                             className="evaluaciones-dashboard-large"
-                            title="Mapa de carga por caso"
+                            title="Evaluaciones por caso"
                             description="Muestra qué casos concentran mayor cantidad de evaluaciones aceptadas."
                         >
                             <HorizontalBarChart
