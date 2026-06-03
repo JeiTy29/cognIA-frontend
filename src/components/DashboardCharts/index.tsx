@@ -99,6 +99,7 @@ interface CompatChartProps {
     series?: Array<Record<string, unknown>>;
     helper?: ReactNode;
     type?: 'area' | 'donut' | 'heatmap' | 'line' | 'treemap' | 'bar' | 'histogram' | 'matrix' | 'delta';
+    includeZeroValues?: boolean;
     [key: string]: unknown;
 }
 
@@ -195,9 +196,9 @@ function compactChartLabel(label: string, maxLength = 24) {
     return `${normalized.slice(0, Math.max(8, maxLength - 1)).trim()}…`;
 }
 
-function limitRankedItems(data: NormalizedChartItem[], limit = 6) {
+function limitRankedItems(data: NormalizedChartItem[], limit = 6, includeZeroValues = false) {
     const useful = data
-        .filter((item) => Number.isFinite(item.value) && item.value !== 0)
+        .filter((item) => Number.isFinite(item.value) && (includeZeroValues ? true : item.value !== 0))
         .sort((left, right) => Math.abs(right.value) - Math.abs(left.value));
     const top = useful.slice(0, limit);
     const rest = useful.slice(limit);
@@ -432,8 +433,8 @@ function SimpleLineChart({
     );
 }
 
-function SimpleBarChart({ data, loading, emptyText, formatter, maxValue }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number }>) {
-    const limitedItems = limitRankedItems(data, 5);
+function SimpleBarChart({ data, loading, emptyText, formatter, maxValue, includeZeroValues }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number; includeZeroValues?: boolean }>) {
+    const limitedItems = limitRankedItems(data, 5, includeZeroValues === true);
     const chartData = limitedItems.map((item, index) => ({
         label: compactChartLabel(item.label, 20),
         fullLabel: item.label,
@@ -647,7 +648,8 @@ function CompatChart({
     maxY,
     xLabelFormatter,
     helper,
-    type
+    type,
+    includeZeroValues
 }: Readonly<CompatChartProps>) {
     const normalizedData = useMemo(() => toChartItems(data ?? items), [data, items]);
     const title = ariaLabel ?? 'Gráfica';
@@ -667,7 +669,7 @@ function CompatChart({
             {type === 'line' ? <SimpleLineChart data={normalizedData} source={data} series={series} emptyText={emptyText} formatter={formatter} xLabelFormatter={xLabelFormatter} minY={typeof minY === 'number' ? minY : undefined} maxY={typeof maxY === 'number' ? maxY : undefined} /> : null}
             {type === 'treemap' ? <SimpleTreemapChart data={normalizedData} emptyText={emptyText} /> : null}
             {type === 'delta' ? <DivergingBars data={normalizedData} emptyText={emptyText} formatter={formatter} /> : null}
-            {(!type || type === 'bar' || type === 'histogram') ? <SimpleBarChart data={normalizedData} emptyText={emptyText} formatter={formatter} maxValue={maxValue} /> : null}
+            {(!type || type === 'bar' || type === 'histogram') ? <SimpleBarChart data={normalizedData} emptyText={emptyText} formatter={formatter} maxValue={maxValue} includeZeroValues={includeZeroValues} /> : null}
             {helper ? <p className="dashboard-chart-helper">{helper}</p> : null}
         </div>
     );
@@ -777,7 +779,7 @@ export function DashboardChartCard({
             ) : variant === 'donut' ? (
                 <SimpleDonutChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
             ) : (
-                <SimpleBarChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
+                <SimpleBarChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} maxValue={undefined} includeZeroValues={includeZeroValues} />
             )}
         </article>
     );

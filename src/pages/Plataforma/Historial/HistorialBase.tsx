@@ -22,91 +22,44 @@ import type {
     QuestionnaireHistoryItemV2DTO,
     QuestionnairePsychologistDashboardV2Response
 } from '../../../services/questionnaires/questionnaires.types';
-import {
-    formatDateTimeEsCO,
-    getModeLabel,
-    getRoleLabel,
-    getStatusLabel,
-    mapApiErrorToUserMessage
-} from '../../../utils/presentation/naturalLanguage';
-import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
-import { buildActiveFilterChips, buildHistoryKpis, normalizeChartSeries } from '../../../utils/questionnaires/dashboardTransform';
+
+import { mapApiErrorToUserMessage, getString } from '../../../utils/presentation/naturalLanguage';
+import { formatDateTimeEsCO } from '../../../utils/presentation/naturalLanguage';
+import { resolveCaseCompositeLabel, getDashboardDomainLabel } from '../../../utils/questionnaires/dashboardLabels';
+import { buildActiveFilterChips, buildHistoryKpis } from '../../../utils/questionnaires/dashboardTransform';
+import { defaultFilters } from '../../../utils/questionnaires/historyFilters';
 import { getChartSource } from '../../../utils/questionnaires/chartContract';
-import {
-    getDashboardDomainLabel,
-    resolveCaseCompositeLabel,
-    toHistoryStatusFilter,
-    toOptionalFilterText
-} from '../../../utils/questionnaires/dashboardLabels';
-import './HistorialBase.css';
+import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
+import { getStatusLabel } from '../../../utils/presentation/naturalLanguage';
 
-const DOMAIN_EVOLUTION_LABELS: Record<string, string> = {
-    adhd: 'TDAH',
-    anxiety: 'Ansiedad',
-    conduct: 'Conducta',
-    depression: 'Depresión',
-    elimination: 'Eliminación'
-};
-
-type HistorialRole = 'padre' | 'psicologo';
-
-interface HistorialBaseProps {
-    role: HistorialRole;
+// Local simple helpers and options (kept minimal to avoid large refactors)
+function toMaybeBoolean(value: string) {
+    if (value === '') return undefined;
+    if (value === 'true' || value === '1') return true;
+    if (value === 'false' || value === '0') return false;
+    return undefined;
 }
+
+function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2) {
+    return filters as unknown as QuestionnaireHistoryFiltersV2;
+}
+
+const periodOptions = [
+    { value: '3', label: 'Últimos 3 meses' },
+    { value: '6', label: 'Últimos 6 meses' },
+    { value: '12', label: 'Últimos 12 meses' }
+] as const;
 
 const statusOptions = [
     { value: '', label: 'Todos' },
-    { value: 'draft', label: 'Borrador' },
-    { value: 'in_progress', label: 'En progreso' },
-    { value: 'submitted', label: 'Enviado' },
-    { value: 'processed', label: 'Procesado' },
-    { value: 'failed', label: 'Fallido' },
-    { value: 'archived', label: 'Archivado' }
-];
-const pageSizeOptions = [{ value: '10', label: '10' }, { value: '20', label: '20' }, { value: '50', label: '50' }];
-const domainOptions = [{ value: '', label: 'Todos' }, { value: 'adhd', label: 'TDAH' }, { value: 'conduct', label: 'Conducta' }, { value: 'anxiety', label: 'Ansiedad' }, { value: 'depression', label: 'Depresión' }, { value: 'elimination', label: 'Eliminación' }];
-const alertOptions = [{ value: '', label: 'Todas' }, { value: 'low', label: 'Baja' }, { value: 'moderate', label: 'Moderada' }, { value: 'elevated', label: 'Elevada' }, { value: 'high', label: 'Alta' }, { value: 'critical_review', label: 'Revisión prioritaria' }];
-const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requiere revisión' }, { value: 'false', label: 'Sin revisión requerida' }];
-const periodOptions = [{ value: '3', label: '3 meses' }, { value: '6', label: '6 meses' }, { value: '12', label: '12 meses' }];
-function getString(value: unknown, fallback = '--') {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
-}
-function toChartData(points: QuestionnaireDashboardChartSourceDTO | null | undefined) {
-    return normalizeChartSeries(points).map((item) => ({ id: item.id, label: item.label, value: item.value, tone: item.tone }));
-}
-function defaultFilters(): QuestionnaireHistoryFiltersV2 {
-    return { status: undefined, q: '', case_label: '', case_public_id: '', tag: '', domain: '', alert_level: '', date_from: '', date_to: '', needs_professional_review: undefined };
-}
-function toMaybeBoolean(value: string) {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-}
-function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2): QuestionnaireHistoryFiltersV2 {
-    return {
-        status: filters.status,
-        q: toOptionalFilterText(filters.q ?? ''),
-        case_label: toOptionalFilterText(filters.case_label ?? ''),
-        case_public_id: toOptionalFilterText(filters.case_public_id ?? ''),
-        tag: toOptionalFilterText(filters.tag ?? ''),
-        domain: toOptionalFilterText(filters.domain ?? ''),
-        alert_level: toOptionalFilterText(filters.alert_level ?? ''),
-        date_from: toOptionalFilterText(filters.date_from ?? ''),
-        date_to: toOptionalFilterText(filters.date_to ?? ''),
-        needs_professional_review: filters.needs_professional_review
-    };
-}
-function makeTitle(role: HistorialRole) {
-    return role === 'padre' ? 'Historial de cuestionarios' : 'Evaluaciones recibidas e historial';
-}
-function makeDescription(role: HistorialRole) {
-    return role === 'padre'
-        ? 'Consulta cuestionarios aplicados, resultados orientativos y evolución por caso.'
-        : 'Visualiza evaluaciones compartidas, alertas y estado de revisión.';
-}
-function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO) {
-    return resolveCaseCompositeLabel(caseItem);
-}
+    { value: 'processed', label: 'Procesados' },
+    { value: 'submitted', label: 'Enviados' },
+    { value: 'in_progress', label: 'En progreso' }
+] as const;
+
+const domainOptions = [{ value: '', label: 'Todos' }];
+const alertOptions = [{ value: '', label: 'Todas' }];
+const reviewOptions = [{ value: '', label: 'Todos' }, { value: 'true', label: 'Requieren revisión' }, { value: 'false', label: 'Revisados' }];
 function resolveHistoryItemCaseLabel(item: QuestionnaireHistoryItemV2DTO) {
     const label = resolveCaseCompositeLabel({
         display_label: item.case_display_label,
@@ -490,6 +443,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     return (
         <div className="plataforma-view historial-dashboard-view">
             <section className="historial-dashboard" aria-label={makeTitle(role)}>
+                <div className="historial-page-content">
+                    <section className="historial-dashboard-section">
                 <header className="historial-dashboard-header">
                     <div><h1>{makeTitle(role)}</h1><p>{makeDescription(role)}</p></div>
                     <div className="historial-dashboard-actions">
@@ -604,64 +559,65 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                                 </div>
                             </section>
                         ) : null}
-                        <section className="historial-dashboard-case-list-block">
-                            <div className="historial-dashboard-cases-list">
-                                {guardianCases.map((caseItem) => (
-                                    <article key={caseItem.case_id} className="historial-dashboard-case-card historial-case-card">
-                                        <h3>{resolveCaseLabel(caseItem)}</h3>
-                                        <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
-                                        <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
-                                        <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
-                                        <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
-                                        <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
-                                        <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>{selectedCaseId === caseItem.case_id ? 'Cerrar detalle' : 'Ver detalle'}</button>
-                                        {selectedCaseId === caseItem.case_id ? (
-                                            <div className="historial-dashboard-case-detail historial-case-detail-panel">
-                                                <div className="historial-dashboard-case-detail-header">
-                                                    <h3>Detalle del caso</h3>
-                                                    <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
-                                                </div>
-                                                {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
-                                                {!caseDetailLoading && selectedCaseDetail ? (
-                                                    <>
-                                                        <div className="historial-dashboard-charts detail-chart-grid">
-                                                            <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDomainSummaryMapped ?? selectedCaseDomainSummarySource)} formatter={(value) => `${value.toFixed(1)} %`} includeZeroValues />
-                                                            <DashboardChartCard title="Tendencia general del caso" description="Evolución de la carga sintomática agregada entre cuestionarios procesados." data={toChartData(selectedCaseTrendMapped ?? selectedCaseTrendSource)} variant="line" series={[{ key: 'value', label: 'Carga sintomática agregada' }]} formatter={(value) => `${value.toFixed(1)} %`} />
-                                                            {selectedCaseDomainEvolutionMapped && Array.isArray(selectedCaseDomainEvolutionMapped) && selectedCaseDomainEvolutionMapped.length > 0 ? (
-                                                                <DashboardChartCard
-                                                                    title="Evolución por dominio"
-                                                                    description="Comparación de la carga sintomática de cada dominio entre cuestionarios."
-                                                                    data={selectedCaseDomainEvolutionMapped as DashboardChartItem[]}
-                                                                    variant="line"
-                                                                    series={selectedCaseDomainEvolutionSeries}
-                                                                    formatter={(value) => `${value.toFixed(1)} %`}
-                                                                />
-                                                            ) : null}
-                                                        </div>
-                                                        <div className="historial-dashboard-session-list">
-                                                            {selectedCaseDetail.sessions.map((item) => (
-                                                                <article className="historial-dashboard-session-card" key={item.id}>
-                                                                    <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
-                                                                    <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
-                                                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
-                                                                    <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
-                                                                    {(() => {
-                                                                        const reviewStatus = resolveHistoryItemReviewStatus(item);
-                                                                        return reviewStatus ? <div><strong>Revisión registrada:</strong> {reviewStatus}</div> : null;
-                                                                    })()}
-                                                                    <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
-                                                                </article>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                ) : null}
+
+                    <section className="historial-cases-section">
+                        <div className="historial-cases-list historial-dashboard-cases-list">
+                            {guardianCases.map((caseItem) => (
+                                <article key={caseItem.case_id} className="historial-dashboard-case-card historial-case-card historial-case-card--separated">
+                                    <h3>{resolveCaseLabel(caseItem)}</h3>
+                                    <div><strong>Código del caso:</strong> {getString(caseItem.case_public_id)}</div>
+                                    <div><strong>Cuestionarios:</strong> {caseItem.sessions_count ?? 0}</div>
+                                    <div><strong>Procesadas:</strong> {caseItem.processed_sessions_count ?? 0}</div>
+                                    <div className="historial-dashboard-card-inline"><strong>Última alerta:</strong> <AlertBadge level={caseItem.latest_alert_level} /></div>
+                                    <div><strong>Dominio:</strong> {getDashboardDomainLabel(caseItem.latest_domain)}</div>
+                                    <button type="button" className="historial-dashboard-btn" onClick={() => setSelectedCaseId(caseItem.case_id)}>{selectedCaseId === caseItem.case_id ? 'Cerrar detalle' : 'Ver detalle'}</button>
+                                    {selectedCaseId === caseItem.case_id ? (
+                                        <div className="historial-dashboard-case-detail historial-case-detail-panel">
+                                            <div className="historial-dashboard-case-detail-header">
+                                                <h3>Detalle del caso</h3>
+                                                <button type="button" className="historial-dashboard-btn secondary" onClick={() => setSelectedCaseId(null)}>Cerrar detalle</button>
                                             </div>
-                                        ) : null}
-                                    </article>
-                                ))}
-                            </div>
-                        </section>
+                                            {caseDetailLoading ? <div className="historial-dashboard-empty">Cargando detalle del caso...</div> : null}
+                                            {!caseDetailLoading && selectedCaseDetail ? (
+                                                <>
+                                                    <div className="historial-dashboard-charts detail-chart-grid">
+                                                        <DashboardChartCard title="Resumen por dominio" data={toChartData(selectedCaseDomainSummaryMapped ?? selectedCaseDomainSummarySource)} formatter={(value) => `${value.toFixed(1)} %`} includeZeroValues />
+                                                        {selectedCaseDomainEvolutionMapped && Array.isArray(selectedCaseDomainEvolutionMapped) && selectedCaseDomainEvolutionMapped.length > 0 ? (
+                                                            <DashboardChartCard
+                                                                title="Evolución por dominio"
+                                                                description="Comparación de la carga sintomática de cada dominio entre cuestionarios."
+                                                                data={selectedCaseDomainEvolutionMapped as DashboardChartItem[]}
+                                                                variant="line"
+                                                                series={selectedCaseDomainEvolutionSeries}
+                                                                formatter={(value) => `${value.toFixed(1)} %`}
+                                                            />
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="historial-dashboard-session-list">
+                                                        {selectedCaseDetail.sessions.map((item) => (
+                                                            <article className="historial-dashboard-session-card" key={item.id}>
+                                                                <div className="historial-dashboard-card-inline"><strong>{resolveHistoryItemCaseLabel(item)}</strong><AlertBadge level={item.latest_alert_level} /></div>
+                                                                <div><strong>Estado:</strong> {getStatusLabel(item.status)}</div>
+                                                                <div><strong>Dominio:</strong> {getDashboardDomainLabel(item.dominant_domain)}</div>
+                                                                <div><strong>Fecha:</strong> {formatDateTimeEsCO(item.processed_at ?? item.updated_at)}</div>
+                                                                {(() => {
+                                                                    const reviewStatus = resolveHistoryItemReviewStatus(item);
+                                                                    return reviewStatus ? <div><strong>Revisión registrada:</strong> {reviewStatus}</div> : null;
+                                                                })()}
+                                                                <button type="button" className="historial-dashboard-btn" onClick={() => openDetail(item.id).catch(() => undefined)}>Ver reporte</button>
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+                                </article>
+                            ))}
+                        </div>
+                    </section>
                     </>
+                    </section>
                 ) : (
                     <section className="historial-dashboard-role-block">
                         {psychologistError ? <div className="historial-dashboard-alert error">{psychologistError}</div> : null}
