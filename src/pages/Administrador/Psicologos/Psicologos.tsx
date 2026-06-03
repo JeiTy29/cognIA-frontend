@@ -151,7 +151,48 @@ const DEPARTMENT_TREEMAP_COLORS = [
     '#2f8f6b'
 ];
 
+function buildDepartmentAcronym(label: string, maxLength = 3): string {
+    if (!label || label.trim().length === 0) {
+        return '--';
+    }
 
+    // Remove accents and diacritics using NFD normalization
+    const normalized = label
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036F]/g, '')
+        .replace(/[^a-zA-Z0-9\s.]/g, ' ')
+        .trim();
+
+    if (!normalized || normalized.length === 0) {
+        return '--';
+    }
+
+    // Split into words and filter out common connectors
+    const commonConnectors = ['de', 'del', 'da', 'la', 'las', 'el', 'los', 'y', 'e', 'o', 'u'];
+    const words = normalized
+        .split(/\s+/)
+        .filter(Boolean)
+        .filter((word) => !commonConnectors.includes(word.toLowerCase()));
+
+    // If only one word, take first maxLength characters
+    if (words.length === 0) {
+        return normalized.slice(0, maxLength).toUpperCase();
+    }
+
+    if (words.length === 1) {
+        return words[0].slice(0, maxLength).toUpperCase();
+    }
+
+    // Multiple words: take first letter of each word, up to maxLength
+    const acronym = words
+        .map((word) => word[0])
+        .join('')
+        .slice(0, maxLength)
+        .toUpperCase();
+
+    return acronym || normalized.slice(0, maxLength).toUpperCase();
+}
 
 type DepartmentTreemapTooltipProps = {
     active?: boolean;
@@ -202,15 +243,20 @@ function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, v
     const labelText = String(name ?? '');
     const numericValue = Number(value ?? 0);
     const accessibilityLabel = formatPsychologistDepartmentTooltip(labelText, numericValue);
-    const showFullLabel = width >= 90 && height >= 34;
-    const showCompactLabel = width >= 58 && height >= 26;
-    const showValueOnly = width >= 28 && height >= 18;
+    const acronym = buildDepartmentAcronym(labelText);
+    const singleChar = acronym.length > 0 ? acronym[0] : '--';
 
-    const displayLabel = showFullLabel || showCompactLabel
+    const showFullLabel = width >= 100 && height >= 32;
+    const showCompactLabel = width >= 42 && height >= 22;
+    const showTinyLabel = width >= 24 && height >= 18;
+
+    const displayLabel = showFullLabel
         ? labelText
-        : showValueOnly
-            ? String(numericValue)
-            : null;
+        : showCompactLabel
+            ? acronym
+            : showTinyLabel
+                ? singleChar
+                : null;
 
     return (
         <g
