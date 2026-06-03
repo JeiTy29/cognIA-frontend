@@ -187,8 +187,8 @@ export default function OrientacionProfesional() {
                                         <span>{review.casePublicId ? `Código: ${review.casePublicId}` : 'Caso sin código público'}</span>
                                     </div>
                                     <div className="orientacion-profesional-review-status">
-                                        <strong>{review.reviewStatus}</strong>
-                                        <span>{review.psychologistName}</span>
+                                        <span className="orientacion-profesional-status-badge">{review.reviewStatus}</span>
+                                        <span className="orientacion-profesional-psychologist-name">{review.psychologistName}</span>
                                     </div>
                                 </div>
                                 <div className="orientacion-profesional-review-body">
