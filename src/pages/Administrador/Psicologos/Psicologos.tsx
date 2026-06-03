@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import {
     AreaChart,
     DashboardEmptyState,
@@ -138,10 +138,43 @@ function formatProfessionalCard(value: string | null | undefined) {
     return normalized.length > 0 ? normalized : 'Sin registrar';
 }
 
+const DEPARTMENT_TREEMAP_COLORS = [
+    '#0f5f9f',
+    '#2f9469',
+    '#f28c28',
+    '#6f4bb8',
+    '#d45d5d',
+    '#2c7a8c',
+    '#8a6d3b',
+    '#5a4e7b',
+    '#b06d3f',
+    '#2f8f6b'
+];
+
 type DepartmentTreemapNode = {
     name: string;
     size: number;
     fill: string;
+};
+
+type DepartmentTooltipState = {
+    label: string;
+    value: number;
+    x: number;
+    y: number;
+};
+
+type DepartmentTreemapContentProps = {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    name?: string;
+    value?: number;
+    fill?: string;
+    onMouseEnter: (label: string, value: number, event: MouseEvent<SVGGElement>) => void;
+    onMouseMove: (label: string, value: number, event: MouseEvent<SVGGElement>) => void;
+    onMouseLeave: () => void;
 };
 
 function formatPsychologistDepartmentTooltip(label: string, value: number) {
@@ -149,19 +182,36 @@ function formatPsychologistDepartmentTooltip(label: string, value: number) {
     return `${label}: ${value} ${psychologistLabel}`;
 }
 
-function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, value }: { x?: number; y?: number; width?: number; height?: number; name?: string; value?: number }) {
-    const tooltip = formatPsychologistDepartmentTooltip(String(name ?? ''), Number(value ?? 0));
-    const showLabel = width >= 60 && height >= 20;
+function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, value, fill, onMouseEnter, onMouseMove, onMouseLeave }: DepartmentTreemapContentProps) {
+    const labelText = String(name ?? '');
+    const numericValue = Number(value ?? 0);
+    const tooltipText = formatPsychologistDepartmentTooltip(labelText, numericValue);
+    const showFullLabel = width >= 100 && height >= 30;
+    const showCompactLabel = width >= 64 && height >= 24;
+    const showValueOnly = width >= 40 && height >= 18;
+
+    const content = showFullLabel ? (
+        <span className="department-treemap-label">{labelText}</span>
+    ) : showCompactLabel ? (
+        <span className="department-treemap-label">{labelText}</span>
+    ) : showValueOnly ? (
+        <span className="department-treemap-label department-treemap-value">{numericValue}</span>
+    ) : null;
 
     return (
-        <g transform={`translate(${x},${y})`} role="img" aria-label={tooltip}>
-            <title>{tooltip}</title>
-            <rect width={width} height={height} fill="#0f5f9f" stroke="#ffffff" strokeWidth={0.8} />
-            {showLabel ? (
+        <g
+            transform={`translate(${x},${y})`}
+            role="img"
+            aria-label={tooltipText}
+            onMouseEnter={(event) => onMouseEnter(labelText, numericValue, event)}
+            onMouseMove={(event) => onMouseMove(labelText, numericValue, event)}
+            onMouseLeave={onMouseLeave}
+        >
+            <title>{tooltipText}</title>
+            <rect width={width} height={height} fill={fill ?? '#0f5f9f'} stroke="#ffffff" strokeWidth={0.8} />
+            {content ? (
                 <foreignObject x={4} y={4} width={Math.max(0, width - 8)} height={Math.max(0, height - 8)}>
-                    <div className="department-treemap-cell">
-                        <span className="department-treemap-label">{name}</span>
-                    </div>
+                    <div className="department-treemap-cell">{content}</div>
                 </foreignObject>
             ) : null}
         </g>
@@ -169,28 +219,53 @@ function DepartmentTreemapContent({ x = 0, y = 0, width = 0, height = 0, name, v
 }
 
 function DepartmentTreemapChart({ data, emptyMessage }: { data: Array<{ label: string; value: number }>; emptyMessage: string }) {
+    const [tooltip, setTooltip] = useState<DepartmentTooltipState | null>(null);
+
     const chartData: DepartmentTreemapNode[] = data
         .filter((item) => item.value > 0)
         .slice(0, 12)
-        .map((item) => ({
+        .map((item, index) => ({
             name: item.label,
             size: item.value,
-            fill: '#0f5f9f'
+            fill: DEPARTMENT_TREEMAP_COLORS[index % DEPARTMENT_TREEMAP_COLORS.length]
         }));
+
+    const handleMouseEnter = (label: string, value: number, event: MouseEvent<SVGGElement>) => {
+        const { clientX, clientY } = event;
+        setTooltip({ label, value, x: clientX + 12, y: clientY + 12 });
+    };
+
+    const handleMouseMove = (label: string, value: number, event: MouseEvent<SVGGElement>) => {
+        const { clientX, clientY } = event;
+        setTooltip({ label, value, x: clientX + 12, y: clientY + 12 });
+    };
+
+    const handleMouseLeave = () => {
+        setTooltip(null);
+    };
 
     if (chartData.length === 0) {
         return <DashboardEmptyState message={emptyMessage} />;
     }
 
     return (
-        <div className="dashboard-chart-canvas dashboard-chart-canvas--large">
+        <div className="dashboard-chart-canvas dashboard-chart-canvas--large" style={{ position: 'relative' }}>
+            {tooltip ? (
+                <div className="department-treemap-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
+                    <strong>{tooltip.label}</strong>
+                    <span>{tooltip.value} {tooltip.value === 1 ? 'psicólogo' : 'psicólogos'}</span>
+                </div>
+            ) : null}
             <ResponsiveContainer width="100%" height="100%">
                 <Treemap
                     data={chartData}
                     dataKey="size"
                     stroke="#ffffff"
-                    fill="#0f5f9f"
-                    content={<DepartmentTreemapContent />}
+                    content={<DepartmentTreemapContent
+                        onMouseEnter={handleMouseEnter}
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={handleMouseLeave}
+                    />}
                     isAnimationActive={false}
                 />
             </ResponsiveContainer>
