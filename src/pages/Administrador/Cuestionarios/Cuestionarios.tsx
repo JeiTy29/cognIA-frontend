@@ -2,7 +2,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
     AreaChart,
-    DashboardEmptyState,
     DashboardSection,
     DonutChart,
     HeatmapChart
@@ -458,12 +457,6 @@ export default function Cuestionarios() {
                         cells={questionnaireAvailabilityCells}
                         ariaLabel="Disponibilidad operativa de cuestionarios"
                     />
-                </DashboardSection>
-                <DashboardSection
-                    title="Cobertura por preguntas y modo"
-                    description="Requiere datos reales de preguntas por plantilla para construir esta gráfica."
-                >
-                    <DashboardEmptyState message="No hay datos suficientes para generar esta gráfica en el periodo seleccionado." />
                 </DashboardSection>
             </div>
 

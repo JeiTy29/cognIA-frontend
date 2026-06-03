@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
+    DashboardEmptyState,
     DashboardSection,
     HorizontalBarChart,
     LineChart,
@@ -335,22 +336,13 @@ export function Metricas() {
     const latencyLineData = useMemo(
         () => {
             if (!Array.isArray(latencyHistory)) return [];
-            return latencyHistory.map((item: unknown, index: number) => {
-                let latency = 0;
-                let timestamp = '';
-                
-                if (typeof item === 'number') {
-                    latency = item;
-                    timestamp = new Date().toISOString();
-                } else if (item && typeof item === 'object') {
-                    const sample = item as Record<string, unknown>;
-                    latency = typeof sample.latencyMsAvg === 'number' ? sample.latencyMsAvg : 0;
-                    timestamp = typeof sample.timestamp === 'string' ? sample.timestamp : '';
-                }
-                
+            return latencyHistory.map((sample, index) => {
+                const avgLatency = typeof sample?.latencyMsAvg === 'number' ? sample.latencyMsAvg : 0;
+                const timestamp = typeof sample?.timestamp === 'string' ? sample.timestamp : '';
+
                 return {
                     label: timestamp ? formatTimeLabel(timestamp) : `M${index + 1}`,
-                    values: { latency }
+                    values: { latency: avgLatency }
                 };
             });
         },
@@ -735,7 +727,7 @@ export function Metricas() {
                                     <span className="metricas-label">Latencia promedio</span>
                                     <div className="metricas-value">{formatLatencyMs(snapshot.latency_ms_avg)}</div>
                                     <span className="metricas-small">Promedio general de tiempo de respuesta.</span>
-                                    {renderSparkline(latencyHistory, 'Historial de latencia')}
+                                    {renderSparkline(latencyHistory.map((sample) => sample.latencyMsAvg), 'Historial de latencia')}
                                 </div>
                                 <div>
                                     <span className="metricas-label">Latencia máxima</span>
@@ -765,13 +757,11 @@ export function Metricas() {
                                 ariaLabel="Latencia en el tiempo"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                                 minY={0}
-                                maxY={Math.max(50, ...latencyHistory.map((item: unknown) => {
-                                    if (typeof item === 'number') return item;
-                                    if (item && typeof item === 'object' && (item as Record<string, unknown>).latencyMsAvg) {
-                                        return (item as Record<string, unknown>).latencyMsAvg as number;
-                                    }
-                                    return 0;
-                                }), 0)}
+                                maxY={Math.max(
+                                    50,
+                                    ...latencyHistory.map((sample) => typeof sample.latencyMsAvg === 'number' ? sample.latencyMsAvg : 0),
+                                    0
+                                )}
                                 formatter={formatLatencyMs}
                             />
                         </DashboardSection>
@@ -821,7 +811,7 @@ export function Metricas() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="metricas-note">No hay datos por endpoint para construir el ranking de latencia.</div>
+                                <DashboardEmptyState message="No hay datos por endpoint para construir el ranking de latencia." />
                             )}
                         </DashboardSection>
                         <DashboardSection

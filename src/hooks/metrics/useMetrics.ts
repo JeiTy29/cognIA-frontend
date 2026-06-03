@@ -23,6 +23,11 @@ export type DbState = {
 
 export type StatusCounts = Record<string, number>;
 
+export type LatencySample = {
+    timestamp: string;
+    latencyMsAvg: number;
+};
+
 export type MetricsSnapshot = {
     uptime_seconds: number;
     requests_total: number;
@@ -45,7 +50,7 @@ interface UseMetricsResult {
     isLoading: boolean;
     lastUpdated: Date | null;
     requestHistory: number[];
-    latencyHistory: number[];
+    latencyHistory: LatencySample[];
     reload: () => void;
     isRefreshing: boolean;
 }
@@ -188,7 +193,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     const [isLoading, setIsLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [requestHistory, setRequestHistory] = useState<number[]>([]);
-    const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
+    const [latencyHistory, setLatencyHistory] = useState<LatencySample[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const pollingRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -212,6 +217,16 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
     }, [enabled]);
 
     const pushHistory = useCallback((setter: React.Dispatch<React.SetStateAction<number[]>>, value: number) => {
+        setter((prev) => {
+            const next = [...prev, value];
+            if (next.length > 30) {
+                return next.slice(-30);
+            }
+            return next;
+        });
+    }, []);
+
+    const pushLatencyHistory = useCallback((setter: React.Dispatch<React.SetStateAction<LatencySample[]>>, value: LatencySample) => {
         setter((prev) => {
             const next = [...prev, value];
             if (next.length > 30) {
@@ -389,10 +404,16 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                 if (isDevDashboardDemoEnabled()) {
                     const history = getDemoMetricsHistory();
                     setRequestHistory(history.requestHistory);
-                    setLatencyHistory(history.latencyHistory);
+                    setLatencyHistory(history.latencyHistory.map((latency, index) => ({
+                        timestamp: new Date(Date.now() - (history.latencyHistory.length - 1 - index) * 10000).toISOString(),
+                        latencyMsAvg: latency
+                    })));
                 } else {
                     pushHistory(setRequestHistory, result.requests_total);
-                    pushHistory(setLatencyHistory, result.latency_ms_avg);
+                    pushLatencyHistory(setLatencyHistory, {
+                        timestamp: new Date().toISOString(),
+                        latencyMsAvg: result.latency_ms_avg
+                    });
                 }
                 resetBackoff();
                 setErrorMessage(null);
@@ -410,7 +431,7 @@ export function useMetrics({ enabled = true }: UseMetricsOptions): UseMetricsRes
                 scheduleNext(delay);
             }
         }
-    }, [enabled, fetchHealth, fetchReady, fetchEmail, fetchMetrics, pushHistory, resetBackoff, handleBackoff, scheduleNext]);
+    }, [enabled, fetchHealth, fetchReady, fetchEmail, fetchMetrics, pushHistory, pushLatencyHistory, resetBackoff, handleBackoff, scheduleNext]);
 
     const reload = useCallback(() => {
         fetchAll().catch(() => undefined);
