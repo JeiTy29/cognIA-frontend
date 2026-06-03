@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useMemo, useState, useCallback } from 'react';
 import {
     AreaChart,
     DashboardEmptyState,
@@ -6,13 +6,13 @@ import {
     DonutChart,
     HeatmapChart,
     TimelineChart,
-    TreemapChart
+    HorizontalBarChart
 } from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
 import type { AuditLogItem } from '../../../services/admin/audit';
-import { buildDailyCountItems, buildHeatmapCells, buildTimelineItems, mapCountsToItems, summarizeRole } from '../../../utils/dashboard/dashboardData';
+import { buildDailyCountItems, buildMonthlyCountItems, buildHeatmapCells, buildTimelineItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import {
     downloadAuditReportPdf,
     resolveAuditCategoryValue,
@@ -83,6 +83,22 @@ const auditReportCategoryOptions = [
     { value: 'errors', label: 'Errores o fallos' },
     { value: 'system', label: 'Sistema/operación' }
 ];
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+    LOGIN_SUCCESS: 'Inicio de sesión exitoso',
+    LOGIN_FAILED: 'Inicio de sesión fallido',
+    MFA_LOGIN_FAILED: 'MFA fallido',
+    MFA_LOGIN_SUCCESS: 'MFA exitoso',
+    USER_CREATED: 'Usuario creado',
+    USER_UPDATED: 'Usuario actualizado',
+    USER_DISABLED: 'Usuario deshabilitado',
+    USER_ENABLED: 'Usuario habilitado',
+    QUESTIONNAIRE_CREATED: 'Cuestionario creado',
+    QUESTIONNAIRE_UPDATED: 'Cuestionario actualizado',
+    QUESTIONNAIRE_PUBLISHED: 'Cuestionario publicado',
+    QUESTIONNAIRE_ARCHIVED: 'Cuestionario archivado',
+    TEMPLATE_CLONED: 'Plantilla clonada'
+};
 
 const auditReportResultOptions = [
     { value: 'all', label: 'Todos' },
@@ -306,7 +322,9 @@ function formatRangeLabel(range: AuditReportRange, customFrom: string, customTo:
 }
 
 export default function Auditoria() {
-    const { items, loading, error } = useAuditLogs();
+    const { items, loading, error, loadAll } = useAuditLogs();
+    const [fullSummaryCalculated, setFullSummaryCalculated] = useState(false);
+    const [calculatingFull, setCalculatingFull] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [actionFilter, setActionFilter] = useState('Todos');
     const [page, setPage] = useState(1);
@@ -331,6 +349,76 @@ export default function Auditoria() {
             }))
         ];
     }, [items]);
+
+    // --- Helpers required by auditoría rules ---
+    const normalizeAuditActionKey = useCallback((action: unknown) => {
+        return String(action ?? '').trim().replace(/[\s-]+/g, '_').toUpperCase();
+    }, []);
+
+    const getAuditActionLabel = useCallback((action: unknown) => {
+        const key = normalizeAuditActionKey(action);
+        if (AUDIT_ACTION_LABELS[key]) return AUDIT_ACTION_LABELS[key];
+        return humanizeAction(String(action ?? ''));
+    }, [normalizeAuditActionKey]);
+
+    const normalizeAuditRoleLabel = useCallback((value: unknown) => {
+        const raw = String(value ?? '').trim();
+        if (!raw) return 'Sistema';
+        const upper = raw.toUpperCase();
+        if (upper === 'ADMIN' || raw === 'Adm. Sistema' || /ADMINISTRADOR/i.test(raw)) {
+            return 'Administrador del sistema';
+        }
+        if (upper === 'GUARDIAN' || upper === 'PARENT' || /PADRE|TUTOR/i.test(raw)) {
+            return 'Padre/Tutor';
+        }
+        if (upper === 'PSYCHOLOGIST' || /PSIC/i.test(raw)) {
+            return 'Psicólogo';
+        }
+        if (upper === 'SYSTEM' || raw === 'Sistema') return 'Sistema';
+        return raw;
+    }, []);
+
+    const classifyAuditActionResult = useCallback((action: unknown) => {
+        const key = normalizeAuditActionKey(action);
+        if (/(SUCCESS|ENABLED|CREATED|PUBLISHED|ARCHIVED|CLONED)/.test(key)) return 'success';
+        if (/(FAILED|ERROR|INVALID)/.test(key)) return 'failed';
+        if (/(REJECTED|DENIED|BLOCKED)/.test(key)) return 'rejected';
+        return 'informative';
+    }, [normalizeAuditActionKey]);
+
+    const isSensitiveAuditEvent = useCallback((event: { action: unknown; details?: unknown; raw?: Record<string, unknown> }) => {
+        const actionKey = normalizeAuditActionKey(event.action);
+        const detailsText = JSON.stringify(event.details ?? event.raw?.details ?? '').toUpperCase();
+
+        return (
+            /(?:LOGIN_FAILED|MFA_LOGIN_FAILED|FAILED|ERROR|DENIED|BLOCKED|REJECTED|INVALID)/.test(actionKey) ||
+            /(FAILED|ERROR|DENIED|BLOCKED|REJECTED|INVALID|CREDENTIAL)/.test(detailsText)
+        );
+    }, [normalizeAuditActionKey]);
+
+    function normalizeAuditSectionLabel(section: unknown) {
+        const AUDIT_SECTION_LABELS: Record<string, string> = {
+            auth: 'Autenticación',
+            authentication: 'Autenticación',
+            admin: 'Administración',
+            questionnaire_v2: 'Cuestionarios',
+            questionnaires: 'Cuestionarios',
+            questionnaire: 'Cuestionarios',
+            users: 'Usuarios',
+            user: 'Usuarios',
+            psychologists: 'Psicólogos',
+            psychologist: 'Psicólogos',
+            metrics: 'Métricas',
+            audit: 'Auditoría',
+            system: 'Sistema'
+        };
+        const raw = String(section ?? '').trim();
+        if (!raw) return 'Sistema';
+        const key = raw.toLowerCase();
+        return AUDIT_SECTION_LABELS[key] ?? raw;
+    }
+
+    // --- End helpers ---
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -381,145 +469,89 @@ export default function Auditoria() {
         }));
     }, [selectedItem]);
 
-    const auditActionsChart = useMemo(
-        () =>
-            mapCountsToItems(
-                filteredRows.reduce((accumulator, item) => {
-                    const label = humanizeAction(item.action);
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [filteredRows]
-    );
+    const auditActionsChart = useMemo(() => {
+        const counts = filteredRows.reduce((accumulator, item) => {
+            const label = getAuditActionLabel(item.action);
+            accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+            return accumulator;
+        }, new Map<string, number>());
+        return mapCountsToItems(counts);
+    }, [filteredRows, getAuditActionLabel]);
 
-    const auditRoleChart = useMemo(
-        () =>
-            mapCountsToItems(
-                filteredRows.reduce((accumulator, item) => {
-                    const roleValue =
-                        (typeof item.raw.user_role === 'string' && item.raw.user_role) ||
-                        (typeof item.raw.actor_role === 'string' && item.raw.actor_role) ||
-                        (typeof item.raw.role === 'string' && item.raw.role) ||
-                        'SYSTEM';
-                    const label = summarizeRole(roleValue);
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [filteredRows]
-    );
+    const auditRoleChart = useMemo(() => {
+        const counts = filteredRows.reduce((accumulator, item) => {
+            const roleValue =
+                (typeof item.raw?.actor_role_label === 'string' && item.raw.actor_role_label) ||
+                (typeof item.raw?.actor_role === 'string' && item.raw.actor_role) ||
+                (typeof item.raw?.user_role === 'string' && item.raw.user_role) ||
+                (typeof item.raw?.role === 'string' && item.raw.role) ||
+                null;
+            const label = normalizeAuditRoleLabel(roleValue);
+            accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+            return accumulator;
+        }, new Map<string, number>());
+        return mapCountsToItems(counts);
+    }, [filteredRows, normalizeAuditRoleLabel]);
 
-    const auditActivityByDay = useMemo(
-        () => buildDailyCountItems(filteredRows.map((item) => item.timestamp)),
-        [filteredRows]
-    );
+    const auditActivityByDay = useMemo(() => {
+        const timestamps = filteredRows.map((item) => item.timestamp).filter(Boolean) as string[];
+        if (timestamps.length === 0) return buildDailyCountItems([]);
+        const times = timestamps.map((t) => new Date(t).getTime()).filter((n) => Number.isFinite(n));
+        if (times.length === 0) return buildDailyCountItems([]);
+        const min = Math.min(...times);
+        const max = Math.max(...times);
+        const days = Math.round((max - min) / (1000 * 60 * 60 * 24));
+        if (days <= 45) {
+            return buildDailyCountItems(timestamps);
+        }
+        // For long ranges, build monthly items
+        return buildMonthlyCountItems(timestamps);
+    }, [filteredRows]);
 
-    const auditResultChart = useMemo(
-        () =>
-            mapCountsToItems(
-                filteredRows.reduce((accumulator, item) => {
-                    const result = resolveAuditResultValue(item);
-                    const label =
-                        result === 'success'
-                            ? 'Exitosas'
-                            : result === 'failed'
-                                ? 'Fallidas'
-                                : result === 'unauthorized'
-                                    ? 'No autorizadas'
-                                    : result === 'validation'
-                                        ? 'Rechazadas'
-                                        : 'Otras';
-                    accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
-                    return accumulator;
-                }, new Map<string, number>())
-            ),
-        [filteredRows]
-    );
+    const auditResultChart = useMemo(() => {
+        const counts = filteredRows.reduce((accumulator, item) => {
+            const classification = classifyAuditActionResult(item.action);
+            const label = classification === 'success' ? 'Exitosa' : classification === 'failed' ? 'Fallida' : classification === 'rejected' ? 'Rechazada' : 'Informativa';
+            accumulator.set(label, (accumulator.get(label) ?? 0) + 1);
+            return accumulator;
+        }, new Map<string, number>());
+        return mapCountsToItems(counts);
+    }, [filteredRows, classifyAuditActionResult]);
 
-    const auditSensitiveTimeline = useMemo(
-        () =>
-            buildTimelineItems(
-                filteredRows.filter((item) => {
-                    const action = item.action.toUpperCase();
-                    return (
-                        action.includes('PDF') ||
-                        action.includes('REPORT') ||
-                        action.includes('APPROV') ||
-                        action.includes('REJECT') ||
-                        action.includes('DENIED') ||
-                        action.includes('FAILED') ||
-                        action.includes('REVIEW')
-                    );
-                }),
-                {
-                    getDate: (item) => item.timestamp,
-                    getTitle: (item) => humanizeAction(item.action),
-                    getDescription: (item) => normalizeMojibakeText(item.summary || item.target || '--'),
-                    getTone: (item) => {
-                        const result = resolveAuditResultValue(item);
-                        if (result === 'success') return 'success';
-                        if (result === 'failed' || result === 'unauthorized') return 'danger';
-                        if (result === 'validation') return 'warning';
-                        return 'info';
-                    }
+    const auditSensitiveTimeline = useMemo(() =>
+        buildTimelineItems(
+            filteredRows.filter((item) => isSensitiveAuditEvent(item)).slice(0, 8),
+            {
+                getDate: (item) => item.timestamp,
+                getTitle: (item) => humanizeAction(item.action),
+                getDescription: (item) => normalizeMojibakeText(item.summary || item.target || '--'),
+                getTone: (item) => {
+                    const classification = classifyAuditActionResult(item.action);
+                    if (classification === 'success') return 'success';
+                    if (classification === 'failed' || classification === 'rejected') return 'danger';
+                    return 'info';
                 }
-            ),
-        [filteredRows]
-    );
+            }
+        ), [filteredRows, classifyAuditActionResult, isSensitiveAuditEvent]);
 
-    const auditRiskRows = useMemo(
-        () =>
-            Array.from(
-                new Set(
-                    filteredRows.map((item) => {
-                        const section =
-                            typeof item.section === 'string' && item.section.trim().length > 0
-                                ? item.section
-                                : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
-                                    ? item.raw.source_module
-                                    : 'General';
-                        return humanizeAuditSection(section);
-                    })
-                )
-            ),
-        [filteredRows]
+    const auditRiskRows = useMemo(() =>
+        Array.from(new Set(filteredRows.map((item) => normalizeAuditSectionLabel(item.section ?? item.raw?.source_module ?? '')))), [filteredRows]
     );
-    const auditRiskColumns = useMemo(() => ['Éxito', 'Error', 'Acceso denegado', 'Acción sensible'], []);
-    const auditRiskCells = useMemo(
-        () =>
-            buildHeatmapCells(
-                filteredRows,
-                auditRiskRows,
-                auditRiskColumns,
-                (item) => {
-                    const section =
-                        typeof item.section === 'string' && item.section.trim().length > 0
-                            ? item.section
-                            : typeof item.raw.source_module === 'string' && item.raw.source_module.trim().length > 0
-                                ? item.raw.source_module
-                                : 'General';
-                    return humanizeAuditSection(section);
-                },
-                (item) => {
-                    const action = item.action.toUpperCase();
-                    const result = resolveAuditResultValue(item);
-                    if (result === 'success') return 'Éxito';
-                    if (result === 'unauthorized') return 'Acceso denegado';
-                    if (result === 'failed' || result === 'validation') return 'Error';
-                    if (
-                        action.includes('PDF') ||
-                        action.includes('REPORT') ||
-                        action.includes('APPROV') ||
-                        action.includes('REJECT') ||
-                        action.includes('REVIEW')
-                    ) {
-                        return 'Acción sensible';
-                    }
-                    return 'Éxito';
-                }
-            ),
-        [auditRiskColumns, auditRiskRows, filteredRows]
+    const auditRiskColumns = useMemo(() => ['Exitosa', 'Fallida', 'Rechazada', 'Informativa'], []);
+    const auditRiskCells = useMemo(() =>
+        buildHeatmapCells(
+            filteredRows,
+            auditRiskRows,
+            auditRiskColumns,
+            (item) => normalizeAuditSectionLabel(item.section ?? item.raw?.source_module ?? ''),
+            (item) => {
+                const classification = classifyAuditActionResult(item.action);
+                if (classification === 'success') return 'Exitosa';
+                if (classification === 'failed') return 'Fallida';
+                if (classification === 'rejected') return 'Rechazada';
+                return 'Informativa';
+            }
+        ), [auditRiskColumns, auditRiskRows, filteredRows, classifyAuditActionResult]
     );
     const hasAuditDashboardData = filteredRows.length > 0;
 
@@ -612,6 +644,22 @@ export default function Auditoria() {
                     >
                         {reportWorking ? 'Generando reporte...' : 'Descargar reporte'}
                     </button>
+                    <button
+                        type="button"
+                        className="admin-btn outline"
+                        onClick={async () => {
+                            try {
+                                setCalculatingFull(true);
+                                await loadAll();
+                                setFullSummaryCalculated(true);
+                            } finally {
+                                setCalculatingFull(false);
+                            }
+                        }}
+                        disabled={calculatingFull || loading}
+                    >
+                        {calculatingFull ? 'Calculando...' : 'Calcular resumen completo'}
+                    </button>
                 </div>
             </header>
 
@@ -622,13 +670,18 @@ export default function Auditoria() {
             {reportError ? <div className="admin-alert error">{reportError}</div> : null}
 
             <div className="admin-dashboard-grid">
+                <div className="auditoria-summary-note">
+                    <strong>
+                        {fullSummaryCalculated ? 'Resumen calculado sobre todos los eventos filtrados.' : 'Resumen calculado sobre los eventos cargados.'}
+                    </strong>
+                </div>
                 {hasAuditDashboardData ? (
                     <>
                         <DashboardSection
                             title="Acciones por tipo"
                             description="Identifica los tipos de acciones más frecuentes en auditoría."
                         >
-                            <TreemapChart data={auditActionsChart} ariaLabel="Acciones por tipo" />
+                            <HorizontalBarChart data={auditActionsChart} ariaLabel="Acciones por tipo" maxItems={10} />
                         </DashboardSection>
                         <DashboardSection
                             title="Eventos por rol"

@@ -100,6 +100,7 @@ interface CompatChartProps {
     helper?: ReactNode;
     type?: 'area' | 'donut' | 'heatmap' | 'line' | 'treemap' | 'bar' | 'histogram' | 'matrix' | 'delta';
     includeZeroValues?: boolean;
+    maxItems?: number;
     [key: string]: unknown;
 }
 
@@ -433,8 +434,9 @@ function SimpleLineChart({
     );
 }
 
-function SimpleBarChart({ data, loading, emptyText, formatter, maxValue, includeZeroValues }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number; includeZeroValues?: boolean }>) {
-    const limitedItems = limitRankedItems(data, 5, includeZeroValues === true);
+function SimpleBarChart({ data, loading, emptyText, formatter, maxValue, includeZeroValues, maxItems }: Readonly<{ data: NormalizedChartItem[]; loading?: boolean; emptyText: string; formatter?: (value: number) => string; maxValue?: number; includeZeroValues?: boolean; maxItems?: number }>) {
+    const limit = typeof maxItems === 'number' ? maxItems : 5;
+    const limitedItems = limitRankedItems(data, limit, includeZeroValues === true);
     const chartData = limitedItems.map((item, index) => ({
         label: compactChartLabel(item.label, 20),
         fullLabel: item.label,

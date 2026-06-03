@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllAuditLogs, type AuditLogItem } from '../services/admin/audit';
+import { getAuditLogs, getAllAuditLogs, normalizeAuditLogs, type AuditLogItem } from '../services/admin/audit';
 import { ApiError } from '../services/api/httpClient';
 import { getAllUsers } from '../services/admin/users';
 import { useAuth } from './auth/useAuth';
@@ -37,28 +37,25 @@ export function useAuditLogs() {
         });
     }, [logout, navigate]);
 
-    const loadAuditLogs = useCallback(async () => {
+    const loadAuditLogs = useCallback(async (page = 1, pageSize = 100) => {
         setLoading(true);
         setError(null);
         try {
-            const [logsResult, usersResult] = await Promise.allSettled([
-                getAllAuditLogs(),
-                getAllUsers()
-            ]);
+            // By default fetch a single page to avoid loading entire history on mount.
+            const payload = await getAuditLogs(page, pageSize);
+            const pageItems = normalizeAuditLogs(payload);
 
-            if (logsResult.status !== 'fulfilled') {
-                throw logsResult.reason;
-            }
-
+            // Try to enrich actor display names from users directory when available.
+            const usersResult = await getAllUsers().catch(() => null);
             const userDirectory = new Map<string, string>();
-            if (usersResult.status === 'fulfilled') {
-                for (const user of usersResult.value) {
+            if (Array.isArray(usersResult)) {
+                for (const user of usersResult) {
                     const displayName = user.full_name?.trim() || user.username || user.email || user.id;
                     userDirectory.set(user.id, displayName);
                 }
             }
 
-            const resolvedLogs = logsResult.value.map((item) => {
+            const resolvedLogs = pageItems.map((item) => {
                 if (!item.userId) return item;
                 if (item.actor !== '--' && item.actor !== item.userId) return item;
 
@@ -81,6 +78,22 @@ export function useAuditLogs() {
         }
     }, [handleUnauthorized]);
 
+    const loadAllAuditLogs = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const all = await getAllAuditLogs();
+            setItems(all);
+            setLastUpdated(new Date());
+        } catch (loadError) {
+            const status = extractStatus(loadError);
+            setError(mapErrorMessage(status));
+            if (status === 401) handleUnauthorized();
+        } finally {
+            setLoading(false);
+        }
+    }, [handleUnauthorized]);
+
     useEffect(() => {
         const timeoutId = globalThis.setTimeout(() => {
             loadAuditLogs().catch(() => undefined);
@@ -93,6 +106,7 @@ export function useAuditLogs() {
         loading,
         error,
         lastUpdated,
-        reload: loadAuditLogs
+        reload: loadAuditLogs,
+        loadAll: loadAllAuditLogs
     };
 }
