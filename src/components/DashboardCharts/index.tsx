@@ -50,6 +50,8 @@ interface DashboardChartCardProps {
     emptyText?: string;
     variant?: 'bars' | 'line' | 'area' | 'donut';
     formatter?: (value: number) => string;
+    series?: Array<Record<string, unknown>>;
+    xLabelFormatter?: (value: string) => string;
     className?: string;
 }
 
@@ -292,8 +294,8 @@ function normalizeSeriesData(data: Array<Record<string, unknown>> | undefined) {
 
 function hasLineValues(data: Array<Record<string, unknown>>, series: Array<{ key: string }>) {
     if (data.length === 0) return false;
-    if (!series.length) return data.some((item) => toNumber(item.value) !== 0);
-    return data.some((item) => series.some((serie) => serie.key.length > 0 && toNumber(item[serie.key]) !== 0));
+    if (!series.length) return data.some((item) => item.value !== undefined && item.value !== null);
+    return data.some((item) => series.some((serie) => serie.key.length > 0 && item[serie.key] !== undefined && item[serie.key] !== null));
 }
 
 function DashboardSkeleton() {
@@ -307,7 +309,7 @@ function DashboardSkeleton() {
     );
 }
 
-function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ active?: boolean; payload?: Array<{ value?: unknown; name?: string; color?: string; payload?: { fullLabel?: string; meta?: string } }>; label?: string; formatter?: (value: number) => string }>) {
+function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ active?: boolean; payload?: Array<{ value?: unknown; name?: string; color?: string; payload?: { fullLabel?: string; meta?: string; [key: string]: unknown } }>; label?: string; formatter?: (value: number) => string }>) {
     if (!active || !payload?.length) return null;
     const fullLabel = payload[0]?.payload?.fullLabel ?? label;
     const meta = payload[0]?.payload?.meta;
@@ -315,12 +317,19 @@ function DashboardTooltip({ active, payload, label, formatter }: Readonly<{ acti
         <div className="dashboard-chart-tooltip">
             <strong>{fullLabel}</strong>
             {meta ? <small>{meta}</small> : null}
-            {payload.map((item) => (
-                <span key={`${item.name}-${String(item.value)}`}>
-                    <i style={{ backgroundColor: item.color }} />
-                    {item.name}: {formatter ? formatter(toNumber(item.value)) : defaultFormatter(toNumber(item.value))}
-                </span>
-            ))}
+            {payload.map((item) => {
+                const domainKey = typeof item.name === 'string'
+                    ? Object.entries(HUMAN_LABELS).find(([, value]) => value === item.name)?.[0]
+                    : undefined;
+                const alertValue = domainKey && item.payload ? item.payload[`${domainKey}_alert_level`] : undefined;
+                return (
+                    <span key={`${item.name}-${String(item.value)}`}>
+                        <i style={{ backgroundColor: item.color }} />
+                        {item.name}: {formatter ? formatter(toNumber(item.value)) : defaultFormatter(toNumber(item.value))}
+                        {alertValue ? ` · alerta: ${String(alertValue)}` : ''}
+                    </span>
+                );
+            })}
         </div>
     );
 }
@@ -748,6 +757,8 @@ export function DashboardChartCard({
     emptyText = 'Aún no hay datos procesados suficientes para esta visualización.',
     variant = 'bars',
     formatter,
+    series,
+    xLabelFormatter,
     className
 }: Readonly<DashboardChartCardProps>) {
     const normalizedData = toChartItems(data);
@@ -758,7 +769,7 @@ export function DashboardChartCard({
                 {description ? <p>{description}</p> : null}
             </header>
             {variant === 'line' ? (
-                <SimpleLineChart data={normalizedData} source={data} loading={loading} emptyText={emptyText} formatter={formatter} />
+                <SimpleLineChart data={normalizedData} source={data} series={series} loading={loading} emptyText={emptyText} formatter={formatter} xLabelFormatter={xLabelFormatter} />
             ) : variant === 'area' ? (
                 <SimpleAreaChart data={normalizedData} loading={loading} emptyText={emptyText} formatter={formatter} />
             ) : variant === 'donut' ? (
