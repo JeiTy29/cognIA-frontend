@@ -155,6 +155,7 @@ function formatMonthPeriod(value?: string | null) {
 
 function buildDominantDomainItems(rawItems: unknown[]) {
     const counts = new Map<string, number>();
+
     const DOMAIN_LABELS: Record<string, string> = {
         adhd: 'TDAH',
         anxiety: 'Ansiedad',
@@ -162,6 +163,14 @@ function buildDominantDomainItems(rawItems: unknown[]) {
         conduct: 'Conducta',
         elimination: 'Eliminación'
     };
+
+    const DOMAIN_ORDER = [
+        'adhd',
+        'anxiety',
+        'conduct',
+        'depression',
+        'elimination'
+    ] as const;
 
     for (const rawItem of rawItems) {
         if (!rawItem || typeof rawItem !== 'object') continue;
@@ -171,9 +180,17 @@ function buildDominantDomainItems(rawItems: unknown[]) {
         counts.set(domain, (counts.get(domain) ?? 0) + 1);
     }
 
-    return Array.from(counts.entries())
-        .map(([code, count]) => ({ label: DOMAIN_LABELS[code] ?? code, value: count }))
-        .sort((a, b) => b.value - a.value);
+    return DOMAIN_ORDER.map((code) => {
+        const count = counts.get(code) ?? 0;
+        return {
+            id: code,
+            key: code,
+            label: DOMAIN_LABELS[code] ?? code,
+            value: count,
+            count,
+            raw: { domain: code, count }
+        } as unknown as Record<string, unknown>;
+    });
 }
 export default function EvaluacionesCompartidas() {
     const location = useLocation();
@@ -719,6 +736,7 @@ export default function EvaluacionesCompartidas() {
                         >
                             <HorizontalBarChart
                                 data={domainChartItems}
+                                includeZeroValues
                                 ariaLabel="Distribución del dominio predominante por evaluación aceptada"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                             />
