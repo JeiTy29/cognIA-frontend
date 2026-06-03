@@ -209,6 +209,54 @@ function summaryNumber(summary: Record<string, unknown> | null | undefined, keys
     }
     return 0;
 }
+
+function resolveSummaryCodeLabel(
+    value: unknown,
+    fallbackLabel: string,
+    labels?: Record<string, string>
+) {
+    if (typeof value === 'string') {
+        return {
+            code: value,
+            label: labels?.[value] ?? value,
+            count: undefined as number | undefined
+        };
+    }
+
+    if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const code = typeof record.code === 'string'
+            ? record.code
+            : typeof record.domain === 'string'
+                ? record.domain
+                : typeof record.alert_level === 'string'
+                    ? record.alert_level
+                    : typeof record.key === 'string'
+                        ? record.key
+                        : '';
+
+        const labelValue = typeof record.label === 'string' && record.label.trim().length > 0
+            ? record.label
+            : code
+                ? labels?.[code] ?? code
+                : fallbackLabel;
+
+        const countValue = Number(record.count ?? record.value ?? record.total);
+        const count = Number.isFinite(countValue) ? countValue : undefined;
+
+        return {
+            code: code || labelValue,
+            label: labelValue,
+            count
+        };
+    }
+
+    return {
+        code: '',
+        label: fallbackLabel,
+        count: undefined as number | undefined
+    };
+}
 export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     const history = useQuestionnaireHistoryV2({ initialFilters: { page: 1, page_size: 10 } });
     const [draftFilters, setDraftFilters] = useState<QuestionnaireHistoryFiltersV2>(() => defaultFilters());
@@ -403,16 +451,23 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
 
     const psychologistDominantDomainData = useMemo(() => {
         if (role !== 'psicologo' || !history.summary) return [];
-        const dominantDomain = (history.summary as Record<string, unknown>)?.dominant_domain as string | undefined;
-        if (!dominantDomain) return [];
+
+        const dominant = resolveSummaryCodeLabel(
+            (history.summary as Record<string, unknown>).dominant_domain,
+            'Sin dominio dominante',
+            DOMAIN_LABELS
+        );
+
+        if (!dominant.code) return [];
+
         return [
             {
-                id: dominantDomain,
-                key: dominantDomain,
-                label: DOMAIN_LABELS[dominantDomain] ?? dominantDomain,
-                value: 1,
-                count: 1,
-                raw: { domain: dominantDomain, count: 1 }
+                id: dominant.code,
+                key: dominant.code,
+                label: dominant.label,
+                value: dominant.count ?? 1,
+                count: dominant.count ?? 1,
+                raw: dominant
             }
         ];
     }, [history.summary, role]);
@@ -433,6 +488,14 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         });
         return toChartData({ ...(psychologistByDateSource as unknown as QuestionnaireDashboardChartSourceDTO), items } as unknown as QuestionnaireDashboardChartSourceDTO);
     }, [psychologistByDateSource]);
+
+    const summaryHighestAlert = useMemo(() => {
+        if (!history.summary) return null;
+        return resolveSummaryCodeLabel(
+            (history.summary as Record<string, unknown>).highest_alert_level,
+            'Sin alerta dominante'
+        );
+    }, [history.summary]);
 
     const guardianCharts = {
         byMonth: guardianByMonthSource ? toChartData(guardianByMonthSource) : [],
@@ -497,11 +560,11 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
     }, [selectedCaseDomainEvolutionMapped]);
 
     const leadingDomain = role === 'padre'
-        ? guardianCharts.byDomain[0]?.label ?? 'Sin dominio dominante'
-        : psychologistDominantDomainData[0]?.label ?? 'Sin dominio dominante';
+        ? String(guardianCharts.byDomain[0]?.label ?? 'Sin dominio dominante')
+        : String(psychologistDominantDomainData[0]?.label ?? 'Sin dominio dominante');
     const leadingAlert = role === 'padre'
-        ? guardianCharts.byAlert[0]?.label ?? 'Sin alerta dominante'
-        : psychologistCharts.byLevel[0]?.label ?? 'Sin alerta dominante';
+        ? String(guardianCharts.byAlert[0]?.label ?? 'Sin alerta dominante')
+        : String(summaryHighestAlert?.label ?? psychologistCharts.byLevel[0]?.label ?? 'Sin alerta dominante');
     const executiveCopy = role === 'padre'
         ? `Durante el periodo seleccionado se registraron ${kpis.total} cuestionarios, ${kpis.processed} procesados y ${kpis.withAlert} con alertas visibles. El dominio más frecuente es ${leadingDomain}.`
         : `Durante el periodo seleccionado hay ${kpis.total} evaluaciones visibles, ${kpis.needsReview} requieren revisión y la alerta predominante es ${leadingAlert}.`;
