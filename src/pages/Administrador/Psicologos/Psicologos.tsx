@@ -5,8 +5,7 @@ import {
     DashboardSection,
     DonutChart,
     HeatmapChart,
-    TreemapChart,
-    WaffleChart
+    TreemapChart
 } from '../../../components/DashboardCharts';
 import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
@@ -14,7 +13,7 @@ import { usePsychologists } from '../../../hooks/usePsychologists';
 import type { PsychologistAdminItem } from '../../../hooks/usePsychologists';
 import { fetchPsychologistsForReport } from '../../../services/admin/adminReportData';
 import type { ReportPsychologistRecord } from '../../../services/admin/adminReportData';
-import { buildHeatmapCells, buildMonthlyCountItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
+import { buildHeatmapCells, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import { downloadPsychologistsReportPdf } from '../../../utils/reports/admin/psychologistsReport';
 import '../AdminShared.css';
 import './Psicologos.css';
@@ -72,6 +71,62 @@ function formatDate(value: string | null) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
     return date.toLocaleDateString('es-CO');
+}
+
+const MONTHS_ES = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+];
+
+function formatMonthPeriod(value: string) {
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return value;
+
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+
+    if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) {
+        return value;
+    }
+
+    return `${MONTHS_ES[monthIndex]} ${year}`;
+}
+
+function buildPsychologistsByMonthChart(psychologists: ReportPsychologistRecord[]) {
+    const counts = new Map<string, number>();
+
+    for (const psychologist of psychologists) {
+        const createdAt = typeof psychologist.created_at === 'string' ? psychologist.created_at : '';
+        const match = /^(\d{4})-(\d{2})/.exec(createdAt);
+        if (!match) continue;
+
+        const key = `${match[1]}-${match[2]}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, count]) => ({
+            id: key,
+            label: formatMonthPeriod(key),
+            value: count,
+            count,
+            raw: { period: key, count }
+        }));
+}
+
+function resolvePsychologistDepartmentLabel(psychologist: ReportPsychologistRecord) {
+    if ((psychologist as unknown as { has_department?: boolean }).has_department === false) {
+        return 'Sin departamento';
+    }
+
+    const label = String(
+        (psychologist as unknown as { department_label?: string }).department_label ??
+        (psychologist as unknown as { department?: string }).department ??
+        ''
+    ).trim();
+
+    return label.length > 0 ? label : 'Sin departamento';
 }
 
 function getDisplayName(item: Pick<PsychologistAdminItem, 'full_name'> & { username?: string }) {
@@ -147,29 +202,22 @@ export default function Psicologos() {
         [dashboardSample]
     );
     const psychologistsByMonth = useMemo(
-        () => buildMonthlyCountItems(dashboardSample.map((item) => item.created_at)),
+        () => buildPsychologistsByMonthChart(dashboardSample),
         [dashboardSample]
     );
     const psychologistsByDepartment = useMemo(
         () =>
             mapCountsToItems(
                 dashboardSample.reduce((accumulator, item) => {
-                    const department = (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento';
+                    const department = resolvePsychologistDepartmentLabel(item);
                     accumulator.set(department, (accumulator.get(department) ?? 0) + 1);
                     return accumulator;
                 }, new Map<string, number>())
             ),
         [dashboardSample]
     );
-    const verificationChartItems = useMemo(
-        () => [
-            { label: 'Verificados', value: dashboardSample.filter((item) => item.colpsic_verified === true).length },
-            { label: 'Sin verificación visible', value: dashboardSample.filter((item) => item.colpsic_verified !== true).length }
-        ].filter((item) => item.value > 0),
-        [dashboardSample]
-    );
     const coverageRows = useMemo(
-        () => Array.from(new Set(dashboardSample.map((item) => (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento'))),
+        () => Array.from(new Set(dashboardSample.map((item) => resolvePsychologistDepartmentLabel(item)))),
         [dashboardSample]
     );
     const coverageColumns = useMemo(() => ['Activos', 'Inactivos'], []);
@@ -177,7 +225,7 @@ export default function Psicologos() {
         () =>
             buildHeatmapCells(
                 dashboardSample.map((item) => ({
-                    department: (item as ReportPsychologistRecord & { department?: string | null }).department?.trim() || 'Sin departamento',
+                    department: resolvePsychologistDepartmentLabel(item),
                     availability: item.is_active ? 'Activos' : 'Inactivos'
                 })),
                 coverageRows,
@@ -194,7 +242,7 @@ export default function Psicologos() {
         const loadDashboardSample = async () => {
             try {
                 const result = await fetchPsychologistsForReport({
-                    limit: 100,
+                    limit: 'all',
                     verification:
                         reviewFilter === 'Todos'
                             ? 'all'
@@ -353,25 +401,14 @@ export default function Psicologos() {
                     />
                 </DashboardSection>
                 <DashboardSection
-                    title="Verificación profesional"
-                    description="Resume la proporción de psicólogos con verificación profesional registrada."
-                    note={dashboardNote}
-                >
-                    <WaffleChart
-                        data={verificationChartItems}
-                        ariaLabel="Proporción de psicólogos verificados"
-                        emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                    />
-                </DashboardSection>
-                <DashboardSection
                     title="Solicitudes atendidas por psicólogos"
                     description="Relaciona la carga de solicitudes con la respuesta de los psicólogos."
                 >
                     <DashboardEmptyState message="No hay datos agregados suficientes para generar esta gráfica." />
                 </DashboardSection>
                 <DashboardSection
-                    title="Cobertura territorial vs demanda"
-                    description="Permite identificar diferencias entre disponibilidad profesional y demanda de revisión."
+                    title="Psicólogos por departamento y estado"
+                    description="Cruza la disponibilidad territorial con el estado de los psicólogos."
                     note={dashboardNote}
                 >
                     <HeatmapChart
