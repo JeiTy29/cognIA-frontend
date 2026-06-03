@@ -15,7 +15,6 @@ import { fetchUsersForReport } from '../../../services/admin/adminReportData';
 import type { CreateUserRequest, User } from '../../../services/admin/users';
 import {
     buildHeatmapCells,
-    buildMonthlyCountItems,
     mapCountsToItems
 } from '../../../utils/dashboard/dashboardData';
 import { downloadUsersReportPdf } from '../../../utils/reports/admin/usersReport';
@@ -89,7 +88,7 @@ const roleFilterOptions: CustomSelectOption[] = [
     { value: 'all', label: 'Todos los roles' },
     { value: 'GUARDIAN', label: 'Padre/Tutor' },
     { value: 'PSYCHOLOGIST', label: 'Psicólogo' },
-    { value: 'ADMIN', label: 'Adm. Sistema' }
+    { value: 'ADMIN', label: 'Administrador del sistema' }
 ];
 
 const statusOptions: CustomSelectOption[] = [
@@ -152,7 +151,7 @@ function getUsersReportOrderLabel(value: UsersReportOrder) {
 }
 
 function getUsersReportRoleLabel(value: UsersReportModalState['role']) {
-    if (value === 'ADMIN') return 'Adm. Sistema';
+    if (value === 'ADMIN') return 'Administrador del sistema';
     if (value === 'GUARDIAN') return 'Padre o tutor';
     if (value === 'PSYCHOLOGIST') return 'Psicólogo';
     return 'Todos';
@@ -184,7 +183,7 @@ function hasAdminRole(user: User) {
 
 function mapRoleLabel(role: string) {
     const normalized = role.trim().toUpperCase();
-    if (normalized === 'ADMIN') return 'Adm. Sistema';
+    if (normalized === 'ADMIN') return 'Administrador del sistema';
     if (normalized === 'PSYCHOLOGIST') return 'Psicólogo';
     if (normalized === 'GUARDIAN') return 'Padre/Tutor';
     if (normalized === 'TEACHER') return 'Docente (legacy)';
@@ -194,7 +193,7 @@ function mapRoleLabel(role: string) {
 function normalizeBackendRoleLabel(value: string | null | undefined) {
     const label = (value ?? '').trim();
     if (!label) return null;
-    if (/admin|administrador/i.test(label)) return 'Adm. Sistema';
+    if (/admin|administrador/i.test(label)) return 'Administrador del sistema';
     if (/psic/i.test(label)) return 'Psicólogo';
     if (/padre|tutor|guardian/i.test(label)) return 'Padre/Tutor';
     return label;
@@ -216,9 +215,51 @@ function resolveUserRoleForAnalytics(user: User) {
 }
 
 function resolveUserDepartmentLabel(user: User) {
-    if (user.has_department === false) return null;
     const label = (user.department_label ?? user.department ?? '').trim();
-    return label.length > 0 ? label : null;
+    if (label.length > 0) return label;
+    return 'Sin departamento registrado';
+}
+
+const MONTHS_ES = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
+];
+
+function formatMonthPeriod(value: string) {
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return value;
+
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+
+    if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) {
+        return value;
+    }
+
+    return `${MONTHS_ES[monthIndex]} ${year}`;
+}
+
+function buildUsersByMonthChart(users: User[]) {
+    const counts = new Map<string, number>();
+
+    for (const user of users) {
+        const createdAt = typeof user.created_at === 'string' ? user.created_at : '';
+        const match = /^(\d{4})-(\d{2})/.exec(createdAt);
+        if (!match) continue;
+
+        const key = `${match[1]}-${match[2]}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, count]) => ({
+            id: key,
+            label: formatMonthPeriod(key),
+            value: count,
+            count,
+            raw: { period: key, count }
+        }));
 }
 
 function validateEmail(value: string) {
@@ -500,7 +541,7 @@ export default function Usuarios() {
         [analyticsUsers]
     );
     const usersByMonthChart = useMemo(
-        () => buildMonthlyCountItems(analyticsUsers.map((user) => user.created_at)),
+        () => buildUsersByMonthChart(analyticsUsers),
         [analyticsUsers]
     );
     const usersByDepartmentChart = useMemo(
@@ -516,7 +557,7 @@ export default function Usuarios() {
         [analyticsUsers]
     );
     const hasDepartmentData = usersByDepartmentChart.length > 0;
-    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Adm. Sistema'], []);
+    const roleStateRows = useMemo(() => ['Padre/Tutor', 'Psicólogo', 'Administrador del sistema'], []);
     const roleStateColumns = useMemo(() => ['Activos', 'Inactivos'], []);
     const roleStateCells = useMemo(
         () =>
@@ -593,7 +634,7 @@ export default function Usuarios() {
         const loadDashboardSample = async () => {
             try {
                 const result = await fetchUsersForReport({
-                    limit: 100,
+                    limit: 'all',
                     role: filters.role === 'all' ? undefined : filters.role,
                     isActive:
                         filters.is_active === 'all'
@@ -1337,7 +1378,7 @@ export default function Usuarios() {
                             <div><strong>Correo:</strong> {editingUser.email}</div>
                             {editingUser.full_name ? <div><strong>Nombre completo:</strong> {editingUser.full_name}</div> : null}
                             {hasAdminRole(editingUser) ? (
-                                <div><strong>Rol actual:</strong> Adm. Sistema</div>
+                                <div><strong>Rol actual:</strong> Administrador del sistema</div>
                             ) : null}
                         </div>
                     ) : null}
