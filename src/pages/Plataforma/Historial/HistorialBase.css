@@ -400,6 +400,38 @@
     grid-template-columns: 1fr 180px auto 110px;
 }
 
+/* Additional layout and responsive improvements */
+.historial-case-card--separated {
+    box-shadow: 0 8px 18px rgba(31, 77, 117, 0.06);
+    margin: 8px 0;
+    border-left: 4px solid rgba(15, 95, 159, 0.08);
+}
+
+@media (max-width: 900px) {
+    .historial-dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+    .historial-dashboard-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .historial-dashboard-filters-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .historial-dashboard-filters-grid {
+        grid-template-columns: 1fr;
+    }
+    .historial-dashboard-cases-grid,
+    .historial-dashboard-session-list {
+        grid-template-columns: 1fr;
+    }
+    .historial-dashboard-kpis {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+}
+
 /* Additional layout improvements for Padre / Historial list and detail */
 .historial-cases-list {
     display: flex;

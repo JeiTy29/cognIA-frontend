@@ -23,14 +23,19 @@ import type {
     QuestionnairePsychologistDashboardV2Response
 } from '../../../services/questionnaires/questionnaires.types';
 
-import { mapApiErrorToUserMessage, getString } from '../../../utils/presentation/naturalLanguage';
-import { formatDateTimeEsCO } from '../../../utils/presentation/naturalLanguage';
+import { mapApiErrorToUserMessage, formatDateTimeEsCO, getModeLabel, getRoleLabel, getStatusLabel } from '../../../utils/presentation/naturalLanguage';
 import { resolveCaseCompositeLabel, getDashboardDomainLabel } from '../../../utils/questionnaires/dashboardLabels';
 import { buildActiveFilterChips, buildHistoryKpis } from '../../../utils/questionnaires/dashboardTransform';
-import { defaultFilters } from '../../../utils/questionnaires/historyFilters';
-import { getChartSource } from '../../../utils/questionnaires/chartContract';
+// local fallback for default filters (kept simple)
+function defaultFilters(): QuestionnaireHistoryFiltersV2 {
+    return { page: 1, page_size: 10 } as unknown as QuestionnaireHistoryFiltersV2;
+}
+
+function getString(value: unknown, fallback = '--') {
+    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+}
+import { getChartSource, getChartItems } from '../../../utils/questionnaires/chartContract';
 import { findFirstVisibleProfessionalReview, normalizeReviewStatus } from '../../../utils/questionnaires/presentation';
-import { getStatusLabel } from '../../../utils/presentation/naturalLanguage';
 
 // Local simple helpers and options (kept minimal to avoid large refactors)
 function toMaybeBoolean(value: string) {
@@ -42,6 +47,59 @@ function toMaybeBoolean(value: string) {
 
 function normalizeDraftFilters(filters: QuestionnaireHistoryFiltersV2) {
     return filters as unknown as QuestionnaireHistoryFiltersV2;
+}
+
+const pageSizeOptions = [
+    { value: '10', label: '10' },
+    { value: '25', label: '25' },
+    { value: '50', label: '50' }
+] as const;
+
+function toHistoryStatusFilter(value: string): QuestionnaireHistoryFiltersV2['status'] {
+    if (!value || value === '') return undefined;
+    return value as unknown as QuestionnaireHistoryFiltersV2['status'];
+}
+
+const DOMAIN_EVOLUTION_LABELS: Record<string, string> = {
+    adhd: 'TDAH',
+    anxiety: 'Ansiedad',
+    depression: 'Depresión',
+    conduct: 'Conducta',
+    elimination: 'Eliminación'
+};
+
+function toChartData(source: unknown): DashboardChartItem[] {
+    const items = getChartItems(source as unknown as QuestionnaireDashboardChartSourceDTO) ?? [];
+    return (items as Array<Record<string, unknown>>).map((rec, idx) => ({
+        id: String(rec.id ?? rec.key ?? `item-${idx}`),
+        label: String(rec.label ?? rec.name ?? rec.key ?? rec.month ?? rec.date ?? `Item ${idx + 1}`),
+        value: Number(rec.count ?? rec.value ?? rec.total ?? rec.sessions ?? 0),
+        tone: typeof rec.tone === 'string' ? rec.tone : typeof rec.alert_level === 'string' ? rec.alert_level : undefined,
+        raw: rec
+    }));
+}
+
+function resolveCaseLabel(caseItem: QuestionnaireCaseV2DTO | Record<string, unknown> | null | undefined) {
+    if (!caseItem) return '--';
+    const rec = caseItem as Record<string, unknown>;
+    const label = resolveCaseCompositeLabel({
+        display_label: rec.display_label as string | undefined,
+        private_label: rec.private_label as string | undefined,
+        case_label: rec.case_label as string | undefined,
+        case_public_id: rec.case_public_id as string | undefined,
+        case_id: rec.case_id as string | undefined
+    });
+    return label;
+}
+
+type HistorialBaseProps = { role: 'padre' | 'psicologo' };
+
+function makeTitle(role: string) {
+    return role === 'padre' ? 'Historial' : 'Historial profesional';
+}
+
+function makeDescription(role: string) {
+    return role === 'padre' ? 'Panel de historial para padres' : 'Panel de historial para profesionales';
 }
 
 const periodOptions = [
@@ -280,30 +338,7 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return { items } as unknown as QuestionnaireDashboardChartSourceDTO;
     }
 
-    function buildSelectedCaseAggregateTrend(detail: unknown) {
-        const rec = detail as Record<string, unknown> | undefined;
-        const charts = rec?.charts && typeof rec.charts === 'object' ? (rec.charts as Record<string, unknown>) : undefined;
-        const candidate = charts ? charts['trend'] : undefined;
-        let trendArray: unknown[] | null = null;
-        if (Array.isArray(candidate)) trendArray = candidate;
-        else if (candidate && typeof candidate === 'object' && Array.isArray((candidate as Record<string, unknown>).items)) trendArray = (candidate as Record<string, unknown>).items as unknown[];
-        const itemsSource = Array.isArray(trendArray) ? trendArray : [];
-        if (!Array.isArray(itemsSource)) return null;
-        const items = (itemsSource as Record<string, unknown>[])
-            .filter((p) => p.percentage !== null && p.percentage !== undefined)
-            .map((p, idx) => ({
-                id: String(p.session_id ?? p.id ?? `point-${idx}`),
-                label: p.label ?? p.date ?? p.session_id ?? `P${idx + 1}`,
-                value: Number(p.percentage),
-                date: p.date,
-                session_id: p.session_id,
-                alert_level: p.alert_level,
-                alert_label: p.alert_label,
-                processed_at: p.processed_at,
-                raw: p
-            }));
-        return { items } as unknown as QuestionnaireDashboardChartSourceDTO;
-    }
+    
 
     function buildSelectedCaseDomainEvolution(detail: unknown) {
         const rec = detail as Record<string, unknown> | undefined;
@@ -407,13 +442,9 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
         return getChartSource(selectedCaseDetail?.charts, ['domain_summary']) ??
             (selectedCaseDetail?.domain_summary ? { items: selectedCaseDetail.domain_summary } as unknown as QuestionnaireDashboardChartSourceDTO : null);
     }, [selectedCaseDetail]);
-    const selectedCaseTrendSource = useMemo(() => {
-        return getChartSource(selectedCaseDetail?.charts, ['trend']) ??
-            (selectedCaseDetail?.trend ? { items: selectedCaseDetail.trend } as unknown as QuestionnaireDashboardChartSourceDTO : null);
-    }, [selectedCaseDetail]);
 
     const selectedCaseDomainSummaryMapped = useMemo(() => buildSelectedCaseDomainSummary(selectedCaseDetail), [selectedCaseDetail]);
-    const selectedCaseTrendMapped = useMemo(() => buildSelectedCaseAggregateTrend(selectedCaseDetail), [selectedCaseDetail]);
+    
     const selectedCaseDomainEvolutionMapped = useMemo(() => buildSelectedCaseDomainEvolution(selectedCaseDetail), [selectedCaseDetail]);
     const selectedCaseDomainEvolutionSeries = useMemo(() => {
         if (!Array.isArray(selectedCaseDomainEvolutionMapped) || selectedCaseDomainEvolutionMapped.length === 0) return [];
@@ -617,7 +648,6 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         </div>
                     </section>
                     </>
-                    </section>
                 ) : (
                     <section className="historial-dashboard-role-block">
                         {psychologistError ? <div className="historial-dashboard-alert error">{psychologistError}</div> : null}
@@ -661,6 +691,8 @@ export function HistorialBase({ role }: Readonly<HistorialBaseProps>) {
                         <button type="button" className="historial-dashboard-btn secondary" onClick={() => history.setPage(Math.min(Math.max(1, history.pages), history.page + 1))} disabled={history.page >= Math.max(1, history.pages)}>Siguiente</button>
                     </div>
                 </section>
+            </section>
+            </div>
             </section>
             <QuestionnaireReportDetailModal
                 isOpen={detailSessionId !== null}

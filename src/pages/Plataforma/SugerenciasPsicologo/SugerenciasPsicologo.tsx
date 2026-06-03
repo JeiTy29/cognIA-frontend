@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertBadge } from '../../../components/AlertBadge/AlertBadge';
 import {
     acceptPsychologistShareRequestV2,
@@ -34,7 +34,7 @@ export default function SugerenciasPsicologo() {
     const [error, setError] = useState<string | null>(null);
     const [feedback, setFeedback] = useState<string | null>(null);
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -45,11 +45,11 @@ export default function SugerenciasPsicologo() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [tab]);
 
     useEffect(() => {
         load().catch(() => undefined);
-    }, [tab]);
+    }, [load]);
 
     const counters = useMemo(() => {
         const pending = items.filter((item) => normalizeStatus(item.status) === 'pending').length;
