@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
     DashboardSection,
-    HistogramChart,
     HorizontalBarChart,
     LineChart,
     MatrixAvailabilityChart
@@ -11,7 +10,6 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useMetrics, type StatusCounts } from '../../../hooks/metrics/useMetrics';
 import type { EmailHealthBlockState } from '../../../services/admin/emailHealth';
-import { buildHistogramItems } from '../../../utils/dashboard/dashboardData';
 import { downloadMetricsReportPdf } from '../../../utils/reports/admin/metricsReport';
 import '../AdminShared.css';
 import './Metricas.css';
@@ -328,31 +326,98 @@ export function Metricas() {
         () => Object.values(groupedStatus).reduce((sum, value) => sum + value, 0),
         [groupedStatus]
     );
+    
+    const formatTimeLabel = (timestamp: string | undefined) => {
+        if (!timestamp) return '--';
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('es-CO', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        } catch {
+            return '--';
+        }
+    };
+    
     const latencyLineData = useMemo(
-        () =>
-            latencyHistory.map((value, index) => ({
-                label: String(index + 1),
-                values: { latency: value }
-            })),
+        () => {
+            if (!Array.isArray(latencyHistory)) return [];
+            return latencyHistory.map((item: unknown, index: number) => {
+                let latency = 0;
+                let timestamp = '';
+                
+                if (typeof item === 'number') {
+                    latency = item;
+                    timestamp = new Date().toISOString();
+                } else if (item && typeof item === 'object') {
+                    const sample = item as Record<string, unknown>;
+                    latency = typeof sample.latencyMsAvg === 'number' ? sample.latencyMsAvg : 0;
+                    timestamp = typeof sample.timestamp === 'string' ? sample.timestamp : '';
+                }
+                
+                return {
+                    label: timestamp ? formatTimeLabel(timestamp) : `M${index + 1}`,
+                    values: { latency }
+                };
+            });
+        },
         [latencyHistory]
     );
-    const latencyHistogram = useMemo(
-        () =>
-            buildHistogramItems(latencyHistory, [
-                { label: '<50 ms', min: 0, max: 49.999 },
-                { label: '50-100 ms', min: 50, max: 100 },
-                { label: '100-250 ms', min: 100.001, max: 250 },
-                { label: '250-500 ms', min: 250.001, max: 500 },
-                { label: '>500 ms', min: 500.001 }
-            ]),
-        [latencyHistory]
+    
+    const unsuccessfulResponsesByCode = useMemo(
+        () => {
+            const items: Array<{ label: string; value: number }> = [];
+            
+            for (const [code, count] of Object.entries(statusCounts)) {
+                const statusCode = Number.parseInt(code, 10);
+                if (Number.isFinite(statusCode) && statusCode >= 400 && count > 0) {
+                    items.push({
+                        label: code,
+                        value: count
+                    });
+                }
+            }
+            
+            return items.sort((a, b) => b.value - a.value);
+        },
+        [statusCounts]
     );
-    const errorBreakdownItems = useMemo(
-        () => [
-            { label: '4xx cliente/autorizacion', value: groupedStatus.clientError },
-            { label: '5xx servidor', value: groupedStatus.serverError }
-        ].filter((item) => item.value > 0),
-        [groupedStatus.clientError, groupedStatus.serverError]
+    
+    const endpointLatencyItems = useMemo(
+        () => {
+            const endpointData = snapshot as unknown as Record<string, unknown> | null;
+            if (!endpointData) return [];
+            
+            const endpoints: Array<{ label: string; latency: number; ranking: number }> = [];
+            
+            const endpointLatencies = endpointData.endpoint_latency_ms_avg || 
+                                     endpointData.endpoints_latency_ms_avg ||
+                                     endpointData.endpoints_by_latency ||
+                                     null;
+            
+            if (endpointLatencies && typeof endpointLatencies === 'object' && !Array.isArray(endpointLatencies)) {
+                for (const [endpoint, value] of Object.entries(endpointLatencies)) {
+                    const latency = typeof value === 'number' ? value : 
+                                   (value && typeof value === 'object' && (value as Record<string, unknown>).latency_ms_avg);
+                    if (typeof latency === 'number' && latency > 0) {
+                        endpoints.push({
+                            label: endpoint,
+                            latency,
+                            ranking: 0
+                        });
+                    }
+                }
+            }
+            
+            return endpoints
+                .sort((a, b) => b.latency - a.latency)
+                .slice(0, 10)
+                .map((item, idx) => ({ ...item, ranking: idx + 1 }));
+        },
+        [snapshot]
     );
     const responseBreakdownItems = useMemo(
         () => DONUT_GROUPS
@@ -614,19 +679,24 @@ export function Metricas() {
                                 ariaLabel="Latencia en el tiempo"
                                 emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
                                 minY={0}
-                                maxY={Math.max(50, ...latencyHistory, 0)}
+                                maxY={Math.max(50, ...latencyHistory.map((item: unknown) => {
+                                    if (typeof item === 'number') return item;
+                                    if (item && typeof item === 'object' && (item as Record<string, unknown>).latencyMsAvg) {
+                                        return (item as Record<string, unknown>).latencyMsAvg as number;
+                                    }
+                                    return 0;
+                                }), 0)}
                                 formatter={formatLatencyMs}
-                                xLabelFormatter={(value) => `M${value}`}
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Errores por tipo"
-                            description="Separa errores de cliente/autorizacion y errores internos del servidor."
+                            title="Respuestas no exitosas por código"
+                            description="Codigos HTTP no exitosos (4xx y 5xx) observados en el periodo."
                         >
                             <HorizontalBarChart
-                                data={errorBreakdownItems}
-                                ariaLabel="Errores por tipo de respuesta"
-                                emptyMessage="No hay errores registrados en las métricas disponibles."
+                                data={unsuccessfulResponsesByCode}
+                                ariaLabel="Respuestas no exitosas por codigo HTTP"
+                                emptyMessage="No hay respuestas no exitosas registradas en las métricas disponibles."
                                 formatter={formatCompactNumber}
                             />
                         </DashboardSection>
@@ -642,15 +712,27 @@ export function Metricas() {
                             />
                         </DashboardSection>
                         <DashboardSection
-                            title="Distribucion de latencias"
-                            description="Permite identificar si existen respuestas atipicamente lentas."
+                            title="Endpoints con mayor latencia"
+                            description="Ranking de endpoints ordenados por latencia promedio observada."
                         >
-                            <HistogramChart
-                                data={latencyHistogram}
-                                ariaLabel="Distribucion de latencias del sistema"
-                                emptyMessage="No hay datos suficientes para generar esta gráfica en el periodo seleccionado."
-                                formatter={formatCompactNumber}
-                            />
+                            {endpointLatencyItems.length > 0 ? (
+                                <div className="metricas-endpoint-ranking">
+                                    <div className="metricas-endpoint-header">
+                                        <span className="metricas-endpoint-rank">#</span>
+                                        <span className="metricas-endpoint-name">Endpoint</span>
+                                        <span className="metricas-endpoint-latency">Latencia (ms)</span>
+                                    </div>
+                                    {endpointLatencyItems.map((item) => (
+                                        <div key={item.label} className="metricas-endpoint-row">
+                                            <span className="metricas-endpoint-rank">{item.ranking}</span>
+                                            <span className="metricas-endpoint-name metricas-endpoint-name-cell">{item.label}</span>
+                                            <span className="metricas-endpoint-latency">{formatLatencyMs(item.latency)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="metricas-note">No hay datos por endpoint para construir el ranking de latencia.</div>
+                            )}
                         </DashboardSection>
                         <DashboardSection
                             title="Distribucion operativa de respuestas"

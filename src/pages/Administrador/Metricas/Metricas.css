@@ -503,3 +503,77 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Endpoint latency ranking styles */
+.metricas-endpoint-ranking {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid rgba(15, 95, 159, 0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.metricas-endpoint-header {
+    display: grid;
+    grid-template-columns: 50px 1fr 140px;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f0f6fb;
+    border-bottom: 1px solid rgba(15, 95, 159, 0.12);
+    font-weight: 600;
+    font-size: 13px;
+    color: #0b3a68;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metricas-endpoint-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 140px;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(15, 95, 159, 0.08);
+    align-items: center;
+    font-size: 14px;
+}
+
+.metricas-endpoint-row:last-child {
+    border-bottom: none;
+}
+
+.metricas-endpoint-rank {
+    font-weight: 700;
+    color: #0f5f9f;
+    text-align: center;
+    min-width: 30px;
+}
+
+.metricas-endpoint-name {
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    color: #0b2540;
+    word-break: break-all;
+}
+
+.metricas-endpoint-name-cell {
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.metricas-endpoint-latency {
+    text-align: right;
+    font-weight: 600;
+    color: #1f9d55;
+    min-width: 100px;
+}
+
+.metricas-note {
+    padding: 16px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 14px;
+    border-radius: 8px;
+    text-align: center;
+}
