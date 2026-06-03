@@ -50,6 +50,7 @@ interface DashboardChartCardProps {
     emptyText?: string;
     variant?: 'bars' | 'line' | 'area' | 'donut';
     formatter?: (value: number) => string;
+    includeZeroValues?: boolean;
     series?: Array<Record<string, unknown>>;
     xLabelFormatter?: (value: string) => string;
     className?: string;
@@ -757,11 +758,12 @@ export function DashboardChartCard({
     emptyText = 'Aún no hay datos procesados suficientes para esta visualización.',
     variant = 'bars',
     formatter,
+    includeZeroValues,
     series,
     xLabelFormatter,
     className
 }: Readonly<DashboardChartCardProps>) {
-    const normalizedData = toChartItems(data);
+    const normalizedData = includeZeroValues ? toChartItemsIncludeZeros(data) : toChartItems(data);
     return (
         <article className={`dashboard-chart-section ${className ?? ''}`.trim()} aria-label={title}>
             <header>
