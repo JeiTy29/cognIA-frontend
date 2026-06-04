@@ -708,27 +708,6 @@ export default function PreguntasCuestionario() {
                 {template?.description ? <div><strong>Descripción:</strong> {template.description}</div> : null}
             </section>
 
-            <div className="admin-alert info preguntas-info-banner">
-                <span>
-                    Puedes preparar y ordenar preguntas antes de guardarlas. Las preguntas ya guardadas en el servidor
-                    requieren un endpoint de consulta para mostrarse aquí.
-                </span>
-            </div>
-
-            <div className="admin-alert info preguntas-info-banner">
-                <span>
-                    Actualmente solo puedes reorganizar o eliminar preguntas antes de guardarlas. Para editar preguntas
-                    ya guardadas, el backend debe exponer endpoints de listado, eliminación y reordenamiento.
-                </span>
-            </div>
-
-            <div className="admin-alert info preguntas-info-banner">
-                <span>
-                    No hay un endpoint disponible en frontend para cargar preguntas guardadas de esta plantilla. Las
-                    preguntas nuevas se preparan en borrador y se guardan en lote.
-                </span>
-            </div>
-
             {notice ? <div className="admin-alert success">{notice}</div> : null}
             {error ? <div className="admin-alert error">{error}</div> : null}
 
