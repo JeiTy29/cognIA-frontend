@@ -12,7 +12,7 @@ import { CustomSelect } from '../../../components/CustomSelect/CustomSelect';
 import { Modal } from '../../../components/Modal/Modal';
 import { useAuditLogs } from '../../../hooks/useAuditLogs';
 import type { AuditLogItem } from '../../../services/admin/audit';
-import { buildDailyCountItems, buildMonthlyCountItems, buildHeatmapCells, buildTimelineItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
+import { buildHeatmapCells, buildTimelineItems, mapCountsToItems } from '../../../utils/dashboard/dashboardData';
 import {
     downloadAuditReportPdf,
     resolveAuditCategoryValue,
@@ -493,19 +493,61 @@ export default function Auditoria() {
         return mapCountsToItems(counts);
     }, [filteredRows, normalizeAuditRoleLabel]);
 
+    // --- Date helpers to avoid timezone shifts when grouping by day/month ---
+    const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    function formatMonthPeriod(period: string) {
+        const match = /^(\d{4})-(\d{2})$/.exec(period);
+        if (!match) return period;
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return period;
+        return `${MONTHS_ES[monthIndex]} ${String(year).slice(-2)}`;
+    }
+
+    function formatDayPeriod(period: string) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+        if (!match) return period;
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return period;
+        return `${day} ${MONTHS_ES[monthIndex]} ${String(year).slice(-2)}`;
+    }
+
+    function getAuditEventDateKey(value: unknown, granularity: 'day' | 'month') {
+        const raw = String(value ?? '').trim();
+        if (!raw) return '';
+        if (granularity === 'month') {
+            const m = /^(\d{4})-(\d{2})/.exec(raw);
+            return m ? `${m[1]}-${m[2]}` : '';
+        }
+        const d = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+        return d ? `${d[1]}-${d[2]}-${d[3]}` : '';
+    }
+
     const auditActivityByDay = useMemo(() => {
         const timestamps = filteredRows.map((item) => item.timestamp).filter(Boolean) as string[];
-        if (timestamps.length === 0) return buildDailyCountItems([]);
+        if (timestamps.length === 0) return [];
+
+        // decide granularity using numeric time differences (allowed), but do not use Date for labels
         const times = timestamps.map((t) => new Date(t).getTime()).filter((n) => Number.isFinite(n));
-        if (times.length === 0) return buildDailyCountItems([]);
+        if (times.length === 0) return [];
         const min = Math.min(...times);
         const max = Math.max(...times);
         const days = Math.round((max - min) / (1000 * 60 * 60 * 24));
-        if (days <= 45) {
-            return buildDailyCountItems(timestamps);
+
+        const granularity: 'day' | 'month' = days <= 45 ? 'day' : 'month';
+        const counts = new Map<string, number>();
+        for (const t of timestamps) {
+            const key = getAuditEventDateKey(t, granularity);
+            if (!key) continue;
+            counts.set(key, (counts.get(key) ?? 0) + 1);
         }
-        // For long ranges, build monthly items
-        return buildMonthlyCountItems(timestamps);
+
+        return [...counts.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, value]) => ({ label: granularity === 'month' ? formatMonthPeriod(key) : formatDayPeriod(key), value }));
     }, [filteredRows]);
 
     const auditResultChart = useMemo(() => {
@@ -678,6 +720,7 @@ export default function Auditoria() {
                 {hasAuditDashboardData ? (
                     <>
                         <DashboardSection
+                            className="audit-card--wide"
                             title="Acciones por tipo"
                             description="Identifica los tipos de acciones más frecuentes en auditoría."
                         >
@@ -708,6 +751,7 @@ export default function Auditoria() {
                             <TimelineChart items={auditSensitiveTimeline} ariaLabel="Eventos sensibles" />
                         </DashboardSection>
                         <DashboardSection
+                            className="audit-card--wide"
                             title="Riesgo por módulo"
                             description="Permite identificar módulos con mayor concentración de eventos problemáticos."
                         >
