@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-    DashboardEmptyState,
     DashboardSection,
     MatrixAvailabilityChart
 } from '../../../components/DashboardCharts';
@@ -542,13 +541,6 @@ export default function ReportesAdmin() {
                         values={reportAvailabilityValues}
                         ariaLabel="Disponibilidad de reportes por sección"
                     />
-                </DashboardSection>
-                <DashboardSection
-                    className="admin-dashboard-empty-wide"
-                    title="Analítica histórica de reportes"
-                    description="Las visualizaciones de generación, descargas y filtros aparecerán cuando el backend entregue eventos reales de reportes."
-                >
-                    <DashboardEmptyState message="No hay historial suficiente para construir estas gráficas. Se mantiene disponible la matriz de capacidades y el listado operativo." />
                 </DashboardSection>
             </div>
 
